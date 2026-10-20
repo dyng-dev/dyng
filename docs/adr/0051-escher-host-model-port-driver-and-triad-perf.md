@@ -122,6 +122,13 @@ round), so their gates run at base. `parity/results/M9a.md` section 2.4.
 - `escher_host_model` is a tracked addition to `generators/legacy.hpp` (the API baseline lists
   it); the Python binding is M9b's.
 - The host model costs host memory and time inside the end-to-end region, as A's host rows do.
+  It is not inside the port's gated `update` (the driver applies it after the update timer),
+  whereas A's host rows are maintained inside A's `update.maintain`: the asymmetry is recorded in
+  ADR 0048 (scope rules) and the region map, the driver times the host model as
+  `host_model_ms`, and the harness reports `update_with_host_model[b<N>]` beside the gate (M9a
+  review). The host model reserves its row vector with geometric headroom (an exact reservation
+  moved every row whenever the id bound grew: 28-41 ms of host work after the coauth batches'
+  update timer in an Nsight Systems trace).
 
 ## Alternatives considered
 

@@ -58,6 +58,26 @@ def test_summarize_regions_reads_every_row() -> None:
     assert by["end_to_end"]["gate"] == 1.10
 
 
+def test_the_host_model_rows_beside_the_gated_update() -> None:
+    """A's update.maintain holds its host model, the port keeps it after its update timer: the
+    reported rows add host_model_ms to the port's update and show A's untimed maintain work."""
+    a = {("update", k): 150.0 for k in (1, 2, 3)}
+    a |= {("update.maintain", k): 50.0 for k in (1, 2, 3)}
+    a |= {("maintain.h2h_merge", k): 30.0 for k in (1, 2, 3)}
+    a |= {("maintain.row_views", k): 18.0 for k in (1, 2, 3)}
+    b = {("update_ms", k): 148.0 for k in (1, 2, 3)} | {
+        ("host_model_ms", k): 2.5 for k in (1, 2, 3)
+    }
+    rows = {r["region"]: r for r in triad_perf.host_model_rows([a] * 5, [b] * 5, 3)}
+    assert rows["update_with_host_model[b2]"]["port_ms"] == 150.5
+    assert rows["update_with_host_model[b2]"]["ratio"] == pytest.approx(150.5 / 150.0)
+    assert rows["update_with_host_model[b2]"]["gate_kind"] == "none"
+    assert rows["update.maintain_untimed[b3]"]["original_ms"] == pytest.approx(2.0)
+    assert rows["update.maintain_untimed[b3]"]["port_ms"] == 2.5
+    # A driver without the timer: no rows.
+    assert triad_perf.host_model_rows([a], [{("update_ms", 1): 1.0}], 3) == []
+
+
 def test_the_contamination_audit() -> None:
     quiet = {"before_a": 3.0, "blocked_before_a": 0, "after_a": 7.9, "blocked_after_a": 0,
              "after_b": 7.0, "blocked_after_b": 1}  # fmt: skip

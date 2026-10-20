@@ -466,7 +466,14 @@ int run(const run_options& o, clock_type::time_point start) {
     }
     res.synchronize();
     log.timer(counts ? "update_ms" : "apply_ms", b, ms_since(t0));
-    model.apply(batch.view(), s);
+    {
+      // The host model's maintenance (the rows A's DynamicHypergraph::update keeps in h2v_
+      // inside its timed update.maintain): timed apart, outside update_ms, and reported next to
+      // the gated update (parity/timed_regions/triad_count.toml, scope rules).
+      const auto t1 = clock_type::now();
+      model.apply(batch.view(), s);
+      log.timer("host_model_ms", b, ms_since(t1));
+    }
     if (dump) {
       io::hyperedge_batch_annotations<std::int32_t> a;
       a.deleted_offsets = host_view(deleted_offsets);

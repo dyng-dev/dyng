@@ -330,7 +330,11 @@ void escher_host_model<vertex_t>::apply(const hyperedge_batch_view<vertex_t, wei
                  " is negative");
     top = std::max(top, summary.inserted_ids[i] + 1);
   }
-  rows_.reserve(static_cast<std::size_t>(top));
+  // Room for the new rows before anything changes (strong guarantee), with geometric headroom:
+  // an exact reservation moved every row whenever the id bound grew (M9a review).
+  if (static_cast<std::size_t>(top) > rows_.capacity()) {
+    rows_.reserve(std::max(static_cast<std::size_t>(top), rows_.capacity() + rows_.capacity() / 2));
+  }
   // A's DynamicHypergraph::update: the deleted keys' rows are cleared, then the inserted rows set
   // at the keys the insert assigned (the vector grows, never shrinks).
   for (const std::int64_t id : batch.delete_hyperedges) {

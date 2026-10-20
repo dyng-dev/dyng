@@ -70,7 +70,18 @@ holds; both must agree, D.1 T6).
      with `generators::legacy` before its timer starts);
    - no `--check` and no `--reference` on either side in a timed round;
    - the port runs with `--sync-stages` (the profiler synchronizes at stage boundaries, as A's
-     ScopedTimer synchronizes at its start and end).
+     ScopedTimer synchronizes at its start and end);
+   - **one asymmetry** (recorded in the M9a review, 2026-10-20): A's `update.maintain`
+     (`DynamicHypergraph::update`) also maintains A's host model of the rows (`h2v_`: the
+     deleted keys' rows cleared, the vector resized, the inserted rows assigned) inside the gated
+     `update`, while the port's driver maintains its host model (`escher_host_model`, ADR 0051)
+     after its update timer, timed apart as `host_model_ms`. The gate compares `update` as each
+     side times it (the region map does not change); `parity/triad_perf.py` reports beside it,
+     never gated, `update_with_host_model[b<N>]` (A's update against the port's update plus
+     `host_model_ms`) and `update.maintain_untimed[b<N>]` (A's maintain minus its `maintain.*`
+     sub-stages, about 1.5-2 ms per batch and 7-13 ms in a batch where `h2v_` grows, against the
+     port's `host_model_ms`). The M9a reading at HEAD records both (`parity/results/M9a.md`
+     section 6).
 4. **The gate readings** (PLAN 6.4.6, 8.6; D7 pending the author): coauth_b50k_s1-s3 at the base
    clock lock (ADR 0021; the boost lock does not hold for A's process on coauth-DBLP, M8b),
    at least 11 rounds; syn1m_b50k_s1-s3 and syn2m_b50k_s1-s3 at least 21 rounds, at boost when a

@@ -424,6 +424,39 @@ def summarize_regions(regions: list[dict], a_rounds: list[dict], b_rounds: list[
     return out
 
 
+def host_model_rows(a_rounds: list[dict], b_rounds: list[dict], batches: int) -> list:
+    """Reported beside the gated update (never gated; M9a review, the scope note of
+    parity/timed_regions/triad_count.toml): A's update.maintain keeps its host model (h2v_:
+    the deleted keys' rows cleared, the vector resized, the inserted rows assigned) inside the
+    gated update, the port's driver keeps it after its update timer (host_model_ms). Per batch:
+    update_with_host_model[bk], A's update against the port's update plus its host model; and
+    update.maintain_untimed[bk], A's maintain minus its timed sub-stages (maintain.*), the host
+    work its update holds that no sub-timer names."""
+    out = []
+    for k in range(1, batches + 1):
+        sel = range(k, k + 1)
+        hm = [total(r, "host_model_ms", sel) for r in b_rounds]
+        if not any(hm):
+            continue  # a driver without the timer
+        a = [total(r, "update", sel) for r in a_rounds]
+        b = [total(r, "update_ms", sel) + h for r, h in zip(b_rounds, hm, strict=True)]
+        ma, mb = statistics.median(a), statistics.median(b)
+        out.append({"region": f"update_with_host_model[b{k}]", "gate_kind": "none",
+                    "original_ms": ma, "port_ms": mb, "ratio": mb / ma if ma > 0 else None,
+                    "original_runs": a, "port_runs": b})  # fmt: skip
+        untimed = [
+            total(r, "update.maintain", sel)
+            - sum(v for (st, bb), v in r.items() if st.startswith("maintain.") and bb == k)
+            for r in a_rounds
+        ]
+        out.append({"region": f"update.maintain_untimed[b{k}]", "gate_kind": "none",
+                    "original_ms": statistics.median(untimed), "port_ms": statistics.median(hm),
+                    "ratio": None, "original_runs": untimed, "port_runs": hm,
+                    "note": "A: update.maintain minus its maintain.* sub-stages; port: "
+                    "host_model_ms (outside the update timer)"})  # fmt: skip
+    return out
+
+
 def run(args: argparse.Namespace) -> int:
     driver = find_driver(args.build).resolve()
     regions = perf_ab.load_regions("escher_gpu", perf_ab.TRIAD_REGION_MAP,
@@ -613,7 +646,8 @@ def run_case(args, group, pattern, golden, driver, timing, env, clocks, regions,
         "batches": len(golden["batches"]),
         "rounds": len(a_rounds),
         "complete": len(a_rounds) >= args.rounds,
-        "regions": summarize_regions(regions, a_rounds, b_rounds),
+        "regions": summarize_regions(regions, a_rounds, b_rounds)
+        + host_model_rows(a_rounds, b_rounds, len(golden["batches"])),
         "monitor": perf_ab.monitor_summary(windows, rejected, args.max_foreign_cpu),
         "contaminated_rounds_kept": sum(
             1 for w in windows for side in w.values() if side.get("reasons")

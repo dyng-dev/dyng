@@ -59,6 +59,15 @@
 #   - No --check (and no --reference) on either side in a timed round.
 #   - The port runs with --sync-stages; every timer starts after a device synchronization.
 #   - The 3-batch sum of update is reported, not gated.
+#   - One asymmetry, recorded (M9a review): A's update.maintain (DynamicHypergraph::update) also
+#     maintains A's host model of the rows (h2v_: the deleted keys' rows cleared, the vector
+#     resized, the inserted rows assigned), inside the gated update; the port's driver keeps
+#     its host model (generators::legacy::escher_host_model, from which both sides draw the next
+#     batch) after its update timer, timed apart as host_model_ms. The gate compares the update
+#     as each side times it; parity/triad_perf.py reports beside it, never gated,
+#     update_with_host_model[b<N>] (A's update against the port's update + host_model_ms) and
+#     update.maintain_untimed[b<N>] (A's maintain minus its maintain.* sub-stages, against the
+#     port's host_model_ms).
 
 [reference.escher_gpu]
 repo = "ESCHER-GPU"
@@ -89,7 +98,9 @@ identify_affected (the assigned inserted ids) + count_plus (on G_{t+1}) + finali
 into the host counts). update_ms is the driver's steady_clock time around triad_count::update(),
 started after a device synchronization and ended when the host holds the delta (A's timer ends
 after its delta was read to the host in update.add). Each of the three batches is its own gate
-reading (update[b1..b3]); the sum is reported only."""
+reading (update[b1..b3]); the sum is reported only. Not the same on both sides: A's maintain also
+keeps A's host model of the rows, the port's host model is kept after update_ms (the scope rules
+above; update_with_host_model[b<N>] is reported next to the gate)."""
 
 # A's initial count (the full count of the paper; PLAN 6.4.6: coauth-DBLP <= 1.05 x 5.22 s).
 [[reference.escher_gpu.region]]
