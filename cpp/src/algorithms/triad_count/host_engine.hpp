@@ -341,4 +341,21 @@ triad::wedge::launch count_phase(const exec_t& exec, triad_count::pattern kind,
   return outcome;
 }
 
+/**
+ * @brief Without an ownership rule: a compile error (I2: exactly-once counting has no default
+ *        rule; cpp/tests/compile_fail/count_delta_ownership.cpp matches the message).
+ * @tparam exec_t The executor.
+ * @return Nothing (never compiles).
+ */
+template <typename exec_t>
+triad::wedge::launch count_phase(const exec_t&, triad_count::pattern, const hyper::row_views&,
+                                 const int*, int, const unsigned char*, framework::sign,
+                                 std::uint64_t*, triad_phase_bins&) {
+  static_assert(operators::count_detail::always_false<exec_t>,
+                "triad_host::count_phase needs an ownership rule: pass "
+                "framework::ownership::min_member{} after the sign (invariant I2: exactly-once "
+                "counting has no default rule)");
+  return triad::wedge::launch::no_sources;
+}
+
 }  // namespace dyng::detail::triad_host

@@ -393,7 +393,6 @@ std::vector<backend> comparison_backends() {
   return out;
 }
 
-/// Resources for a backend (OpenMP with four threads, so the parallel paths run).
 /// The OpenMP threads of the kit's resources: test_traits::kit_openmp_threads, else 4.
 template <typename traits_t, typename = void>
 struct kit_openmp_threads {
