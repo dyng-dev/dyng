@@ -5,6 +5,10 @@
   6.4.6, 8.6; the driver and harness parts of the M9a acceptance criteria 12 and 13). No approved
   rule changes: the gates, their tolerances and protocol (PLAN 8.6; ADRs 0018, 0021; the author's
   decisions of 2026-10-07, 2026-10-08 and D1 of 2026-10-15) are used as they are.
+- **Names:** the new public names (`generators::legacy::escher_host_model`,
+  `escher_batch_generator::next(model)`, tracked; the driver command `dyng-compat-escher run`)
+  **await the author** (naming is not delegated; D9 takes them on the plan's defaults until the
+  0.3.0 release; GOVERNANCE.md, Open decisions). Recorded in the M9a review.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step
   oracle-harness-driver-prereads)

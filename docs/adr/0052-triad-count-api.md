@@ -6,6 +6,11 @@
   0.3.0 release). It carries out the API of M9a step 3 (PLAN 4.4.2, 4.4.3, 5.1, 5.5, 4.5.5 I2 /
   I7; the sketch `docs/design/sketches/triad_count.md`; the M9a acceptance criteria 5 and 6). The
   header is `tracked`, not frozen: the freeze is M9b's (D4).
+- **Amended by:** ADR 0054 (2026-10-15: the host backends are incremental; `triads_removed` /
+  `triads_added` are the counts of the two phases on every backend and `fallback_used` is always
+  false, so item 3's sentences on a recounting backend are historical) and ADR 0057
+  (2026-10-20: the 64-bit limits, a net change of a bin outside `stats::delta`'s signed 64-bit
+  range is a capacity_error).
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf for the technical parts (M9a, step
   cuda-port-api-early-gate); the names: S M Shovan (pending)
@@ -56,10 +61,13 @@ the requirements.
    the sketch hesitated was a `std::vector`); `delta == counts() after - counts() before` per bin,
    tested on every backend. `max_bins` names its size.
 3. **`triads_removed` / `triads_added`** are the sums over the bins of the two phases (for the
-   weighted types: the sums of the weights). On a backend that recounts (`fallback_used`: the host
-   backends in M9a step 3), they are every triad before and after: a recount removes them all.
-   They are deterministic on each backend; the kit's cross-backend counters are the frontier sizes
-   and the deltas until step 4 makes the host backends incremental.
+   weighted types: the sums of the weights). *Historical (M9a step 3, superseded by ADR 0054):* on
+   a backend that recounts (`fallback_used`: the host backends in M9a step 3), they are every
+   triad before and after: a recount removes them all. They are deterministic on each backend;
+   the kit's cross-backend counters are the frontier sizes and the deltas until step 4 makes the
+   host backends incremental. *Since step 4 (ADR 0054)* every backend is incremental: they are
+   the counts of the two phases on every backend, identical across backends, and
+   `fallback_used` is always false.
 4. **Requirements per pattern, checked in `compute()`** and naming the property: `h_motif` and
    types 2 and 3 need `hypergraph_properties::line_graph != none` and `store_v2h` (under
    `automatic`, `compute()` builds the line graph once); type 1 needs neither, and its problem's

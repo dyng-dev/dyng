@@ -150,8 +150,16 @@ the summary and the certificate before the records were summarized again.
   a per-batch update row, or without the triad replays of a backend or a mode.
 - The memory readings need GPU 1 free of other processes; the release's step 2
   (`docs/developer/release.md`) says so.
-- The records of M9a's readings are committed compacted under `parity/results/M9a-gates-*.json`;
-  the dry certificate under `parity/results/M9a-certificate-dryrun.json`.
+- The records of M9a's readings are committed compacted in the directory
+  `parity/results/M9a-gates/` (the two suite summaries `ipdps26_escher.json` and
+  `tkde26_escher_plus.json`, their compacted records `ipdps26_escher-cuda*.json` and
+  `tkde26_escher_plus-cuda-*.json`, and the triad replays in the certificate's format
+  `parity-triad_count_escher_gpu-*.json`); the dry certificate is
+  `parity/results/M9a-gates/parity.json` with its `README.md`. The kernel reading is
+  `parity/results/M9a-gates-kernels-escher_gpu.json`. (Corrected in the M9a review: an earlier
+  text named `M9a-gates-*.json` and `M9a-certificate-dryrun.json`, which do not exist. The
+  records taken again at HEAD after the review fixes are in `parity/results/M9a-review-gates/`,
+  `parity/results/M9a.md` section 6.)
 
 ## Alternatives considered
 

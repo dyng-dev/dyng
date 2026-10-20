@@ -8,6 +8,10 @@
 - **Amended by:** ADR 0057 (2026-10-20): the oracle computes its products and sums in unsigned
   128-bit integers and throws `std::overflow_error` past 2^64 - 1 (its 64-bit arithmetic wrapped
   with the engines at the limit).
+- **Names:** the new public names of the oracle (`dyng::testing::triad_*`, tracked) **await the
+  author** (naming is not delegated; D9 takes them on the plan's defaults until the 0.3.0
+  release; GOVERNANCE.md, Open decisions). Recorded in the M9a review: the approvals log listed
+  this ADR as accepted without that reservation.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step
   oracle-harness-driver-prereads)
