@@ -439,17 +439,24 @@ template <typename vertex_t, typename weight_t>
  *         signed 64-bit range of stats::delta (2^63 or more triads added or removed on balance;
  *         both after the batch was applied: `r` is left unusable), or the hypergraph's storage
  *         cannot hold the batch (as hypergraph::apply).
- * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws out_of_memory_error    if host or device memory cannot be allocated (before the
+ *         commit: nothing is changed; inside it: `h` is poisoned; after it: `r` is poisoned; see
+ *         @guarantee).
  * @throws cuda_error             if the CUDA runtime reports an error.
  * @sync The hypergraph and the counts are updated on return.
  * @backends sequential, openmp, cuda
  * @determinism Exact values: identical counts and counters on every backend and thread count.
  * @guarantee Strong for every error found before the batch is applied (the ones marked "nothing is
  *            changed" above, and allocation failures before the commit): `h` and `r` are
- *            unchanged. Basic for an error after the commit (a negative bin, an unclassifiable
- *            triad, a count past 2^64 - 1, a CUDA or allocation failure): `h` holds the new version
- *            and `r` is poisoned, so every later use of it throws stale_result_error until it is
- *            recomputed.
+ *            unchanged. Basic for an error inside the commit (an allocation, storage-capacity or
+ *            CUDA failure of hypergraph::apply's store operations): `h` is poisoned (as
+ *            hypergraph::apply), and `r` is not changed and not poisoned: it keeps the counts of
+ *            the hypergraph before the batch, and must be recomputed with compute() once `h` is
+ *            rebuilt (an update of `r` on the rebuilt hypergraph throws stale_result_error). Basic
+ *            for an error after the commit (a negative bin, an unclassifiable triad, a count past
+ *            2^64 - 1 or outside stats::delta's range, a CUDA or allocation failure): `h` holds
+ *            the new version and `r` is poisoned, so every later use of it throws
+ *            stale_result_error until it is recomputed.
  * @paper ESCHER (IPDPS 2026) and ESCHER+ (TKDE 2026): `dyng::citation("triad_count")`.
  * @ingroup triad_count
  */

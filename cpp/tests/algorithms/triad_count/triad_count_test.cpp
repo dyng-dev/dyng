@@ -27,7 +27,9 @@
 
 #include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/stream.hpp>
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 #include <dyng/hypergraph/hyperedge_list.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
@@ -39,6 +41,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <numeric>
@@ -960,6 +963,92 @@ TEST_P(TriadCount, AnUpdateSynchronizesAtTheEnginesReadPointsOnly) {
     // 90-96 blocking calls per batch (M9a step 2), its counting part at least 6.
     EXPECT_EQ(report.used.own_host_syncs(), p == tc::pattern::stathyper_type1 ? 1 : 3);
     EXPECT_EQ(report.limit.host_syncs, p == tc::pattern::stathyper_type1 ? 1 : 3);
+  }
+}
+
+/// A device memory resource that fails its allocations from the k-th on (fail_after(k)).
+class failing_resource {
+ public:
+  explicit failing_resource(int device) : upstream_(dyng::default_device_memory_resource(device)) {}
+  void* allocate(dyng::stream_ref s, std::size_t bytes, std::size_t alignment) {
+    if (left_ == 0) throw dyng::out_of_memory_error("failing_resource: injected failure");
+    if (left_ > 0) --left_;
+    return upstream_.allocate(s, bytes, alignment);
+  }
+  void deallocate(dyng::stream_ref s, void* p, std::size_t bytes, std::size_t alignment) noexcept {
+    upstream_.deallocate(s, p, bytes, alignment);
+  }
+  void* allocate_sync(std::size_t bytes, std::size_t alignment) {
+    return allocate(dyng::stream_ref(), bytes, alignment);
+  }
+  void deallocate_sync(void* p, std::size_t bytes, std::size_t alignment) noexcept {
+    deallocate(dyng::stream_ref(), p, bytes, alignment);
+  }
+  [[nodiscard]] dyng::memory_space space() const noexcept {
+    return dyng::memory_space::device;
+  }
+  void fail_after(long long n) {
+    left_ = n;
+  }
+
+ private:
+  dyng::memory_resource_ref upstream_;
+  long long left_ = -1;
+};
+
+// M9a review: an allocation failure at every device allocation of an update ends in one of the
+// three outcomes the @guarantee of triad_count::update names: before the commit (strong: h and r
+// unchanged, the next update exact), inside the commit (h poisoned, r unchanged and readable with
+// G_t's counts), after it (h at the new version, r poisoned; no allocation happens there once
+// reserved, so this outcome does not occur).
+TEST_P(TriadCount, AnAllocationFailureAnywhereInAnUpdateEndsInADocumentedOutcome) {
+  for (const tc::pattern p : {tc::pattern::h_motif, tc::pattern::stathyper_type1}) {
+    SCOPED_TRACE(std::string(tc::to_string(p)));
+    int strong = 0;
+    int inside_commit = 0;
+    for (long long k = 0; k < 1000; ++k) {
+      resources rs = resources::cuda();
+      failing_resource mr(rs.device());
+      rs.set_memory_resource(mr);
+      hgraph h = make(rs, 13, hand_rows);
+      tc::result r = tc::compute(rs, h, kind_of(p));
+      const counts before = counts_of(r);
+      const std::uint64_t version = h.version();
+      batch_t b;
+      b.delete_hyperedge(2);
+      b.delete_hyperedge(5);
+      b.insert_hyperedge({1, 2, 3, 4});
+      b.insert_hyperedge({0, 2, 9, 11});
+      mr.fail_after(k);
+      bool threw = false;
+      try {
+        (void)tc::update(rs, h, b.view(), r);
+      } catch (const dyng::out_of_memory_error&) {
+        threw = true;
+      }
+      mr.fail_after(-1);
+      if (!threw) break;  // every allocation of the update has been failed once
+      bool poisoned = false;
+      try {
+        h.check_integrity(rs);
+      } catch (const dyng::invalid_argument_error&) {
+        poisoned = true;
+      }
+      if (poisoned) {
+        ++inside_commit;
+        EXPECT_EQ(counts_of(r), before) << "k = " << k << ": r keeps G_t's counts";
+      } else {
+        ASSERT_EQ(h.version(), version) << "k = " << k << ": a failure after the commit";
+        ++strong;
+        EXPECT_EQ(counts_of(r), before) << "k = " << k;
+        (void)tc::update(rs, h, b.view(), r);  // the same batch again: exact
+        EXPECT_EQ(counts_of(r), counts_of(tc::compute(rs, h, kind_of(p)))) << "k = " << k;
+      }
+    }
+    EXPECT_GT(strong, 0);
+    EXPECT_GT(inside_commit, 0);
+    RecordProperty(std::string(tc::to_string(p)) + "_strong", strong);
+    RecordProperty(std::string(tc::to_string(p)) + "_inside_commit", inside_commit);
   }
 }
 
