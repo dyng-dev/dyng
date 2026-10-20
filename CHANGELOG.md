@@ -253,6 +253,14 @@ Before 0.1.0 anything may change.
   `GOVERNANCE.md`, CONTRIBUTING.md, the pull request template). `ci/gpu_local.sh` runs the
   hypergraph container's two-host-thread C12 test under synccheck and memcheck, not racecheck.
 
+### Fixed (M9a review)
+
+- `triad_count` at the 64-bit limit (ADR 0057): C(|e|, 3) is exact for every hyperedge size (it was `n (n - 1) (n - 2) / 6` in signed 64-bit, wrong from 2,097,152 members, as in ESCHER-GPU); the type-2 and type-3 products and every sum are checked on both engines, and a count past 2^64 - 1 throws `capacity_error` on cuda as on the host backends (it wrapped on cuda, and for types 2 and 3 everywhere); a batch that removes and adds 2^63 or more triads of a bin is exact (the signed phase bins refused it), and a net change of a bin outside `stats::delta`'s signed 64-bit range throws `capacity_error` on every backend. `testing::triad_reference` counts in 128-bit and throws `std::overflow_error` past 2^64 - 1.
+- `triad_count::update`: the scratch of an update keeps headroom (`scratch_buffer::reserve_with_headroom`), so a growing hyperedge id bound no longer frees and reallocates the frontier flags in nearly every batch (ADR 0053 amendment); the documented guarantee names the outcome of a failure inside the commit (the hypergraph poisoned, the result unchanged with the counts before the batch).
+- `generators::legacy::escher_host_model::apply` grows its rows geometrically (an exact reservation moved every row when the id bound grew).
+- Parity harness and certificate: the triad golden set hashes no run parameter (the GPU and the raw trace's digest move to unhashed provenance files; content is hashed, a `.zst` file decompressed; `export --twice --second-gpu`); the replay comparator checks the hyperedges the container deleted against A's batch; `certify.py` requires every gated row of every case of a triad reading, recomputes the medians and round counts from the samples, checks the protocol fields of the triad records and refuses a `--version` of another release series than `VERSION`; the memory readings guard the counts of every measured process; the oracle's isolation check preprocesses with the build's flags; the triad phase's compile-failure test matches its `static_assert`; the host-model asymmetry of the gated update is recorded and `update_with_host_model[b<N>]` reported beside the gate.
+- CI: the host triad mutants run on the cases that kill them; `cpu.yml` runs its tests on 4 jobs.
+
 ## [0.2.0] - 2026-10-14
 
 ### Summary

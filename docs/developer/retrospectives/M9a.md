@@ -574,7 +574,7 @@ backends), the mutation campaigns (about 1 h in step 4, 41 min here), `ci/gpu_lo
 | D6 | the parity coverage per backend (cuda every case; sequential make-test + syn100k; openmp + syn1m s1 + coauth_b50k_s1 types 1-2) | **pending**: the plan's default; the 0.3 certificate requires exactly this table |
 | D7 | the gate rows, cases and rounds (ADR 0048 section 1.4) | **pending**: the plan's default; read as such in 5.1 |
 | D8 | the suites `ipdps26_escher` and `tkde26_escher_plus` and their split | **pending**: the plan's default; the split is ours (ADR 0056) |
-| D9 | the new public names of `triad_count` (ADR 0052) | **pending**: naming is not delegated |
+| D9 | the new public names of `triad_count` (ADR 0052), of the oracle `testing::triad_*` (ADR 0049) and of the generators' host model and the port driver (ADR 0051) | **pending**: naming is not delegated (the review found ADRs 0049 and 0051 logged as fully accepted; corrected) |
 | D10 | the "paper vs fixed code" wording | **pending**: the plan's default (M9b's docs) |
 | D11 | the footprint between batches (the stream-ordered pool's reserve, 1.63-1.78x A's held bytes on every reading; reported and flagged above 1.05 under D1, not gated) | **new, for the author**: whether a later release trims the pool between updates (a library change outside M9a's scope) or the footprint stays reported only |
 
