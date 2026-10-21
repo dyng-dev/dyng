@@ -281,9 +281,9 @@ not gated: D1, D11).
 ESCHER-GPU's timers to the stages (ADR 0048): ESCHER's paper-timed `update` (subtract + maintain +
 add) is `triad_count.update` per batch (`update[b1..b3]`), the full count is `triad_count.compute`,
 end to end is the driver's total. The gates (PLAN 6.4.6, 8.6) compare dynG with ESCHER-GPU
-re-measured in the same session (never with its README's figures), on GPU 0 at the base clock
-lock (SM 1170 / memory 7601 MHz), A/B alternation, 11 rounds on coauth-DBLP and 21 on the
-synthetic inputs; the device memory as the store's accounting at every gated point and as the
+re-measured in the same session (never with the figures of its `results/README.md`), on GPU 0 at
+the base clock lock (SM 1170 / memory 7601 MHz), A/B alternation, 11 rounds on coauth-DBLP and 21
+on the synthetic inputs; the device memory as the store's accounting at every gated point and as the
 Nsight Systems peak of live allocations (D1).
 
 The gate record (`benchmarks/paper/ipdps26_escher.yaml`, `tkde26_escher_plus.yaml`; M9a's final
@@ -292,7 +292,7 @@ dynG / ESCHER-GPU, medians):
 
 | Gate | coauth-DBLP 50K, seeds 1-3 | syn1M 50K, seeds 1-3 | syn2M 50K, seeds 1-3 | bar |
 |---|---|---|---|---|
-| update, each of 3 batches | 0.949-0.971 (486-532 ms) | 0.868-1.003 (142-147 ms) | 0.853-1.019 (151-161 ms) | 1.05 |
+| update, each of 3 batches | 0.949-0.971 (486-532 ms) | 0.868-1.002 (142-147 ms) | 0.853-1.019 (152-161 ms) | 1.05 |
 | full count | 0.998-0.999 (5,286 ms) | 1.002-1.003 (637-642 ms) | 1.002-1.003 (1,277-1,283 ms) | 1.05 |
 | end to end (3 batches) | 0.915-0.916 (8.99-9.01 s) | 0.982-0.983 (2.44-2.46 s) | 0.967-0.983 (4.35-4.42 s) | 1.10 |
 | store accounting (every gated point) | 1.0000 | 1.0000 | 1.0000 | 1.05 |
@@ -325,6 +325,14 @@ medians of 3 runs; dynG at default clocks reads 0.50-0.55 s, 5.05 s and 8.6 s.
   the sources statically, and divergent rows (hubs) are not balanced.
 - **No coarse triangles** (ESCHER-GPU's `coarseTriangle`: inner, outer, hybrid and hyperedge
   triangles, which need the vertex-to-vertex graph): planned for 0.4.
+- **Known issue, host memory exhaustion in an update** (D13, the author's decision at 0.3.0): in
+  a build with OpenMP (the default builds and the wheels), a host allocation failure inside the
+  hypergraph container's OpenMP loops (the vertex-to-hyperedge rows that `hypergraph::apply()`
+  changes, the line graph's build) ends the process with `std::terminate` instead of throwing
+  `out_of_memory_error`, on the sequential and openmp backends with any thread count. So
+  `update()` on a host backend can end the process when host memory runs out; `compute()` and
+  `clone()` on a hypergraph whose line graph is built throw `out_of_memory_error` as documented,
+  and the cuda backend's device allocations are not affected (CHANGELOG, "Known issues").
 
 ## 7. Differences from the paper
 

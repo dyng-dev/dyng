@@ -107,6 +107,13 @@ unspecified values, because a half-applied batch cannot be undone cheaply on the
 empty hyperedge, a bad weight, an incidence edit before 0.4, a batch of more than `INT_MAX / 3`
 inserted members, host memory running out while the batch is checked) change nothing.
 
+**Known issue (0.3.0, D13):** in a build with OpenMP (the default builds and the wheels), host
+memory running out inside one of the container's OpenMP loops on the sequential or openmp backend
+(the vertex-to-hyperedge rows that `apply()` changes, the line graph's build) ends the process
+with `std::terminate` instead of throwing `out_of_memory_error`, whatever the thread count. The
+cuda backend's device allocations are not affected; the fix is the author's decision (CHANGELOG,
+"Known issues").
+
 On CUDA a hypergraph's storage works on the stream of the `resources` it was built with.
 `apply()` (and `dyng::update()`) with resources on another stream of the same device is ordered
 after the work already queued on that stream and before the work queued there later, so the

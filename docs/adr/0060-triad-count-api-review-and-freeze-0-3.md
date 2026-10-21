@@ -143,6 +143,9 @@ Tracked or experimental (named for the author, not frozen):
   `intersect_size`, `venn3`, `intersects3`; the **accessor** `row_access` (`hyperedges`,
   `id_bound`, `has_line_graph`, `space`, `device`) and `access_rows`; the macros `DYNG_HD`,
   `DYNG_HD_INLINE`, `DYNG_LOCAL_PATTERNS_TYPES_MESSAGE`; the stages `count_local_patterns.*`.
+  Added by the M9b review (ADR 0058 sections 3 and 6): `max_op_size`, the macro
+  `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS` with its helpers `DYNG_DETAIL_LP_CONCAT` and
+  `DYNG_DETAIL_LP_CONCAT2`, and `detail::local_patterns::callback_check_bins`.
 - **The oracle** (ADR 0049, tracked): `dyng::testing::triad_pattern` and its enumerators,
   `triad_num_classes`, `triad_num_venn_ids`, `triad_pattern_name`, `triad_num_bins`,
   `triad_class_representatives`, `triad_venn_permuted`, `triad_venn_canonical`,

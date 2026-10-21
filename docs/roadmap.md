@@ -56,15 +56,15 @@ ESCHER-GPU's and MOSP_ESCHER's CBST, proven by trace replay against both), M8b (
 container on it, its I/O and Python, the header freeze) and M9 (`triad_count`, run as M9a,
 the counting exact against ESCHER-GPU on every backend with its gates, and M9b, the
 experimental `count_local_patterns`, Python, the command line and the freeze). M8a is done
-(pending the hosted CI and the author's merge): the store replays both originals' CBST traces in
+(merged as #14): the store replays both originals' CBST traces in
 every recorded field under their presets `escher_gpu()` and `mosp_escher()`, except two
 documented divergences (`construct_below_payload` and, for MOSP_ESCHER's constructs without row
 counts, `construct_without_row_counts`) and 57 operations whose inputs the traces hold as hashes
-only or not at all, and dynG's default compacts first and then grows. M8b is done too (pending the hosted CI and
-the author's merge): `dyng::hypergraph` with ESCHER-GPU's and MOSP_ESCHER's ids on every backend,
+only or not at all, and dynG's default compacts first and then grows. M8b is done too (merged as #15):
+`dyng::hypergraph` with ESCHER-GPU's and MOSP_ESCHER's ids on every backend,
 the line graph equal to ESCHER-GPU's after every batch at the same device memory, `.hg` and
 `.dgb` files, the generators, Python (`dyng.Hypergraph`), and the hypergraph headers frozen.
-M9a is done (pending the hosted CI and the author's merge): `triad_count` exact against
+M9a is done (merged as #16, with its review fix for the builds without OpenMP): `triad_count` exact against
 ESCHER-GPU on all three backends by key and by content, incremental host engines (an untuned
 transliteration of the wedge engine, the author's decision of 2026-10-15) beside the CUDA port,
 counts exact up to 2^64 - 1, every paper gate within its bar (update per batch, full count, end
