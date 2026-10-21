@@ -3,14 +3,14 @@
  "set": "triad_count_escher_gpu",
  "kind": "triad_count",
  "what": "parity/compare.py triad_count: the golden replays of ESCHER-GPU@abcf9b2's triad counts through dyng_triad_replay (by key: the exported ids, inserted ids == expected ids; by content: each deleted row resolved to a live hyperedge with its members; check_integrity() and a fresh compute() after every batch; full counts, net deltas and counts after equal to the golden's in every mode run, the modes equal)",
- "date": "2026-10-21T12:54:21Z",
+ "date": "2026-10-21T18:48:17Z",
  "port": {
-  "commit": "b732aa968c72c2f0ac468297a38c13edae786247"
+  "commit": "c83cebfc95894b12dd4bd034b0b1528000583243"
  },
  "goldens": {
   "manifest_sha256": "4fb7dbcf63286cfe549ed1c5fa1ea5c195e420f17d904233d64ccbac3a4ea28f"
  },
- "executable": "build/parity-cuda/cpp/tests/dyng_triad_replay",
+ "executable": "dyng_triad_replay",
  "backend": "sequential",
  "threads": null,
  "configs": [

@@ -2,8 +2,8 @@
  "schema": 2,
  "algorithm": "triad_count",
  "what": "triad_count against ESCHER-GPU@abcf9b2: the Nsight Systems peak of live device allocations of both whole processes (D1) and the store accounting",
- "date": "2026-10-21T12:34:08Z",
- "date_end": "2026-10-21T12:36:13Z",
+ "date": "2026-10-21T18:29:08Z",
+ "date_end": "2026-10-21T18:31:12Z",
  "patterns": [
   "main"
  ],
@@ -23,7 +23,7 @@
   "guard": "every measured process (the two plain runs and the two profiled ones): the counts and batch lines it prints equal the golden case's; a failure stops the reading"
  },
  "port": {
-  "commit": "b732aa968c72c2f0ac468297a38c13edae786247",
+  "commit": "c83cebfc95894b12dd4bd034b0b1528000583243",
   "binary": "build/parity-cuda/tools/compat/dyng-compat-escher",
   "build": {
    "CMAKE_BUILD_TYPE": "Release",
