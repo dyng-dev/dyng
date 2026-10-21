@@ -50,7 +50,7 @@ dyng_add_test(
 dyng_add_test(
   NAME dyng_io_tests
   SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp io/hypergraph_io_test.cpp
-          io/batch_binary_test.cpp
+          io/batch_binary_test.cpp io/triad_bins_test.cpp
   LABELS cpu io
 )
 if(DYNG_ENABLE_CUDA)

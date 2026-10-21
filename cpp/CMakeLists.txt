@@ -210,6 +210,7 @@ dyng_add_module(
     src/io/hypergraph_io.cpp
     src/io/matrix_market.cpp
     src/io/result_io.cpp
+    src/io/triad_bins.cpp
 )
 
 dyng_add_module(

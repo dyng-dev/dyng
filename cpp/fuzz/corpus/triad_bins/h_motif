@@ -1,0 +1,9 @@
+
+{
+  "format": "dyng.triad_bins",
+  "version": 1,
+  "kind": "h_motif",
+  "num_bins": 30,
+  "graph_version": 0,
+  "counts": [1, 241, 7850, 89258, 0, 2, 0, 117, 45, 2825, 0, 0, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 152, 4873]
+}
