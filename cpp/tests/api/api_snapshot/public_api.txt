@@ -1282,7 +1282,7 @@
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_removed(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_added(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
 
-[dyng/triad_count.hpp] tracked
+[dyng/triad_count.hpp] frozen
   enum class dyng::triad_count::pattern : std::uint8_t { h_motif, stathyper_type1, stathyper_type2, stathyper_type3 }
   [[nodiscard]] std::string_view dyng::triad_count::to_string(pattern p) noexcept
   constexpr int dyng::triad_count::max_bins = 30

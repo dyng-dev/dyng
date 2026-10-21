@@ -59,6 +59,7 @@ GUARANTEE_CLASSES = {
     "dyng::hyperedge_list",
     "dyng::sssp::result",
     "dyng::cycle_count::result",
+    "dyng::triad_count::result",
 }
 
 
@@ -154,7 +155,11 @@ def is_move_assignment(member: ET.Element) -> bool:
 
 # The frozen hypergraph headers (M8b, ADR 0047) and the experimental extension headers (M9b,
 # ADR 0058: PLAN 9.1's group `experimental`), and the group their entities belong to.
-FROZEN_GROUP_HEADERS = {"dyng/hypergraph/": "hypergraph", "dyng/experimental/": "experimental"}
+FROZEN_GROUP_HEADERS = {
+    "dyng/hypergraph/": "hypergraph",
+    "dyng/experimental/": "experimental",
+    "dyng/triad_count.hpp": "triad_count",
+}
 # The banner every experimental header's @file brief starts with (PLAN 5.9).
 EXPERIMENTAL_BANNER = "EXPERIMENTAL PUBLIC; may change in any minor release"
 
