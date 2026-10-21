@@ -3,8 +3,8 @@
  "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
  "version": "0.3.0",
  "version_file": "0.3.0.dev0",
- "date": "2026-10-21T13:20:47Z",
- "commit": "7c3781d4a60848c7e490a8782755fd7071c475cc+dirty",
+ "date": "2026-10-21T13:20:56Z",
+ "commit": "877dc00e677e7dc2fb87c6d6233527ec43b87775",
  "branch": "m9b-local-patterns",
  "measured_commits": [
   "b732aa968c72c2f0ac468297a38c13edae786247"
@@ -5175,9 +5175,7 @@
   "committed_fixtures": "outside this dry run",
   "performance_gates": true,
   "checks": "outside this dry run",
-  "problems": [
-   "the release tree is dirty (commit first, or --allow-dirty for a draft)"
-  ],
-  "passed": false
+  "problems": [],
+  "passed": true
  }
 }
