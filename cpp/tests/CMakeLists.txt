@@ -1418,4 +1418,9 @@ endforeach()
 
 add_subdirectory(api)
 
+# experimental::count_local_patterns (M9b, ADR 0058): its driver is triad_count's.
+if("triad_count" IN_LIST _dyng_algorithms)
+  add_subdirectory(experimental)
+endif()
+
 dyng_write_gpu_test_list()

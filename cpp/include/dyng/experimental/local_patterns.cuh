@@ -231,7 +231,8 @@ struct count_local_patterns {
    * @param[in] res Execution resources (cuda, sequential or openmp).
    * @param[in] h   The hypergraph (under line_graph_policy::automatic its line graph is built
    *                here, once, for the shapes triangles and pairs).
-   * @param[in] op  The Op's initial value (kept by the result for every update).
+   * @param[in] op  The Op's initial value (kept by the result for every update; the overload
+   *                without it uses op_t{}).
    * @return The counts, matching `h.version()`.
    * @throws invalid_argument_error if the shape needs the line graph or the vertex-to-hyperedge
    *         rows and `h` keeps none, `h` has 2,147,483,647 vertices, `h` belongs to another
@@ -251,7 +252,7 @@ struct count_local_patterns {
    */
   template <typename vertex_t, typename weight_t>
   [[nodiscard]] static result compute(const resources& res, const hypergraph<vertex_t, weight_t>& h,
-                                      const op_t& op = op_t{}) {
+                                      const op_t& op) {
     static_assert(detail::local_patterns_supported_v<vertex_t, weight_t>,
                   DYNG_LOCAL_PATTERNS_TYPES_MESSAGE);
     if constexpr (valid) {
@@ -261,6 +262,32 @@ struct count_local_patterns {
       (void)res;
       (void)h;
       (void)op;
+      return result(detail::local_patterns_state_ptr{});
+    }
+  }
+
+  /**
+   * @brief compute() with the value-initialized Op, op_t{}.
+   * @tparam vertex_t Vertex id type (int32_t).
+   * @tparam weight_t Hyperedge weight type (unweighted or int32_t; ignored).
+   * @param[in] res Execution resources.
+   * @param[in] h   The hypergraph.
+   * @return The counts, matching `h.version()`.
+   * @throws as compute(res, h, op).
+   * @sync The counts are complete on return.
+   * @backends sequential, openmp, cuda
+   * @determinism As compute(res, h, op).
+   * @guarantee Strong.
+   * @paper The engine of ESCHER (IPDPS 2026) and ESCHER+ (TKDE 2026).
+   */
+  template <typename vertex_t, typename weight_t>
+  [[nodiscard]] static result compute(const resources& res,
+                                      const hypergraph<vertex_t, weight_t>& h) {
+    if constexpr (valid) {
+      return compute(res, h, op_t{});
+    } else {
+      (void)res;
+      (void)h;
       return result(detail::local_patterns_state_ptr{});
     }
   }

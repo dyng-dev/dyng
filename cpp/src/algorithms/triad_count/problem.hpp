@@ -167,8 +167,7 @@ struct triad_count_access {
 [[nodiscard]] const local_patterns::kernels& triad_kernels(triad_count::pattern kind) noexcept;
 
 /**
- * @brief The value-initialized Op of a built-in pattern, as bytes (motif_op{}, choose3_op{},
- *        type2_op{}, type3_op{}; builtin_ops.cpp).
+ * @brief The value-initialized Op of a built-in pattern, as bytes (builtin_ops.cpp).
  * @param[in]  kind The pattern.
  * @param[out] out  The Op's bytes.
  */

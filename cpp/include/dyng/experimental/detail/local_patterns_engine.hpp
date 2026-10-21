@@ -122,14 +122,6 @@ struct builtin_op : std::false_type {};
 
 // ---- The Op concept ----------------------------------------------------------------------------
 
-/// A bins handle with the interface of the engine's (the checks of the Op concept call with it).
-struct probe_bins {
-  /// add(bin, value)
-  DYNG_HD void add(int, unsigned long long) const {}
-  /// overflow()
-  DYNG_HD void overflow() const {}
-};
-
 /// Whether op_t declares `static constexpr int num_bins` (a constant expression).
 template <class op_t, class = void>
 struct has_num_bins : std::false_type {};
@@ -137,6 +129,22 @@ struct has_num_bins : std::false_type {};
 template <class op_t>
 struct has_num_bins<op_t, std::void_t<std::integral_constant<int, op_t::num_bins>>>
     : std::is_same<std::remove_cv_t<decltype(op_t::num_bins)>, int> {};
+
+/// The num_bins of op_t (0 when it declares none: the checks report that).
+template <class op_t>
+constexpr int bins_of() noexcept {
+  if constexpr (has_num_bins<op_t>::value) {
+    return op_t::num_bins;
+  } else {
+    return 0;
+  }
+}
+
+/// The bins handle the checks of the Op concept call the callbacks with: the host handle of the
+/// Op's own bins, the one host_source() then calls them with (so nvcc never sees a callback
+/// instantiated for a handle that no code calls it with).
+template <class op_t>
+using check_bins = host_bins<(bins_of<op_t>() >= 1 ? bins_of<op_t>() : 1)>;
 
 /// Whether op_t declares `static constexpr dyng::experimental::shape shape`.
 template <class op_t, class = void>
@@ -162,7 +170,7 @@ struct has_triangle : std::false_type {};
 template <class op_t>
 struct has_triangle<op_t, std::void_t<decltype(std::declval<op_t&>().triangle(
                               std::declval<const experimental::hyperedge_rows&>(), 0,
-                              std::declval<probe_bins&>()))>> : std::true_type {};
+                              std::declval<check_bins<op_t>&>()))>> : std::true_type {};
 
 /// Whether op_t has pair(const hyperedge_rows&, int, int, bins&).
 template <class op_t, class = void>
@@ -171,7 +179,7 @@ struct has_pair : std::false_type {};
 template <class op_t>
 struct has_pair<op_t, std::void_t<decltype(std::declval<op_t&>().pair(
                           std::declval<const experimental::hyperedge_rows&>(), 0, 0,
-                          std::declval<probe_bins&>()))>> : std::true_type {};
+                          std::declval<check_bins<op_t>&>()))>> : std::true_type {};
 
 /// Whether op_t has key(const hyperedge_rows&, int, bins&).
 template <class op_t, class = void>
@@ -180,15 +188,15 @@ struct has_key : std::false_type {};
 template <class op_t>
 struct has_key<op_t, std::void_t<decltype(std::declval<op_t&>().key(
                          std::declval<const experimental::hyperedge_rows&>(), 0,
-                         std::declval<probe_bins&>()))>> : std::true_type {};
+                         std::declval<check_bins<op_t>&>()))>> : std::true_type {};
 
 /// Whether op_t has flush(bins&).
 template <class op_t, class = void>
 struct has_flush : std::false_type {};
 /// (detected)
 template <class op_t>
-struct has_flush<op_t,
-                 std::void_t<decltype(std::declval<op_t&>().flush(std::declval<probe_bins&>()))>>
+struct has_flush<
+    op_t, std::void_t<decltype(std::declval<op_t&>().flush(std::declval<check_bins<op_t>&>()))>>
     : std::true_type {};
 
 /// The shape of op_t (triangles when it declares none: the checks report that).
@@ -198,16 +206,6 @@ constexpr experimental::shape shape_of() noexcept {
     return op_t::shape;
   } else {
     return experimental::shape::triangles;
-  }
-}
-
-/// The num_bins of op_t (0 when it declares none: the checks report that).
-template <class op_t>
-constexpr int bins_of() noexcept {
-  if constexpr (has_num_bins<op_t>::value) {
-    return op_t::num_bins;
-  } else {
-    return 0;
   }
 }
 

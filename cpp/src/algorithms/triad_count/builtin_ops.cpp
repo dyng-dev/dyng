@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from ESCHER-GPU@abcf9b2:src/main.cu (the h-motif counter's operation, MotifOp)
+// Derived from ESCHER-GPU@abcf9b2:src/type1.cu (Type1Counter's operation, Choose3Op)
+// Derived from ESCHER-GPU@abcf9b2:src/type2.cu (Type2Counter's operation, Type2Op)
+// Derived from ESCHER-GPU@abcf9b2:src/type3.cu (Type3Counter's operation, Type3Op)
 /**
  * @file builtin_ops.cpp
  * @brief triad_count's four patterns as Ops of the local-pattern engine (M9b, ADR 0058): their
