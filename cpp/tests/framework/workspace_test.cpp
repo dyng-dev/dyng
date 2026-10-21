@@ -3,9 +3,12 @@
 /**
  * @file workspace_test.cpp
  * @brief The workspace pool of a resources handle (ADR 0015): reuse, distinct leases, discard on
- *        failure, release, statistics, sharing between copies of a handle, thread safety.
+ *        failure, release, statistics, sharing between copies of a handle, thread safety; the
+ *        scratch buffers' growth with headroom.
  */
 #include "framework/workspace.hpp"
+
+#include "framework/scratch_buffer.hpp"
 
 #include <dyng/core/resources.hpp>
 
@@ -186,6 +189,31 @@ TEST(ResourcesWorkspaces, CopiesShareOnePoolAndReleaseFreesIt) {
 
   const auto other = dyng::resources::sequential();  // independent handles, independent pools
   EXPECT_NE(&resources_access::workspaces(res), &resources_access::workspaces(other));
+}
+
+TEST(ScratchBuffer, GrowthWithHeadroomReallocatesLogarithmicallyOften) {
+  const dyng::resources res = dyng::resources::sequential();
+  dyng::detail::scratch_buffer<unsigned char> exact;
+  dyng::detail::scratch_buffer<unsigned char> headroom;
+  int exact_growths = 0;
+  int headroom_growths = 0;
+  // A need that creeps up by 20 per call from 1,000 to 2,000 (a frontier's flags under a growing
+  // id bound).
+  for (std::size_t need = 1000; need <= 2000; need += 20) {
+    const std::size_t a = exact.capacity();
+    const std::size_t b = headroom.capacity();
+    (void)exact.reserve(res, need);
+    (void)headroom.reserve_with_headroom(res, need);
+    exact_growths += exact.capacity() != a ? 1 : 0;
+    headroom_growths += headroom.capacity() != b ? 1 : 0;
+    EXPECT_GE(headroom.capacity(), need);
+  }
+  EXPECT_EQ(exact_growths, 51);
+  EXPECT_EQ(headroom_growths, 2);  // 1,500, then 3,000
+  EXPECT_EQ(headroom.capacity(), 3000U);
+  // No growth, no reallocation: the same array.
+  unsigned char* const before = headroom.data();
+  EXPECT_EQ(headroom.reserve_with_headroom(res, 2999), before);
 }
 
 }  // namespace

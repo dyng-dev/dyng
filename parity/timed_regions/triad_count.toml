@@ -1,0 +1,224 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of triad_count against ESCHER-GPU@abcf9b2 (PLAN Sections 6.3 step 3, 6.4.6
+# and 8.6; ADR 0048). Each timer of the original -> the dynG stages or driver timers whose host
+# times are summed to match it. Written in M9a step 1, BEFORE the first commit that creates
+# anything under cpp/src/algorithms/triad_count/ or cpp/include/dyng/triad_count.hpp (PLAN 6.3:
+# "without this table '<= 1.05x of the paper-timed region' is not well defined"). parity/
+# perf_ab.py LOADS it (load_regions("escher_gpu", TRIAD_REGION_MAP, ...)) and refuses a region
+# whose original timer it does not know, that names no port stage, or that has an unknown key;
+# parity/bench_suite.py reads the same rows. The keys mean what they mean in sssp.toml and
+# hypergraph.toml; `gate` is "compute" (<= 1.05x), "end_to_end" (<= 1.10x) or "none" (reported
+# only): PLAN 8.6's tolerances and no others.
+#
+# per_batch = true: the region is read once per batch, one row per batch (`rows`, named
+# "<name>[b<N>]" for N = 1..3: the three consecutive batches of every gate case); each row is
+# its own gate reading. report_sum = true: the sum over the batches is reported next to the rows
+# and is never a gate reading.
+#
+# What ESCHER-GPU@abcf9b2 times (include/timer.hpp ScopedTimer: cudaDeviceSynchronize() before
+# the start and after the end unless constructed with deviceSync = false; build/main or
+# build/type<N> --timing <file>.json writes every record as {"stage", "batch", "ms"}),
+# src/driver.cu run() (lines 148-254):
+#   start          steady_clock at the start of run() (main -> runDynamicCounting -> run, before
+#                  the options are parsed)
+#   init.load      (no sync) reading the .hg file or generating the synthetic hypergraph
+#   [untimed]      DynamicHypergraph construction and build(): init.v2h_build, init.h2h_build,
+#                  init.v2v_build, init.flatten (host), init.construct, init.row_views
+#                  (structure/dynamic_hypergraph.cu; hypergraph.toml maps them)
+#   init.full_count  counter.count(graph.snapshot()) (lines 191-194)
+#   per batch b:   batch.generate (no sync; generator.next(graph.hyperedges()))
+#                  update > { update.subtract (counter.subtract on the old snapshot),
+#                             update.maintain (graph.update: DynamicHypergraph::update),
+#                             update.add (counter.add on the new snapshot) }   (lines 210-223)
+#                  check (--check only), reference (--reference only, no sync)
+#   total          steady_clock from the start of run() to after the last batch (and the
+#                  --check launch report), lines 234-236; recordTiming("total", 0, ...)
+#
+# The port (M9a step 2 on): `dyng-compat-escher run` (tools/compat/escher) with A's argv,
+# --pattern, --backend cuda, --sync-stages (the profiler synchronizes the stream at every stage
+# boundary, as A's ScopedTimer does) and --timing <file>.json in A's format. Its driver timers
+# (the port_report names below) are steady_clock readings taken after a device synchronization;
+# the profiler stages are the framework's names ("<algo>.<hook>", cpp/src/framework/enactor.hpp
+# hook_stages): triad_count.update (the whole update() call) > { triad_count.normalize (Step 0),
+# triad_count.count_minus (count(-) in before_apply, on G_t), triad_count.commit (contains
+# hypergraph.apply), triad_count.identify_affected, triad_count.count_plus (count(+) on
+# G_{t+1}), triad_count.finalize }; triad_count.compute (the whole compute() call) >
+# { triad_count.reset, triad_count.count (the sketch's name for the full count), ... }.
+#
+# Scope rules (both sides; ADR 0048 section 1):
+#   - The line graph and the row views are built at construction (line_graph_policy::
+#     sorted_merge, as A builds H2H and its row views in DynamicHypergraph::build), never inside
+#     a gated region; the first update finds them built.
+#   - The batch is a HOST batch when update starts: Step 0 (staging and normalization) is inside
+#     the region, as A uploads the batch inside update.subtract (DeviceFrontier). No prestaged
+#     .dgb, no device batch prepared before the timer starts.
+#   - Batch generation is outside the region on both sides (A: batch.generate; the port draws
+#     with generators::legacy before its timer starts).
+#   - No --check (and no --reference) on either side in a timed round.
+#   - The port runs with --sync-stages; every timer starts after a device synchronization.
+#   - The 3-batch sum of update is reported, not gated.
+#   - One asymmetry, recorded (M9a review): A's update.maintain (DynamicHypergraph::update) also
+#     maintains A's host model of the rows (h2v_: the deleted keys' rows cleared, the vector
+#     resized, the inserted rows assigned), inside the gated update; the port's driver keeps
+#     its host model (generators::legacy::escher_host_model, from which both sides draw the next
+#     batch) after its update timer, timed apart as host_model_ms. The gate compares the update
+#     as each side times it; parity/triad_perf.py reports beside it, never gated,
+#     update_with_host_model[b<N>] (A's update against the port's update + host_model_ms) and
+#     update.maintain_untimed[b<N>] (A's maintain minus its maintain.* sub-stages, against the
+#     port's host_model_ms).
+
+[reference.escher_gpu]
+repo = "ESCHER-GPU"
+commit = "abcf9b2"
+driver = "build/main (h_motif) or build/type1..3 of the UNPATCHED copy, --timing <file>.json"
+port_driver = "dyng-compat-escher run (tools/compat/escher), parity-cuda preset, --pattern <p> --backend cuda --sync-stages --timing <file>.json"
+
+# The paper-timed region (PLAN 6.4.6: coauth-DBLP 50K <= 1.05 x 0.546 s; syn1M 0.127 s and
+# syn2M 0.151 s per batch), gated per batch.
+[[reference.escher_gpu.region]]
+name = "update"
+per_objective = false
+per_batch = true
+rows = ["update[b1]", "update[b2]", "update[b3]"]
+report_sum = true
+original = ["update (update.subtract + update.maintain + update.add; ScopedTimer, synchronized)"]
+original_report = ["timing:update"]
+port = ["triad_count.update"]
+port_report = ["update_ms"]
+gate = "compute"
+note = """
+The same scope on both sides: A's update = subtract (the frontier of the deleted keys uploaded and
+counted on the old snapshot) + maintain (DynamicHypergraph::update: the CBST maintenance, the H2H
+delta merge and the row views) + add (the inserted keys' frontier counted on the new snapshot).
+The port's triad_count.update = normalize (Step 0, from a host batch) + count_minus (on G_t's
+internal row views) + commit (hypergraph.apply: the store, the line graph and the row views) +
+identify_affected (the assigned inserted ids) + count_plus (on G_{t+1}) + finalize (the delta
+into the host counts). update_ms is the driver's steady_clock time around triad_count::update(),
+started after a device synchronization and ended when the host holds the delta (A's timer ends
+after its delta was read to the host in update.add). Each of the three batches is its own gate
+reading (update[b1..b3]); the sum is reported only. Not the same on both sides: A's maintain also
+keeps A's host model of the rows, the port's host model is kept after update_ms (the scope rules
+above; update_with_host_model[b<N>] is reported next to the gate)."""
+
+# A's initial count (the full count of the paper; PLAN 6.4.6: coauth-DBLP <= 1.05 x 5.22 s).
+[[reference.escher_gpu.region]]
+name = "full_count"
+per_objective = false
+original = ["init.full_count (counter.count(graph.snapshot()); ScopedTimer, synchronized)"]
+original_report = ["timing:init.full_count"]
+port = ["triad_count.compute"]
+port_report = ["full_count_ms"]
+gate = "compute"
+note = """
+A's counter.count() allocates its bins, runs the full-count kernels over the row views and reads
+the bins to the host. The port's stage is triad_count.compute, the whole compute() call the
+framework emits (reset + count + finalize, the result's host counts included);
+triad_count.count, the sketch's name, is the aggregate-delta count inside it and is recorded as a
+sub-stage. full_count_ms is the driver's steady_clock time around triad_count::compute(), after a
+device synchronization. The line graph and the row views exist before (built at construction)."""
+
+# A's whole run (PLAN 6.4.6: 3 batches, 9.1 s on coauth-DBLP, <= 1.10x).
+[[reference.escher_gpu.region]]
+name = "end_to_end"
+per_objective = false
+original = ["total (steady_clock from the start of run() to after the last batch)"]
+original_report = ["timing:total"]
+port = ["driver.total"]
+port_report = ["total_ms"]
+gate = "end_to_end"
+note = """
+The driver's total, from the start of its main() to after the last batch, as A's total runs from
+the start of run(): resources::warm_up() (A creates its CUDA context and, under
+CUDA_MODULE_LOADING=EAGER, loads its modules at its first CUDA call inside the region), reading
+or generating the hypergraph, the build and upload of the stores, the line graph and the row
+views (A's untimed DynamicHypergraph::build is inside its total), compute(), the batch generation
+and the three updates. Not in it on either side: process start-up before main and exit, the
+[memory]/[timing] reports and the --timing file."""
+
+# --- Reported, never gated ------------------------------------------------------------------
+
+[[reference.escher_gpu.region]]
+name = "update.subtract"
+per_objective = false
+per_batch = true
+rows = ["update.subtract[b1]", "update.subtract[b2]", "update.subtract[b3]"]
+original = ["update.subtract (counter.subtract on the old snapshot)"]
+original_report = ["timing:update.subtract"]
+port = ["triad_count.normalize", "triad_count.count_minus"]
+gate = "none"
+note = "Step 0 and count(-) on G_t (A uploads the deleted keys inside update.subtract)."
+
+[[reference.escher_gpu.region]]
+name = "update.maintain"
+per_objective = false
+per_batch = true
+rows = ["update.maintain[b1]", "update.maintain[b2]", "update.maintain[b3]"]
+original = ["update.maintain (DynamicHypergraph::update; hypergraph.toml's maintain)"]
+original_report = ["timing:update.maintain"]
+port = ["triad_count.commit"]
+gate = "none"
+note = "The commit contains hypergraph.apply (hypergraph.toml maps its sub-stages)."
+
+[[reference.escher_gpu.region]]
+name = "update.add"
+per_objective = false
+per_batch = true
+rows = ["update.add[b1]", "update.add[b2]", "update.add[b3]"]
+original = ["update.add (counter.add on the new snapshot, the delta read to the host)"]
+original_report = ["timing:update.add"]
+port = ["triad_count.identify_affected", "triad_count.count_plus", "triad_count.finalize"]
+gate = "none"
+note = """
+count(+) and the finalize; identify_affected (the frontier of the assigned inserted ids, A's
+DeviceFrontier of insertedKeys inside update.add) is counted here so that subtract + maintain +
+add = update on both sides."""
+
+[[reference.escher_gpu.region]]
+name = "build"
+per_objective = false
+original = ["init.v2h_build + init.h2h_build + init.v2v_build + init.flatten (host, untimed by the driver)"]
+original_report = ["timing:init.v2h_build", "timing:init.h2h_build", "timing:init.v2v_build", "timing:init.flatten"]
+port = ["hypergraph.build"]
+gate = "none"
+
+[[reference.escher_gpu.region]]
+name = "upload"
+per_objective = false
+original = ["init.construct + init.row_views (the CBSTs and their row views on the device)"]
+original_report = ["timing:init.construct", "timing:init.row_views"]
+port = ["hypergraph.upload"]
+gate = "none"
+
+[[reference.escher_gpu.region]]
+name = "load"
+per_objective = false
+original = ["init.load (reading the .hg file or generating the synthetic hypergraph; no sync)"]
+original_report = ["timing:init.load"]
+port = ["io.read_hypergraph"]
+port_report = ["load_ms"]
+gate = "none"
+note = "For a synthetic input the port's load is generators::legacy::escher_hypergraph (load_ms)."
+
+[[reference.escher_gpu.region]]
+name = "batch.generate"
+per_objective = false
+per_batch = true
+rows = ["batch.generate[b1]", "batch.generate[b2]", "batch.generate[b3]"]
+original = ["batch.generate (BatchGenerator::next on the host model; no sync)"]
+original_report = ["timing:batch.generate"]
+port = ["driver.batch.generate"]
+port_report = ["generate_ms"]
+gate = "none"
+note = "Outside the update region on both sides (generators::legacy draws the batch on the host)."
+
+[[reference.escher_gpu.region]]
+name = "process"
+per_objective = false
+original = ["process wall time (the harness's clock around the whole process)"]
+original_report = ["process wall time"]
+port = []
+port_report = ["process wall time"]
+gate = "none"
+note = "Includes process start-up, the CUDA context and exit on both sides; reported only."

@@ -85,7 +85,15 @@ def test_registry_matches_modules() -> None:
         assert a.title == ALGORITHMS[a.name]["title"]
 
 
-@pytest.mark.parametrize("name", list(ALGORITHMS))
+def test_only_experimental_algorithms_lack_a_module() -> None:
+    for name, a in ALGORITHMS.items():
+        if a["python"] == "no":
+            assert a["maturity"] == "experimental", name
+            with pytest.raises(ModuleNotFoundError):
+                importlib.import_module(f"dyng.{name}")
+
+
+@pytest.mark.parametrize("name", [n for n, a in ALGORITHMS.items() if a["python"] == "yes"])
 def test_uniform_contract(name: str) -> None:
     module = importlib.import_module(f"dyng.{name}")
     assert getattr(dyng, name) is module

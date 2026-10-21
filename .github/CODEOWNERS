@@ -52,4 +52,8 @@
 /cpp/include/dyng/triangle_delta.hpp @SMShovan
 /cpp/tests/algorithms/triangle_delta/ @SMShovan
 /docs/algorithms/triangle_delta.md  @SMShovan
+/cpp/src/algorithms/triad_count/    @SMShovan
+/cpp/include/dyng/triad_count.hpp   @SMShovan
+/cpp/tests/algorithms/triad_count/  @SMShovan
+/docs/algorithms/triad_count.md     @SMShovan
 # regen:algorithms end

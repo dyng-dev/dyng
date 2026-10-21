@@ -1,0 +1,199 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The rename map of the triad_count port (M9a step 3, the transplant commit c1; ADR 0053):
+# ESCHER-GPU's wedge engine (kernel/wedge.cuh), its counting operations (kernel/count_ops.cuh:
+# Choose3Op; kernel/motif_utils.cuh: the class map and MotifOp; the Type2Op and Type3Op of
+# src/type2.cu and src/type3.cu), the motif table (include/motif_table.hpp) and the counting parts
+# of the four counters: src/HMotifCount.cu, src/HMotifCountUpdate.cu (with include/motif.hpp and
+# include/motif_update.hpp), the classes MotifCounter (src/main.cu), Type1Counter, Type2Counter
+# and Type3Counter (src/type1.cu .. type3.cu) without their CPU reference, their printing and
+# their main(), and the device helpers they own (include/device_bins.hpp, include/frontier.hpp).
+# Not ported: the pre-fix anchored kernels (6a44c1c), the coarse triangles (src/coarseTriangle.cu,
+# TriangleCountOp) and readFlat (already in cpp/src/hypergraph/escher/find.cu).
+#
+#   python3 parity/escher_port/transplant.py --map parity/escher_port/rename_map_triad.toml \
+#       --check --rev <transplant commit>
+#
+# regenerates the transplant (the same steps as rename_map.toml: assemble the parts, rewrite the
+# includes, rename whole tokens, #pragma once, the namespace, the SPDX and provenance header,
+# clang-format, then the manual hunks of manual_hunks_triad.patch).
+
+schema = 1
+origin = "ESCHER-GPU"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+namespace = "dyng::detail::triad"
+target_dir = "cpp/src/algorithms/triad_count/engine"
+hunks = "manual_hunks_triad.patch"
+note = "parity/escher_port/rename_map_triad.toml (M9a, ADR 0053; the row views' encoding is described in cpp/src/hypergraph/row_views.hpp)."
+
+[[file]]
+target = "wedge.cuh"
+brief = "The wedge-parallel counting kernels: one thread per oriented wedge, the frontier filters of the exactly-once rule, the block bins and their signed flush, and the set primitives on sorted rows (ESCHER-GPU's kernel/wedge.cuh)."
+parts = [{ path = "kernel/wedge.cuh" }]
+
+[[file]]
+target = "count_ops.cuh"
+brief = "The per-key counting operation of StatHyper's type 1: sum over the keys of C(|row|, 3) (ESCHER-GPU's Choose3Op)."
+parts = [{ path = "kernel/count_ops.cuh", lines = [1, 27] }]
+
+[[file]]
+target = "motif_table.hpp"
+brief = "The class of a hyperedge triple by its 7-bit Venn-region pattern: the h-motif id 1..30, 0 for no triad (ESCHER-GPU's ESCHER_MOTIF_ID_TO_INDEX)."
+parts = [{ path = "include/motif_table.hpp" }]
+
+[[file]]
+target = "motif_ops.cuh"
+brief = "The 30-bin h-motif classification of a line-graph triangle: the class map on the device, the class index from the region counts and the wedge operation MotifOp (ESCHER-GPU's kernel/motif_utils.cuh)."
+parts = [
+  { path = "kernel/motif_utils.cuh", lines = [1, 9] },
+  { path = "kernel/motif_utils.cuh", lines = [24, 83] },
+]
+
+[[file]]
+target = "stathyper_ops.cuh"
+brief = "The wedge operations of StatHyper's types 2 and 3: C(a, 2) * b * c of an adjacent pair, x * y * z of a triangle's pairwise-only overlaps (ESCHER-GPU's Type2Op and Type3Op)."
+parts = [
+  { path = "src/type2.cu", lines = [11, 11] },
+  { path = "src/type2.cu", lines = [13, 42] },
+  { path = "src/type3.cu", lines = [13, 52] },
+]
+
+[[file]]
+target = "device_bins.hpp"
+brief = "Device-side 64-bit counters of a count or a delta (ESCHER-GPU's DeviceBins)."
+parts = [{ path = "include/device_bins.hpp" }]
+
+[[file]]
+target = "device_frontier.cuh"
+brief = "The frontier of one delta phase on the device: the changed keys and a membership flag per key (ESCHER-GPU's DeviceFrontier, include/frontier.hpp)."
+parts = [{ path = "include/frontier.hpp" }]
+
+[[file]]
+target = "counters.cuh"
+brief = "The four dynamic counters: the full count and the subtract / add phases of the h-motif counts (MotifCounter, computeMotifCounts, the delta accumulator) and of StatHyper's types 1-3 (Type1Counter .. Type3Counter), as ESCHER-GPU's executables run them."
+parts = [
+  { path = "src/type1.cu", lines = [1, 11] },
+  { path = "src/type2.cu", lines = [11, 11] },
+  { path = "include/motif.hpp", lines = [4, 5] },
+  { path = "include/motif.hpp", lines = [7, 9] },
+  { path = "include/motif_update.hpp", lines = [7, 27] },
+  { path = "src/main.cu", lines = [9, 36] },
+  { path = "src/main.cu", lines = [48, 50] },
+  { path = "src/type1.cu", lines = [13, 46] },
+  { path = "src/type1.cu", lines = [61, 72] },
+  { path = "src/type2.cu", lines = [44, 72] },
+  { path = "src/type2.cu", lines = [86, 97] },
+  { path = "src/type3.cu", lines = [54, 82] },
+  { path = "src/type3.cu", lines = [97, 108] },
+]
+
+[[file]]
+target = "counters.cu"
+brief = "The h-motif full count and the frontier phases of the h-motif delta (ESCHER-GPU's computeMotifCounts, runFrontierPhase and the delta accumulator)."
+parts = [
+  { path = "src/HMotifCount.cu", lines = [1, 5] },
+  { path = "src/HMotifCountUpdate.cu", lines = [1, 7] },
+  { path = "src/HMotifCount.cu", lines = [7, 27] },
+  { path = "src/HMotifCountUpdate.cu", lines = [16, 60] },
+]
+
+[includes]
+'"../include/row_view.hpp"' = '"hypergraph/row_views.hpp"'
+'"row_view.hpp"' = '"hypergraph/row_views.hpp"'
+'"../include/motif_table.hpp"' = '"algorithms/triad_count/engine/motif_table.hpp"'
+'"wedge.cuh"' = '"algorithms/triad_count/engine/wedge.cuh"'
+'"../kernel/wedge.cuh"' = '"algorithms/triad_count/engine/wedge.cuh"'
+'"../kernel/count_ops.cuh"' = '"algorithms/triad_count/engine/count_ops.cuh"'
+'"../kernel/motif_utils.cuh"' = '"algorithms/triad_count/engine/motif_ops.cuh"'
+'"../include/motif.hpp"' = '"algorithms/triad_count/engine/counters.cuh"'
+'"../include/motif_update.hpp"' = '"algorithms/triad_count/engine/counters.cuh"'
+'"../include/frontier.hpp"' = '"algorithms/triad_count/engine/device_frontier.cuh"'
+'"../include/device_bins.hpp"' = '"algorithms/triad_count/engine/device_bins.hpp"'
+'"../include/driver.hpp"' = '"algorithms/triad_count/engine/counter_shims.hpp"'
+'"../include/reference.hpp"' = ''
+
+[names]
+# types (PLAN 4.4.1: snake_case, no _t; template parameters end in _t)
+Batch = "counter_batch"
+Body = "body_t"
+Choose3Op = "choose3_op"
+DeviceBins = "device_bins"
+DeviceFrontier = "device_frontier"
+DynamicCounter = "dynamic_counter"
+MotifCounter = "motif_counter"
+MotifDeltaAccumulator = "motif_delta_accumulator"
+MotifOp = "motif_op"
+Op = "op_t"
+PairBody = "pair_body"
+RowView = "escher::row_view"
+Shape = "wedge_shape"
+Snapshot = "counter_snapshot"
+TriangleBody = "triangle_body"
+Type1Counter = "type1_counter"
+Type2Counter = "type2_counter"
+Type2Op = "type2_op"
+Type3Counter = "type3_counter"
+Type3Op = "type3_op"
+# enumerators
+Pairs = "pairs"
+Triangles = "triangles"
+# constants and macros (PLAN 4.4.1: DYNG_ macros)
+ESCHER_MOTIF_ID_TO_INDEX = "DYNG_TRIAD_MOTIF_ID_TO_INDEX"
+kBins = "num_bins"
+kBlockSize = "block_size"
+# kernels (<verb>_<object>_kernel)
+countWedges = "count_wedges_kernel"
+keyKernel = "key_kernel"
+pairKernel = "pair_kernel"
+triangleKernel = "triangle_kernel"
+# functions and variables (camelCase -> snake_case)
+C_ab = "c_ab"
+C_bc = "c_bc"
+C_ca = "c_ca"
+allNeighbours = "all_neighbours"
+beginWedge = "begin_wedge"
+checkCudaLocal = "check_cuda_local"
+computeMotifAdd = "compute_motif_add"
+computeMotifCounts = "compute_motif_counts"
+computeMotifSubtract = "compute_motif_subtract"
+countKeys = "count_keys"
+countPairs = "count_pairs"
+countTriangles = "count_triangles"
+countWedgeShape = "count_wedge_shape"
+d_inFrontier = "d_in_frontier"
+degI = "deg_i"
+degJ = "deg_j"
+deletedIds = "deleted_ids"
+deletedKeys = "deleted_keys"
+endA = "end_a"
+endB = "end_b"
+findSource = "find_source"
+flushBins = "flush_bins"
+forEachWedge = "for_each_wedge"
+h2hRows = "h2h_rows"
+h2vRows = "h2v_rows"
+inFrontier = "in_frontier"
+insertedIds = "inserted_ids"
+insertedKeys = "inserted_keys"
+intersectSize = "intersect_size"
+makeChoose3Op = "make_choose3_op"
+makeMotifOp = "make_motif_op"
+makeType2Op = "make_type2_op"
+makeType3Op = "make_type3_op"
+maxId = "max_id"
+maxKey = "max_key"
+numHyperedgeKeys = "num_hyperedge_keys"
+numSources = "num_sources"
+numValues = "num_values"
+numWarps = "num_warps"
+numWedges = "num_wedges"
+readTo = "read_to"
+rowA = "row_a"
+rowB = "row_b"
+rowC = "row_c"
+rowI = "row_i"
+rowJ = "row_j"
+runFrontierPhase = "run_frontier_phase"
+sourceKey = "source_key"
+wedgeBegin = "wedge_begin"

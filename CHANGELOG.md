@@ -10,6 +10,10 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- `triad_count` (experimental, aggregate delta; `<dyng/triad_count.hpp>`): the 30 h-motif counts and StatHyper's triad types 1-3 of a hypergraph, kept exact under hyperedge batches (`options::kind`; `stats::delta`, `triads_removed` / `triads_added`; several patterns in one `dyng::update()`). The cuda backend runs ESCHER-GPU@abcf9b2's wedge engine (exact against ESCHER-GPU on every golden case); the sequential and OpenMP backends run the same engine as loops (an incremental host engine, untuned; the author's decision D3, ADR 0054), exact against ESCHER-GPU on the golden cases of the coverage table, with identical results on every OpenMP thread count. `dyng-compat-escher run` counts and prints ESCHER-GPU's output; `parity/compare.py triad_count --counter algorithm`.
+- Internal (internal-stable, ADR 0055): `operators::count_delta` / `count_owned`, the signed count of one aggregate-delta phase with a required ownership rule (I2), on every executor (host: private bins per thread added in thread order; cuda: atomic bins read once); `triangle_delta` and `triad_count`'s host engine count with it (the rule of two). The executors gain `download()` and `threads()`.
+- Benchmarks (M9a, ADR 0056): the paper suites `benchmarks/paper/ipdps26_escher.yaml` (the timing gates of `triad_count` against ESCHER-GPU@abcf9b2: update per batch, full count, end to end on coauth-DBLP and syn1M / syn2M) and `tkde26_escher_plus.yaml` (the store accounting and the Nsight Systems peak; the StatHyper types and other batch sizes recorded); `parity/certify.py` requires both, and the triad golden replays of every backend of the coverage table by key and by content, from the 0.3 series (`compare.py triad_count --certificate`; `certify.py write --dry-run <algorithm>`); `perf_ab.py triad_count kernels` (the update's kernels under ncu at the base clocks) and the contamination audit of the triad readings.
+- Tests: ESCHER-GPU's `make test` replayed on the host backends in hosted CI (`dyng_triad_count_make_test_tests`), exact against 3.7 KB of committed counts (`parity/triad_goldens.py fixture`); the committed test-data budget is 1.25 MB (the author's decision D5, ADR 0013 amended), checked by `ci/test_data_budget.py` (`ci/check.sh` step `testdata`, a pre-commit hook). The recorded triad mutations of PLAN 8.4 (CTests `triad_count.mutation.*`, `parity/mutate.py run --suites triad_count`).
 - M8b (api-change, tracked until the hypergraph headers are frozen at the end of M8b): **the
   hypergraph container** `dyng::hypergraph<vertex_t, weight_t>` (`dyng/hypergraph/*.hpp`, ADR
   0041) on the ESCHER CBST store, for (int32, unweighted) and (int32, int32) on the sequential,
@@ -171,6 +175,34 @@ Before 0.1.0 anything may change.
   (`parity/export_goldens.py cbst_trace`), `datasets/registry.toml` with the coauth-DBLP pins,
   the cross-check of the two ESCHER cores (`parity/escher_crosscheck.py`) and the timed-region
   map `parity/timed_regions/hypergraph.toml`.
+- M9a (parity harness, not part of the library): the **reference side of `triad_count`** (ADR
+  0048), before any port code: the timed-region map `parity/timed_regions/triad_count.toml`
+  (`update` gated per batch as `update[b1..b3]`, `full_count`, `end_to_end`; `perf_ab.py` and
+  `bench_suite.py` read per-batch rows and refuse unknown region keys); the golden set
+  `triad_count_escher_gpu` of ESCHER-GPU@abcf9b2's triad counts and batches on its `make test`
+  and PLAN 6.4.6's grid, 300 cases exported twice with identical manifests
+  (`parity/triad_goldens.py`, `parity/export_goldens.py triad_count`, `parity/compare.py
+  triad_count --verify`); ESCHER-GPU checked against its own CPU reference (90 runs agree).
+- M9a (tracked): **`dyng::testing::triad_reference`** (`dyng/testing/triad_reference.hpp`, ADR
+  0049): brute-force triad counts of a hypergraph, the 30-bin h-motif counts and StatHyper's
+  types 1-3, following ESCHER-GPU@abcf9b2's CPU reference (64-bit, sequential or OpenMP), with
+  the h-motif classes derived from the permutations of the Venn regions (equal to ESCHER-GPU's
+  table on all 128 ids), `removed()` / `added()` per bin, and a test that it shares no code with
+  `triad_count` or the container.
+- M9a (tracked): **`generators::legacy::escher_host_model`** and
+  `escher_batch_generator::next(model)` (ADR 0051): ESCHER-GPU's batches drawn from host rows the
+  caller keeps in step with the hypergraph (`apply(batch, summary)`), the same draws as
+  `next(res, hypergraph)` without reading the hypergraph's views.
+- M9a (parity harness, not part of the library): the **triad replays** (ADR 0050): the tool
+  `dyng_triad_replay` and `parity/compare.py triad_count --backend B --mode by_key|by_content|both
+  --counter oracle|algorithm` (each golden case's batches replayed through the hypergraph, the
+  counter after the build and every batch, integrity after every batch, the expected ids by key,
+  every deleted row resolved by content; planted defects must fail it); the port driver
+  `dyng-compat-escher run` (ESCHER-GPU's argv, the batches drawn from the host model; counting
+  arrives with `triad_count`); `parity/perf_ab.py triad_count run|memory` (`parity/triad_perf.py`:
+  A/B rounds under the clock lock and the contamination monitor, the Nsight Systems peaks of both
+  whole processes, the store accounting); `parity/triad_replay.py singles` and `draws` (the oracle
+  against ESCHER-GPU on one triad per bin; the driver's batches against the goldens).
 
 ### Changed
 
@@ -220,6 +252,14 @@ Before 0.1.0 anything may change.
   2026-10-14 (the author's decision after M8a was squash-merged as `2de6ebe`; ADR 0019 amended,
   `GOVERNANCE.md`, CONTRIBUTING.md, the pull request template). `ci/gpu_local.sh` runs the
   hypergraph container's two-host-thread C12 test under synccheck and memcheck, not racecheck.
+
+### Fixed (M9a review)
+
+- `triad_count` at the 64-bit limit (ADR 0057): C(|e|, 3) is exact for every hyperedge size (it was `n (n - 1) (n - 2) / 6` in signed 64-bit, wrong from 2,097,152 members, as in ESCHER-GPU); the type-2 and type-3 products and every sum are checked on both engines, and a count past 2^64 - 1 throws `capacity_error` on cuda as on the host backends (it wrapped on cuda, and for types 2 and 3 everywhere); a batch that removes and adds 2^63 or more triads of a bin is exact (the signed phase bins refused it), and a net change of a bin outside `stats::delta`'s signed 64-bit range throws `capacity_error` on every backend. `testing::triad_reference` counts in 128-bit and throws `std::overflow_error` past 2^64 - 1.
+- `triad_count::update`: the scratch of an update keeps headroom (`scratch_buffer::reserve_with_headroom`), so a growing hyperedge id bound no longer frees and reallocates the frontier flags in nearly every batch (ADR 0053 amendment); the documented guarantee names the outcome of a failure inside the commit (the hypergraph poisoned, the result unchanged with the counts before the batch).
+- `generators::legacy::escher_host_model::apply` grows its rows geometrically (an exact reservation moved every row when the id bound grew).
+- Parity harness and certificate: the triad golden set hashes no run parameter (the GPU and the raw trace's digest move to unhashed provenance files; content is hashed, a `.zst` file decompressed; `export --twice --second-gpu`); the replay comparator checks the hyperedges the container deleted against A's batch; `certify.py` requires every gated row of every case of a triad reading, recomputes the medians and round counts from the samples, checks the protocol fields of the triad records and refuses a `--version` of another release series than `VERSION`; the memory readings guard the counts of every measured process; the oracle's isolation check preprocesses with the build's flags; the triad phase's compile-failure test matches its `static_assert`; the host-model asymmetry of the gated update is recorded and `update_with_host_model[b<N>]` reported beside the gate.
+- CI: the host triad mutants run on the cases that kill them; `cpu.yml` runs its tests on 4 jobs.
 
 ## [0.2.0] - 2026-10-14
 

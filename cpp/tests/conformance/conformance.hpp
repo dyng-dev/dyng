@@ -393,9 +393,22 @@ std::vector<backend> comparison_backends() {
   return out;
 }
 
-/// Resources for a backend (OpenMP with four threads, so the parallel paths run).
+/// The OpenMP threads of the kit's resources: test_traits::kit_openmp_threads, else 4.
+template <typename traits_t, typename = void>
+struct kit_openmp_threads {
+  static constexpr int value = 4;  ///< the default
+};
+/// The OpenMP threads a test_traits names (triad_count runs its kit on 8, M9a criterion 10).
+template <typename traits_t>
+struct kit_openmp_threads<traits_t, std::void_t<decltype(traits_t::kit_openmp_threads)>> {
+  static constexpr int value = traits_t::kit_openmp_threads;  ///< the traits' count
+};
+
+/// The resources of a backend for the kit's case `case_t` (its traits' OpenMP thread count).
+template <typename case_t>
 inline resources resources_for(backend b) {
-  return test::make_resources(b, b == backend::openmp ? 4 : 0);
+  return test::make_resources(
+      b, b == backend::openmp ? kit_openmp_threads<typename case_t::traits>::value : 0);
 }
 
 /// Two snapshots at the algorithm's level (traits::compare, else ==).
@@ -536,8 +549,8 @@ bool engines_agree(const std::vector<backend>& backends) {
           std::optional<chain<case_t>> fused;
           std::optional<chain<case_t>> operators;
           try {
-            fused.emplace(resources_for(b), model, p.props, engine::fused);
-            operators.emplace(resources_for(b), model, p.props, engine::operators);
+            fused.emplace(resources_for<case_t>(b), model, p.props, engine::fused);
+            operators.emplace(resources_for<case_t>(b), model, p.props, engine::operators);
           } catch (const not_supported_error&) {
             break;  // this backend has one engine
           }
@@ -610,7 +623,7 @@ struct container_checks<case_t, graph<vertex_t_, edge_t_, weight_t_>> {
     };
     std::mt19937_64 rng(7000);
     graph_model<graph_t> model = kit_detail::model_of<case_t>(size_class::small, rng);
-    kit_detail::chain<case_t> c(kit_detail::resources_for(be), model, p.props);
+    kit_detail::chain<case_t> c(kit_detail::resources_for<case_t>(be), model, p.props);
     const auto before = c.take();
     // Rejected: nothing changes, and the result stays current and usable.
     const auto expect_rejected = [&](const batch_t& b, const char* what) {
@@ -691,7 +704,7 @@ struct container_checks<case_t, graph<vertex_t_, edge_t_, weight_t_>> {
     {
       graph_properties strict = p.props;
       strict.semantics.on_missing_delete = batch_semantics::missing_delete::error;
-      kit_detail::chain<case_t> s(kit_detail::resources_for(be), model, strict);
+      kit_detail::chain<case_t> s(kit_detail::resources_for<case_t>(be), model, strict);
       const auto strict_before = s.take();
       batch_t b = make_batch();
       b.delete_edge(u, v);
@@ -758,7 +771,7 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
   static void invalid_input(backend be, const kit_preset<hypergraph_properties>& p) {
     std::mt19937_64 rng(7000);
     typename ct::model_type model = kit_detail::model_of<case_t>(size_class::small, rng);
-    kit_detail::chain<case_t> c(kit_detail::resources_for(be), model, p.props);
+    kit_detail::chain<case_t> c(kit_detail::resources_for<case_t>(be), model, p.props);
     const auto before = c.take();
     const vertex_t_ n = c.g->num_vertices();
     ASSERT_GT(n, 1) << "the small shape needs two vertices";
@@ -951,7 +964,7 @@ TYPED_TEST_P(conformance, C0_TheTraitsAgreeWithTheRegistry) {
     }
     SCOPED_TRACE(std::string(to_string(b)) + " (not in the manifest)");
     std::mt19937_64 rng(10);
-    const resources res = kit_detail::resources_for(b);
+    const resources res = kit_detail::resources_for<TypeParam>(b);
     const graph_t g = ct::build(kit_detail::model_of<TypeParam>(size_class::tiny, rng), res,
                                 kit_detail::presets<TypeParam>().front().props);
     EXPECT_THROW((void)traits::template compute<graph_t>(res, g, engine::automatic),
@@ -975,7 +988,7 @@ TYPED_TEST_P(conformance, C1_AnEmptyBatchChangesNothing) {
       SCOPED_TRACE(p.label);
       for (const size_class size : {size_class::tiny, size_class::small}) {
         std::mt19937_64 rng(11);
-        kit_detail::chain<TypeParam> c(kit_detail::resources_for(b),
+        kit_detail::chain<TypeParam> c(kit_detail::resources_for<TypeParam>(b),
                                        kit_detail::model_of<TypeParam>(size, rng), p.props);
         const auto before = c.take();
         const std::uint64_t version = c.g->version();
@@ -1012,7 +1025,7 @@ TYPED_TEST_P(conformance, C2_UpdateChainsEqualTheOracle) {
             std::mt19937_64 rng(seed * 131 + static_cast<std::uint64_t>(size) * 17 +
                                 static_cast<std::uint64_t>(mix));
             typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);
-            kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
+            kit_detail::chain<TypeParam> c(kit_detail::resources_for<TypeParam>(b), model, p.props);
             kit_detail::expect_oracle(c);
             for (int step = 0; step < 3; ++step) {
               SCOPED_TRACE("batch " + std::to_string(step));
@@ -1054,7 +1067,7 @@ TYPED_TEST_P(conformance, C3_BackendsAgree) {
         std::vector<kit_detail::chain<TypeParam>> chains;
         chains.reserve(backends.size());
         for (const backend b : backends) {
-          chains.emplace_back(kit_detail::resources_for(b), model, p.props);
+          chains.emplace_back(kit_detail::resources_for<TypeParam>(b), model, p.props);
         }
         for (std::size_t i = 1; i < chains.size(); ++i) {
           EXPECT_TRUE(kit_detail::same<traits>(chains[0].take(), chains[i].take()))
@@ -1109,7 +1122,7 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
           std::mt19937_64 rng(seed * 3 + static_cast<std::uint64_t>(mix));
           typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
-          kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
+          kit_detail::chain<TypeParam> c(kit_detail::resources_for<TypeParam>(b), model, p.props);
           const auto before = c.take();
           const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
           ASSERT_TRUE(ct::invertible(gen));
@@ -1142,8 +1155,10 @@ TYPED_TEST_P(conformance, C6_RunsAreDeterministic) {
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
           std::mt19937_64 rng(6000 + static_cast<std::uint64_t>(mix));
           typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);
-          kit_detail::chain<TypeParam> first(kit_detail::resources_for(b), model, p.props);
-          kit_detail::chain<TypeParam> second(kit_detail::resources_for(b), model, p.props);
+          kit_detail::chain<TypeParam> first(kit_detail::resources_for<TypeParam>(b), model,
+                                             p.props);
+          kit_detail::chain<TypeParam> second(kit_detail::resources_for<TypeParam>(b), model,
+                                              p.props);
           EXPECT_TRUE(kit_detail::same<traits>(first.take(), second.take()));
           for (int step = 0; step < 3; ++step) {
             const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
@@ -1208,7 +1223,7 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
             typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);
             const typename ct::model_type base = model;
             const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
-            const resources res = kit_detail::resources_for(b);
+            const resources res = kit_detail::resources_for<TypeParam>(b);
             // The steady state ("once reserved"): a twin result on the same graph takes the same
             // batch first, so the handle's pooled workspaces have the batch's shapes; the measured
             // update then reserves nothing. The OpenMP engines' per-thread lists grow with the
@@ -1298,7 +1313,7 @@ TYPED_TEST_P(conformance, C9_StatsAreSane) {
         SCOPED_TRACE("mix " + std::string(to_string(mix)));
         std::mt19937_64 rng(9000 + static_cast<std::uint64_t>(mix));
         typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
-        kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
+        kit_detail::chain<TypeParam> c(kit_detail::resources_for<TypeParam>(b), model, p.props);
         for (int step = 0; step < 3; ++step) {
           const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
           const auto s = c.step(ct::batch_of(gen));
@@ -1342,7 +1357,7 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
           std::mt19937_64 rng(10000 + static_cast<std::uint64_t>(variant));
           typename ct::model_type model =
               ct::template composition_model<traits, partner>(props, rng);
-          const resources res = kit_detail::resources_for(b);
+          const resources res = kit_detail::resources_for<TypeParam>(b);
           // Both results on one graph (plus one left out of the updates), and each alone on a
           // graph of its own.
           kit_detail::chain<TypeParam> joint(res, model, props);
@@ -1407,7 +1422,7 @@ TYPED_TEST_P(conformance, C11_StaleResultsAreDetected) {
     std::mt19937_64 rng(11000);
     typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
     const kit_detail::preset_of<TypeParam> p = kit_detail::presets<TypeParam>().front();
-    kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
+    kit_detail::chain<TypeParam> c(kit_detail::resources_for<TypeParam>(b), model, p.props);
     const auto before = c.take();
     // A separate g.apply(): the result is stale, and update() changes nothing.
     const typename ct::generated_type gen = ct::random_batch(model, ct::stale_mix(), rng);

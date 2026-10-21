@@ -1,0 +1,2346 @@
+{
+ "schema": 1,
+ "what": "triad_count against ESCHER-GPU@abcf9b2: A/B rounds (parity/timed_regions/triad_count.toml); the port with --no-count (M9a step 2's end-to-end pre-read)",
+ "date": "2026-10-15T13:59:12Z",
+ "pattern": "main",
+ "protocol": {
+  "rounds": 5,
+  "order": "A/B alternation (A first in every round)",
+  "gpu": 0,
+  "clocks": {
+   "control": "base",
+   "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+   "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+   "before": {
+    "pstate": "P8",
+    "sm_mhz": 210,
+    "memory_mhz": 405
+   },
+   "locked": {
+    "pstate": "P2",
+    "sm_mhz": 1170,
+    "memory_mhz": 7601
+   },
+   "check": "every busy GPU sample of every accepted round at the locked clocks",
+   "after_reset": {
+    "pstate": "P5",
+    "sm_mhz": 705,
+    "memory_mhz": 810
+   }
+  },
+  "lock": "perf.lock: held exclusively by this process",
+  "layout": "one (--timing <work>/timing-ab.json on both sides)",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "original": "the UNPATCHED copy's build/main (its Makefile)",
+  "port": "dyng-compat-escher run --backend cuda --sync-stages --no-count"
+ },
+ "port": {
+  "commit": "729bb796d185defabad88df4035822478006ceb4+dirty",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-escher"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "coauth_b50k_s1": {
+   "rounds": 5,
+   "regions": [
+    {
+     "row": "end_to_end",
+     "gate": "end_to_end",
+     "original_ms": 9417.131,
+     "port_ms": 2204.938,
+     "ratio": 0.234141162526039,
+     "original_runs": [
+      9417.131,
+      9370.334,
+      9426.564,
+      9355.828,
+      9453.08
+     ],
+     "port_runs": [
+      2233.266,
+      2196.35,
+      2175.198,
+      2204.938,
+      2283.829
+     ]
+    },
+    {
+     "row": "build",
+     "gate": "none",
+     "original_ms": 1425.093,
+     "port_ms": 756.485,
+     "ratio": 0.5308320228925411,
+     "original_runs": [
+      1452.221,
+      1384.431,
+      1425.093,
+      1379.865,
+      1464.8
+     ],
+     "port_runs": [
+      760.145,
+      753.105,
+      756.485,
+      748.2379999999999,
+      805.305
+     ]
+    },
+    {
+     "row": "upload",
+     "gate": "none",
+     "original_ms": 176.828,
+     "port_ms": 514.144,
+     "ratio": 2.9075938199832607,
+     "original_runs": [
+      175.92100000000002,
+      176.828,
+      200.59699999999998,
+      175.456,
+      180.816
+     ],
+     "port_runs": [
+      524.082,
+      481.982,
+      470.275,
+      514.144,
+      524.428
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original_ms": 356.618,
+     "port_ms": 357.026,
+     "ratio": 1.00114408134194,
+     "original_runs": [
+      352.841,
+      356.618,
+      359.844,
+      356.787,
+      356.223
+     ],
+     "port_runs": [
+      357.969,
+      355.887,
+      358.232,
+      357.026,
+      356.379
+     ]
+    },
+    {
+     "row": "batch.generate[b1]",
+     "gate": "none",
+     "original_ms": 175.874,
+     "port_ms": 15.115,
+     "ratio": 0.08594220862663043,
+     "original_runs": [
+      174.176,
+      180.761,
+      175.874,
+      173.801,
+      181.769
+     ],
+     "port_runs": [
+      15.059,
+      15.115,
+      14.922,
+      15.523,
+      15.145
+     ]
+    },
+    {
+     "row": "batch.generate[b2]",
+     "gate": "none",
+     "original_ms": 16.214,
+     "port_ms": 14.241,
+     "ratio": 0.8783150363883064,
+     "original_runs": [
+      16.415,
+      16.214,
+      16.095,
+      16.408,
+      16.024
+     ],
+     "port_runs": [
+      14.216,
+      14.241,
+      14.174,
+      14.311,
+      14.441
+     ]
+    },
+    {
+     "row": "batch.generate[b3]",
+     "gate": "none",
+     "original_ms": 16.102,
+     "port_ms": 15.674,
+     "ratio": 0.9734194509998757,
+     "original_runs": [
+      15.958,
+      16.102,
+      15.719,
+      16.613,
+      16.181
+     ],
+     "port_runs": [
+      15.377,
+      15.674,
+      15.846,
+      14.961,
+      16.295
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 9.600356340408325,
+       "program_cpu_s": 25.917965,
+       "foreign_cpu_cores": 1.0793533731129403,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 12
+       },
+       "gpu": {
+        "samples": 191,
+        "busy_samples": 142,
+        "pstates_busy": {
+         "P2": 142
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.438776731491089,
+       "program_cpu_s": 16.148538999999996,
+       "foreign_cpu_cores": 0.979530011136508,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 19
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 29,
+        "pstates_busy": {
+         "P2": 29
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.536926746368408,
+       "program_cpu_s": 25.452647000000006,
+       "foreign_cpu_cores": 1.0848617455729723,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 190,
+        "busy_samples": 140,
+        "pstates_busy": {
+         "P2": 140
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.405395269393921,
+       "program_cpu_s": 15.779378000000008,
+       "foreign_cpu_cores": 1.1915014704295033,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 48,
+        "busy_samples": 8,
+        "pstates_busy": {
+         "P2": 8
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.620580911636353,
+       "program_cpu_s": 25.67794599999999,
+       "foreign_cpu_cores": 1.0201154265154184,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 8
+       },
+       "gpu": {
+        "samples": 192,
+        "busy_samples": 152,
+        "pstates_busy": {
+         "P2": 152
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.3848376274108887,
+       "program_cpu_s": 15.871506999999994,
+       "foreign_cpu_cores": 0.7640679517331991,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 48,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.524343729019165,
+       "program_cpu_s": 25.695718000000014,
+       "foreign_cpu_cores": 0.9894894881133811,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 61
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 21
+       },
+       "gpu": {
+        "samples": 190,
+        "busy_samples": 170,
+        "pstates_busy": {
+         "P2": 170
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4217658042907715,
+       "program_cpu_s": 15.801014999999978,
+       "foreign_cpu_cores": 1.199721292454187,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 12
+       },
+       "gpu": {
+        "samples": 48,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.635280132293701,
+       "program_cpu_s": 25.602544999999992,
+       "foreign_cpu_cores": 1.1013537598483811,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 20
+       },
+       "gpu": {
+        "samples": 192,
+        "busy_samples": 162,
+        "pstates_busy": {
+         "P2": 162
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4897260665893555,
+       "program_cpu_s": 16.318788000000012,
+       "foreign_cpu_cores": 0.8387697854923614,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 9
+       },
+       "gpu": {
+        "samples": 50,
+        "busy_samples": 20,
+        "pstates_busy": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.199721292454187,
+    "original_pstates_busy": {
+     "P2": 766
+    },
+    "original_sm_mhz_busy_median": 1170.0,
+    "port_pstates_busy": {
+     "P2": 93
+    },
+    "port_sm_mhz_busy_median": 1170.0,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "before_a": 1.9697265625,
+     "blocked_before_a": 0,
+     "after_a": 2.1953125,
+     "blocked_after_a": 0,
+     "after_b": 2.259765625,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 2.259765625,
+     "blocked_before_a": 0,
+     "after_a": 2.23876953125,
+     "blocked_after_a": 0,
+     "after_b": 2.21923828125,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 2.21923828125,
+     "blocked_before_a": 0,
+     "after_a": 2.25927734375,
+     "blocked_after_a": 0,
+     "after_b": 2.25927734375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 2.25927734375,
+     "blocked_before_a": 0,
+     "after_a": 2.21875,
+     "blocked_after_a": 0,
+     "after_b": 6.60595703125,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 6.60595703125,
+     "blocked_before_a": 0,
+     "after_a": 5.97119140625,
+     "blocked_after_a": 0,
+     "after_b": 5.97119140625,
+     "blocked_after_b": 0
+    }
+   ],
+   "original_rounds": [
+    {
+     "init.load@0": 352.841,
+     "init.v2h_build@0": 390.518,
+     "init.h2h_build@0": 767.496,
+     "init.flatten@0": 294.207,
+     "init.construct@0": 173.092,
+     "init.row_views@0": 2.829,
+     "init.full_count@0": 5291.713,
+     "batch.generate@1": 174.176,
+     "update.subtract@1": 203.615,
+     "maintain.prepare@1": 4.956,
+     "maintain.h2v_delete@1": 2.73,
+     "maintain.v2h_unfill@1": 2.409,
+     "maintain.h2v_insert@1": 11.897,
+     "maintain.v2h_fill@1": 7.373,
+     "maintain.h2h_merge@1": 31.906,
+     "maintain.row_views@1": 7.513,
+     "update.maintain@1": 70.587,
+     "update.add@1": 236.584,
+     "update@1": 510.792,
+     "batch.generate@2": 16.415,
+     "update.subtract@2": 235.553,
+     "maintain.prepare@2": 4.83,
+     "maintain.h2v_delete@2": 0.33,
+     "maintain.v2h_unfill@2": 2.69,
+     "maintain.h2v_insert@2": 11.825,
+     "maintain.v2h_fill@2": 7.383,
+     "maintain.h2h_merge@2": 31.731,
+     "maintain.row_views@2": 7.612,
+     "update.maintain@2": 68.117,
+     "update.add@2": 246.591,
+     "update@2": 550.266,
+     "batch.generate@3": 15.958,
+     "update.subtract@3": 232.56,
+     "maintain.prepare@3": 4.91,
+     "maintain.h2v_delete@3": 0.322,
+     "maintain.v2h_unfill@3": 2.54,
+     "maintain.h2v_insert@3": 11.801,
+     "maintain.v2h_fill@3": 7.387,
+     "maintain.h2h_merge@3": 32.969,
+     "maintain.row_views@3": 7.592,
+     "update.maintain@3": 69.023,
+     "update.add@3": 249.799,
+     "update@3": 551.387,
+     "total@0": 9417.131
+    },
+    {
+     "init.load@0": 356.618,
+     "init.v2h_build@0": 391.556,
+     "init.h2h_build@0": 707.406,
+     "init.flatten@0": 285.469,
+     "init.construct@0": 174.038,
+     "init.row_views@0": 2.79,
+     "init.full_count@0": 5291.327,
+     "batch.generate@1": 180.761,
+     "update.subtract@1": 203.06,
+     "maintain.prepare@1": 4.858,
+     "maintain.h2v_delete@1": 2.882,
+     "maintain.v2h_unfill@1": 2.384,
+     "maintain.h2v_insert@1": 11.855,
+     "maintain.v2h_fill@1": 7.385,
+     "maintain.h2h_merge@1": 31.874,
+     "maintain.row_views@1": 7.49,
+     "update.maintain@1": 70.585,
+     "update.add@1": 237.08,
+     "update@1": 510.731,
+     "batch.generate@2": 16.214,
+     "update.subtract@2": 235.638,
+     "maintain.prepare@2": 4.9,
+     "maintain.h2v_delete@2": 0.321,
+     "maintain.v2h_unfill@2": 2.687,
+     "maintain.h2v_insert@2": 11.888,
+     "maintain.v2h_fill@2": 7.359,
+     "maintain.h2h_merge@2": 31.977,
+     "maintain.row_views@2": 7.606,
+     "update.maintain@2": 68.262,
+     "update.add@2": 249.129,
+     "update@2": 553.033,
+     "batch.generate@3": 16.102,
+     "update.subtract@3": 233.863,
+     "maintain.prepare@3": 4.843,
+     "maintain.h2v_delete@3": 0.322,
+     "maintain.v2h_unfill@3": 2.548,
+     "maintain.h2v_insert@3": 11.873,
+     "maintain.v2h_fill@3": 7.371,
+     "maintain.h2h_merge@3": 32.942,
+     "maintain.row_views@3": 7.604,
+     "update.maintain@3": 68.95,
+     "update.add@3": 248.315,
+     "update@3": 551.132,
+     "total@0": 9370.334
+    },
+    {
+     "init.load@0": 359.844,
+     "init.v2h_build@0": 395.514,
+     "init.h2h_build@0": 712.553,
+     "init.flatten@0": 317.026,
+     "init.construct@0": 197.789,
+     "init.row_views@0": 2.808,
+     "init.full_count@0": 5294.079,
+     "batch.generate@1": 175.874,
+     "update.subtract@1": 204.075,
+     "maintain.prepare@1": 4.759,
+     "maintain.h2v_delete@1": 2.782,
+     "maintain.v2h_unfill@1": 2.362,
+     "maintain.h2v_insert@1": 11.88,
+     "maintain.v2h_fill@1": 8.395,
+     "maintain.h2h_merge@1": 38.592,
+     "maintain.row_views@1": 7.501,
+     "update.maintain@1": 78.202,
+     "update.add@1": 233.362,
+     "update@1": 515.645,
+     "batch.generate@2": 16.095,
+     "update.subtract@2": 234.397,
+     "maintain.prepare@2": 4.838,
+     "maintain.h2v_delete@2": 0.324,
+     "maintain.v2h_unfill@2": 2.665,
+     "maintain.h2v_insert@2": 11.861,
+     "maintain.v2h_fill@2": 7.332,
+     "maintain.h2h_merge@2": 31.7,
+     "maintain.row_views@2": 7.602,
+     "update.maintain@2": 67.849,
+     "update.add@2": 246.05,
+     "update@2": 548.3,
+     "batch.generate@3": 15.719,
+     "update.subtract@3": 231.519,
+     "maintain.prepare@3": 4.772,
+     "maintain.h2v_delete@3": 0.332,
+     "maintain.v2h_unfill@3": 2.533,
+     "maintain.h2v_insert@3": 11.86,
+     "maintain.v2h_fill@3": 7.364,
+     "maintain.h2h_merge@3": 32.691,
+     "maintain.row_views@3": 7.55,
+     "update.maintain@3": 68.844,
+     "update.add@3": 247.234,
+     "update@3": 547.602,
+     "total@0": 9426.564
+    },
+    {
+     "init.load@0": 356.787,
+     "init.v2h_build@0": 392.271,
+     "init.h2h_build@0": 703.783,
+     "init.flatten@0": 283.811,
+     "init.construct@0": 172.605,
+     "init.row_views@0": 2.851,
+     "init.full_count@0": 5293.269,
+     "batch.generate@1": 173.801,
+     "update.subtract@1": 203.074,
+     "maintain.prepare@1": 4.821,
+     "maintain.h2v_delete@1": 2.852,
+     "maintain.v2h_unfill@1": 2.386,
+     "maintain.h2v_insert@1": 11.896,
+     "maintain.v2h_fill@1": 7.371,
+     "maintain.h2h_merge@1": 31.724,
+     "maintain.row_views@1": 7.468,
+     "update.maintain@1": 70.332,
+     "update.add@1": 235.835,
+     "update@1": 509.248,
+     "batch.generate@2": 16.408,
+     "update.subtract@2": 233.225,
+     "maintain.prepare@2": 4.753,
+     "maintain.h2v_delete@2": 0.349,
+     "maintain.v2h_unfill@2": 2.669,
+     "maintain.h2v_insert@2": 11.837,
+     "maintain.v2h_fill@2": 7.368,
+     "maintain.h2h_merge@2": 31.613,
+     "maintain.row_views@2": 7.581,
+     "update.maintain@2": 67.989,
+     "update.add@2": 246.838,
+     "update@2": 548.056,
+     "batch.generate@3": 16.613,
+     "update.subtract@3": 230.764,
+     "maintain.prepare@3": 4.879,
+     "maintain.h2v_delete@3": 0.328,
+     "maintain.v2h_unfill@3": 2.526,
+     "maintain.h2v_insert@3": 11.851,
+     "maintain.v2h_fill@3": 7.363,
+     "maintain.h2h_merge@3": 32.693,
+     "maintain.row_views@3": 7.592,
+     "update.maintain@3": 68.715,
+     "update.add@3": 251.184,
+     "update@3": 550.668,
+     "total@0": 9355.828
+    },
+    {
+     "init.load@0": 356.223,
+     "init.v2h_build@0": 392.583,
+     "init.h2h_build@0": 782.712,
+     "init.flatten@0": 289.505,
+     "init.construct@0": 178.025,
+     "init.row_views@0": 2.791,
+     "init.full_count@0": 5292.805,
+     "batch.generate@1": 181.769,
+     "update.subtract@1": 204.628,
+     "maintain.prepare@1": 4.755,
+     "maintain.h2v_delete@1": 2.821,
+     "maintain.v2h_unfill@1": 2.419,
+     "maintain.h2v_insert@1": 11.865,
+     "maintain.v2h_fill@1": 7.38,
+     "maintain.h2h_merge@1": 31.996,
+     "maintain.row_views@1": 7.469,
+     "update.maintain@1": 70.533,
+     "update.add@1": 236.517,
+     "update@1": 511.685,
+     "batch.generate@2": 16.024,
+     "update.subtract@2": 234.22,
+     "maintain.prepare@2": 4.675,
+     "maintain.h2v_delete@2": 0.322,
+     "maintain.v2h_unfill@2": 2.684,
+     "maintain.h2v_insert@2": 11.885,
+     "maintain.v2h_fill@2": 7.362,
+     "maintain.h2h_merge@2": 31.934,
+     "maintain.row_views@2": 7.582,
+     "update.maintain@2": 68.071,
+     "update.add@2": 247.226,
+     "update@2": 549.52,
+     "batch.generate@3": 16.181,
+     "update.subtract@3": 230.827,
+     "maintain.prepare@3": 4.81,
+     "maintain.h2v_delete@3": 0.328,
+     "maintain.v2h_unfill@3": 2.538,
+     "maintain.h2v_insert@3": 11.838,
+     "maintain.v2h_fill@3": 7.383,
+     "maintain.h2h_merge@3": 32.838,
+     "maintain.row_views@3": 7.561,
+     "update.maintain@3": 68.934,
+     "update.add@3": 249.211,
+     "update@3": 548.977,
+     "total@0": 9453.08
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 357.969,
+     "io.read_hypergraph@0": 357.953,
+     "hypergraph.build@0": 760.145,
+     "hypergraph.cbst.construct@0": 195.947,
+     "hypergraph.upload@0": 524.082,
+     "generate_ms@1": 15.059,
+     "apply_ms@1": 55.499,
+     "driver.batch.generate@1": 15.055,
+     "hypergraph.cbst.erase@1": 0.172,
+     "hypergraph.cbst.remove_values@1": 1.397,
+     "hypergraph.apply.delete@1": 6.379,
+     "hypergraph.cbst.insert@1": 5.213,
+     "hypergraph.cbst.append@1": 0.579,
+     "hypergraph.apply.insert@1": 13.695,
+     "hypergraph.cbst.rebuild@1": 7.295,
+     "hypergraph.apply.line_graph@1": 25.884,
+     "hypergraph.apply.views@1": 2.258,
+     "hypergraph.apply@1": 55.495,
+     "generate_ms@2": 14.216,
+     "apply_ms@2": 60.117,
+     "driver.batch.generate@2": 14.181,
+     "hypergraph.cbst.erase@2": 0.566,
+     "hypergraph.cbst.remove_values@2": 1.775,
+     "hypergraph.apply.delete@2": 7.468,
+     "hypergraph.cbst.insert@2": 4.763,
+     "hypergraph.cbst.append@2": 0.556,
+     "hypergraph.apply.insert@2": 13.102,
+     "hypergraph.cbst.rebuild@2": 7.309,
+     "hypergraph.apply.line_graph@2": 27.33,
+     "hypergraph.apply.views@2": 2.289,
+     "hypergraph.apply@2": 60.114,
+     "generate_ms@3": 15.377,
+     "apply_ms@3": 60.885,
+     "driver.batch.generate@3": 15.369,
+     "hypergraph.cbst.erase@3": 0.575,
+     "hypergraph.cbst.remove_values@3": 1.58,
+     "hypergraph.apply.delete@3": 7.167,
+     "hypergraph.cbst.insert@3": 4.779,
+     "hypergraph.cbst.append@3": 0.578,
+     "hypergraph.apply.insert@3": 13.17,
+     "hypergraph.cbst.rebuild@3": 7.352,
+     "hypergraph.apply.line_graph@3": 28.493,
+     "hypergraph.apply.views@3": 2.249,
+     "hypergraph.apply@3": 60.882,
+     "total_ms@0": 2233.266,
+     "driver.total@0": 2233.266
+    },
+    {
+     "load_ms@0": 355.887,
+     "io.read_hypergraph@0": 355.87,
+     "hypergraph.build@0": 753.105,
+     "hypergraph.cbst.construct@0": 197.877,
+     "hypergraph.upload@0": 481.982,
+     "generate_ms@1": 15.115,
+     "apply_ms@1": 55.545,
+     "driver.batch.generate@1": 15.111,
+     "hypergraph.cbst.erase@1": 0.171,
+     "hypergraph.cbst.remove_values@1": 1.398,
+     "hypergraph.apply.delete@1": 6.259,
+     "hypergraph.cbst.insert@1": 5.217,
+     "hypergraph.cbst.append@1": 0.552,
+     "hypergraph.apply.insert@1": 13.77,
+     "hypergraph.cbst.rebuild@1": 7.293,
+     "hypergraph.apply.line_graph@1": 25.965,
+     "hypergraph.apply.views@1": 2.281,
+     "hypergraph.apply@1": 55.54,
+     "generate_ms@2": 14.241,
+     "apply_ms@2": 60.104,
+     "driver.batch.generate@2": 14.224,
+     "hypergraph.cbst.erase@2": 0.569,
+     "hypergraph.cbst.remove_values@2": 1.782,
+     "hypergraph.apply.delete@2": 7.284,
+     "hypergraph.cbst.insert@2": 4.789,
+     "hypergraph.cbst.append@2": 0.565,
+     "hypergraph.apply.insert@2": 13.077,
+     "hypergraph.cbst.rebuild@2": 7.312,
+     "hypergraph.apply.line_graph@2": 27.424,
+     "hypergraph.apply.views@2": 2.286,
+     "hypergraph.apply@2": 60.101,
+     "generate_ms@3": 15.674,
+     "apply_ms@3": 61.236,
+     "driver.batch.generate@3": 15.667,
+     "hypergraph.cbst.erase@3": 0.584,
+     "hypergraph.cbst.remove_values@3": 1.598,
+     "hypergraph.apply.delete@3": 7.293,
+     "hypergraph.cbst.insert@3": 4.763,
+     "hypergraph.cbst.append@3": 0.567,
+     "hypergraph.apply.insert@3": 13.097,
+     "hypergraph.cbst.rebuild@3": 7.36,
+     "hypergraph.apply.line_graph@3": 28.826,
+     "hypergraph.apply.views@3": 2.279,
+     "hypergraph.apply@3": 61.233,
+     "total_ms@0": 2196.35,
+     "driver.total@0": 2196.35
+    },
+    {
+     "load_ms@0": 358.232,
+     "io.read_hypergraph@0": 358.214,
+     "hypergraph.build@0": 756.485,
+     "hypergraph.cbst.construct@0": 193.065,
+     "hypergraph.upload@0": 470.275,
+     "generate_ms@1": 14.922,
+     "apply_ms@1": 55.387,
+     "driver.batch.generate@1": 14.918,
+     "hypergraph.cbst.erase@1": 0.167,
+     "hypergraph.cbst.remove_values@1": 1.396,
+     "hypergraph.apply.delete@1": 6.256,
+     "hypergraph.cbst.insert@1": 5.202,
+     "hypergraph.cbst.append@1": 0.565,
+     "hypergraph.apply.insert@1": 13.606,
+     "hypergraph.cbst.rebuild@1": 7.301,
+     "hypergraph.apply.line_graph@1": 25.913,
+     "hypergraph.apply.views@1": 2.255,
+     "hypergraph.apply@1": 55.381,
+     "generate_ms@2": 14.174,
+     "apply_ms@2": 60.037,
+     "driver.batch.generate@2": 14.157,
+     "hypergraph.cbst.erase@2": 0.562,
+     "hypergraph.cbst.remove_values@2": 1.807,
+     "hypergraph.apply.delete@2": 7.329,
+     "hypergraph.cbst.insert@2": 4.785,
+     "hypergraph.cbst.append@2": 0.569,
+     "hypergraph.apply.insert@2": 13.103,
+     "hypergraph.cbst.rebuild@2": 7.332,
+     "hypergraph.apply.line_graph@2": 27.357,
+     "hypergraph.apply.views@2": 2.273,
+     "hypergraph.apply@2": 60.034,
+     "generate_ms@3": 15.846,
+     "apply_ms@3": 60.852,
+     "driver.batch.generate@3": 15.838,
+     "hypergraph.cbst.erase@3": 0.554,
+     "hypergraph.cbst.remove_values@3": 1.584,
+     "hypergraph.apply.delete@3": 7.277,
+     "hypergraph.cbst.insert@3": 4.766,
+     "hypergraph.cbst.append@3": 0.585,
+     "hypergraph.apply.insert@3": 13.201,
+     "hypergraph.cbst.rebuild@3": 7.361,
+     "hypergraph.apply.line_graph@3": 28.526,
+     "hypergraph.apply.views@3": 2.246,
+     "hypergraph.apply@3": 60.849,
+     "total_ms@0": 2175.198,
+     "driver.total@0": 2175.198
+    },
+    {
+     "load_ms@0": 357.026,
+     "io.read_hypergraph@0": 357.009,
+     "hypergraph.build@0": 748.2379999999999,
+     "hypergraph.cbst.construct@0": 228.152,
+     "hypergraph.upload@0": 514.144,
+     "generate_ms@1": 15.523,
+     "apply_ms@1": 55.907,
+     "driver.batch.generate@1": 15.519,
+     "hypergraph.cbst.erase@1": 0.167,
+     "hypergraph.cbst.remove_values@1": 1.422,
+     "hypergraph.apply.delete@1": 6.463,
+     "hypergraph.cbst.insert@1": 5.217,
+     "hypergraph.cbst.append@1": 0.565,
+     "hypergraph.apply.insert@1": 13.923,
+     "hypergraph.cbst.rebuild@1": 7.295,
+     "hypergraph.apply.line_graph@1": 25.95,
+     "hypergraph.apply.views@1": 2.256,
+     "hypergraph.apply@1": 55.902,
+     "generate_ms@2": 14.311,
+     "apply_ms@2": 59.731,
+     "driver.batch.generate@2": 14.278,
+     "hypergraph.cbst.erase@2": 0.546,
+     "hypergraph.cbst.remove_values@2": 1.773,
+     "hypergraph.apply.delete@2": 7.243,
+     "hypergraph.cbst.insert@2": 4.776,
+     "hypergraph.cbst.append@2": 0.561,
+     "hypergraph.apply.insert@2": 13.011,
+     "hypergraph.cbst.rebuild@2": 7.304,
+     "hypergraph.apply.line_graph@2": 27.22,
+     "hypergraph.apply.views@2": 2.281,
+     "hypergraph.apply@2": 59.728,
+     "generate_ms@3": 14.961,
+     "apply_ms@3": 60.557,
+     "driver.batch.generate@3": 14.954,
+     "hypergraph.cbst.erase@3": 0.545,
+     "hypergraph.cbst.remove_values@3": 1.571,
+     "hypergraph.apply.delete@3": 7.217,
+     "hypergraph.cbst.insert@3": 4.774,
+     "hypergraph.cbst.append@3": 0.561,
+     "hypergraph.apply.insert@3": 13.208,
+     "hypergraph.cbst.rebuild@3": 7.358,
+     "hypergraph.apply.line_graph@3": 28.444,
+     "hypergraph.apply.views@3": 2.277,
+     "hypergraph.apply@3": 60.554,
+     "total_ms@0": 2204.938,
+     "driver.total@0": 2204.938
+    },
+    {
+     "load_ms@0": 356.379,
+     "io.read_hypergraph@0": 356.363,
+     "hypergraph.build@0": 805.305,
+     "hypergraph.cbst.construct@0": 210.695,
+     "hypergraph.upload@0": 524.428,
+     "generate_ms@1": 15.145,
+     "apply_ms@1": 55.478,
+     "driver.batch.generate@1": 15.142,
+     "hypergraph.cbst.erase@1": 0.169,
+     "hypergraph.cbst.remove_values@1": 1.425,
+     "hypergraph.apply.delete@1": 6.297,
+     "hypergraph.cbst.insert@1": 5.23,
+     "hypergraph.cbst.append@1": 0.584,
+     "hypergraph.apply.insert@1": 13.744,
+     "hypergraph.cbst.rebuild@1": 7.301,
+     "hypergraph.apply.line_graph@1": 25.87,
+     "hypergraph.apply.views@1": 2.267,
+     "hypergraph.apply@1": 55.473,
+     "generate_ms@2": 14.441,
+     "apply_ms@2": 60.463,
+     "driver.batch.generate@2": 14.422,
+     "hypergraph.cbst.erase@2": 0.587,
+     "hypergraph.cbst.remove_values@2": 1.756,
+     "hypergraph.apply.delete@2": 7.295,
+     "hypergraph.cbst.insert@2": 4.784,
+     "hypergraph.cbst.append@2": 0.562,
+     "hypergraph.apply.insert@2": 13.149,
+     "hypergraph.cbst.rebuild@2": 7.32,
+     "hypergraph.apply.line_graph@2": 27.43,
+     "hypergraph.apply.views@2": 2.281,
+     "hypergraph.apply@2": 60.459,
+     "generate_ms@3": 16.295,
+     "apply_ms@3": 61.419,
+     "driver.batch.generate@3": 16.289,
+     "hypergraph.cbst.erase@3": 0.616,
+     "hypergraph.cbst.remove_values@3": 1.584,
+     "hypergraph.apply.delete@3": 7.155,
+     "hypergraph.cbst.insert@3": 4.766,
+     "hypergraph.cbst.append@3": 0.554,
+     "hypergraph.apply.insert@3": 13.106,
+     "hypergraph.cbst.rebuild@3": 7.359,
+     "hypergraph.apply.line_graph@3": 28.997,
+     "hypergraph.apply.views@3": 2.285,
+     "hypergraph.apply@3": 61.416,
+     "total_ms@0": 2283.829,
+     "driver.total@0": 2283.829
+    }
+   ],
+   "noncount": {
+    "a_total": 9417.131,
+    "a_full_count": 5292.805,
+    "a_subtract_add": 1402.629,
+    "a_noncount": 2720.7159999999994,
+    "port_total": 2204.938,
+    "port_untimed_rest": 369.9170000000001,
+    "a_untimed_rest": 333.15700000000015,
+    "a_init": {
+     "init.load": 356.618,
+     "init.v2h_build": 392.271,
+     "init.h2h_build": 712.553,
+     "init.v2v_build": 0,
+     "init.flatten": 289.505,
+     "init.construct": 174.038,
+     "init.row_views": 2.808
+    },
+    "port_init": {
+     "load_ms": 357.026,
+     "hypergraph.build": 756.485,
+     "hypergraph.upload": 514.144
+    },
+    "a_maintain": [
+     70.585,
+     68.071,
+     68.934
+    ],
+    "port_apply": [
+     55.499,
+     60.104,
+     60.885
+    ],
+    "a_generate": [
+     175.874,
+     16.214,
+     16.102
+    ],
+    "port_generate": [
+     15.115,
+     14.241,
+     15.674
+    ],
+    "target": 3097.4012399999992,
+    "met": true,
+    "port_over_a_noncount_ms": -515.7779999999993
+   },
+   "host_syncs": {
+    "original": [
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     },
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     },
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     }
+    ],
+    "port": [
+     {
+      "total": 19,
+      "by_name": {
+       "cudaStreamSynchronize": 19
+      }
+     },
+     {
+      "total": 19,
+      "by_name": {
+       "cudaStreamSynchronize": 19
+      }
+     },
+     {
+      "total": 19,
+      "by_name": {
+       "cudaStreamSynchronize": 19
+      }
+     }
+    ]
+   }
+  },
+  "syn1m_b50k_s1": {
+   "rounds": 5,
+   "regions": [
+    {
+     "row": "end_to_end",
+     "gate": "end_to_end",
+     "original_ms": 2482.736,
+     "port_ms": 1539.093,
+     "ratio": 0.6199181064760813,
+     "original_runs": [
+      2482.736,
+      2517.14,
+      2482.269,
+      2474.539,
+      2517.952
+     ],
+     "port_runs": [
+      1538.004,
+      1539.093,
+      1537.981,
+      1541.572,
+      1540.927
+     ]
+    },
+    {
+     "row": "build",
+     "gate": "none",
+     "original_ms": 672.116,
+     "port_ms": 422.79200000000003,
+     "ratio": 0.629046176552857,
+     "original_runs": [
+      669.428,
+      704.662,
+      672.116,
+      669.84,
+      718.986
+     ],
+     "port_runs": [
+      424.392,
+      418.54200000000003,
+      422.13,
+      422.79200000000003,
+      423.812
+     ]
+    },
+    {
+     "row": "upload",
+     "gate": "none",
+     "original_ms": 67.229,
+     "port_ms": 175.893,
+     "ratio": 2.6163262877627216,
+     "original_runs": [
+      67.229,
+      70.769,
+      65.44600000000001,
+      67.735,
+      65.965
+     ],
+     "port_runs": [
+      175.893,
+      175.831,
+      179.045,
+      171.936,
+      177.147
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original_ms": 359.482,
+     "port_ms": 428.197,
+     "ratio": 1.191150043673953,
+     "original_runs": [
+      358.829,
+      358.958,
+      363.046,
+      360.599,
+      359.482
+     ],
+     "port_runs": [
+      429.783,
+      430.19,
+      427.5,
+      428.197,
+      428.12
+     ]
+    },
+    {
+     "row": "batch.generate[b1]",
+     "gate": "none",
+     "original_ms": 16.317,
+     "port_ms": 16.626,
+     "ratio": 1.0189373046515904,
+     "original_runs": [
+      15.944,
+      16.457,
+      16.317,
+      15.928,
+      16.424
+     ],
+     "port_runs": [
+      16.182,
+      16.626,
+      17.028,
+      16.642,
+      16.395
+     ]
+    },
+    {
+     "row": "batch.generate[b2]",
+     "gate": "none",
+     "original_ms": 15.241,
+     "port_ms": 15.669,
+     "ratio": 1.0280821468407586,
+     "original_runs": [
+      15.753,
+      15.095,
+      15.241,
+      15.141,
+      15.823
+     ],
+     "port_runs": [
+      15.624,
+      15.508,
+      15.669,
+      15.765,
+      16.426
+     ]
+    },
+    {
+     "row": "batch.generate[b3]",
+     "gate": "none",
+     "original_ms": 15.238,
+     "port_ms": 16.189,
+     "ratio": 1.0624097650610316,
+     "original_runs": [
+      15.217,
+      15.398,
+      15.09,
+      15.806,
+      15.238
+     ],
+     "port_runs": [
+      16.531,
+      16.071,
+      16.189,
+      16.011,
+      16.347
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 2.6033918857574463,
+       "program_cpu_s": 11.702930999999978,
+       "foreign_cpu_cores": 0.8632761018247673,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 41
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 24,
+        "pstates_busy": {
+         "P2": 24
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 1.7087502479553223,
+       "program_cpu_s": 8.525252999999992,
+       "foreign_cpu_cores": 0.7610392452103557,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 8
+       },
+       "gpu": {
+        "samples": 34,
+        "busy_samples": 24,
+        "pstates_busy": {
+         "P2": 24
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.6395010948181152,
+       "program_cpu_s": 11.63274100000001,
+       "foreign_cpu_cores": 1.0566212711794067,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 50
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 53,
+        "busy_samples": 33,
+        "pstates_busy": {
+         "P2": 33
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 1.7094638347625732,
+       "program_cpu_s": 8.38269600000001,
+       "foreign_cpu_cores": 0.961508494527548,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 34,
+        "busy_samples": 14,
+        "pstates_busy": {
+         "P2": 14
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.602177619934082,
+       "program_cpu_s": 11.396883999999972,
+       "foreign_cpu_cores": 1.136766368242057,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 1.7084662914276123,
+       "program_cpu_s": 8.34908200000001,
+       "foreign_cpu_cores": 0.8532939787683905,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 36
+       },
+       "gpu": {
+        "samples": 34,
+        "busy_samples": 14,
+        "pstates_busy": {
+         "P2": 14
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.5974698066711426,
+       "program_cpu_s": 11.555057000000033,
+       "foreign_cpu_cores": 0.9256153792906764,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 22,
+        "pstates_busy": {
+         "P2": 22
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 1.710139274597168,
+       "program_cpu_s": 8.387048999999934,
+       "foreign_cpu_cores": 0.9325567951579983,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 34,
+        "busy_samples": 14,
+        "pstates_busy": {
+         "P2": 14
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.639371395111084,
+       "program_cpu_s": 11.716510999999969,
+       "foreign_cpu_cores": 0.8906616940750551,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 15
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 1.7092490196228027,
+       "program_cpu_s": 8.414055000000019,
+       "foreign_cpu_cores": 1.0951183697411426,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 35,
+        "busy_samples": 15,
+        "pstates_busy": {
+         "P2": 15
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.136766368242057,
+    "original_pstates_busy": {
+     "P2": 143
+    },
+    "original_sm_mhz_busy_median": 1170.0,
+    "port_pstates_busy": {
+     "P2": 81
+    },
+    "port_sm_mhz_busy_median": 1170.0,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "before_a": 4.8427734375,
+     "blocked_before_a": 0,
+     "after_a": 4.61474609375,
+     "blocked_after_a": 0,
+     "after_b": 4.61474609375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 4.61474609375,
+     "blocked_before_a": 0,
+     "after_a": 4.4052734375,
+     "blocked_after_a": 0,
+     "after_b": 4.4052734375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 4.4052734375,
+     "blocked_before_a": 0,
+     "after_a": 4.4052734375,
+     "blocked_after_a": 0,
+     "after_b": 4.21240234375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 4.21240234375,
+     "blocked_before_a": 0,
+     "after_a": 4.21240234375,
+     "blocked_after_a": 0,
+     "after_b": 4.03515625,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 4.03515625,
+     "blocked_before_a": 0,
+     "after_a": 4.03515625,
+     "blocked_after_a": 0,
+     "after_b": 3.8720703125,
+     "blocked_after_b": 0
+    }
+   ],
+   "original_rounds": [
+    {
+     "init.load@0": 358.829,
+     "init.v2h_build@0": 231.156,
+     "init.h2h_build@0": 321.908,
+     "init.flatten@0": 116.364,
+     "init.construct@0": 65.777,
+     "init.row_views@0": 1.452,
+     "init.full_count@0": 635.343,
+     "batch.generate@1": 15.944,
+     "update.subtract@1": 48.005,
+     "maintain.prepare@1": 8.923,
+     "maintain.h2v_delete@1": 3.393,
+     "maintain.v2h_unfill@1": 2.135,
+     "maintain.h2v_insert@1": 7.947,
+     "maintain.v2h_fill@1": 10.115,
+     "maintain.h2h_merge@1": 20.239,
+     "maintain.row_views@1": 6.911,
+     "update.maintain@1": 67.979,
+     "update.add@1": 51.406,
+     "update@1": 167.406,
+     "batch.generate@2": 15.753,
+     "update.subtract@2": 48.274,
+     "maintain.prepare@2": 8.66,
+     "maintain.h2v_delete@2": 0.29,
+     "maintain.v2h_unfill@2": 2.096,
+     "maintain.h2v_insert@2": 2.061,
+     "maintain.v2h_fill@2": 9.187,
+     "maintain.h2h_merge@2": 19.887,
+     "maintain.row_views@2": 1.119,
+     "update.maintain@2": 44.998,
+     "update.add@2": 50.837,
+     "update@2": 144.113,
+     "batch.generate@3": 15.217,
+     "update.subtract@3": 48.392,
+     "maintain.prepare@3": 8.871,
+     "maintain.h2v_delete@3": 0.287,
+     "maintain.v2h_unfill@3": 2.188,
+     "maintain.h2v_insert@3": 6.74,
+     "maintain.v2h_fill@3": 9.354,
+     "maintain.h2h_merge@3": 19.783,
+     "maintain.row_views@3": 7.088,
+     "update.maintain@3": 56.009,
+     "update.add@3": 51.616,
+     "update@3": 156.022,
+     "total@0": 2482.736
+    },
+    {
+     "init.load@0": 358.958,
+     "init.v2h_build@0": 241.444,
+     "init.h2h_build@0": 331.761,
+     "init.flatten@0": 131.457,
+     "init.construct@0": 68.652,
+     "init.row_views@0": 2.117,
+     "init.full_count@0": 635.304,
+     "batch.generate@1": 16.457,
+     "update.subtract@1": 48.083,
+     "maintain.prepare@1": 9.262,
+     "maintain.h2v_delete@1": 2.992,
+     "maintain.v2h_unfill@1": 2.163,
+     "maintain.h2v_insert@1": 6.875,
+     "maintain.v2h_fill@1": 9.261,
+     "maintain.h2h_merge@1": 20.277,
+     "maintain.row_views@1": 6.873,
+     "update.maintain@1": 65.524,
+     "update.add@1": 51.354,
+     "update@1": 164.97,
+     "batch.generate@2": 15.095,
+     "update.subtract@2": 48.225,
+     "maintain.prepare@2": 8.852,
+     "maintain.h2v_delete@2": 0.294,
+     "maintain.v2h_unfill@2": 2.095,
+     "maintain.h2v_insert@2": 2.08,
+     "maintain.v2h_fill@2": 9.229,
+     "maintain.h2h_merge@2": 20.203,
+     "maintain.row_views@2": 1.119,
+     "update.maintain@2": 45.394,
+     "update.add@2": 50.796,
+     "update@2": 144.419,
+     "batch.generate@3": 15.398,
+     "update.subtract@3": 48.343,
+     "maintain.prepare@3": 8.845,
+     "maintain.h2v_delete@3": 0.293,
+     "maintain.v2h_unfill@3": 2.145,
+     "maintain.h2v_insert@3": 6.739,
+     "maintain.v2h_fill@3": 9.435,
+     "maintain.h2h_merge@3": 19.927,
+     "maintain.row_views@3": 6.979,
+     "update.maintain@3": 55.961,
+     "update.add@3": 51.512,
+     "update@3": 155.821,
+     "total@0": 2517.14
+    },
+    {
+     "init.load@0": 363.046,
+     "init.v2h_build@0": 238.152,
+     "init.h2h_build@0": 315.539,
+     "init.flatten@0": 118.425,
+     "init.construct@0": 64.019,
+     "init.row_views@0": 1.427,
+     "init.full_count@0": 636.005,
+     "batch.generate@1": 16.317,
+     "update.subtract@1": 48.063,
+     "maintain.prepare@1": 8.683,
+     "maintain.h2v_delete@1": 2.716,
+     "maintain.v2h_unfill@1": 2.136,
+     "maintain.h2v_insert@1": 7.158,
+     "maintain.v2h_fill@1": 9.929,
+     "maintain.h2h_merge@1": 20.186,
+     "maintain.row_views@1": 6.894,
+     "update.maintain@1": 65.334,
+     "update.add@1": 51.509,
+     "update@1": 164.917,
+     "batch.generate@2": 15.241,
+     "update.subtract@2": 48.63,
+     "maintain.prepare@2": 8.723,
+     "maintain.h2v_delete@2": 0.288,
+     "maintain.v2h_unfill@2": 2.1,
+     "maintain.h2v_insert@2": 2.072,
+     "maintain.v2h_fill@2": 9.07,
+     "maintain.h2h_merge@2": 19.887,
+     "maintain.row_views@2": 1.112,
+     "update.maintain@2": 44.861,
+     "update.add@2": 50.61,
+     "update@2": 144.105,
+     "batch.generate@3": 15.09,
+     "update.subtract@3": 48.111,
+     "maintain.prepare@3": 8.805,
+     "maintain.h2v_delete@3": 0.287,
+     "maintain.v2h_unfill@3": 2.13,
+     "maintain.h2v_insert@3": 6.781,
+     "maintain.v2h_fill@3": 9.468,
+     "maintain.h2h_merge@3": 19.76,
+     "maintain.row_views@3": 7.082,
+     "update.maintain@3": 55.864,
+     "update.add@3": 51.431,
+     "update@3": 155.412,
+     "total@0": 2482.269
+    },
+    {
+     "init.load@0": 360.599,
+     "init.v2h_build@0": 237.464,
+     "init.h2h_build@0": 314.171,
+     "init.flatten@0": 118.205,
+     "init.construct@0": 66.291,
+     "init.row_views@0": 1.444,
+     "init.full_count@0": 635.174,
+     "batch.generate@1": 15.928,
+     "update.subtract@1": 48.161,
+     "maintain.prepare@1": 8.746,
+     "maintain.h2v_delete@1": 2.859,
+     "maintain.v2h_unfill@1": 2.134,
+     "maintain.h2v_insert@1": 6.846,
+     "maintain.v2h_fill@1": 9.235,
+     "maintain.h2h_merge@1": 20.166,
+     "maintain.row_views@1": 6.992,
+     "update.maintain@1": 64.438,
+     "update.add@1": 51.478,
+     "update@1": 164.083,
+     "batch.generate@2": 15.141,
+     "update.subtract@2": 48.264,
+     "maintain.prepare@2": 8.881,
+     "maintain.h2v_delete@2": 0.286,
+     "maintain.v2h_unfill@2": 2.092,
+     "maintain.h2v_insert@2": 2.07,
+     "maintain.v2h_fill@2": 9.288,
+     "maintain.h2h_merge@2": 19.867,
+     "maintain.row_views@2": 1.152,
+     "update.maintain@2": 45.214,
+     "update.add@2": 52.676,
+     "update@2": 146.158,
+     "batch.generate@3": 15.806,
+     "update.subtract@3": 48.107,
+     "maintain.prepare@3": 8.687,
+     "maintain.h2v_delete@3": 0.284,
+     "maintain.v2h_unfill@3": 2.122,
+     "maintain.h2v_insert@3": 6.729,
+     "maintain.v2h_fill@3": 9.166,
+     "maintain.h2h_merge@3": 19.733,
+     "maintain.row_views@3": 7.05,
+     "update.maintain@3": 55.146,
+     "update.add@3": 51.443,
+     "update@3": 154.7,
+     "total@0": 2474.539
+    },
+    {
+     "init.load@0": 359.482,
+     "init.v2h_build@0": 275.583,
+     "init.h2h_build@0": 318.03,
+     "init.flatten@0": 125.373,
+     "init.construct@0": 64.552,
+     "init.row_views@0": 1.413,
+     "init.full_count@0": 635.153,
+     "batch.generate@1": 16.424,
+     "update.subtract@1": 48.139,
+     "maintain.prepare@1": 8.689,
+     "maintain.h2v_delete@1": 2.83,
+     "maintain.v2h_unfill@1": 2.141,
+     "maintain.h2v_insert@1": 6.915,
+     "maintain.v2h_fill@1": 9.247,
+     "maintain.h2h_merge@1": 20.057,
+     "maintain.row_views@1": 7.012,
+     "update.maintain@1": 64.601,
+     "update.add@1": 51.504,
+     "update@1": 164.255,
+     "batch.generate@2": 15.823,
+     "update.subtract@2": 48.364,
+     "maintain.prepare@2": 8.721,
+     "maintain.h2v_delete@2": 0.291,
+     "maintain.v2h_unfill@2": 2.139,
+     "maintain.h2v_insert@2": 2.049,
+     "maintain.v2h_fill@2": 9.113,
+     "maintain.h2h_merge@2": 19.882,
+     "maintain.row_views@2": 1.129,
+     "update.maintain@2": 44.908,
+     "update.add@2": 50.664,
+     "update@2": 143.939,
+     "batch.generate@3": 15.238,
+     "update.subtract@3": 48.094,
+     "maintain.prepare@3": 8.576,
+     "maintain.h2v_delete@3": 0.281,
+     "maintain.v2h_unfill@3": 2.136,
+     "maintain.h2v_insert@3": 6.702,
+     "maintain.v2h_fill@3": 9.347,
+     "maintain.h2h_merge@3": 19.811,
+     "maintain.row_views@3": 7.098,
+     "update.maintain@3": 55.505,
+     "update.add@3": 51.395,
+     "update@3": 154.999,
+     "total@0": 2517.952
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 429.783,
+     "hypergraph.build@0": 424.392,
+     "hypergraph.cbst.construct@0": 75.416,
+     "hypergraph.upload@0": 175.893,
+     "generate_ms@1": 16.182,
+     "apply_ms@1": 47.889,
+     "driver.batch.generate@1": 16.177,
+     "hypergraph.cbst.erase@1": 0.138,
+     "hypergraph.cbst.remove_values@1": 1.11,
+     "hypergraph.apply.delete@1": 9.809,
+     "hypergraph.cbst.insert@1": 2.732,
+     "hypergraph.cbst.append@1": 0.81,
+     "hypergraph.apply.insert@1": 14.033,
+     "hypergraph.cbst.rebuild@1": 5.017,
+     "hypergraph.apply.line_graph@1": 15.739,
+     "hypergraph.apply.views@1": 1.109,
+     "hypergraph.apply@1": 47.883,
+     "generate_ms@2": 15.624,
+     "apply_ms@2": 50.035,
+     "driver.batch.generate@2": 15.596,
+     "hypergraph.cbst.erase@2": 0.529,
+     "hypergraph.cbst.remove_values@2": 1.135,
+     "hypergraph.apply.delete@2": 10.807,
+     "hypergraph.cbst.insert@2": 0.785,
+     "hypergraph.cbst.append@2": 0.823,
+     "hypergraph.apply.insert@2": 11.817,
+     "hypergraph.cbst.rebuild@2": 5.0,
+     "hypergraph.apply.line_graph@2": 16.841,
+     "hypergraph.apply.views@2": 1.132,
+     "hypergraph.apply@2": 50.031,
+     "generate_ms@3": 16.531,
+     "apply_ms@3": 51.55,
+     "driver.batch.generate@3": 16.526,
+     "hypergraph.cbst.erase@3": 0.54,
+     "hypergraph.cbst.remove_values@3": 1.086,
+     "hypergraph.apply.delete@3": 10.748,
+     "hypergraph.cbst.insert@3": 2.477,
+     "hypergraph.cbst.append@3": 0.826,
+     "hypergraph.apply.insert@3": 13.446,
+     "hypergraph.cbst.rebuild@3": 4.898,
+     "hypergraph.apply.line_graph@3": 16.756,
+     "hypergraph.apply.views@3": 1.138,
+     "hypergraph.apply@3": 51.547,
+     "total_ms@0": 1538.004,
+     "driver.total@0": 1538.004
+    },
+    {
+     "load_ms@0": 430.19,
+     "hypergraph.build@0": 418.54200000000003,
+     "hypergraph.cbst.construct@0": 75.199,
+     "hypergraph.upload@0": 175.831,
+     "generate_ms@1": 16.626,
+     "apply_ms@1": 47.418,
+     "driver.batch.generate@1": 16.622,
+     "hypergraph.cbst.erase@1": 0.132,
+     "hypergraph.cbst.remove_values@1": 1.089,
+     "hypergraph.apply.delete@1": 9.891,
+     "hypergraph.cbst.insert@1": 2.707,
+     "hypergraph.cbst.append@1": 0.779,
+     "hypergraph.apply.insert@1": 13.864,
+     "hypergraph.cbst.rebuild@1": 4.971,
+     "hypergraph.apply.line_graph@1": 15.637,
+     "hypergraph.apply.views@1": 1.112,
+     "hypergraph.apply@1": 47.412,
+     "generate_ms@2": 15.508,
+     "apply_ms@2": 49.418,
+     "driver.batch.generate@2": 15.497,
+     "hypergraph.cbst.erase@2": 0.512,
+     "hypergraph.cbst.remove_values@2": 1.102,
+     "hypergraph.apply.delete@2": 10.714,
+     "hypergraph.cbst.insert@2": 0.787,
+     "hypergraph.cbst.append@2": 0.822,
+     "hypergraph.apply.insert@2": 11.732,
+     "hypergraph.cbst.rebuild@2": 4.934,
+     "hypergraph.apply.line_graph@2": 16.676,
+     "hypergraph.apply.views@2": 1.124,
+     "hypergraph.apply@2": 49.415,
+     "generate_ms@3": 16.071,
+     "apply_ms@3": 51.012,
+     "driver.batch.generate@3": 16.067,
+     "hypergraph.cbst.erase@3": 0.537,
+     "hypergraph.cbst.remove_values@3": 1.089,
+     "hypergraph.apply.delete@3": 10.697,
+     "hypergraph.cbst.insert@3": 2.458,
+     "hypergraph.cbst.append@3": 0.804,
+     "hypergraph.apply.insert@3": 13.293,
+     "hypergraph.cbst.rebuild@3": 4.873,
+     "hypergraph.apply.line_graph@3": 16.708,
+     "hypergraph.apply.views@3": 1.139,
+     "hypergraph.apply@3": 51.01,
+     "total_ms@0": 1539.093,
+     "driver.total@0": 1539.093
+    },
+    {
+     "load_ms@0": 427.5,
+     "hypergraph.build@0": 422.13,
+     "hypergraph.cbst.construct@0": 75.83500000000001,
+     "hypergraph.upload@0": 179.045,
+     "generate_ms@1": 17.028,
+     "apply_ms@1": 47.998,
+     "driver.batch.generate@1": 17.023,
+     "hypergraph.cbst.erase@1": 0.135,
+     "hypergraph.cbst.remove_values@1": 1.094,
+     "hypergraph.apply.delete@1": 9.838,
+     "hypergraph.cbst.insert@1": 2.707,
+     "hypergraph.cbst.append@1": 0.831,
+     "hypergraph.apply.insert@1": 14.07,
+     "hypergraph.cbst.rebuild@1": 4.994,
+     "hypergraph.apply.line_graph@1": 15.749,
+     "hypergraph.apply.views@1": 1.144,
+     "hypergraph.apply@1": 47.992,
+     "generate_ms@2": 15.669,
+     "apply_ms@2": 49.762,
+     "driver.batch.generate@2": 15.658,
+     "hypergraph.cbst.erase@2": 0.552,
+     "hypergraph.cbst.remove_values@2": 1.115,
+     "hypergraph.apply.delete@2": 10.72,
+     "hypergraph.cbst.insert@2": 0.805,
+     "hypergraph.cbst.append@2": 0.835,
+     "hypergraph.apply.insert@2": 11.658,
+     "hypergraph.cbst.rebuild@2": 4.958,
+     "hypergraph.apply.line_graph@2": 16.862,
+     "hypergraph.apply.views@2": 1.125,
+     "hypergraph.apply@2": 49.759,
+     "generate_ms@3": 16.189,
+     "apply_ms@3": 51.35,
+     "driver.batch.generate@3": 16.184,
+     "hypergraph.cbst.erase@3": 0.541,
+     "hypergraph.cbst.remove_values@3": 1.105,
+     "hypergraph.apply.delete@3": 10.594,
+     "hypergraph.cbst.insert@3": 2.472,
+     "hypergraph.cbst.append@3": 0.808,
+     "hypergraph.apply.insert@3": 13.352,
+     "hypergraph.cbst.rebuild@3": 4.881,
+     "hypergraph.apply.line_graph@3": 16.813,
+     "hypergraph.apply.views@3": 1.135,
+     "hypergraph.apply@3": 51.347,
+     "total_ms@0": 1537.981,
+     "driver.total@0": 1537.981
+    },
+    {
+     "load_ms@0": 428.197,
+     "hypergraph.build@0": 422.79200000000003,
+     "hypergraph.cbst.construct@0": 73.08,
+     "hypergraph.upload@0": 171.936,
+     "generate_ms@1": 16.642,
+     "apply_ms@1": 47.823,
+     "driver.batch.generate@1": 16.639,
+     "hypergraph.cbst.erase@1": 0.134,
+     "hypergraph.cbst.remove_values@1": 1.116,
+     "hypergraph.apply.delete@1": 9.934,
+     "hypergraph.cbst.insert@1": 2.703,
+     "hypergraph.cbst.append@1": 0.815,
+     "hypergraph.apply.insert@1": 14.003,
+     "hypergraph.cbst.rebuild@1": 4.997,
+     "hypergraph.apply.line_graph@1": 15.67,
+     "hypergraph.apply.views@1": 1.095,
+     "hypergraph.apply@1": 47.817,
+     "generate_ms@2": 15.765,
+     "apply_ms@2": 49.6,
+     "driver.batch.generate@2": 15.756,
+     "hypergraph.cbst.erase@2": 0.507,
+     "hypergraph.cbst.remove_values@2": 1.093,
+     "hypergraph.apply.delete@2": 10.746,
+     "hypergraph.cbst.insert@2": 0.777,
+     "hypergraph.cbst.append@2": 0.799,
+     "hypergraph.apply.insert@2": 11.815,
+     "hypergraph.cbst.rebuild@2": 4.991,
+     "hypergraph.apply.line_graph@2": 16.635,
+     "hypergraph.apply.views@2": 1.126,
+     "hypergraph.apply@2": 49.597,
+     "generate_ms@3": 16.011,
+     "apply_ms@3": 51.075,
+     "driver.batch.generate@3": 16.006,
+     "hypergraph.cbst.erase@3": 0.512,
+     "hypergraph.cbst.remove_values@3": 1.111,
+     "hypergraph.apply.delete@3": 10.6,
+     "hypergraph.cbst.insert@3": 2.445,
+     "hypergraph.cbst.append@3": 0.813,
+     "hypergraph.apply.insert@3": 13.524,
+     "hypergraph.cbst.rebuild@3": 4.845,
+     "hypergraph.apply.line_graph@3": 16.655,
+     "hypergraph.apply.views@3": 1.153,
+     "hypergraph.apply@3": 51.073,
+     "total_ms@0": 1541.572,
+     "driver.total@0": 1541.572
+    },
+    {
+     "load_ms@0": 428.12,
+     "hypergraph.build@0": 423.812,
+     "hypergraph.cbst.construct@0": 76.087,
+     "hypergraph.upload@0": 177.147,
+     "generate_ms@1": 16.395,
+     "apply_ms@1": 47.952,
+     "driver.batch.generate@1": 16.391,
+     "hypergraph.cbst.erase@1": 0.136,
+     "hypergraph.cbst.remove_values@1": 1.081,
+     "hypergraph.apply.delete@1": 9.856,
+     "hypergraph.cbst.insert@1": 2.734,
+     "hypergraph.cbst.append@1": 0.817,
+     "hypergraph.apply.insert@1": 14.144,
+     "hypergraph.cbst.rebuild@1": 5.04,
+     "hypergraph.apply.line_graph@1": 15.674,
+     "hypergraph.apply.views@1": 1.143,
+     "hypergraph.apply@1": 47.947,
+     "generate_ms@2": 16.426,
+     "apply_ms@2": 50.5,
+     "driver.batch.generate@2": 16.413,
+     "hypergraph.cbst.erase@2": 0.545,
+     "hypergraph.cbst.remove_values@2": 1.138,
+     "hypergraph.apply.delete@2": 10.932,
+     "hypergraph.cbst.insert@2": 0.78,
+     "hypergraph.cbst.append@2": 0.809,
+     "hypergraph.apply.insert@2": 11.909,
+     "hypergraph.cbst.rebuild@2": 4.963,
+     "hypergraph.apply.line_graph@2": 16.797,
+     "hypergraph.apply.views@2": 1.125,
+     "hypergraph.apply@2": 50.497,
+     "generate_ms@3": 16.347,
+     "apply_ms@3": 51.319,
+     "driver.batch.generate@3": 16.343,
+     "hypergraph.cbst.erase@3": 0.523,
+     "hypergraph.cbst.remove_values@3": 1.08,
+     "hypergraph.apply.delete@3": 10.61,
+     "hypergraph.cbst.insert@3": 2.49,
+     "hypergraph.cbst.append@3": 0.828,
+     "hypergraph.apply.insert@3": 13.583,
+     "hypergraph.cbst.rebuild@3": 4.865,
+     "hypergraph.apply.line_graph@3": 16.68,
+     "hypergraph.apply.views@3": 1.149,
+     "hypergraph.apply@3": 51.316,
+     "total_ms@0": 1540.927,
+     "driver.total@0": 1540.927
+    }
+   ],
+   "noncount": {
+    "a_total": 2482.736,
+    "a_full_count": 635.304,
+    "a_subtract_add": 298.35400000000004,
+    "a_noncount": 1548.863,
+    "port_total": 1539.093,
+    "port_untimed_rest": 312.90899999999976,
+    "a_untimed_rest": 234.57399999999987,
+    "a_init": {
+     "init.load": 359.482,
+     "init.v2h_build": 238.152,
+     "init.h2h_build": 318.03,
+     "init.v2v_build": 0,
+     "init.flatten": 118.425,
+     "init.construct": 65.777,
+     "init.row_views": 1.444
+    },
+    "port_init": {
+     "load_ms": 428.197,
+     "hypergraph.build": 422.79200000000003,
+     "hypergraph.upload": 175.893
+    },
+    "a_maintain": [
+     65.334,
+     44.998,
+     55.864
+    ],
+    "port_apply": [
+     47.889,
+     49.762,
+     51.319
+    ],
+    "a_generate": [
+     16.317,
+     15.241,
+     15.238
+    ],
+    "port_generate": [
+     16.626,
+     15.669,
+     16.189
+    ],
+    "target": 1648.17244,
+    "met": true,
+    "port_over_a_noncount_ms": -9.769999999999982
+   },
+   "host_syncs": {
+    "original": [
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     },
+     {
+      "total": 90,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 22,
+       "cudaMemcpy": 24,
+       "cudaStreamSynchronize": 23
+      }
+     },
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     }
+    ],
+    "port": [
+     {
+      "total": 19,
+      "by_name": {
+       "cudaStreamSynchronize": 19
+      }
+     },
+     {
+      "total": 16,
+      "by_name": {
+       "cudaStreamSynchronize": 16
+      }
+     },
+     {
+      "total": 19,
+      "by_name": {
+       "cudaStreamSynchronize": 19
+      }
+     }
+    ]
+   }
+  }
+ }
+}

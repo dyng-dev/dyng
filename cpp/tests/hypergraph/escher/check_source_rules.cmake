@@ -8,20 +8,30 @@
 # the documented exception dyng/testing/cbst_host_model.hpp exposes the CBST (its keys, offsets,
 # +1 shifts or sentinels: no header names a cbst_ identifier or includes the store).
 #
-#   cmake -DSOURCE_DIR=<repo>/cpp -P check_source_rules.cmake
+#   cmake -DSOURCE_DIR=<repo>/cpp [-DSOURCE_SUBDIRS=<dirs under src>] -P check_source_rules.cmake
+#
+# SOURCE_SUBDIRS (default: hypergraph) lists the directories under <SOURCE_DIR>/src whose sources
+# are checked; the triad_count port (M9a, ADR 0053) is checked with algorithms/triad_count.
 cmake_minimum_required(VERSION 3.20)
 
 if(NOT SOURCE_DIR)
   message(FATAL_ERROR "SOURCE_DIR is required")
 endif()
 
-set(_violations "")
-file(GLOB_RECURSE _sources "${SOURCE_DIR}/src/hypergraph/*.cu" "${SOURCE_DIR}/src/hypergraph/*.cuh"
-     "${SOURCE_DIR}/src/hypergraph/*.cpp" "${SOURCE_DIR}/src/hypergraph/*.hpp"
-)
-if(NOT _sources)
-  message(FATAL_ERROR "no sources under ${SOURCE_DIR}/src/hypergraph")
+if(NOT SOURCE_SUBDIRS)
+  set(SOURCE_SUBDIRS hypergraph)
 endif()
+set(_violations "")
+set(_sources "")
+foreach(_subdir IN LISTS SOURCE_SUBDIRS)
+  file(GLOB_RECURSE _found "${SOURCE_DIR}/src/${_subdir}/*.cu" "${SOURCE_DIR}/src/${_subdir}/*.cuh"
+       "${SOURCE_DIR}/src/${_subdir}/*.cpp" "${SOURCE_DIR}/src/${_subdir}/*.hpp"
+  )
+  if(NOT _found)
+    message(FATAL_ERROR "no sources under ${SOURCE_DIR}/src/${_subdir}")
+  endif()
+  list(APPEND _sources ${_found})
+endforeach()
 
 # name|regular expression (matched against every line that is not a // comment)
 set(_rules
@@ -112,4 +122,4 @@ if(_violations)
   message(FATAL_ERROR "CBST source rules violated:\n${_violations}")
 endif()
 list(LENGTH _sources _n)
-message(STATUS "CBST source rules: ${_n} files of cpp/src/hypergraph and the public headers are clean")
+message(STATUS "CBST source rules: ${_n} files of ${SOURCE_SUBDIRS} and the public headers are clean")

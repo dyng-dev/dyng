@@ -1,0 +1,134 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Benchmark-suite record (PLAN Section 8.5) of dynG's `triad_count` for ESCHER+ (TKDE 2026): the
+# device memory of the dynamic hypergraph and its counter, and the readings ESCHER+ adds to
+# ESCHER (StatHyper's three triad types; other batch sizes). It reads the memory gates of M9a
+# (parity/results/M9a.md, the gates; PLAN Section 8.6 "device memory <= 1.05x"; ADR 0056):
+#
+# - store_memory (the author's decision of 2026-10-07, carried into M9): dynG's
+#   store_stats().device_bytes against ESCHER-GPU@abcf9b2's own DynamicHypergraph::deviceBytes()
+#   (the trees plus the row views) after the build and after every batch on coauth-DBLP, and at
+#   A's two print points (after the build, after the last batch) on syn1M and syn2M;
+# - device_memory (decision D1 of 2026-10-15): the peak of live device allocations (cudaMalloc +
+#   cudaMallocAsync, kind Device; A's Thrust temporaries included) of both whole timed processes
+#   (load, build, full count, 3 x 50K batches, no --check) under `nsys profile -t cuda,nvtx
+#   --cuda-memory-usage=true`, on GPU 1 under the shared lock with no foreign process on it.
+#
+# The footprint (allocations plus the stream-ordered pool's reserve), the NVTX range of each peak
+# and the triad bytes live during hypergraph.apply are recorded beside them, not gated (D1).
+# ESCHER-GPU's repository does not say which of its readings belong to the IPDPS paper and which
+# to the TKDE extension (results/README.md has one table per measure); the split of the two
+# suites is ours (ADR 0056 section 2): the timing gates of ESCHER's paper-timed region in
+# ipdps26_escher.yaml, the memory of the best-fit reuse store (ESCHER+'s operation) and the
+# StatHyper types here.
+#
+# Machine-readable: parity/bench_suite.py validates this file and runs every reading through
+# parity/perf_ab.py triad_count memory|run; from 0.3.0 on parity/certify.py requires its summary,
+# with the store_memory rows rechecked point by point (decision D8 of 2026-10-15, taken on the
+# plan's default pending the author).
+schema: 1
+suite: tkde26_escher_plus
+title: "ESCHER+: device memory of the dynamic hypergraph and its triad counts; StatHyper types (dynG triad_count)"
+algorithm: triad_count
+paper:
+  short: ESCHER+
+  venue: IEEE TKDE 2026
+  scope: >-
+    the device memory of ESCHER-GPU@abcf9b2's dynamic hypergraph (its own deviceBytes(): the
+    CBSTs and the row views) and of the whole process (the Nsight Systems peak of live
+    allocations) over the timed run of build/main with 3 x 50K batches; and, recorded, the
+    StatHyper triad types 1-3 (build/type1..3) and the memory at 100K and 200K batches on
+    coauth-DBLP.
+harness:
+  tool: perf_ab.triad_count        # parity/perf_ab.py triad_count memory|run (parity/triad_perf.py)
+  inputs: $DYNG_SCRATCH
+  executable: tools/compat/dyng-compat-escher
+  presets: {openmp: parity, cuda: parity-cuda}
+  region_map: parity/timed_regions/triad_count.toml
+  goldens: triad_count_escher_gpu   # A's deviceBytes() per batch: the golden set's recording (group.json)
+datasets:
+  - name: coauth
+    file: datasets/hyper/coauth.hg
+    source: {collection: "A. R. Benson's hypergraph collection", id: coauth-DBLP-full, url: "https://www.cs.cornell.edu/~arb/data/coauth-DBLP/"}
+    recipe: >-
+      ESCHER-GPU@abcf9b2's bench/datasets/get_coauth.sh (repeated author sets dropped, vertex
+      ids relabeled to 1..|V|; 2,467,389 hyperedges, 1,930,378 vertices, 7,748,737 pins);
+      datasets/registry.toml pins the file
+    sha256: 65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6
+  - name: syn1m
+    source: {collection: ESCHER-GPU, id: "the synthetic generator (n m r1 r2)"}
+    generator: {name: generators::legacy::escher_hypergraph, parameters: [1000000, 10, 1, 333333]}
+    recipe: >-
+      generated in-process by both sides from A's arguments `1000000 10 1 333333 --seed S`
+      (1M hyperedges, cardinality uniform in 1..10, vertex ids 1..333,333); dynG's
+      generators::legacy reproduces A's rows byte for byte (M9a step 1). sha256: the rows of
+      each seed, as the golden set triad_count_escher_gpu stores them (inputs/syn1m_s<S>.hg.zst)
+    sha256:
+      s1: 664dc7069914126f24a150d4f924a9ee9a7b77e78adfb3a7b95b32740808d4c6
+      s2: 6103d6fafb4f7112bec6e45402cb69592a2158d7150731227f1312a61dc7c8b3
+      s3: 101ba09f136d3883f9b254d1cea6d359a35626513a140c4364db90a34af2e972
+  - name: syn2m
+    source: {collection: ESCHER-GPU, id: "the synthetic generator (n m r1 r2)"}
+    generator: {name: generators::legacy::escher_hypergraph, parameters: [2000000, 10, 1, 666666]}
+    recipe: >-
+      generated in-process by both sides from A's arguments `2000000 10 1 666666 --seed S`
+      (2M hyperedges, cardinality uniform in 1..10, vertex ids 1..666,666); as syn1m
+    sha256:
+      s1: c7a7ad18289f82a33b8ca9642f640c4c4a55d5b798d6a20065c24d324980c01f
+      s2: 05c223c0f152afc4359a01fea42a39fde186057fdfdac1e8098cdfba5c2bacbc
+      s3: 10abbf5f47da65f3ba1080ef25dc9ece069aca2a5ef86298ce968935543156eb
+batches:       # A's generator (--batches 3 --batch-size B --seed S; generators::legacy::escher_batch_generator)
+  - {name: b50k, generator: legacy.escher_batch, size: 50000, batches: 3, seeds: [1], inserts: "coauth: sample (copies of live hyperedges); synthetic: random"}
+  - {name: b100k, generator: legacy.escher_batch, size: 100000, batches: 3, seeds: [1], inserts: "sample (coauth)"}
+  - {name: b200k, generator: legacy.escher_batch, size: 200000, batches: 3, seeds: [1], inserts: "sample (coauth)"}
+backends:
+  cuda:
+    gpu: 0           # the timed readings (GPU 0, the exclusive lock); the memory readings name GPU 1
+    environment: CUDA_MODULE_LOADING=EAGER on both sides, no OMP_* variables
+    port: dyng-compat-escher run --pattern <p> --backend cuda --nvtx (memory); --sync-stages (timing)
+    baseline: ESCHER-GPU
+metrics:
+  store_memory:
+    gate: memory
+    cuda: {original: "DynamicHypergraph::deviceBytes() after the build and after each batch (the golden set's recording; A's [memory] print points cross-checked)", port: "store_stats().device_bytes at the same points (the driver's [memory] lines)"}
+  device_memory:
+    gate: memory
+    cuda: {original: "peak live device allocations of build/main (nsys, no --check)", port: "peak live device allocations of dyng-compat-escher run --nvtx (nsys)"}
+baselines:     # the pinned original, built from the UNPATCHED scratch copy by its own Makefile
+  ESCHER-GPU: {commit: abcf9b2bd42f896ec3103a6835edf713ed5e416c, variant: unpatched, backend: cuda}
+tolerance:     # PLAN 8.6: port / original
+  compute: 1.05
+  compute_short: 1.10
+  short_region_ms: 10.0
+  end_to_end: 1.10
+  memory: 1.05
+readings:
+  - name: cuda-memory
+    kind: memory
+    backend: cuda
+    gpu: 1
+    gated: true
+    cases: [coauth_b50k_s1, syn1m_b50k_s1, syn2m_b50k_s1]
+  - name: cuda-memory-batch-sizes
+    kind: memory
+    backend: cuda
+    gpu: 1
+    gated: false     # recorded: the memory at A's other coauth batch sizes
+    cases: [coauth_b100k_s1, coauth_b200k_s1]
+  - name: cuda-types
+    kind: run
+    backend: cuda
+    clocks: base     # ADR 0021, as coauth-DBLP's h_motif gate
+    runs: 5
+    gated: false     # recorded: StatHyper's types (the gates are h_motif's, ipdps26_escher.yaml)
+    patterns: [type1, type2, type3]
+    cases: [coauth_b50k_s1]
+paper_reference:   # informational: ESCHER-GPU@abcf9b2 results/README.md, "Memory (coauth-DBLP)" and the synthetic line under it
+  hardware: RTX A5000 (sm_86), CUDA 13.1
+  store_gb: {coauth: 1.83, syn1m: 0.67, syn2m: 1.34}   # "GB of ESCHER allocations after init and after 3 batches"
+  process_peak_gb: {coauth: 2.1}                       # "process peak sampled at 5 Hz" (nvidia-smi), not the nsys peak
+  note: >-
+    A's figures are its own deviceBytes() and an nvidia-smi sample of the process; the gates
+    compare dynG with A's deviceBytes() at the same points and with A's nsys peak in the same
+    session, never with these figures.

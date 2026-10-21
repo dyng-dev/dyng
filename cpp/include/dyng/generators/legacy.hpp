@@ -16,6 +16,7 @@
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/csr.hpp>
 #include <dyng/graph/edge_batch.hpp>
+#include <dyng/hypergraph/hyper_apply_summary.hpp>
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 #include <dyng/hypergraph/hyperedge_list.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
@@ -24,6 +25,7 @@
 #include <random>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /**
  * @defgroup generators Generators
@@ -296,6 +298,94 @@ template <typename vertex_t, typename weight_t>
     std::mt19937_64& rng, const escher_hypergraph_options& opt);
 
 /**
+ * @brief The live hyperedges of a hypergraph kept on the host by its caller, in step with the
+ *        hypergraph (ESCHER-GPU's host model, the rows DynamicHypergraph keeps beside its device
+ *        trees): what escher_batch_generator reads instead of the hypergraph.
+ *
+ * Built from the list the hypergraph was built from (hypergraph::from_hyperedges(): hyperedge i
+ * has id i), it follows every applied batch through apply(): the deleted ids die, then every
+ * inserted hyperedge, its members sorted and deduplicated as the hypergraph stores them, lives at
+ * its id from hyper_apply_summary::inserted_ids (so under id_reuse::erase_first an id deleted
+ * and reused in the same batch holds the new row, and under insert_first the new ids are never
+ * deleted ones). It never reads the hypergraph: a driver that draws ESCHER-GPU's batches with it
+ * keeps no public view of a device hypergraph (hypergraph::h2v()) alive across apply() (M9a,
+ * ADR 0051).
+ * @tparam vertex_t Vertex id type.
+ * @ingroup generators
+ */
+template <typename vertex_t>
+class escher_host_model {
+ public:
+  /// An empty model (no vertices, no hyperedges).
+  escher_host_model() = default;
+
+  /**
+   * @brief The model of a hypergraph built from `list` (hyperedge i = id i).
+   * @tparam weight_t Weight type of the list (weights are not kept).
+   * @param[in] list The hyperedges, in host memory.
+   * @throws invalid_argument_error if the arrays are not host-accessible, the offsets are
+   *                                malformed or a member is outside [0, num_vertices).
+   * @throws out_of_memory_error    if host memory cannot be allocated.
+   */
+  template <typename weight_t>
+  explicit escher_host_model(const hyperedge_list_view<vertex_t, weight_t>& list);
+
+  /**
+   * @brief Follow a batch the hypergraph applied.
+   * @tparam weight_t Weight type of the batch (weights are not kept).
+   * @param[in] batch   The batch as applied (host memory).
+   * @param[in] summary What apply() (or dyng::update()) returned for it: inserted_ids gives the
+   *                    ids of the inserted hyperedges, in batch order.
+   * @throws invalid_argument_error if the arrays are not host-accessible, the offsets are
+   *                                malformed, a member is outside [0, num_vertices()), an
+   *                                inserted hyperedge is empty, or inserted_ids does not have
+   *                                one non-negative id per insertion. Nothing changes then.
+   * @throws out_of_memory_error    if host memory cannot be allocated (nothing changes).
+   */
+  template <typename weight_t>
+  void apply(const hyperedge_batch_view<vertex_t, weight_t>& batch,
+             const hyper_apply_summary& summary);
+
+  /**
+   * @brief Vertices (as the hypergraph's num_vertices()).
+   * @return The vertex count.
+   */
+  [[nodiscard]] vertex_t num_vertices() const noexcept {
+    return num_vertices_;
+  }
+
+  /**
+   * @brief Live hyperedges.
+   * @return Their number.
+   */
+  [[nodiscard]] std::int64_t num_hyperedges() const noexcept {
+    return num_live_;
+  }
+
+  /**
+   * @brief The ids the model holds rows for: every live id is below it (it never shrinks, as
+   *        ESCHER-GPU's host rows do not; the hypergraph's hyperedge_id_bound() may be smaller).
+   * @return The number of rows.
+   */
+  [[nodiscard]] std::int64_t num_rows() const noexcept {
+    return static_cast<std::int64_t>(rows_.size());
+  }
+
+  /**
+   * @brief The members of an id.
+   * @param[in] id An id in [0, num_rows()).
+   * @return Its members, sorted; empty for a dead id.
+   * @throws invalid_argument_error if `id` is out of range.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& row(std::int64_t id) const;
+
+ private:
+  vertex_t num_vertices_ = 0;
+  std::int64_t num_live_ = 0;
+  std::vector<std::vector<vertex_t>> rows_;
+};
+
+/**
  * @brief ESCHER-GPU's batch generator (BatchGenerator::next of ESCHER-GPU\@abcf9b2), bit-exact
  *        for the engine's state, reading the live state of a dynG hypergraph.
  *
@@ -337,6 +427,23 @@ class escher_batch_generator {
   template <typename vertex_t, typename weight_t>
   [[nodiscard]] hyperedge_batch<vertex_t, weight_t> next(const resources& res,
                                                          const hypergraph<vertex_t, weight_t>& h);
+
+  /**
+   * @brief The next batch for the live state of a host model (the same draws as the
+   *        hypergraph's next() when the model is in step with that hypergraph).
+   *
+   * The live ids are those with a non-empty row, in increasing order; random insertions draw
+   * vertices up to max(graph.max_vertex, model.num_vertices() - 1), as next() does with the
+   * hypergraph's vertex count. It reads host memory only (no synchronization, no device view).
+   * @tparam weight_t Hyperedge weight type of the batch (insertions of a weighted batch get
+   *                  weight 1).
+   * @tparam vertex_t Vertex id type.
+   * @param[in] model The host model, in step with the hypergraph the batch is for.
+   * @return The batch: the deletions (sorted ids), then the insertions in A's order.
+   * @throws out_of_memory_error if host memory cannot be allocated.
+   */
+  template <typename weight_t = unweighted, typename vertex_t>
+  [[nodiscard]] hyperedge_batch<vertex_t, weight_t> next(const escher_host_model<vertex_t>& model);
 
  private:
   std::mt19937_64* rng_;

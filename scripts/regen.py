@@ -203,6 +203,14 @@ def _check_manifest(root: Path, algo: Algorithm, keys: set[str]) -> list[str]:
             "a `stable` algorithm has a CUDA backend or an accepted written reason "
             "(`no_cuda_reason`)"
         )
+    if "python" in d and not isinstance(d["python"], bool):
+        problems.append("`python` must be true or false")
+    if d.get("python") is False and d["maturity"] != "experimental":
+        problems.append(
+            f"maturity `{d['maturity']}` needs the Python module dyng.{d['name']} "
+            "(`python = false` is for an experimental algorithm whose bindings come later; "
+            "PLAN 4.8)"
+        )
     if d["maturity"] != "experimental" and SCAFFOLD_LINE in algo.path.read_text(encoding="utf-8"):
         problems.append(
             f"maturity `{d['maturity']}` but the manifest still has the line `{SCAFFOLD_LINE}`, "
@@ -502,6 +510,7 @@ def python_registry(reg: Registry) -> str:
         f'        "since": "{a["since"]}",\n'
         f'        "container": "{a["container"]}",\n'
         f'        "maturity": "{a["maturity"]}",\n'
+        f'        "python": "{"no" if a.data.get("python") is False else "yes"}",\n'
         "    },"
         for a in reg.algorithms
     )
@@ -510,7 +519,9 @@ def python_registry(reg: Registry) -> str:
 
 from __future__ import annotations
 
-#: name -> title, first release, container and maturity of every algorithm with a manifest.
+#: name -> title, first release, container, maturity and whether the module dyng.<name> exists
+#: (python: "no" for an experimental algorithm whose bindings come later) of every algorithm with
+#: a manifest.
 ALGORITHMS: dict[str, dict[str, str]] = {{
 {rows}
 }}

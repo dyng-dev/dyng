@@ -7,8 +7,8 @@
  *
  * for_each() launches one grid-stride kernel per call on the stream of the resources handle, so
  * the work of consecutive calls is ordered and a later call sees what an earlier one wrote. read()
- * is the only host synchronization: it copies one scalar to the host, waits for the stream and
- * reports the synchronization to the budget counters (invariant I9). Every kernel instantiation
+ * and download() are the only host synchronizations: they copy one scalar (several) to the host,
+ * wait for the stream and report the synchronization to the budget counters (invariant I9). Every kernel instantiation
  * registers itself for resources::warm_up() (util/kernel_registry.hpp).
  */
 #pragma once
@@ -180,6 +180,25 @@ class cuda_exec {
       DYNG_CUDA_TRY(cudaMemcpyAsync(dst, src, static_cast<std::size_t>(n) * sizeof(value_t),
                                     cudaMemcpyHostToDevice, stream_));
     }
+  }
+
+  /**
+   * @brief Copy `n` elements of device memory to the host and wait for the stream (one host
+   *        synchronization, counted for invariant I9).
+   * @tparam value_t Element type.
+   * @param[out] dst The destination (host memory).
+   * @param[in]  src The source (device memory).
+   * @param[in]  n   Number of elements.
+   */
+  template <typename value_t>
+  void download(value_t* dst, const value_t* src, std::int64_t n) const {
+    if (n <= 0) {
+      return;
+    }
+    DYNG_CUDA_TRY(cudaMemcpyAsync(dst, src, static_cast<std::size_t>(n) * sizeof(value_t),
+                                  cudaMemcpyDeviceToHost, stream_));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_));
+    note_host_sync();
   }
 
  private:

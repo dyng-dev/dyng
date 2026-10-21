@@ -1,0 +1,552 @@
+{
+ "backend": "sequential",
+ "cases": {
+  "syn100k_b100k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/01-smoke/main": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/01-smoke/type1": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/01-smoke/type2": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/01-smoke/type3": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/02-reference_small/main": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/02-reference_small/type1": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/02-reference_small/type2": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/02-reference_small/type3": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/main": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/type1": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/type2": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/type3": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/04-small_b20/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/04-small_b20/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/04-small_b20/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/04-small_b20/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/14-skewed/main": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/14-skewed/type1": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/14-skewed/type2": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/14-skewed/type3": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/15-medium/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/15-medium/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/15-medium/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/15-medium/type3": {
+   "batches": 3,
+   "passed": true
+  }
+ },
+ "commit": "c8b6e68b803408f56a8fa95980c42f7e7024f8e1",
+ "counter": "algorithm",
+ "coverage": true,
+ "date": "2026-10-15T21:59:05Z",
+ "group_seconds": {
+  "syn100k_b100k_s1": 291.6,
+  "syn100k_b100k_s2": 295.9,
+  "syn100k_b100k_s3": 294.2,
+  "syn100k_b200k_s1": 302.6,
+  "syn100k_b200k_s2": 305.9,
+  "syn100k_b200k_s3": 305.4,
+  "syn100k_b20_s1": 127.4,
+  "syn100k_b20_s2": 132.8,
+  "syn100k_b20_s3": 131.1,
+  "syn100k_b50k_s1": 263.0,
+  "syn100k_b50k_s2": 269.9,
+  "syn100k_b50k_s3": 259.9,
+  "syn100k_b5k_s1": 164.9,
+  "syn100k_b5k_s2": 164.5,
+  "syn100k_b5k_s3": 164.0,
+  "test/01-smoke": 0.1,
+  "test/02-reference_small": 0.2,
+  "test/03-reference_syn100k": 36.3,
+  "test/04-small_b20": 0.6,
+  "test/05-small_b200": 0.7,
+  "test/06-small_b1000": 1.0,
+  "test/07-syn100k_b5000": 159.1,
+  "test/08-deletions_only": 0.6,
+  "test/09-insertions_only": 1.1,
+  "test/10-more_deletions": 0.6,
+  "test/11-random_inserts_file": 0.7,
+  "test/12-sampled_inserts_synthetic": 0.6,
+  "test/13-batch_larger_than_graph": 1.5,
+  "test/14-skewed": 332.4,
+  "test/15-medium": 12.6
+ },
+ "launches": {
+  "h_motif.frontier.triangles.kernels": 1232,
+  "h_motif.frontier.triangles.no_sources": 48,
+  "h_motif.frontier.triangles.no_wedges": 16,
+  "h_motif.full.triangles.kernels": 232,
+  "h_motif.full.triangles.no_wedges": 8,
+  "stathyper_type1.frontier.keys.kernels": 1248,
+  "stathyper_type1.frontier.keys.no_sources": 48,
+  "stathyper_type1.full.keys.kernels": 240,
+  "stathyper_type2.frontier.pairs.kernels": 1232,
+  "stathyper_type2.frontier.pairs.no_sources": 48,
+  "stathyper_type2.frontier.pairs.no_wedges": 16,
+  "stathyper_type2.full.pairs.kernels": 232,
+  "stathyper_type2.full.pairs.no_wedges": 8,
+  "stathyper_type3.frontier.triangles.kernels": 1232,
+  "stathyper_type3.frontier.triangles.no_sources": 48,
+  "stathyper_type3.frontier.triangles.no_wedges": 16,
+  "stathyper_type3.full.triangles.kernels": 232,
+  "stathyper_type3.full.triangles.no_wedges": 8
+ },
+ "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+ "mode": "both",
+ "num_cases": 120,
+ "num_passed": 120,
+ "passed": true,
+ "plant": null,
+ "schema": 1,
+ "set": "triad_count_escher_gpu",
+ "threads": null,
+ "tool": "dyng_triad_replay",
+ "what": "M9a step 4: parity/compare.py triad_count --backend sequential --counter algorithm --mode both (the incremental host engine; by key and by content; integrity and a fresh compute() after every batch), the parity-cuda build at c8b6e68; compacted (the full record: $DYNG_SCRATCH/runs/m9a-step4)"
+}

@@ -29,6 +29,8 @@
 #   gitlinks        submodules / gitlinks that `git archive` leaves out (none here)
 #   external_inputs inputs the archive does not contain (datasets, benchmark inputs)
 #   toolchain       compilers and flags as built here
+#   golden_sets     the sets of parity/goldens.toml exported from this reference (listed from M9a
+#                   on; the sets of earlier milestones name their reference in goldens.toml)
 schema = 1
 
 [[reference]]
@@ -145,6 +147,15 @@ patch relinks the unchanged objects of every executable with the CBST trace reco
 are empty directories in the commit (no .gitmodules); git archive leaves them out and the build
 never names them (archive-check.txt).
 """
+golden_sets = [
+  "cbst_trace_escher_gpu_test",
+  "cbst_trace_escher_gpu_targeted",
+  "cbst_trace_escher_gpu_coauth50k",
+  "cbst_trace_escher_gpu_syn1m",
+  # M9a: the triad counts of build/main and type1-3 on make-test and PLAN 6.4.6's grid, the
+  # batches as .dgb files (parity/triad_goldens.py, ADR 0048)
+  "triad_count_escher_gpu",
+]
 
 [[reference]]
 name = "MOSP_ESCHER"

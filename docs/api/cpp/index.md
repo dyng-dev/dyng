@@ -21,6 +21,7 @@ cycle_count
 mosp
 dynamic_bfs
 triangle_delta
+triad_count
 generators
 testing
 ```

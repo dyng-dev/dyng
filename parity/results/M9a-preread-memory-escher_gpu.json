@@ -1,0 +1,539 @@
+{
+ "schema": 1,
+ "what": "triad_count against ESCHER-GPU@abcf9b2: the Nsight Systems peak of live device allocations of both whole processes (D1) and the store accounting; the port with --no-count (M9a step 2's memory pre-read)",
+ "date": "2026-10-15T13:41:37Z",
+ "pattern": "main",
+ "protocol": {
+  "nsys": "nsys profile -t cuda,nvtx --cuda-memory-usage=true (CUDA 13.1), memKind Device (cudaMalloc + cudaMallocAsync)",
+  "gpu": 1,
+  "lock": "shared (flock -s by the caller); no foreign process on the GPU",
+  "original": "the UNPATCHED build/main, no --check",
+  "port": "dyng-compat-escher run --backend cuda --nvtx --no-count"
+ },
+ "port": {
+  "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e+dirty",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-escher"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "coauth_b50k_s1": {
+   "store_accounting": [
+    {
+     "point": "build",
+     "dyng_device_bytes": 1922784204,
+     "escher_gpu_device_bytes": 1922784204,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 1",
+     "dyng_device_bytes": 1923300764,
+     "escher_gpu_device_bytes": 1923300764,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 2",
+     "dyng_device_bytes": 1923713052,
+     "escher_gpu_device_bytes": 1923713052,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 3",
+     "dyng_device_bytes": 1924170844,
+     "escher_gpu_device_bytes": 1924170844,
+     "ratio": 1.0
+    }
+   ],
+   "store_worst_ratio": 1.0,
+   "a_print_points": "[memory] ESCHER device allocations: 1833.7 MB after init, 1835.0 MB",
+   "a_print_points_agree_with_the_golden": true,
+   "original_nsys": {
+    "peak_live_mib": 3018.9,
+    "peak_live_bytes": 3165509863,
+    "footprint_peak_mib": 3050.9,
+    "footprint_at_live_peak_mib": 3050.9,
+    "footprint_peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ],
+    "pool_mib": 288.0,
+    "peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ],
+    "range_peaks_mib": {
+     "init.construct": 1777.2,
+     "init.full_count": 1852.6,
+     "init.row_views": 1833.7,
+     "maintain.h2h_merge": 3018.9,
+     "maintain.h2v_delete": 1834.8,
+     "maintain.h2v_insert": 2107.7,
+     "maintain.row_views": 1835.0,
+     "maintain.v2h_fill": 1835.1,
+     "maintain.v2h_unfill": 1834.9,
+     "thrust::copy_if": 2107.7,
+     "thrust::count_if": 1835.5,
+     "thrust::exclusive_scan": 2024.4,
+     "thrust::inclusive_scan": 1835.5,
+     "thrust::sort": 1929.7,
+     "thrust::sort_by_key": 1835.7,
+     "unique": 1869.6,
+     "update": 3018.9,
+     "update.add": 1837.7,
+     "update.maintain": 3018.9,
+     "update.subtract": 1837.2
+    },
+    "batch_range": "update",
+    "batches": [
+     {
+      "live_mib_start": 1833.7,
+      "live_mib_end": 1834.2,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 1866.2
+     },
+     {
+      "live_mib_start": 1834.2,
+      "live_mib_end": 1834.6,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 1866.6
+     },
+     {
+      "live_mib_start": 1834.6,
+      "live_mib_end": 1835.0,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 1867.0
+     }
+    ]
+   },
+   "port_nsys": {
+    "peak_live_mib": 3019.1,
+    "peak_live_bytes": 3165709671,
+    "footprint_peak_mib": 3104.0,
+    "footprint_at_live_peak_mib": 3104.0,
+    "footprint_peak_in": [
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "pool_mib": 3104.0,
+    "peak_in": [
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "range_peaks_mib": {
+     "hypergraph.apply": 3019.1,
+     "hypergraph.apply.delete": 1835.0,
+     "hypergraph.apply.insert": 2107.9,
+     "hypergraph.apply.line_graph": 3019.1,
+     "hypergraph.apply.views": 1835.4,
+     "hypergraph.cbst.append": 1835.3,
+     "hypergraph.cbst.construct": 1786.6,
+     "hypergraph.cbst.erase": 1835.0,
+     "hypergraph.cbst.insert": 2107.9,
+     "hypergraph.cbst.rebuild": 2887.3,
+     "hypergraph.cbst.remove_values": 1835.0,
+     "hypergraph.upload": 1833.7,
+     "thrust::copy_if": 2107.9,
+     "thrust::count_if": 1835.7,
+     "thrust::exclusive_scan": 2024.6,
+     "thrust::inclusive_scan": 1835.6,
+     "thrust::sort": 1929.9,
+     "thrust::stable_sort_by_key": 1835.8,
+     "unique": 1869.8
+    },
+    "batch_range": "hypergraph.apply",
+    "batches": [
+     {
+      "live_mib_start": 1833.7,
+      "live_mib_end": 1834.4,
+      "pool_mib_end": 3040.0,
+      "slack_mib_end": 1205.6,
+      "held_mib_end": 3040.0
+     },
+     {
+      "live_mib_start": 1834.4,
+      "live_mib_end": 1834.8,
+      "pool_mib_end": 3104.0,
+      "slack_mib_end": 1269.2,
+      "held_mib_end": 3104.0
+     },
+     {
+      "live_mib_start": 1834.8,
+      "live_mib_end": 1835.2,
+      "pool_mib_end": 3104.0,
+      "slack_mib_end": 1268.8,
+      "held_mib_end": 3104.0
+     }
+    ]
+   },
+   "peak_ratio": 1.0000631203214165,
+   "footprint_ratio_at_peak": 1.0174047002523845,
+   "footprint_ratio_max": 1.0174047002523845,
+   "footprint_ratio_between_batches": [
+    1.6289786732397384,
+    1.662916532733312,
+    1.6625602570969469
+   ],
+   "foreign_gpu_processes": {
+    "before": [],
+    "after": []
+   },
+   "preread": {
+    "target": 1.03,
+    "met": true,
+    "triad_budget_bytes": 126420586,
+    "rule": "1.05 x A_peak - port_peak (no counting) - 1% of A_peak: the triad bytes step 3 may hold live during hypergraph.apply"
+   }
+  },
+  "syn1m_b50k_s1": {
+   "store_accounting": [
+    {
+     "point": "build",
+     "dyng_device_bytes": 703051032,
+     "escher_gpu_device_bytes": 703051032,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 1",
+     "dyng_device_bytes": 703183432,
+     "escher_gpu_device_bytes": 703183432,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 2",
+     "dyng_device_bytes": 703130968,
+     "escher_gpu_device_bytes": 703130968,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 3",
+     "dyng_device_bytes": 703185928,
+     "escher_gpu_device_bytes": 703185928,
+     "ratio": 1.0
+    }
+   ],
+   "store_worst_ratio": 1.0,
+   "a_print_points": "[memory] ESCHER device allocations: 670.5 MB after init, 670.6 MB",
+   "a_print_points_agree_with_the_golden": true,
+   "original_nsys": {
+    "peak_live_mib": 1131.4,
+    "peak_live_bytes": 1186324209,
+    "footprint_peak_mib": 1163.4,
+    "footprint_at_live_peak_mib": 1163.4,
+    "footprint_peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ],
+    "pool_mib": 128.0,
+    "peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ],
+    "range_peaks_mib": {
+     "init.construct": 647.6,
+     "init.full_count": 678.1,
+     "init.row_views": 670.5,
+     "maintain.h2h_merge": 1131.4,
+     "maintain.h2v_delete": 670.8,
+     "maintain.h2v_insert": 781.3,
+     "maintain.row_views": 670.6,
+     "maintain.v2h_fill": 671.5,
+     "maintain.v2h_unfill": 671.0,
+     "thrust::copy_if": 781.3,
+     "thrust::count_if": 671.5,
+     "thrust::exclusive_scan": 772.8,
+     "thrust::inclusive_scan": 671.5,
+     "thrust::sort": 743.4,
+     "thrust::sort_by_key": 671.7,
+     "unique": 691.9,
+     "update": 1131.4,
+     "update.add": 671.9,
+     "update.maintain": 1131.4,
+     "update.subtract": 671.8
+    },
+    "batch_range": "update",
+    "batches": [
+     {
+      "live_mib_start": 670.5,
+      "live_mib_end": 670.6,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 702.6
+     },
+     {
+      "live_mib_start": 670.6,
+      "live_mib_end": 670.6,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 702.6
+     },
+     {
+      "live_mib_start": 670.6,
+      "live_mib_end": 670.6,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 702.6
+     }
+    ]
+   },
+   "port_nsys": {
+    "peak_live_mib": 1131.6,
+    "peak_live_bytes": 1186524017,
+    "footprint_peak_mib": 1184.0,
+    "footprint_at_live_peak_mib": 1184.0,
+    "footprint_peak_in": [
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "pool_mib": 1184.0,
+    "peak_in": [
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "range_peaks_mib": {
+     "hypergraph.apply": 1131.6,
+     "hypergraph.apply.delete": 671.2,
+     "hypergraph.apply.insert": 781.4,
+     "hypergraph.apply.line_graph": 1131.6,
+     "hypergraph.apply.views": 671.0,
+     "hypergraph.cbst.append": 671.7,
+     "hypergraph.cbst.construct": 651.4,
+     "hypergraph.cbst.erase": 671.0,
+     "hypergraph.cbst.insert": 781.4,
+     "hypergraph.cbst.rebuild": 1078.1,
+     "hypergraph.cbst.remove_values": 671.2,
+     "hypergraph.upload": 670.5,
+     "thrust::copy_if": 781.4,
+     "thrust::count_if": 671.7,
+     "thrust::exclusive_scan": 772.9,
+     "thrust::inclusive_scan": 671.7,
+     "thrust::sort": 743.6,
+     "thrust::stable_sort_by_key": 671.9,
+     "unique": 692.1
+    },
+    "batch_range": "hypergraph.apply",
+    "batches": [
+     {
+      "live_mib_start": 670.5,
+      "live_mib_end": 670.8,
+      "pool_mib_end": 1152.0,
+      "slack_mib_end": 481.2,
+      "held_mib_end": 1152.0
+     },
+     {
+      "live_mib_start": 670.8,
+      "live_mib_end": 670.7,
+      "pool_mib_end": 1184.0,
+      "slack_mib_end": 513.3,
+      "held_mib_end": 1184.0
+     },
+     {
+      "live_mib_start": 670.7,
+      "live_mib_end": 670.8,
+      "pool_mib_end": 1184.0,
+      "slack_mib_end": 513.2,
+      "held_mib_end": 1184.0
+     }
+    ]
+   },
+   "peak_ratio": 1.0001684261338377,
+   "footprint_ratio_at_peak": 1.0177067216778408,
+   "footprint_ratio_max": 1.0177067216778408,
+   "footprint_ratio_between_batches": [
+    1.6396242527754057,
+    1.6851693709080557,
+    1.6851693709080557
+   ],
+   "foreign_gpu_processes": {
+    "before": [],
+    "after": []
+   },
+   "preread": {
+    "target": 1.03,
+    "met": true,
+    "triad_budget_bytes": 47253160,
+    "rule": "1.05 x A_peak - port_peak (no counting) - 1% of A_peak: the triad bytes step 3 may hold live during hypergraph.apply"
+   }
+  },
+  "syn2m_b50k_s1": {
+   "store_accounting": [
+    {
+     "point": "build",
+     "dyng_device_bytes": 1406745268,
+     "escher_gpu_device_bytes": 1406745268,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 1",
+     "dyng_device_bytes": 1406769300,
+     "escher_gpu_device_bytes": 1406769300,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 2",
+     "dyng_device_bytes": 1406707652,
+     "escher_gpu_device_bytes": 1406707652,
+     "ratio": 1.0
+    },
+    {
+     "point": "batch 3",
+     "dyng_device_bytes": 1406784388,
+     "escher_gpu_device_bytes": 1406784388,
+     "ratio": 1.0
+    }
+   ],
+   "store_worst_ratio": 1.0,
+   "a_print_points": "[memory] ESCHER device allocations: 1341.6 MB after init, 1341.6 MB",
+   "a_print_points_agree_with_the_golden": true,
+   "original_nsys": {
+    "peak_live_mib": 2211.7,
+    "peak_live_bytes": 2319179335,
+    "footprint_peak_mib": 2243.7,
+    "footprint_at_live_peak_mib": 2243.7,
+    "footprint_peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ],
+    "pool_mib": 224.0,
+    "peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ],
+    "range_peaks_mib": {
+     "init.construct": 1295.8,
+     "init.full_count": 1356.9,
+     "init.row_views": 1341.6,
+     "maintain.h2h_merge": 2211.7,
+     "maintain.h2v_delete": 1341.8,
+     "maintain.h2v_insert": 1563.0,
+     "maintain.row_views": 1341.6,
+     "maintain.v2h_fill": 1342.5,
+     "maintain.v2h_unfill": 1342.1,
+     "thrust::copy_if": 1563.0,
+     "thrust::count_if": 1342.5,
+     "thrust::exclusive_scan": 1494.1,
+     "thrust::inclusive_scan": 1342.5,
+     "thrust::sort": 1418.4,
+     "thrust::sort_by_key": 1342.7,
+     "unique": 1366.1,
+     "update": 2211.7,
+     "update.add": 1343.8,
+     "update.maintain": 2211.7,
+     "update.subtract": 1343.8
+    },
+    "batch_range": "update",
+    "batches": [
+     {
+      "live_mib_start": 1341.6,
+      "live_mib_end": 1341.6,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 1373.6
+     },
+     {
+      "live_mib_start": 1341.6,
+      "live_mib_end": 1341.5,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 1373.5
+     },
+     {
+      "live_mib_start": 1341.5,
+      "live_mib_end": 1341.6,
+      "pool_mib_end": 32.0,
+      "slack_mib_end": 32.0,
+      "held_mib_end": 1373.6
+     }
+    ]
+   },
+   "port_nsys": {
+    "peak_live_mib": 2211.8,
+    "peak_live_bytes": 2319205350,
+    "footprint_peak_mib": 2240.0,
+    "footprint_at_live_peak_mib": 2240.0,
+    "footprint_peak_in": [
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "pool_mib": 2240.0,
+    "peak_in": [
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "range_peaks_mib": {
+     "hypergraph.apply": 2211.8,
+     "hypergraph.apply.delete": 1342.3,
+     "hypergraph.apply.insert": 1563.1,
+     "hypergraph.apply.line_graph": 2211.8,
+     "hypergraph.apply.views": 1342.0,
+     "hypergraph.cbst.append": 1342.7,
+     "hypergraph.cbst.construct": 1303.4,
+     "hypergraph.cbst.erase": 1342.0,
+     "hypergraph.cbst.insert": 1563.1,
+     "hypergraph.cbst.rebuild": 2105.0,
+     "hypergraph.cbst.remove_values": 1342.3,
+     "hypergraph.upload": 1341.6,
+     "thrust::copy_if": 1563.1,
+     "thrust::count_if": 1342.7,
+     "thrust::exclusive_scan": 1494.1,
+     "thrust::inclusive_scan": 1342.7,
+     "thrust::sort": 1418.4,
+     "thrust::stable_sort_by_key": 1342.9,
+     "unique": 1366.3
+    },
+    "batch_range": "hypergraph.apply",
+    "batches": [
+     {
+      "live_mib_start": 1341.6,
+      "live_mib_end": 1341.8,
+      "pool_mib_end": 2240.0,
+      "slack_mib_end": 898.2,
+      "held_mib_end": 2240.0
+     },
+     {
+      "live_mib_start": 1341.8,
+      "live_mib_end": 1341.7,
+      "pool_mib_end": 2240.0,
+      "slack_mib_end": 898.3,
+      "held_mib_end": 2240.0
+     },
+     {
+      "live_mib_start": 1341.7,
+      "live_mib_end": 1341.8,
+      "pool_mib_end": 2240.0,
+      "slack_mib_end": 898.2,
+      "held_mib_end": 2240.0
+     }
+    ]
+   },
+   "peak_ratio": 1.0000112173300302,
+   "footprint_ratio_at_peak": 0.9983509381824666,
+   "footprint_ratio_max": 0.9983509381824666,
+   "footprint_ratio_between_batches": [
+    1.6307513104251603,
+    1.630870040043684,
+    1.6307513104251603
+   ],
+   "foreign_gpu_processes": {
+    "before": [],
+    "after": []
+   },
+   "preread": {
+    "target": 1.03,
+    "met": true,
+    "triad_budget_bytes": 92741158,
+    "rule": "1.05 x A_peak - port_peak (no counting) - 1% of A_peak: the triad bytes step 3 may hold live during hypergraph.apply"
+   }
+  }
+ }
+}

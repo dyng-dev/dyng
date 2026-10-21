@@ -24,6 +24,8 @@
 #   reuse      reuse lint (SPDX headers in every file)
 #   provenance ci/provenance_check.py: every file naming an original's symbol carries
 #              '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3)
+#   testdata   ci/test_data_budget.py: the tracked files under cpp/tests/data total at most
+#              1.25 MB (ADR 0013 as amended in M9a, the author's decision D5)
 #   harness    python -m py_compile on parity/*.py and ci/*.py, and pytest parity/tests ci/tests
 #              (the smoke tests of the parity harness and the tests of the CI scripts; pytest is
 #              in environment.yml)
@@ -58,8 +60,8 @@
 #              the pytest suite (needs the tools of docs/developer/wheels.md)
 #
 # The GitHub workflows mirror these steps: cpu.yml runs `build`, `consumer` and `scaffold`; lint.yml runs
-# `precommit` (which includes clang-format, REUSE, provenance and regen), `harness`, `tidy` (on a
-# configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`;
+# `precommit` (which includes clang-format, REUSE, provenance, testdata and regen), `harness`,
+# `tidy` (on a configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`;
 # python.yml runs `python` (and the suite against an installed sdist); api-check.yml runs `api`;
 # wheels.yml builds the distributions with cibuildwheel (the hosted counterpart of `wheels`).
 # Two hosted workflows have no step here: sanitizers.yml (ci/sanitizers.sh: the asan, tsan and
@@ -217,6 +219,15 @@ if ! skipped provenance; then
     :
   else
     failed+=("provenance")
+  fi
+fi
+
+if ! skipped testdata; then
+  step "the committed test data's budget (ci/test_data_budget.py: 1.25 MB, ADR 0013)"
+  if python3 ci/test_data_budget.py; then
+    :
+  else
+    failed+=("testdata")
   fi
 fi
 

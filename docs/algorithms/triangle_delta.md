@@ -69,8 +69,10 @@ framework passes it to both counts (I2); the counts are 64-bit (I7).
 The four Chapter 3 challenges: (i) **affected set**: the changed edges (a triangle changes only
 if it contains one); (ii) **propagation scope**: one intersection of two rows per changed edge, no
 iteration; (iii) **correctness under parallelism**: ownership makes the per-edge counts independent
-(each triangle is counted by its smallest changed edge only), and each count adds to one 64-bit
-counter with an atomic addition; (iv) **data structure**: sorted, symmetric rows (the
+(each triangle is counted by its smallest changed edge only); the static count adds to one 64-bit
+counter with an atomic addition, and an update's counts run through `operators::count_delta`
+(private bins per thread on the host, added in thread order; atomic additions on the device; the
+phase's sign applied once); (iv) **data structure**: sorted, symmetric rows (the
 intersection merges them).
 
 ## 3. API

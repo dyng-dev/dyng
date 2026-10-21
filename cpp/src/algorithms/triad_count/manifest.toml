@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The triad_count manifest (PLAN Section 4.8) of a hypergraph algorithm. scripts/regen.py
+# reads it (the algorithm tables, the CODEOWNERS block and the registries; `python3
+# scripts/regen.py` after an edit); CMake does not. For a hypergraph algorithm,
+# `graph_requirements` names what it needs of the hypergraph (ADR 0043): line_graph ("required",
+# "any"), store_v2h ("required", "any"), reuse ("any", "erase_first", "insert_first") and storage
+# ("any", "escher").
+name        = "triad_count"
+title       = "Dynamic hypergraph triad counts"
+computes    = "hypergraph h-motif triad counts"
+paper       = "ESCHER / ESCHER+"
+since       = "0.3"
+family      = "aggregate_delta"
+container   = "hypergraph"
+tier        = "custom_engine"
+maturity    = "experimental"            # until M9b's review and freeze (0.3.0)
+backends    = ["sequential", "openmp", "cuda"]
+determinism = "exact_value"
+oracle      = "compute"
+# Per pattern (checked in compute()): h_motif and types 2-3 need line_graph != none and store_v2h;
+# type 1 needs neither. The registry lists what the default pattern (h_motif) needs.
+graph_requirements = { line_graph = "required", store_v2h = "required", reuse = "any", storage = "escher" }
+cite        = ["escher2026", "escherplus2026"]
+maintainers = ["SMShovan"]
+python      = false                     # dyng.triad_count arrives with M9b's bindings
+origin      = [ { repo = "ESCHER-GPU", commit = "abcf9b2", paths = ["kernel/wedge.cuh", "kernel/count_ops.cuh", "kernel/motif_utils.cuh", "include/motif_table.hpp", "include/motif_update.hpp", "include/device_bins.hpp", "include/frontier.hpp",
+                                                       "src/HMotifCount.cu", "src/HMotifCountUpdate.cu", "src/main.cu", "src/type1.cu", "src/type2.cu", "src/type3.cu", "src/driver.cu"] } ]
+
+[performance]
+compute_tolerance    = 1.05
+end_to_end_tolerance = 1.10

@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The host sanitizers (PLAN Sections 7.3 and 8.8; docs/developer/robustness.md): configure, build
-# and run the CPU tests (ctest -L cpu) of the sanitizer presets. .github/workflows/sanitizers.yml
-# runs one preset per job; locally the script runs the ones named, or all three.
+# and run the CPU tests (ctest -L cpu -LE slow: the tests also labeled slow, triad_count's
+# conformance kit, run in the cpu jobs and locally under the sanitizers) of the sanitizer
+# presets. .github/workflows/sanitizers.yml runs one preset per job; locally the script runs the ones named, or all three.
 #
 #   ci/sanitizers.sh                    # asan, tsan and tsan-openmp, one after the other
 #   ci/sanitizers.sh asan               # one preset
@@ -89,7 +90,7 @@ for preset in "${presets[@]}"; do
     configure=(env "CXX=${cxx}" "${configure[@]}")
   fi
   if "${configure[@]}" && cmake --build --preset "${preset}" &&
-    ctest --preset "${preset}" -L cpu -j "${jobs}"; then
+    ctest --preset "${preset}" -L cpu -LE slow -j "${jobs}"; then
     echo "preset ${preset}: OK"
   else
     failed+=("${preset}")

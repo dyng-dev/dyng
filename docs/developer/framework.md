@@ -192,9 +192,31 @@ The two tutorial algorithms (`dynamic_bfs`, `triangle_delta`; ADR 0033) do it wi
 - words that several elements may write in one pass change through `operators::atomic_min`,
   `atomic_add`, `atomic_exchange`, `atomic_load` and `atomic_store` (CUDA atomics on the device,
   `__atomic` builtins on the host), so the same functor is correct on all three;
-- `exec.read(p)` brings a scalar the pass wrote back to the host (on CUDA a copy, a stream
-  synchronization and `note_host_sync()`: the only host synchronization of an executor), and
-  `write`, `fill`, `copy` and `upload` move data within or into the backend's memory.
+- `exec.read(p)` brings a scalar the pass wrote back to the host and `exec.download(host, p, n)`
+  several (on CUDA a copy, a stream synchronization and `note_host_sync()`: the only host
+  synchronizations of an executor), and `write`, `fill`, `copy` and `upload` move data within or
+  into the backend's memory; the host executors also say how many threads they run
+  (`threads()`).
+
+An aggregate-delta count is one operator, `operators::count_delta` (`cpp/src/operators/
+count_delta.hpp`, 0.3; ADR 0055; its users are `triangle_delta` and `triad_count`'s host engine,
+the rule of two):
+
+```cpp
+std::int64_t delta[num_bins] = {};
+const std::uint32_t status = operators::count_delta<num_bins>(
+    exec, s, framework::ownership::min_member{}, n, owned_by_change{...}, scratch, delta);
+```
+
+The work of changed element i is `operator()(i, rule, bins)`: it counts the structures through i
+that the ownership rule gives to i and adds them with `bins.add(bin, count)`. The rule is a
+required argument with no default (I2: a call without one, or with a value that is not a rule,
+stops at a static_assert); the sign is applied once per bin, to 64-bit totals (I7). On the host
+executors every thread has private bins (a static partition of the elements) that are added up in
+thread order, so the totals do not depend on the thread count; on cuda_exec the bins are device
+words added with atomics and read once. A bin outside the range and a total past the 64-bit range
+are returned as error bits for the caller to raise. `count_owned` is the same count without the
+sign (a full count).
 
 The algorithm keeps its passes in `engine.hpp` as one template on the executor behind a small
 virtual interface that the problem calls (`dynamic_bfs_engine<V, E>`); `sequential.cpp`,
@@ -501,7 +523,7 @@ Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
 | Validation and bookkeeping | lifecycle members `begin_update`, `resume`, `end_update`, `poison`, `target` | They are the `<algo>.cpp` duties of PLAN 4.8, so the participant adapter can run any problem. |
 | `run_update(ctx, g, batch, problems...)` returning a tuple | `run_update(res, g, batch, participants, n, stage)` + `problem_participant` / `update_one` / `make_participant` | The type-erased participants of M1a let `dyng::update` combine results of algorithms compiled in different translation units. |
 | frontier table | `internal_frontier` only | Both algorithms keep their frontiers in their workspaces (rule of two); `dynamic_bfs` (0.2) defines its own list frontier (one user). |
-| operators (PLAN 4.5.3 table) | the executors and atomics in `cpp/src/operators/` (0.2); the other operators in the algorithm folders | The tutorial algorithms are the two users of the executors; `advance`, `invalidate_subtree`, `intersect` and `count_delta` have one tutorial user each, and sssp's and cycle_count's ported engines keep their own (ADR 0033). |
+| operators (PLAN 4.5.3 table) | the executors and atomics in `cpp/src/operators/` (0.2) and `count_delta` (0.3); the other operators in the algorithm folders | The tutorial algorithms are the two users of the executors; `count_delta` entered with its second user, `triad_count`'s host engine, beside `triangle_delta` (ADR 0055; cycle_count's move waits for its measurement); `advance`, `invalidate_subtree` and `intersect` have one tutorial user each, and sssp's and cycle_count's ported engines keep their own (ADR 0033). `device_frontier` stays in the line-graph merge (ADR 0055: triad_count's CUDA frontier is built by a kernel in its workspace, the merge's from host lists with buffers of its own; sharing one would change the merge). |
 | Tier B replaces `identify_affected` … `finalize` | cycle_count's `enact_fused` / `compute_fused` open the ported code's own stages inside `<algo>.enact_fused` | The regions of `parity/timed_regions/cycle_count.toml` (the paper's `kernel_ms` is `cycle_count.count`) keep their stages; the only new row is `cycle_count.enact_fused` on CUDA. |
 | the problem's `normalize` after the framework's | under set semantics cycle_count's `normalize` hook takes the framework's lists (a second call of the `cycle_count.normalize` stage) | The hook is Step 0 for every semantics; the stage rows are unchanged. |
 | `schedule`, `sync_rule`, `tie_break` | not yet | No two users. |

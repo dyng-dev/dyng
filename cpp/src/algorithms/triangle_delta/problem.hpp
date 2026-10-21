@@ -98,7 +98,7 @@ struct triangle_delta_workspace final : pooled_workspace {
   std::vector<edge> insertions;           ///< the inserted edges, sorted (their ids)
   std::vector<vertex_t> staging;          ///< tails, then heads, of one list (host)
   scratch_buffer<vertex_t> changes;       ///< the same in the backend's memory
-  scratch_buffer<std::uint64_t> counter;  ///< the count of one pass (backend memory)
+  scratch_buffer<std::uint64_t> counter;  ///< the count of one pass (backend memory; per thread)
 
   /// Bytes of the arrays' capacities.
   [[nodiscard]] std::size_t bytes() const noexcept override {
@@ -150,17 +150,20 @@ class triangle_delta_engine {
                                   workspace_type& ws) const = 0;
 
   /**
-   * @brief The triangles of `g` through the edges of `changes`, each counted by its smallest
-   *        changed edge (ownership::min_member).
+   * @brief The signed count of one phase: `s` times the triangles of `g` through the edges of
+   *        `changes`, each counted by its smallest changed edge (operators::count_delta with
+   *        ownership::min_member).
    * @param[in]     res     The resources.
    * @param[in]     g       G_t (deletions) or G_{t+1} (insertions).
    * @param[in]     changes The changed edges (u, v), u < v, sorted (host memory).
+   * @param[in]     s       The sign of the phase (minus on G_t, plus on G_{t+1}).
    * @param[in,out] ws      The workspace.
-   * @return The number of triangles.
+   * @return s x the number of triangles.
+   * @throws internal_error if the count leaves the 64-bit range.
    */
-  virtual std::uint64_t count_owned(const resources& res, const graph_type& g,
-                                    const std::vector<std::pair<vertex_t, vertex_t>>& changes,
-                                    workspace_type& ws) const = 0;
+  virtual std::int64_t count_delta(const resources& res, const graph_type& g,
+                                   const std::vector<std::pair<vertex_t, vertex_t>>& changes,
+                                   framework::sign s, workspace_type& ws) const = 0;
 };
 
 /// The engine of the sequential backend (sequential.cpp).

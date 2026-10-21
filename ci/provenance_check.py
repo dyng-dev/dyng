@@ -145,6 +145,28 @@ SYMBOLS = [
     "buildRowLocatorKernel",
     "TempBuffer",
     "DegreeBins",
+    # ESCHER-GPU@abcf9b2, the wedge engine and the counters (M9a; rename_map_triad.toml)
+    "computeMotifCounts",
+    "runFrontierPhase",
+    "MotifDeltaAccumulator",
+    "MotifOp",
+    "Choose3Op",
+    "Type2Op",
+    "Type3Op",
+    "countWedgeShape",
+    "forEachWedge",
+    "TriangleBody",
+    "MotifCounter",
+    "Type1Counter",
+    "DeviceBins",
+    "count_wedge_shape",
+    "for_each_wedge",
+    "triangle_body",
+    "motif_op",
+    "choose3_op",
+    "type2_op",
+    "type3_op",
+    "compute_motif_index",
     # MOSP_ESCHER@4b86159, its behaviours merged into the store (M8a step 4)
     "readFlat",
     "setInitialOccupancy",
@@ -229,6 +251,8 @@ NOT_DERIVED = {
     "cpp/include/dyng/testing/mosp_oracle.hpp": "public API of mosp_oracle.cpp (header there)",
     "cpp/include/dyng/testing/cbst_host_model.hpp": "public API of cbst_host_model.cpp (header "
     "there)",
+    "cpp/src/algorithms/triad_count/engine/exact.hpp": "new exact arithmetic (ADR 0057); names "
+    "ESCHER-GPU's Choose3Op / Type2Op / Type3Op only to say what it replaces",
 }
 
 

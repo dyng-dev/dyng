@@ -23,3 +23,4 @@ oracle      = "compute"
 graph_requirements = { line_graph = "any", store_v2h = "any", reuse = "any", storage = "any" }
 cite        = []
 maintainers = ["{{maintainer}}"]
+python      = false   # true once python/dyng/<name>.py and its bindings exist (PLAN 4.8, file 17)

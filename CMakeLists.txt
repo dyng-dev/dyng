@@ -207,8 +207,12 @@ if(DYNG_BUILD_EXAMPLES AND _dyng_both_algorithms)
   add_subdirectory(examples/cpp)
 endif()
 
-# dyng-compat-mosp --mosp also needs mosp (M7).
-if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms AND TARGET dyng_mosp)
+# dyng-compat-mosp --mosp also needs mosp (M7), dyng-compat-escher run triad_count (M9a).
+if(DYNG_BUILD_COMPAT_TOOLS
+   AND _dyng_both_algorithms
+   AND TARGET dyng_mosp
+   AND TARGET dyng_triad_count
+)
   add_subdirectory(tools/compat)
 endif()
 

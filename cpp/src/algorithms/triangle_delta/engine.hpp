@@ -6,14 +6,20 @@
  *        framework operators and run by the executor `exec_t` of a backend (TEACHING MATERIAL).
  *
  * Each count is a functor that does the work of ONE element (a vertex of the static count, a
- * changed edge of an update) and adds its triangles to one counter with an atomic addition. The
- * sorted intersection of two rows (`for_each_common`) is an operator with one user, so it lives
- * here and not in cpp/src/operators (the rule of two, PLAN 4.5.3).
+ * changed edge of an update). The static count adds its triangles to one counter with an atomic
+ * addition; an update's counts run through operators::count_delta (operators/count_delta.hpp),
+ * which hands each changed edge the ownership rule and a bins handle and applies the sign of the
+ * phase once. The sorted intersection of two rows (`for_each_common`) is an operator with one
+ * user, so it lives here and not in cpp/src/operators (the rule of two, PLAN 4.5.3).
  */
 #pragma once
 
 #include "algorithms/triangle_delta/problem.hpp"
+#include "framework/policies.hpp"
+#include "operators/count_delta.hpp"
 #include "operators/execution.hpp"
+
+#include <dyng/core/error.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -108,8 +114,9 @@ DYNG_HD bool among_first(const vertex_t* tails, const vertex_t* heads, std::int6
 }
 
 /**
- * @brief The update count: changed edge i = (u, v) counts the triangles {u, v, w} it owns, those
- *        whose other two edges are not changed edges with a smaller id (ownership::min_member).
+ * @brief The update count (the work of operators::count_delta): changed edge i = (u, v) counts
+ *        the triangles {u, v, w} it owns, those whose other two edges are not changed edges with
+ *        a smaller id (ownership::min_member).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  */
@@ -118,10 +125,18 @@ struct count_owned_by_change {
   triangle_delta_graph<vertex_t, edge_t> g;  ///< G_t (deletions) or G_{t+1} (insertions)
   const vertex_t* tails;                     ///< the changed edges' smaller ends, sorted
   const vertex_t* heads;                     ///< their larger ends
-  std::uint64_t* total;                      ///< the count
 
-  /// Changed edge i.
-  DYNG_HD void operator()(std::int64_t i) const {
+  /**
+   * @brief Changed edge i: its owned triangles, added to bin 0.
+   * @tparam bins_t The bins handle of count_delta.
+   * @param[in]     i    The changed edge.
+   * @param[in]     rule The ownership rule (min_member: the smallest changed edge owns).
+   * @param[in,out] bins The bins.
+   */
+  template <typename bins_t>
+  DYNG_HD void operator()(std::int64_t i, framework::ownership::min_member rule,
+                          bins_t& bins) const {
+    (void)rule;
     const vertex_t u = tails[i];
     const vertex_t v = heads[i];
     std::uint64_t found = 0;
@@ -136,7 +151,7 @@ struct count_owned_by_change {
       found += smaller_owner ? 0U : 1U;
     });
     if (found != 0) {
-      atomic_add(total, found);
+      bins.add(0, found);
     }
   }
 };
@@ -166,9 +181,9 @@ class triangle_delta_engine_impl final : public triangle_delta_engine<vertex_t, 
     return exec.read(total);
   }
 
-  std::uint64_t count_owned(const resources& res, const graph_type& g,
-                            const std::vector<std::pair<vertex_t, vertex_t>>& changes,
-                            workspace_type& ws) const override {
+  std::int64_t count_delta(const resources& res, const graph_type& g,
+                           const std::vector<std::pair<vertex_t, vertex_t>>& changes,
+                           framework::sign s, workspace_type& ws) const override {
     const auto count = static_cast<std::int64_t>(changes.size());
     if (count == 0) {
       return 0;  // nothing changed: no pass (and no host synchronization)
@@ -182,11 +197,16 @@ class triangle_delta_engine_impl final : public triangle_delta_engine<vertex_t, 
     }
     vertex_t* lists = ws.changes.reserve(res, ws.staging.size());
     exec.upload(lists, ws.staging.data(), 2 * count);
-    std::uint64_t* total = ws.counter.reserve(res, 1);
-    exec.write(total, std::uint64_t{0});
-    exec.for_each(count, triangle_delta_ops::count_owned_by_change<vertex_t, edge_t>{
-                             g, lists, lists + count, total});
-    return exec.read(total);
+    std::uint64_t* scratch = ws.counter.reserve(res, operators::count_scratch_words<1>(exec));
+    std::int64_t delta[1] = {0};
+    const std::uint32_t status = operators::count_delta<1>(
+        exec, s, framework::ownership::min_member{}, count,
+        triangle_delta_ops::count_owned_by_change<vertex_t, edge_t>{g, lists, lists + count},
+        scratch, delta);
+    if (status != 0) {
+      DYNG_FAIL("triangle_delta: a count exceeds the 64-bit range");
+    }
+    return delta[0];
   }
 };
 

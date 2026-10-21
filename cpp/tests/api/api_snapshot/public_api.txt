@@ -403,6 +403,7 @@
   #include <dyng/io/result_io.hpp>
   #include <dyng/mosp.hpp>
   #include <dyng/sssp.hpp>
+  #include <dyng/triad_count.hpp>
   #include <dyng/triangle_delta.hpp>
   #include <dyng/update.hpp>
   #include <dyng/version.hpp>
@@ -476,9 +477,18 @@
       escher_hypergraph_options graph
       [[nodiscard]] static escher_batch_options batch_size(std::int64_t size, escher_insert_mode mode, const escher_hypergraph_options &graph)
   template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_list< vertex_t, weight_t > dyng::generators::legacy::escher_hypergraph(std::mt19937_64 &rng, const escher_hypergraph_options &opt)
+  template <typename vertex_t> class dyng::generators::legacy::escher_host_model
+      escher_host_model()=default
+      template <typename weight_t> explicit escher_host_model(const hyperedge_list_view< vertex_t, weight_t > &list)
+      template <typename weight_t> void apply(const hyperedge_batch_view< vertex_t, weight_t > &batch, const hyper_apply_summary &summary)
+      [[nodiscard]] vertex_t num_vertices() const noexcept
+      [[nodiscard]] std::int64_t num_hyperedges() const noexcept
+      [[nodiscard]] std::int64_t num_rows() const noexcept
+      [[nodiscard]] const std::vector< vertex_t > & row(std::int64_t id) const
   class dyng::generators::legacy::escher_batch_generator
       escher_batch_generator(std::mt19937_64 &rng, const escher_batch_options &opt)
       template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const resources &res, const hypergraph< vertex_t, weight_t > &h)
+      template <typename weight_t = unweighted, typename vertex_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const escher_host_model< vertex_t > &model)
 
 [dyng/graph/apply_summary.hpp] frozen
   struct dyng::apply_summary
@@ -1160,6 +1170,68 @@
 [dyng/testing/mosp_oracle.hpp] tracked
   template <typename vertex_t> [[nodiscard]] csr< vertex_t, std::int64_t, std::int32_t > dyng::testing::combined_graph_reference(const std::vector< std::vector< vertex_t > > &parents, vertex_t source, const std::vector< std::int32_t > &preferences={})
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] std::vector< std::int64_t > dyng::testing::mosp_path_costs_reference(const csr_view< vertex_t, edge_t, weight_t > &out, const std::vector< vertex_t > &parent, vertex_t source, int num_objectives=0)
+
+[dyng/testing/triad_reference.hpp] tracked
+  enum class dyng::testing::triad_pattern : std::uint8_t { h_motif, stathyper_type1, stathyper_type2, stathyper_type3 }
+  constexpr int dyng::testing::triad_num_classes = 30
+  constexpr int dyng::testing::triad_num_venn_ids = 128
+  [[nodiscard]] const char * dyng::testing::triad_pattern_name(triad_pattern pattern) noexcept
+  [[nodiscard]] int dyng::testing::triad_num_bins(triad_pattern pattern) noexcept
+  [[nodiscard]] const std::array< std::uint8_t, triad_num_classes > & dyng::testing::triad_class_representatives() noexcept
+  [[nodiscard]] int dyng::testing::triad_venn_permuted(int venn_id, const std::array< int, 3 > &image)
+  [[nodiscard]] int dyng::testing::triad_venn_canonical(int venn_id)
+  [[nodiscard]] int dyng::testing::triad_motif_class(int venn_id)
+  [[nodiscard]] std::array< std::int8_t, triad_num_venn_ids > dyng::testing::triad_motif_class_map()
+  [[nodiscard]] int dyng::testing::triad_venn_id(const std::vector< std::int32_t > &a, const std::vector< std::int32_t > &b, const std::vector< std::int32_t > &c)
+  struct dyng::testing::triad_reference_options
+      int threads = 0
+  struct dyng::testing::triad_reference_counts
+      std::array< std::uint64_t, triad_num_classes > h_motif {}
+      std::uint64_t type1 = 0
+      std::uint64_t type2 = 0
+      std::uint64_t type3 = 0
+      [[nodiscard]] std::vector< std::uint64_t > of(triad_pattern pattern) const
+  [[nodiscard]] triad_reference_counts dyng::testing::triad_reference_all(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< triad_pattern > &patterns, const triad_reference_options &options={})
+  [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, triad_pattern pattern, const triad_reference_options &options={})
+  [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_removed(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
+  [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_added(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
+
+[dyng/triad_count.hpp] tracked
+  enum class dyng::triad_count::pattern : std::uint8_t { h_motif, stathyper_type1, stathyper_type2, stathyper_type3 }
+  [[nodiscard]] std::string_view dyng::triad_count::to_string(pattern p) noexcept
+  constexpr int dyng::triad_count::max_bins = 30
+  struct dyng::triad_count::options
+      pattern kind = pattern::h_motif
+      engine cuda_engine = engine::automatic
+  struct dyng::triad_count::stats : public dyng::update_stats
+      hyper_apply_summary batch
+      std::int64_t deleted_frontier = 0
+      std::int64_t inserted_frontier = 0
+      std::uint64_t triads_removed = 0
+      std::uint64_t triads_added = 0
+      std::array< std::int64_t, max_bins > delta {}
+  #define DYNG_TRIAD_COUNT_TYPES_MESSAGE
+  #define DYNG_TRIAD_COUNT_CONTAINER_MESSAGE
+  class dyng::triad_count::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] pattern kind() const
+      [[nodiscard]] int num_bins() const
+      [[nodiscard]] array_view< const std::uint64_t > counts() const
+      [[nodiscard]] std::uint64_t count(int bin) const
+      [[nodiscard]] std::uint64_t total() const
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+  template <typename vertex_t, typename weight_t> [[nodiscard]] result dyng::triad_count::compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, const options &opt={})
+  template <typename vertex_t, typename weight_t> stats dyng::triad_count::update(const resources &res, hypergraph< vertex_t, weight_t > &h, const hyperedge_batch_view< vertex_t, weight_t > &batch, result &r)
+  detail: template <typename vertex_t, typename weight_t> inline constexpr bool triad_count_supported_v = std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<weight_t, unweighted> || std::is_same_v<weight_t, std::int32_t>);
+  detail: template <> struct update_traits<triad_count::result> { using stats_type = triad_count::stats; }
 
 [dyng/triangle_delta.hpp] tracked
   struct dyng::triangle_delta::options

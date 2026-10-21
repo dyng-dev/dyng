@@ -1,0 +1,646 @@
+{
+ "backend": "openmp",
+ "cases": {
+  "coauth_b50k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "coauth_b50k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b100k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b200k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b20_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b50k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s2/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn100k_b5k_s3/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b100k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b100k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b100k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b100k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b200k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b200k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b200k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b200k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b20_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b20_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b20_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b20_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b50k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b50k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b50k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b50k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b5k_s1/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b5k_s1/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b5k_s1/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "syn1m_b5k_s1/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/01-smoke/main": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/01-smoke/type1": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/01-smoke/type2": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/01-smoke/type3": {
+   "batches": 1,
+   "passed": true
+  },
+  "test/02-reference_small/main": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/02-reference_small/type1": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/02-reference_small/type2": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/02-reference_small/type3": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/main": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/type1": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/type2": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/03-reference_syn100k/type3": {
+   "batches": 0,
+   "passed": true
+  },
+  "test/04-small_b20/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/04-small_b20/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/04-small_b20/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/04-small_b20/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/05-small_b200/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/06-small_b1000/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/08-deletions_only/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/09-insertions_only/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/10-more_deletions/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/11-random_inserts_file/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type3": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/14-skewed/main": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/14-skewed/type1": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/14-skewed/type2": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/14-skewed/type3": {
+   "batches": 2,
+   "passed": true
+  },
+  "test/15-medium/main": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/15-medium/type1": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/15-medium/type2": {
+   "batches": 3,
+   "passed": true
+  },
+  "test/15-medium/type3": {
+   "batches": 3,
+   "passed": true
+  }
+ },
+ "commit": "c8b6e68b803408f56a8fa95980c42f7e7024f8e1",
+ "counter": "algorithm",
+ "coverage": true,
+ "date": "2026-10-15T22:09:17Z",
+ "group_seconds": {
+  "coauth_b50k_s1": 74.5,
+  "syn100k_b100k_s1": 40.5,
+  "syn100k_b100k_s2": 41.7,
+  "syn100k_b100k_s3": 42.9,
+  "syn100k_b200k_s1": 41.2,
+  "syn100k_b200k_s2": 42.2,
+  "syn100k_b200k_s3": 42.0,
+  "syn100k_b20_s1": 17.1,
+  "syn100k_b20_s2": 15.2,
+  "syn100k_b20_s3": 15.0,
+  "syn100k_b50k_s1": 30.5,
+  "syn100k_b50k_s2": 30.6,
+  "syn100k_b50k_s3": 30.3,
+  "syn100k_b5k_s1": 16.7,
+  "syn100k_b5k_s2": 17.1,
+  "syn100k_b5k_s3": 17.3,
+  "syn1m_b100k_s1": 278.9,
+  "syn1m_b200k_s1": 317.0,
+  "syn1m_b20_s1": 220.0,
+  "syn1m_b50k_s1": 184.6,
+  "syn1m_b5k_s1": 165.7,
+  "test/01-smoke": 0.1,
+  "test/02-reference_small": 0.1,
+  "test/03-reference_syn100k": 4.5,
+  "test/04-small_b20": 0.2,
+  "test/05-small_b200": 0.2,
+  "test/06-small_b1000": 0.2,
+  "test/07-syn100k_b5000": 15.5,
+  "test/08-deletions_only": 0.2,
+  "test/09-insertions_only": 0.2,
+  "test/10-more_deletions": 0.2,
+  "test/11-random_inserts_file": 0.2,
+  "test/12-sampled_inserts_synthetic": 0.2,
+  "test/13-batch_larger_than_graph": 0.5,
+  "test/14-skewed": 46.1,
+  "test/15-medium": 4.5
+ },
+ "launches": {
+  "h_motif.frontier.triangles.kernels": 1472,
+  "h_motif.frontier.triangles.no_sources": 48,
+  "h_motif.frontier.triangles.no_wedges": 16,
+  "h_motif.full.triangles.kernels": 272,
+  "h_motif.full.triangles.no_wedges": 8,
+  "stathyper_type1.frontier.keys.kernels": 1512,
+  "stathyper_type1.frontier.keys.no_sources": 48,
+  "stathyper_type1.full.keys.kernels": 284,
+  "stathyper_type2.frontier.pairs.kernels": 1496,
+  "stathyper_type2.frontier.pairs.no_sources": 48,
+  "stathyper_type2.frontier.pairs.no_wedges": 16,
+  "stathyper_type2.full.pairs.kernels": 276,
+  "stathyper_type2.full.pairs.no_wedges": 8,
+  "stathyper_type3.frontier.triangles.kernels": 1472,
+  "stathyper_type3.frontier.triangles.no_sources": 48,
+  "stathyper_type3.frontier.triangles.no_wedges": 16,
+  "stathyper_type3.full.triangles.kernels": 272,
+  "stathyper_type3.full.triangles.no_wedges": 8
+ },
+ "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+ "mode": "both",
+ "num_cases": 142,
+ "num_passed": 142,
+ "passed": true,
+ "plant": null,
+ "schema": 1,
+ "set": "triad_count_escher_gpu",
+ "threads": 8,
+ "tool": "dyng_triad_replay",
+ "what": "M9a step 4: parity/compare.py triad_count --backend openmp --threads 8 --counter algorithm --mode both (the incremental host engine; by key and by content; integrity and a fresh compute() after every batch), the parity-cuda build at c8b6e68; compacted (the full record: $DYNG_SCRATCH/runs/m9a-step4)"
+}

@@ -269,6 +269,18 @@ target_compile_features(dyng_testing_line_graph_oracle PRIVATE cxx_std_17)
 set_target_properties(dyng_testing_line_graph_oracle PROPERTIES POSITION_INDEPENDENT_CODE ON)
 dyng_set_warnings(dyng_testing_line_graph_oracle)
 dyng_enable_sanitizers(dyng_testing_line_graph_oracle)
+# The triad oracle (M9a, criterion 4): ESCHER-GPU's CPU reference algorithm with its own class map,
+# the standard library and OpenMP only, checked to share nothing with triad_count, its engines or
+# the container (triad_reference_isolation).
+add_library(dyng_testing_triad_reference OBJECT src/testing/triad_reference.cpp)
+target_include_directories(dyng_testing_triad_reference PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_compile_features(dyng_testing_triad_reference PRIVATE cxx_std_17)
+set_target_properties(dyng_testing_triad_reference PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_testing_triad_reference PRIVATE OpenMP::OpenMP_CXX)
+endif()
+dyng_set_warnings(dyng_testing_triad_reference)
+dyng_enable_sanitizers(dyng_testing_triad_reference)
 add_library(
   dyng_testing
   src/testing/dijkstra.cpp
@@ -277,6 +289,7 @@ add_library(
   src/testing/mosp_oracle.cpp
   $<TARGET_OBJECTS:dyng_testing_cbst_model>
   $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+  $<TARGET_OBJECTS:dyng_testing_triad_reference>
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(
@@ -290,6 +303,9 @@ set_target_properties(
 )
 target_compile_features(dyng_testing PUBLIC cxx_std_17)
 target_link_libraries(dyng_testing PUBLIC dyng)
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_testing PRIVATE OpenMP::OpenMP_CXX)  # the triad oracle's threads
+endif()
 target_include_directories(dyng_testing PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 dyng_set_warnings(dyng_testing)
 dyng_enable_sanitizers(dyng_testing)

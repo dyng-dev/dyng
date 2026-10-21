@@ -21,15 +21,18 @@
  * | `cuda_exec` | operators/cuda_execution.cuh (CUDA translation units only) | a grid-stride kernel on the handle's stream |
  *
  * Every executor has the same members: `for_each(n, f)`, `read(p)` (a scalar the work wrote, read
- * on the host: a host synchronization on CUDA), `write(p, v)`, `fill(p, n, v)`, `copy(dst, src,
- * n)` (within the backend's memory) and `upload(dst, host, n)` (host memory into the backend's
- * memory). A functor is a small struct of raw pointers whose call operator is `DYNG_HD`; it may
+ * on the host: a host synchronization on CUDA), `download(host, src, n)` (several of them, one
+ * synchronization), `write(p, v)`, `fill(p, n, v)`, `copy(dst, src, n)` (within the backend's
+ * memory) and `upload(dst, host, n)` (host memory into the backend's memory); the host executors
+ * also say how many threads they run (`threads()`). A functor is a small struct of raw pointers whose call operator is `DYNG_HD`; it may
  * use the atomics below, which compile to the CUDA atomics on the device and to the GCC/Clang
  * `__atomic` builtins on the host.
  *
  * The rule of two (PLAN Section 4.5.3): the executors and atomics are here because both tutorial
- * algorithms (dynamic_bfs and triangle_delta) are written with them. Operators with one user stay
- * in that algorithm's folder (dynamic_bfs's frontier push, triangle_delta's sorted intersection).
+ * algorithms (dynamic_bfs and triangle_delta) are written with them; count_delta
+ * (operators/count_delta.hpp) because triangle_delta and triad_count's host engine count with it.
+ * Operators with one user stay in that algorithm's folder (dynamic_bfs's frontier push,
+ * triangle_delta's sorted intersection).
  */
 #pragma once
 
@@ -225,6 +228,27 @@ class sequential_exec {
   void upload(value_t* dst, const value_t* src, std::int64_t n) const {
     copy(dst, src, n);
   }
+
+  /**
+   * @brief Copy `n` elements of the backend's memory to host memory (several scalars the work
+   *        wrote, read at once: one host synchronization on CUDA).
+   * @tparam value_t Element type.
+   * @param[out] dst The destination (host memory).
+   * @param[in]  src The source (the backend's memory).
+   * @param[in]  n   Number of elements.
+   */
+  template <typename value_t>
+  void download(value_t* dst, const value_t* src, std::int64_t n) const {
+    copy(dst, src, n);
+  }
+
+  /**
+   * @brief The threads the executor's work runs on.
+   * @return 1.
+   */
+  [[nodiscard]] int threads() const noexcept {
+    return 1;
+  }
 };
 
 /**
@@ -239,6 +263,14 @@ class openmp_exec : public sequential_exec {
    */
   explicit openmp_exec(const resources& res) noexcept
       : sequential_exec(res), threads_(std::max(res.num_threads(), 1)) {}
+
+  /**
+   * @brief The threads of the handle (resources::num_threads(), at least 1).
+   * @return The thread count of the parallel regions.
+   */
+  [[nodiscard]] int threads() const noexcept {
+    return threads_;
+  }
 
   /**
    * @brief Run `f(i)` for every i in [0, n) on the handle's threads (dynamic schedule: the

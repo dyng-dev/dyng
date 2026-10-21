@@ -149,6 +149,14 @@ add_test(NAME cbst_source_rules
                  "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
 )
 set_tests_properties(cbst_source_rules PROPERTIES LABELS "cpu;cbst")
+# The same rules over the triad_count port (M9a, ADR 0053): ESCHER-GPU's wedge engine after its
+# mechanical classes (errors, memory, streams).
+add_test(NAME triad_count_source_rules
+         COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/cpp
+                 -DSOURCE_SUBDIRS=algorithms/triad_count -P
+                 "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
+)
+set_tests_properties(triad_count_source_rules PROPERTIES LABELS "cpu;triad_count")
 # The launch rule itself: a launch on a literal default stream is reported (M8a review).
 set(_cbst_rules_fixture "${CMAKE_CURRENT_BINARY_DIR}/cbst_source_rules_fixture")
 file(MAKE_DIRECTORY "${_cbst_rules_fixture}/src/hypergraph" "${_cbst_rules_fixture}/include/dyng")
@@ -297,6 +305,28 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(line_graph_oracle_isolation PROPERTIES LABELS "cpu;hypergraph")
+  # The triad oracle (M9a criterion 4, ADR 0049): ESCHER-GPU's CPU reference algorithm with its own
+  # class map, sharing no code with triad_count, its engines or the container. The preprocessor
+  # runs with the flags the build compiles it with (OpenMP, the target's definitions).
+  set(_triad_reference_flags "")
+  if(DYNG_ENABLE_OPENMP)
+    separate_arguments(_triad_reference_flags UNIX_COMMAND "${OpenMP_CXX_FLAGS}")
+  endif()
+  list(JOIN _triad_reference_flags "|" _triad_reference_flags)
+  set(_triad_reference_defs
+      "$<TARGET_PROPERTY:dyng_testing_triad_reference,COMPILE_DEFINITIONS>"
+  )
+  add_test(
+    NAME triad_reference_isolation
+    COMMAND
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/triad_reference.cpp
+      -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/triad_reference.hpp
+      "-DFLAGS=${_triad_reference_flags}|-D$<JOIN:${_triad_reference_defs},|-D>"
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_triad_reference>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(triad_reference_isolation PROPERTIES LABELS "cpu;testing;triad_count")
 endif()
 # The hypergraph container (M8b, ADR 0041): construction, apply semantics, guarantees,
 # placement, the host id allocator against the CBST host model, random streams in lockstep with
@@ -358,6 +388,38 @@ if(DYNG_ENABLE_CUDA)
   target_compile_definitions(dyng_hypergraph_ids_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
   list(APPEND _dyng_private_tests dyng_hypergraph_ids_cuda_tests)
 endif()
+# The triad_count replay of ESCHER-GPU's golden set (M9a step 2, ADR 0050): the replay library
+# (a case's .hg and batch files through dyng::hypergraph, by key and by content, a counter after the
+# build and every batch) and the tool parity/compare.py triad_count drives over the set.
+add_library(dyng_triad_replay_lib STATIC parity/escher/triad_replay.cpp)
+target_link_libraries(dyng_triad_replay_lib PUBLIC dyng_cbst_trace dyng::testing dyng::dyng)
+target_compile_features(dyng_triad_replay_lib PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_triad_replay_lib)
+dyng_enable_sanitizers(dyng_triad_replay_lib)
+# --counter algorithm needs triad_count in the build (DYNG_ALGORITHMS).
+if(TARGET dyng_triad_count)
+  # The algorithm counter reads the result's launch counters (internal: cpp/src).
+  target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=1)
+  target_include_directories(dyng_triad_replay_lib PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+else()
+  target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
+endif()
+add_executable(dyng_triad_replay parity/escher/triad_replay_main.cpp)
+target_link_libraries(dyng_triad_replay PRIVATE dyng_triad_replay_lib)
+dyng_set_warnings(dyng_triad_replay)
+dyng_enable_sanitizers(dyng_triad_replay)
+dyng_add_test(
+  NAME dyng_triad_replay_tests
+  SOURCES parity/escher/triad_replay_test.cpp
+  LABELS cpu parity triad_count
+  LIBRARIES dyng_triad_replay_lib
+)
+if(TARGET dyng_triad_count)
+  target_compile_definitions(dyng_triad_replay_tests PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=1)
+else()
+  target_compile_definitions(dyng_triad_replay_tests PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
+endif()
+list(APPEND _dyng_private_tests dyng_triad_replay_tests)
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
@@ -453,6 +515,59 @@ foreach(
     )
   endif()
 endforeach()
+
+# Compile-failure tests of invariant I2 (PLAN 4.5.5: count_delta requires an ownership rule, with no
+# default; ADR 0055): operators::count_delta and count_owned without a rule, with a value that is
+# not one, and the triad host engine's phase without one. The control case must compile.
+foreach(
+  _case
+  "control||"
+  "count_delta_without_ownership|-DDYNG_CF_DELTA_NO_OWNERSHIP|count_delta needs an ownership rule"
+  "count_owned_without_ownership|-DDYNG_CF_OWNED_NO_OWNERSHIP|count_delta needs an ownership rule"
+  "not_an_ownership_rule|-DDYNG_CF_NOT_AN_OWNERSHIP|must be an ownership rule"
+  "triad_phase_without_ownership|-DDYNG_CF_TRIAD_NO_OWNERSHIP|count_phase needs an ownership rule"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME operators.count_delta.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   ${_dyng_framework_cf_includes}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/count_delta_ownership.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(operators.count_delta.static_assert.${_name} PROPERTIES LABELS
+                                                                         "cpu;operators")
+  else()
+    set_tests_properties(
+      operators.count_delta.static_assert.${_name}
+      PROPERTIES LABELS "cpu;operators" PASS_REGULAR_EXPRESSION "${_message}"
+    )
+  endif()
+endforeach()
+
+# The operators (cpp/src/operators): count_delta on the host executors and, in CUDA builds, on
+# cuda_exec (ADR 0055).
+dyng_add_test(
+  NAME dyng_operators_tests
+  SOURCES operators/count_delta_test.cpp
+  LABELS cpu operators
+)
+target_include_directories(dyng_operators_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_operators_tests PRIVATE OpenMP::OpenMP_CXX)
+endif()
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_operators_cuda_tests
+    SOURCES operators/count_delta_cuda_test.cu
+    LABELS gpu operators
+    TEST_PREFIX cuda.
+  )
+  target_include_directories(dyng_operators_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_operators_cuda_tests)
+endif()
 
 # Compile-failure tests: sssp on an unsupported graph type stops at the static_assert that names the
 # supported types (as cycle_count's), not at a link error; so does another distance type.
@@ -903,6 +1018,140 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
   endforeach()
 endif()
 
+# triad_count's mutations (M9a criterion 11; PLAN 8.4: a wrong bin sign, a skipped frontier
+# filter, an unfill that drops its last value): a copy of libdyng whose triad_count module is
+# rebuilt with DYNG_MUTATION_TRIAD_<NAME> (the hooks are in the code both engines share:
+# engine/phases.hpp, engine/ownership.hpp and triad_count.cpp's triad_inserted_ids), linked with
+# the triad tests on the host backends (triad_count.mutation.<name>, labels
+# cpu;mutation;triad_count, every build) and, in CUDA builds, with the CUDA triad suite
+# (triad_count.mutation.cuda.<name>, labels gpu;mutation;triad_count). The CTest passes when the
+# suite fails; the control copy must pass. cbst_unfill_drops_last (M8a's CBST mutation, MOSP_ESCHER
+# #4: the store's unfill ignores the last value of each removal list) rebuilds the hypergraph
+# module instead and runs against the CUDA triad suite only. The mutants' CUDA code is compiled for
+# one architecture (dyng_mutant_cuda_architectures).
+option(DYNG_TRIAD_MUTATION_TESTS "Build the mutation tests of triad_count" ${DYNG_MUTATION_TESTS})
+if(DYNG_TRIAD_MUTATION_TESTS AND TARGET dyng_triad_count AND TARGET dyng_hypergraph)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  # name|define|module|expected verdict|host suite too
+  set(_dyng_triad_mutants
+      "control||dyng_triad_count|pass|host"
+      "wrong_bin_sign|DYNG_MUTATION_TRIAD_WRONG_BIN_SIGN|dyng_triad_count|fail|host"
+      "skip_frontier_filter_b|DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_B|dyng_triad_count|fail|host"
+      "skip_frontier_filter_k|DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_K|dyng_triad_count|fail|host"
+      "inserted_requested_ids|DYNG_MUTATION_TRIAD_INSERTED_REQUESTED_IDS|dyng_triad_count|fail|host"
+      "type1_unbounded_keys|DYNG_MUTATION_TRIAD_TYPE1_UNBOUNDED_KEYS|dyng_triad_count|fail|host"
+  )
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _dyng_triad_mutants
+         "cbst_unfill_drops_last|DYNG_MUTATION_CBST_UNFILL_DROPS_LAST|dyng_hypergraph|fail|cuda"
+    )
+  endif()
+  string(CONCAT _dyng_triad_mutant_filter
+         "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/*:"
+         "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/*:"
+         "Backends/TriadCount.SpecialBatches/*:"
+         "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/*"
+  )
+  foreach(_entry IN LISTS _dyng_triad_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _module)
+    list(GET _mutant 3 _expect)
+    list(GET _mutant 4 _suites)
+    get_property(_dyng_mutated_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_${_module})
+    set(_dyng_mutated_sources)
+    foreach(_source IN LISTS _dyng_mutated_relative)  # dyng_add_module's core paths are relative
+      if(NOT IS_ABSOLUTE "${_source}")
+        set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+      endif()
+      list(APPEND _dyng_mutated_sources "${_source}")
+    endforeach()
+    set(_dyng_unmutated_objects)
+    foreach(_other IN LISTS _dyng_modules)
+      if(NOT _other STREQUAL _module)
+        list(APPEND _dyng_unmutated_objects $<TARGET_OBJECTS:${_other}>)
+      endif()
+    endforeach()
+    set(_lib dyng_triad_mutant_${_name})
+    add_library(${_lib}_module OBJECT ${_dyng_mutated_sources})
+    add_library(
+      ${_lib} STATIC ${_dyng_unmutated_objects} $<TARGET_OBJECTS:${_lib}_module>
+                     $<TARGET_OBJECTS:dyng_testing_triad_reference>
+    )
+    set(_exes)
+    if(_suites STREQUAL "host")
+      add_executable(dyng_triad_count_mutant_${_name} algorithms/triad_count/triad_count_test.cpp)
+      list(APPEND _exes dyng_triad_count_mutant_${_name})
+    endif()
+    if(DYNG_ENABLE_CUDA)
+      add_executable(
+        dyng_triad_count_cuda_mutant_${_name}
+        algorithms/triad_count/triad_count_test.cpp
+        algorithms/triad_count/triad_count_kernels_test.cu framework/fake_hyper_kernels.cu
+      )
+      target_compile_definitions(dyng_triad_count_cuda_mutant_${_name} PRIVATE DYNG_TEST_CUDA=1)
+      list(APPEND _exes dyng_triad_count_cuda_mutant_${_name})
+    endif()
+    foreach(_target ${_lib}_module ${_lib} ${_exes})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_module PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_module)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
+    endif()
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    foreach(_exe ${_exes})
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      if(_exe MATCHES "_cuda_mutant_")
+        dyng_mutant_cuda_architectures(${_exe})
+        add_test(NAME triad_count.mutation.cuda.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=triad_count.cuda.${_name} -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          triad_count.mutation.cuda.${_name}
+          PROPERTIES LABELS "gpu;mutation;triad_count" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+        )
+      else()
+        # The host mutants run on the cases that kill each of them (measured on the full suite in
+        # the M9a review: every mutant fails UpdatesMatchTheOracleAndTheirStats or
+        # TheIdBoundGoingDownKeepsTheCountsExact, most of them several more); the control runs the
+        # same subset. The full host suite runs unmutated as dyng_triad_count_tests.
+        add_test(NAME triad_count.mutation.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=triad_count.${_name} "-DFILTER=${_dyng_triad_mutant_filter}" -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          triad_count.mutation.${_name} PROPERTIES LABELS "cpu;mutation;triad_count" ENVIRONMENT
+                                                   "${DYNG_TEST_ENVIRONMENT}"
+        )
+      endif()
+    endforeach()
+  endforeach()
+endif()
+
 dyng_add_test(
   NAME dyng_testing_tests
   SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp
@@ -910,6 +1159,47 @@ dyng_add_test(
   LIBRARIES dyng::testing
 )
 target_compile_definitions(dyng_testing_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+# The triad oracle (M9a criterion 4): its class map against ESCHER-GPU's table (a test-only
+# fixture), one triple per reachable bin, hand cases, a brute force over all triples.
+dyng_add_test(
+  NAME dyng_triad_reference_tests
+  SOURCES testing/triad_reference_test.cpp
+  LABELS cpu testing triad_count
+  LIBRARIES dyng::testing
+)
+# The oracle's planted mutation (parity/mutate.py, triad_reference_class_map): two classes of its
+# representative list swapped; its tests must fail (testing.mutation.triad_reference_class_map
+# passes when the suite fails; the control is dyng_triad_reference_tests). Labels
+# cpu;mutation;testing;triad_count.
+if(DYNG_MUTATION_TESTS)
+  add_executable(
+    dyng_triad_reference_mutant_tests testing/triad_reference_test.cpp
+                                      "${PROJECT_SOURCE_DIR}/cpp/src/testing/triad_reference.cpp"
+  )
+  target_link_libraries(
+    dyng_triad_reference_mutant_tests PRIVATE dyng_test_support GTest::gtest GTest::gmock
+                                              GTest::gtest_main
+  )
+  target_include_directories(dyng_triad_reference_mutant_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+  target_compile_features(dyng_triad_reference_mutant_tests PRIVATE cxx_std_17)
+  target_compile_definitions(
+    dyng_triad_reference_mutant_tests PRIVATE DYNG_MUTATION_TRIAD_REFERENCE_CLASS_MAP=1
+  )
+  if(DYNG_ENABLE_OPENMP)
+    target_link_libraries(dyng_triad_reference_mutant_tests PRIVATE OpenMP::OpenMP_CXX)
+  endif()
+  dyng_set_warnings(dyng_triad_reference_mutant_tests)
+  dyng_enable_sanitizers(dyng_triad_reference_mutant_tests)
+  add_test(NAME testing.mutation.triad_reference_class_map
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng_triad_reference_mutant_tests>
+                   -DEXPECT=fail -DNAME=testing.triad_reference_class_map -P
+                   "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+  )
+  set_tests_properties(
+    testing.mutation.triad_reference_class_map
+    PROPERTIES LABELS "cpu;mutation;testing;triad_count" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+  )
+endif()
 
 # CUDA core (label gpu; each test skips when no device is visible). ci/gpu_local.sh runs them on
 # GPU 1 and under compute-sanitizer memcheck.
@@ -996,10 +1286,19 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   foreach(_variant IN LISTS _variants)
     if(_variant STREQUAL "host")
       set(_target dyng_${_dyng_algorithm}_conformance_tests)
+      # triad_count's kit (four patterns x both instantiations, the oracle after every state,
+      # openmp(8)) also carries the label slow: the hosted sanitizer jobs (ci/sanitizers.sh,
+      # `-L cpu -LE slow`) leave it out, the cpu jobs and ci/check.sh run it, and each milestone
+      # runs it under ASan and TSan-OpenMP locally (M9a review: on a 4-vCPU runner its C2 cases
+      # alone took more than the jobs' budget).
+      set(_heavy)
+      if(_dyng_algorithm STREQUAL "triad_count")
+        set(_heavy slow)
+      endif()
       dyng_add_test(
         NAME ${_target}
         SOURCES ${_suite} conformance/allocation_counter.cpp
-        LABELS cpu conformance ${_dyng_algorithm}
+        LABELS cpu conformance ${_dyng_algorithm} ${_heavy}
         LIBRARIES dyng::testing
       )
     else()
@@ -1018,6 +1317,19 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
     target_include_directories(${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   endforeach()
 endforeach()
+
+# triad_count's kit: the suites of StatHyper's types beside the h_motif suite, and in C10 the
+# kit's hypergraph fake as a partner, whose CUDA counts are kernels.
+if(TARGET dyng_triad_count_conformance_tests)
+  target_sources(dyng_triad_count_conformance_tests
+                 PRIVATE algorithms/triad_count/triad_count_types_conformance_test.cpp)
+endif()
+if(TARGET dyng_triad_count_conformance_cuda_tests)
+  target_sources(
+    dyng_triad_count_conformance_cuda_tests
+    PRIVATE algorithms/triad_count/triad_count_types_conformance_test.cpp framework/fake_hyper_kernels.cu
+  )
+endif()
 
 # The registry and the kit agree: every algorithm of dyng::algorithms() has test_traits here.
 dyng_add_test(

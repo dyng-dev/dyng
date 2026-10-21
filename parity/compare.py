@@ -7,7 +7,9 @@
 (parity/cycle_count_goldens.py); `parity/compare.py mosp_scale ...` the paper-scale mosp goldens
 (parity/mosp_scale_goldens.py, M7); `parity/compare.py cbst_trace ...` the CBST traces through a
 store (parity/cbst_trace_goldens.py, M8a); `parity/compare.py hypergraph_ids ...` their batch
-records through the hypergraph container (parity/hypergraph_ids.py, M8b).
+records through the hypergraph container (parity/hypergraph_ids.py, M8b); `parity/compare.py
+triad_count ...` ESCHER-GPU's triad goldens (parity/triad_goldens.py, M9a: --verify and --list;
+the replays through dynG by key and by content, parity/triad_replay.py).
 
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
@@ -381,6 +383,11 @@ def main() -> int:
         import mosp_scale_goldens
 
         return mosp_scale_goldens.compare_main(sys.argv[2:])
+    if sys.argv[1:2] == ["triad_count"]:  # ESCHER-GPU's triad goldens (M9a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import triad_goldens
+
+        return triad_goldens.compare_main(sys.argv[2:])
     scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--goldens", type=Path, default=scratch / "goldens" / "sssp")

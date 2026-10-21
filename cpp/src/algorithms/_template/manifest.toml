@@ -25,3 +25,4 @@ graph_requirements = { multi_edges = "forbid", row_order = "sorted" }   # checke
 #@@ end
 cite        = []
 maintainers = ["{{maintainer}}"]
+python      = false   # true once python/dyng/<name>.py and its bindings exist (PLAN 4.8, file 17)

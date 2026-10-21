@@ -13,8 +13,10 @@ Seeded generators of graphs, hypergraphs and batches (`dyng::generators`).
   so the inputs of published experiments and of the parity harness can be regenerated without the
   original code: MOSP's change generator (`mosp_changes`), CycleEnumeration-GPU's batches
   (`cycle_enum_batch`), and ESCHER-GPU's synthetic hypergraph and batch generator
-  (`escher_hypergraph`, `escher_batch_generator`, which reads the live state of a dynG hypergraph
-  and shares one `std::mt19937_64` with it in ESCHER-GPU's draw order). These streams follow
+  (`escher_hypergraph`, `escher_batch_generator`, which reads the live state of a dynG hypergraph,
+  or of an `escher_host_model` the caller keeps in step with it, and shares one `std::mt19937_64`
+  with it in ESCHER-GPU's draw order; the host model draws the same batches without reading the
+  hypergraph, so a timed driver keeps no public device view alive across `apply()`). These streams follow
   libstdc++'s algorithms, which dynG reproduces itself; `standard_library_matches_legacy_streams()`
   checks at run time that the build's standard library draws the same (true with libstdc++ 11 and
   later, which built the originals).

@@ -5,36 +5,50 @@
 
 from __future__ import annotations
 
-#: name -> title, first release, container and maturity of every algorithm with a manifest.
+#: name -> title, first release, container, maturity and whether the module dyng.<name> exists
+#: (python: "no" for an experimental algorithm whose bindings come later) of every algorithm with
+#: a manifest.
 ALGORITHMS: dict[str, dict[str, str]] = {
     "sssp": {
         "title": "Dynamic single-source shortest paths",
         "since": "0.1",
         "container": "graph",
         "maturity": "stable",
+        "python": "yes",
     },
     "cycle_count": {
         "title": "Exact k-bounded directed simple-cycle histograms",
         "since": "0.1",
         "container": "graph",
         "maturity": "stable",
+        "python": "yes",
     },
     "mosp": {
         "title": "Dynamic multi-objective shortest paths",
         "since": "0.2",
         "container": "graph",
         "maturity": "stable",
+        "python": "yes",
     },
     "dynamic_bfs": {
         "title": "Dynamic breadth-first search levels (tutorial)",
         "since": "0.2",
         "container": "graph",
         "maturity": "tutorial",
+        "python": "yes",
     },
     "triangle_delta": {
         "title": "Dynamic triangle count (tutorial)",
         "since": "0.2",
         "container": "graph",
         "maturity": "tutorial",
+        "python": "yes",
+    },
+    "triad_count": {
+        "title": "Dynamic hypergraph triad counts",
+        "since": "0.3",
+        "container": "hypergraph",
+        "maturity": "experimental",
+        "python": "no",
     },
 }

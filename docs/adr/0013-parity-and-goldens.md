@@ -117,3 +117,24 @@ their `resources` handle, so both sides pay objective 0's first touch inside its
 objective is compared as measured (no moved cost, no "first touch counted" reading). The gate is
 read per objective on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa (safe, unsafe and local
 batches) and recorded in `parity/results/M1b.md`.
+
+## Amendment (M9a, 2026-10-15): the test-data budget is 1.25 MB
+
+The author's decision D5 (GOVERNANCE.md, approvals log, 2026-10-15) raises the budget of the
+committed test data (Decision 3: "< 1 MB in total") to **1.25 MB** (1,250,000 bytes of tracked
+files under `cpp/tests/data`). At the decision the tracked fixtures held 998,934 bytes. The raise
+makes room for ESCHER-GPU's make-test triad counts, at most about 16 KB, which a hosted-CI test
+compares exactly:
+
+- `cpp/tests/data/goldens/triad_counts/escher_gpu_make_test.txt` (3,737 bytes): A's unpatched
+  counts of the make-test groups whose input `generators::legacy` regenerates (01, 03, 07, 12: the
+  full count and every batch's composition and delta, all four executables), written from the
+  golden set `triad_count_escher_gpu` by `parity/triad_goldens.py fixture` (`--check` compares the
+  committed file with the set); read by `dyng_triad_count_make_test_tests` (label cpu, the host
+  backends: the inputs and A's batches regenerated, the counts exact, "baseline + deltas ==
+  compute()" and `check_integrity()` after every batch) and, for the triangle patterns on the
+  syn100k groups, `dyng_triad_count_make_test_large_tests` (labels parity, slow).
+- The budget is enforced: `ci/test_data_budget.py` (the `testdata` step of `ci/check.sh` and a
+  pre-commit hook, so lint.yml runs it) fails when the tracked files exceed 1,250,000 bytes.
+- Everything larger stays outside the repository, as before (`$DYNG_SCRATCH/goldens`, recorded in
+  `parity/goldens.toml`).
