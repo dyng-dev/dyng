@@ -23,7 +23,8 @@ Before 0.1.0 anything may change.
   files by `# [tutorial: <name>]` markers. `examples/cpp/compare_output.cmake` takes the program's
   arguments (`-DARGS=a|b|c`) and a skip code 77.
 
-- **`dyng.triad_count`** (M9b, ADR 0059; Python, tracked until the API review of M9b):
+- **`dyng.triad_count`** (M9b, ADRs 0059 and 0060; Python; stable from 0.3.0 with the C++ API,
+  pending the author's confirmation, D4: see Changed):
   `compute(hypergraph, kind="h_motif" | "stathyper_type1" | "stathyper_type2" |
   "stathyper_type3" | Pattern)`, `update(hypergraph, batch, result)`, `Options` (`kind`,
   `cuda_engine`), `Result` (`counts`, a read-only uint64 NumPy copy; `count()`, `total`,
@@ -56,7 +57,11 @@ Before 0.1.0 anything may change.
   `<dyng/experimental/local_patterns.hpp>`: `shape`, `max_pattern_bins` (1024), `member_span`,
   `hyperedge_rows`, the set helpers `intersect_size()`, `venn3()`, `intersects3()`, and
   `experimental::access_rows(h)`, the rows the engine reads (compiled into libdyng for both
-  hypergraph instantiations). The `.cuh` headers are installed. triad_count's four patterns are
+  hypergraph instantiations). From the M9b review: `max_op_size` (4,096 bytes, checked by its own
+  `static_assert`), and `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op_t)`, which makes nvcc report a
+  `__device__`-only callback (nvcc does not report it at the engine's call, and the host backends
+  would end the process with exit status 1); the documentation states that the ids of a callback
+  come in no particular order, so an Op must be symmetric in them. The `.cuh` headers are installed. triad_count's four patterns are
   four built-in Ops of the same engine and driver (their kernels' machine code unchanged).
 - Docs: the tutorial "Count a new hypergraph pattern (an Op)" (`docs/tutorials/
   count_a_new_hypergraph_pattern.md`; its code in `examples/tutorial_algorithms/local_patterns/`,
@@ -71,7 +76,7 @@ Before 0.1.0 anything may change.
   synccheck over the tutorial's CUDA run); `parity/compare.py triad_count --counter
   local_patterns` (the built-in Ops through count_local_patterns, bit for bit against triad_count
   and against ESCHER-GPU's goldens).
-- `triad_count` (experimental, aggregate delta; `<dyng/triad_count.hpp>`): the 30 h-motif counts and StatHyper's triad types 1-3 of a hypergraph, kept exact under hyperedge batches (`options::kind`; `stats::delta`, `triads_removed` / `triads_added`; several patterns in one `dyng::update()`). The cuda backend runs ESCHER-GPU@abcf9b2's wedge engine (exact against ESCHER-GPU on every golden case); the sequential and OpenMP backends run the same engine as loops (an incremental host engine, untuned; the author's decision D3, ADR 0054), exact against ESCHER-GPU on the golden cases of the coverage table, with identical results on every OpenMP thread count. `dyng-compat-escher run` counts and prints ESCHER-GPU's output; `parity/compare.py triad_count --counter algorithm`.
+- `triad_count` (M9a; stable from 0.3.0, pending the author's confirmation, D4 and ADR 0060: see Changed; aggregate delta; `<dyng/triad_count.hpp>`): the 30 h-motif counts and StatHyper's triad types 1-3 of a hypergraph, kept exact under hyperedge batches (`options::kind`; `stats::delta`, `triads_removed` / `triads_added`; several patterns in one `dyng::update()`). The cuda backend runs ESCHER-GPU@abcf9b2's wedge engine (exact against ESCHER-GPU on every golden case); the sequential and OpenMP backends run the same engine as loops (an incremental host engine, untuned; the author's decision D3, ADR 0054), exact against ESCHER-GPU on the golden cases of the coverage table, with identical results on every OpenMP thread count. `dyng-compat-escher run` counts and prints ESCHER-GPU's output; `parity/compare.py triad_count --counter algorithm`.
 - Internal (internal-stable, ADR 0055): `operators::count_delta` / `count_owned`, the signed count of one aggregate-delta phase with a required ownership rule (I2), on every executor (host: private bins per thread added in thread order; cuda: atomic bins read once); `triangle_delta` and `triad_count`'s host engine count with it (the rule of two). The executors gain `download()` and `threads()`.
 - Benchmarks (M9a, ADR 0056): the paper suites `benchmarks/paper/ipdps26_escher.yaml` (the timing gates of `triad_count` against ESCHER-GPU@abcf9b2: update per batch, full count, end to end on coauth-DBLP and syn1M / syn2M) and `tkde26_escher_plus.yaml` (the store accounting and the Nsight Systems peak; the StatHyper types and other batch sizes recorded); `parity/certify.py` requires both, and the triad golden replays of every backend of the coverage table by key and by content, from the 0.3 series (`compare.py triad_count --certificate`; `certify.py write --dry-run <algorithm>`); `perf_ab.py triad_count kernels` (the update's kernels under ncu at the base clocks) and the contamination audit of the triad readings.
 - Tests: ESCHER-GPU's `make test` replayed on the host backends in hosted CI (`dyng_triad_count_make_test_tests`), exact against 3.7 KB of committed counts (`parity/triad_goldens.py fixture`); the committed test-data budget is 1.25 MB (the author's decision D5, ADR 0013 amended), checked by `ci/test_data_budget.py` (`ci/check.sh` step `testdata`, a pre-commit hook). The recorded triad mutations of PLAN 8.4 (CTests `triad_count.mutation.*`, `parity/mutate.py run --suites triad_count`).
@@ -332,6 +337,19 @@ Before 0.1.0 anything may change.
   compute, update and clone) report a host allocation failure as `out_of_memory_error`, as their
   documentation says; a `std::bad_alloc` of the host work left the library (ADR 0060 finding 7;
   `dyng_triad_count_allocation_failure_tests`).
+
+### Known issues
+
+- In a build with OpenMP (the default builds and the wheels), a host allocation failure inside
+  one of the hypergraph container's OpenMP loops ends the process with `std::terminate` instead
+  of throwing the documented `out_of_memory_error`, on the sequential backend as on openmp and
+  with any thread count (the loops are OpenMP regions even when they run on one thread): the
+  vertex-to-hyperedge rows that `hypergraph::apply()` changes (so `dyng::update()`,
+  `triad_count::update()` and `count_local_patterns::update()` over a hypergraph), and the line
+  graph's build (`from_hyperedges()` with a line graph, or the first `h2h()` or `compute()` under
+  `line_graph_policy::automatic`). The device allocations of the cuda backend are not affected.
+  Not fixed in 0.3.0 by default: whether the fix (catch inside each region, rethrow after it)
+  goes into 0.3.0 or a 0.3.x release is the author's (D13; ADR 0060 finding 8).
 
 ### Fixed (M9a review)
 
