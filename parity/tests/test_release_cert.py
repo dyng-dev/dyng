@@ -983,10 +983,12 @@ def test_mutation_points_match_the_code_once() -> None:
         "triad_reference_class_map"
     }
     assert mutate.suite_targets("triad_reference") == ["dyng_triad_reference_tests"]
-    # triad_count's mutations (M9a, criterion 11): in the code its two engines share.
+    # triad_count's mutations (M9a, criterion 11): in the code its two engines share (since M9b
+    # the exactly-once predicates are the local-pattern engine's installed header, ADR 0058).
     for path in sorted((REPO / "cpp/src/algorithms/triad_count").rglob("*")):
         if path.is_file():
             hooks += path.read_text()
+    hooks += (REPO / "cpp/include/dyng/experimental/detail/local_patterns_engine.hpp").read_text()
     assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "triad_count"} == {
         "triad_wrong_bin_sign",
         "triad_skip_frontier_filter_b",
