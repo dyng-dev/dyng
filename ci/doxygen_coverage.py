@@ -24,11 +24,14 @@ missing @param / @return. This script reads its XML output and additionally requ
     takes a `resources`, a `stream_ref` or a `memory_resource_ref`, and the members that do
     stream-ordered work with the stream they were built with (STREAM_ORDERED_MEMBERS, the move
     assignment of `buffer`). The copy and move operations of `resources` itself are exempt;
-  * the frozen hypergraph headers (dyng/hypergraph/, M8b; ADR 0047) are held to the freeze's
-    rules: every entity they declare is in the group `hypergraph`; every function they declare
-    (free or member, deleted special members and destructors exempt) documents its exceptions
-    (at least one @throws) or is `noexcept`; and every one that documents a cuda_error (device
-    work, also without a `resources` argument: the views) carries @sync or @async.
+  * the frozen hypergraph headers (dyng/hypergraph/, M8b; ADR 0047) and the experimental extension
+    headers (dyng/experimental/, M9b; ADR 0058: their group `experimental`, and every one's @file
+    brief starts with the banner "EXPERIMENTAL PUBLIC; may change in any minor release") are held
+    to the freeze's rules: every entity they declare is in the group `hypergraph`
+    (`experimental`); every function they declare (free or member, deleted special members and
+    destructors exempt) documents its exceptions (at least one @throws) or is `noexcept`; and
+    every one that documents a cuda_error (device work, also without a `resources` argument: the
+    views) carries @sync or @async.
 
 Usage: ci/doxygen_coverage.py <doxygen-xml-dir>
 """
@@ -149,8 +152,25 @@ def is_move_assignment(member: ET.Element) -> bool:
     )
 
 
-# The frozen hypergraph headers (M8b, ADR 0047) and the group their entities belong to.
-FROZEN_GROUP_HEADERS = {"dyng/hypergraph/": "hypergraph"}
+# The frozen hypergraph headers (M8b, ADR 0047) and the experimental extension headers (M9b,
+# ADR 0058: PLAN 9.1's group `experimental`), and the group their entities belong to.
+FROZEN_GROUP_HEADERS = {"dyng/hypergraph/": "hypergraph", "dyng/experimental/": "experimental"}
+# The banner every experimental header's @file brief starts with (PLAN 5.9).
+EXPERIMENTAL_BANNER = "EXPERIMENTAL PUBLIC; may change in any minor release"
+
+
+def experimental_banners(compounds: dict[str, ET.Element], problems: list[str]) -> None:
+    """Every header under dyng/experimental/ carries the experimental banner in its @file brief."""
+    for c in compounds.values():
+        if c.get("kind") != "file":
+            continue
+        loc = c.find("location")
+        file = loc.get("file", "") if loc is not None else ""
+        if "dyng/experimental/" not in file:
+            continue
+        brief = " ".join(text_of(c.find("briefdescription")).split())
+        if not brief.startswith(EXPERIMENTAL_BANNER):
+            problems.append(f"{file}: the @file brief does not start with '{EXPERIMENTAL_BANNER}'")
 
 
 def frozen_group_rules(compounds: dict[str, ET.Element], problems: list[str]) -> None:
@@ -336,6 +356,7 @@ def main(argv: list[str]) -> int:
                         problems.append(f"{at}: {qualified} has no @guarantee")
 
     frozen_group_rules(compounds, problems)
+    experimental_banners(compounds, problems)
 
     for problem in sorted(set(problems)):
         print(f"doxygen-coverage: {problem}")

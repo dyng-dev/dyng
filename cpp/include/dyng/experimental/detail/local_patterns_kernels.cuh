@@ -3,7 +3,7 @@
 // Derived from ESCHER-GPU@abcf9b2:kernel/wedge.cuh
 /**
  * @file local_patterns_kernels.cuh
- * @brief EXPERIMENTAL PUBLIC (detail); may change in any minor release. The wedge-parallel
+ * @brief EXPERIMENTAL PUBLIC; may change in any minor release (a detail header). The wedge-parallel
  *        counting kernels of the local-pattern engine (ESCHER-GPU's kernel/wedge.cuh): one thread
  *        per oriented wedge, the frontier filters of the exactly-once rule, the block bins and
  *        their flush; and the launch of an Op's kernel that the driver calls. Needs nvcc.

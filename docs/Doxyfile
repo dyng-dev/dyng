@@ -10,7 +10,8 @@ PROJECT_NAME           = dynG
 PROJECT_BRIEF          = "dynamic graph and hypergraph updates on GPUs"
 OUTPUT_DIRECTORY       = $(DYNG_DOXYGEN_OUTPUT)
 INPUT                  = cpp/include/dyng $(DYNG_GENERATED_INCLUDE)
-FILE_PATTERNS          = *.hpp
+FILE_PATTERNS          = *.hpp *.cuh
+EXTENSION_MAPPING      = cuh=C++
 RECURSIVE              = YES
 STRIP_FROM_PATH        = cpp/include $(DYNG_GENERATED_INCLUDE)
 STRIP_FROM_INC_PATH    = cpp/include $(DYNG_GENERATED_INCLUDE)
@@ -23,7 +24,17 @@ JAVADOC_AUTOBRIEF      = NO
 MULTILINE_CPP_IS_BRIEF = YES
 MARKDOWN_SUPPORT       = YES
 ENABLE_PREPROCESSING   = YES
-MACRO_EXPANSION        = NO
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+# The extension headers' qualifiers (dyng/experimental/*): read as plain C++, and the .cuh
+# headers past their nvcc guard.
+PREDEFINED             = __CUDACC__ \
+                         DYNG_HD= \
+                         DYNG_HD_INLINE=inline \
+                         __host__= \
+                         __device__= \
+                         __global__= \
+                         __forceinline__=inline
 QUIET                  = YES
 WARNINGS               = YES
 WARN_IF_UNDOCUMENTED   = YES

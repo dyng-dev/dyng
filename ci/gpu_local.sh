@@ -101,6 +101,12 @@
 #              and on the replays of make-test, all four patterns, by key and by content
 #              (parity/compare.py triad_count --counter algorithm through a racecheck wrapper of
 #              dyng_triad_replay; skipped without the triad goldens)
+#   experimental  experimental::count_local_patterns (M9b, ADR 0058): compute-sanitizer memcheck,
+#              racecheck and synccheck on the CUDA runs of the tutorial's test
+#              (dyng_local_patterns_tutorial_tests) and of the API tests (dyng_local_patterns_tests;
+#              both are also in `ctest -L gpu`), then ci/cmake_consumer.sh on this build: a user Op
+#              compiled by nvcc against the installed package, run on the GPU and the host backends,
+#              and a host-only consumer of the experimental host header
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -520,6 +526,41 @@ if ! skipped triad; then
     record "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)" passed
   else
     record "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)" FAILED
+  fi
+fi
+
+if ! skipped experimental; then
+  step "experimental::count_local_patterns: sanitizers and the installed-package consumer (GPU ${gpu})"
+  lp_ok=1
+  lp_tutorial="${build_dir}/cpp/tests/experimental/dyng_local_patterns_tutorial_tests"
+  lp_tests="${build_dir}/cpp/tests/experimental/dyng_local_patterns_tests"
+  if [ -z "${sanitizer}" ] || [ ! -x "${lp_tutorial}" ] || [ ! -x "${lp_tests}" ]; then
+    echo "compute-sanitizer, ${lp_tutorial} or ${lp_tests} missing"
+    lp_ok=0
+  else
+    for tool in memcheck racecheck synccheck; do
+      extra=()
+      if [ "${tool}" = racecheck ]; then extra=(--racecheck-report all); fi
+      if ! heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 \
+        "${lp_tutorial}" --gtest_brief=1 --gtest_filter='*cuda*:Tutorial.*'; then
+        echo "compute-sanitizer --tool ${tool} ${lp_tutorial}: FAILED"
+        lp_ok=0
+      fi
+    done
+    if ! heavy "${sanitizer}" --tool memcheck --error-exitcode 1 "${lp_tests}" --gtest_brief=1 \
+      --gtest_filter='*/cuda'; then
+      echo "compute-sanitizer --tool memcheck ${lp_tests}: FAILED"
+      lp_ok=0
+    fi
+  fi
+  if ! heavy ci/cmake_consumer.sh "${build_dir}"; then
+    echo "ci/cmake_consumer.sh ${build_dir}: FAILED"
+    lp_ok=0
+  fi
+  if [ "${lp_ok}" = 1 ]; then
+    record "count_local_patterns (sanitizers on the tutorial and API tests; nvcc consumer)" passed
+  else
+    record "count_local_patterns (sanitizers on the tutorial and API tests; nvcc consumer)" FAILED
   fi
 fi
 

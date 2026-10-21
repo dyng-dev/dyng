@@ -53,14 +53,19 @@
  */
 
 #if defined(__CUDACC__)
-/// Marks a callback of an Op (and any function it calls) that runs on the host and the device.
+/**
+ * @brief Marks a callback of an Op (and any function it calls) that runs on the host and the
+ *        device: `__host__ __device__` under nvcc, nothing for a host compiler.
+ * @ingroup experimental
+ */
 #define DYNG_HD __host__ __device__
-/// A small function of the engine and its set helpers, inlined on the host and the device.
+/**
+ * @brief A small function of the engine and its set helpers, inlined on the host and the device.
+ * @ingroup experimental
+ */
 #define DYNG_HD_INLINE __host__ __device__ __forceinline__
 #else
-/// Marks a callback of an Op (and any function it calls) that runs on the host and the device.
 #define DYNG_HD
-/// A small function of the engine and its set helpers, inlined on the host and the device.
 #define DYNG_HD_INLINE inline
 #endif
 
@@ -189,7 +194,7 @@ class hyperedge_rows {
    * @param[in] id A hyperedge id the engine passed (a callback's argument).
    * @return Its member codes, ascending.
    */
-  [[nodiscard]] DYNG_HD_INLINE member_span row(int id) const {
+  [[nodiscard]] DYNG_HD_INLINE member_span row(int id) const noexcept {
     return {flat_ + loc_[id + 1], len_[id + 1]};
   }
 
@@ -198,7 +203,7 @@ class hyperedge_rows {
    * @param[in] id A hyperedge id the engine passed.
    * @return row(id).size().
    */
-  [[nodiscard]] DYNG_HD_INLINE int size(int id) const {
+  [[nodiscard]] DYNG_HD_INLINE int size(int id) const noexcept {
     return len_[id + 1];
   }
 

@@ -8,6 +8,8 @@
 # `frozen`: the stable API (the core, the hypergraph container and the algorithms at maturity
 # stable; ADRs 0023, 0035, 0047).
 # `tracked`: checked the same way, not frozen (io, generators, testing, the other algorithms).
+# `experimental`: dyng/experimental/* (PLAN 5.9's experimental tier): listed, a difference is
+# reported, never failed (ADR 0058).
 
 [dyng/citation.hpp] frozen
   [[nodiscard]] std::string dyng::citation(std::string_view what="dyng")
@@ -407,6 +409,81 @@
   #include <dyng/triangle_delta.hpp>
   #include <dyng/update.hpp>
   #include <dyng/version.hpp>
+
+[dyng/experimental/detail/local_patterns_engine.hpp] experimental
+
+[dyng/experimental/detail/local_patterns_kernels.cuh] experimental
+
+[dyng/experimental/local_patterns.cuh] experimental
+  template <class op_t> class dyng::experimental::local_patterns_result
+      using op_type = op_t
+      local_patterns_result(local_patterns_result &&other) noexcept=default
+      local_patterns_result & operator=(local_patterns_result &&other) noexcept=default
+      local_patterns_result(const local_patterns_result &)=delete
+      local_patterns_result & operator=(const local_patterns_result &)=delete
+      ~local_patterns_result()=default
+      [[nodiscard]] int num_bins() const
+      [[nodiscard]] array_view< const std::uint64_t > counts() const
+      [[nodiscard]] std::uint64_t count(int bin) const
+      [[nodiscard]] std::uint64_t total() const
+      [[nodiscard]] op_t op() const
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] local_patterns_result clone(const resources &res) const
+  template <class op_t> struct dyng::experimental::count_local_patterns
+      static constexpr bool valid = detail::local_patterns::check_op<op_t>()
+      using result = local_patterns_result< op_t >
+      using stats = local_patterns_stats
+      template <typename vertex_t, typename weight_t> [[nodiscard]] static result compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, const op_t &op)
+      template <typename vertex_t, typename weight_t> [[nodiscard]] static result compute(const resources &res, const hypergraph< vertex_t, weight_t > &h)
+      template <typename vertex_t, typename weight_t> static stats update(const resources &res, hypergraph< vertex_t, weight_t > &h, const hyperedge_batch_view< vertex_t, weight_t > &batch, result &r)
+  detail: template <class op_t> struct update_traits<experimental::local_patterns_result<op_t>> { using stats_type = experimental::local_patterns_stats; }
+
+[dyng/experimental/local_patterns.hpp] experimental
+  #define DYNG_HD
+  #define DYNG_HD_INLINE
+  enum class dyng::experimental::shape : std::uint8_t { triangles, pairs, keys }
+  [[nodiscard]] std::string_view dyng::experimental::to_string(shape s) noexcept
+  constexpr int dyng::experimental::max_pattern_bins = 1024
+  using dyng::experimental::member_code = std::int32_t
+  class dyng::experimental::member_span
+      constexpr member_span() noexcept=default
+      constexpr member_span(const member_code *first, int count) noexcept
+      [[nodiscard]] constexpr const member_code * begin() const noexcept
+      [[nodiscard]] constexpr const member_code * end() const noexcept
+      [[nodiscard]] constexpr int size() const noexcept
+      [[nodiscard]] constexpr bool empty() const noexcept
+      [[nodiscard]] constexpr member_code operator[](int i) const noexcept
+  class dyng::experimental::hyperedge_rows
+      constexpr hyperedge_rows() noexcept=default
+      [[nodiscard]] member_span row(int id) const noexcept
+      [[nodiscard]] int size(int id) const noexcept
+      [[nodiscard]] static constexpr std::int32_t decode(member_code code) noexcept
+  struct dyng::experimental::venn_counts
+      int ab = 0
+      int bc = 0
+      int ca = 0
+      int abc = 0
+  [[nodiscard]] int dyng::experimental::intersect_size(member_span a, member_span b) noexcept
+  [[nodiscard]] venn_counts dyng::experimental::venn3(member_span a, member_span b, member_span c) noexcept
+  [[nodiscard]] bool dyng::experimental::intersects3(member_span a, member_span b, member_span c) noexcept
+  class dyng::experimental::row_access
+      constexpr row_access() noexcept=default
+      [[nodiscard]] hyperedge_rows hyperedges() const noexcept
+      [[nodiscard]] std::int64_t id_bound() const noexcept
+      [[nodiscard]] bool has_line_graph() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] int device() const noexcept
+  struct dyng::experimental::local_patterns_stats : public dyng::update_stats
+      hyper_apply_summary batch
+      std::int64_t deleted_frontier = 0
+      std::int64_t inserted_frontier = 0
+      std::uint64_t removed = 0
+      std::uint64_t added = 0
+      std::vector< std::int64_t > delta
+  #define DYNG_LOCAL_PATTERNS_TYPES_MESSAGE
+  template <typename vertex_t, typename weight_t> [[nodiscard]] row_access dyng::experimental::access_rows(const hypergraph< vertex_t, weight_t > &h)
+  detail: template <typename vertex_t, typename weight_t> inline constexpr bool local_patterns_supported_v = std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<weight_t, unweighted> || std::is_same_v<weight_t, std::int32_t>);
 
 [dyng/generators/hypergraphs.hpp] tracked
   struct dyng::generators::uniform_hypergraph_options

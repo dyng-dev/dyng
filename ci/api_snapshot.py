@@ -58,10 +58,14 @@ every change of a tracked section are reported, not failed.
 Headers are marked `frozen` (the stable API: core/*, graph/*, update.hpp and the top-level library
 headers, reviewed for 0.1 in ADR 0023; the hypergraph container's headers hypergraph/*, reviewed
 and frozen at M8b for 0.3 in ADR 0047; and the header dyng/<name>.hpp of every algorithm whose
-manifest says maturity "stable": sssp and cycle_count since 0.1, mosp since 0.2, ADR 0035) or
+manifest says maturity "stable": sssp and cycle_count since 0.1, mosp since 0.2, ADR 0035),
 `tracked` (io/*, generators/*, testing/* and the algorithms at another maturity, such as the
-tutorial algorithms: listed and checked the same way, but not frozen). An algorithm's header is
-frozen by its manifest, so the maturity decision and the freeze cannot disagree.
+tutorial algorithms: listed and checked the same way, but not frozen) or `experimental` (the
+experimental tier of PLAN 5.9, dyng/experimental/*: count_local_patterns, M9b, ADR 0058; its .hpp
+and .cuh headers are listed, and a difference from the baseline is reported but never fails the
+check, since an experimental API may change in any minor release with a CHANGELOG note). An
+algorithm's header is frozen by its manifest, so the maturity decision and the freeze cannot
+disagree.
 """
 
 from __future__ import annotations
@@ -124,6 +128,8 @@ HEADER = """\
 # `frozen`: the stable API (the core, the hypergraph container and the algorithms at maturity
 # stable; ADRs 0023, 0035, 0047).
 # `tracked`: checked the same way, not frozen (io, generators, testing, the other algorithms).
+# `experimental`: dyng/experimental/* (PLAN 5.9's experimental tier): listed, a difference is
+# reported, never failed (ADR 0058).
 """
 
 
@@ -136,7 +142,13 @@ def squash(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+# The experimental tier (PLAN 5.9): tracked and reported, never blocking (ADR 0058).
+EXPERIMENTAL = ["dyng/experimental/*"]
+
+
 def status(header: str) -> str:
+    if any(fnmatch.fnmatch(header, p) for p in EXPERIMENTAL):
+        return "experimental"
     return "frozen" if any(fnmatch.fnmatch(header, p) for p in FROZEN) else "tracked"
 
 
@@ -408,13 +420,31 @@ def sections(text: str) -> dict[str, tuple[str, list[str]]]:
     out: dict[str, tuple[str, list[str]]] = {}
     current: list[str] | None = None
     for line in text.splitlines():
-        m = re.match(r"^\[(?P<header>[^\]]+)\] (?P<status>frozen|tracked)$", line)
+        m = re.match(r"^\[(?P<header>[^\]]+)\] (?P<status>frozen|tracked|experimental)$", line)
         if m:
             current = []
             out[m["header"]] = (m["status"], current)
         elif current is not None and line.startswith("  "):
             current.append(line)
     return out
+
+
+def without_experimental(text: str) -> str:
+    """A listing without its experimental sections (header line and declarations) and without
+    blank lines (the comparison of everything outside the experimental tier)."""
+    out: list[str] = []
+    skipping = False
+    for line in text.splitlines(keepends=True):
+        if not line.strip():
+            continue
+        m = re.match(r"^\[(?P<header>[^\]]+)\] (?P<status>\w+)$", line.rstrip("\n"))
+        if m:
+            skipping = m["status"] == "experimental"
+        elif skipping and not line.startswith("  "):
+            skipping = False
+        if not skipping:
+            out.append(line)
+    return "".join(out)
 
 
 def frozen_changes(base: str, current: str) -> tuple[list[str], list[str]]:
@@ -534,6 +564,22 @@ def main(argv: list[str] | None = None) -> int:
     if baseline == current:
         declarations = sum(1 for line in current.splitlines() if line.startswith("  "))
         print(f"api-snapshot: OK ({declarations} declarations match {args.baseline.name})")
+        return 0
+    if without_experimental(baseline) == without_experimental(current):
+        # Only the experimental tier differs: reported, never blocking (PLAN 5.9; ADR 0058).
+        sys.stdout.writelines(
+            difflib.unified_diff(
+                baseline.splitlines(keepends=True),
+                current.splitlines(keepends=True),
+                fromfile=f"{args.baseline.name} (baseline)",
+                tofile="the public headers",
+            )
+        )
+        print(
+            "api-snapshot: OK, but the EXPERIMENTAL API differs from the baseline (above; "
+            "reported, not failed: note the change in the CHANGELOG and run ci/docs.sh "
+            "--update-api)"
+        )
         return 0
     try:
         shown = args.baseline.relative_to(REPO)

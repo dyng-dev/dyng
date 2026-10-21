@@ -4,7 +4,7 @@
 // filters, the wedges of a source as loops) and include/frontier.hpp (the exactly-once rule)
 /**
  * @file local_patterns_engine.hpp
- * @brief EXPERIMENTAL PUBLIC (detail); may change in any minor release. The host half of the
+ * @brief EXPERIMENTAL PUBLIC; may change in any minor release (a detail header). The host half of the
  *        local-pattern engine that <dyng/experimental/local_patterns.cuh> hands to the library:
  *        the type-erased Op (the kernels table), the work of one source on the host, the
  *        exactly-once rule, the Op concept's checks, and the driver's entry points in libdyng.
