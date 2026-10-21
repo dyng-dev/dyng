@@ -51,7 +51,7 @@ why those two keep GitHub's standard names.
 | Label | Category | Typical task |
 |---|---|---|
 | `good first issue` | any | small, well-described, with a pointer to the files to change |
-| `good-first-issue:op` | a new hypergraph pattern Op (from 0.3) | a new pattern for `experimental::count_local_patterns`, written as in {doc}`../tutorials/count_a_new_hypergraph_pattern`: the Op, its brute-force oracle and a test on every backend |
+| `good-first-issue:op` | a new hypergraph pattern Op (from 0.3) | a new pattern for `experimental::count_local_patterns`, written as in {doc}`../tutorials/count_a_new_hypergraph_pattern`: the Op (symmetric in its ids, checked by `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS`), its brute-force oracle and a test on every backend under updates ("baseline + deltas == recount", not against `compute()` alone) |
 | `good-first-issue:reader` | a file format | a reader or writer in `cpp/src/io/` with round-trip tests |
 | `good-first-issue:backend` | a backend | an OpenMP backend for a sequential-only algorithm |
 | `good-first-issue:docs` | documentation | a how-to guide, an example, a clarified page |

@@ -210,6 +210,23 @@
    "TEXTURE": 0
   }
  },
+ "provenance": {
+  "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0",
+  "date": "2026-10-21T17:45:10Z",
+  "objects": [
+   {
+    "build_tree": "/home/sskg8/Projects/dyng-work/m9b-review-gates/m9a-merge/build/parity-cuda",
+    "build_type": "Release",
+    "commit": "6716eecec30543fccd0982bc2fe0ab7b6eea65da",
+    "cuda_compiler": "/usr/local/cuda-13.1/bin/nvcc",
+    "cuda_compiler_version": "Build cuda_13.1.r13.1/compiler.37061995_0",
+    "path": "/home/sskg8/Projects/dyng-work/m9b-review-gates/m9a-merge/build/parity-cuda/cpp/src/algorithms/triad_count/CMakeFiles/dyng_triad_count.dir/engine/counters.cu.o",
+    "sha256": "176cf4bbf196f6dd94a7d0d6115a12d0a01cfd155a3d62722b10456610df306f",
+    "source_tree": "/home/sskg8/Projects/dyng-work/m9b-review-gates/m9a-merge"
+   }
+  ],
+  "what": "dynG's counting kernels"
+ },
  "triangles<motif>": {
   "digest": "f4a72ab7234ed63be176b1d4ec9cdd9ba5b2cbc69febe624b371b3eb6a176834",
   "function": "_ZN4dyng6detail5triad5wedge15triangle_kernelINS1_8motif_opEEEvNS0_6escher8row_viewENS1_14hyperedge_rowsEPKiiPKxxbPKhT_PySF_",
