@@ -14,11 +14,19 @@ shared and local memory, and from `cuobjdump -sass`: the instruction count, the 
 the hot loops (every backward branch: the instructions from its target to the branch, by size)
 and a digest of the normalized instruction stream (addresses, comments and the function's own name
 removed), so two builds of a kernel compare equal exactly when their machine code does.
+
+The report's "provenance" entry says what was read (M9b review): the objects (absolute path,
+SHA-256), the build tree of each (its CMakeCache: the source tree, the build type and the CUDA
+compiler with its version), the source tree's commit when the report is made (with "+dirty" when
+its tracked files differ from it; so build first, in a clean clone, then report), the cuobjdump
+version and the date. `compare` prints both provenances and compares the
+kernels only.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -119,6 +127,71 @@ def analyse(name: str, code: list[tuple[int, str]]) -> dict:
     }
 
 
+def _cache_value(cache: Path, key: str) -> str | None:
+    for line in cache.read_text(errors="replace").splitlines():
+        m = re.match(rf"{re.escape(key)}:[A-Z]+=(.*)$", line)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _first_line(argv: list[str], last: bool = False) -> str | None:
+    try:
+        out = subprocess.run(argv, capture_output=True, text=True, timeout=60).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    lines = [x for x in out.splitlines() if x.strip()]
+    return (lines[-1] if last else lines[0]) if lines else None
+
+
+def _commit(source: Path) -> str | None:
+    head = _first_line(["git", "-C", str(source), "rev-parse", "HEAD"])
+    if head is None:
+        return None
+    dirty = _first_line(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=no"])
+    return head + ("+dirty" if dirty else "")
+
+
+def provenance(objects: list[Path], escher: bool) -> dict:
+    """What a report reads: the objects, their build trees, the commit, the tools."""
+    objs = []
+    for obj in objects:
+        entry: dict[str, object] = {
+            "path": str(obj.resolve()),
+            "sha256": hashlib.sha256(obj.read_bytes()).hexdigest(),
+        }
+        cache = next(
+            (
+                d / "CMakeCache.txt"
+                for d in obj.resolve().parents
+                if (d / "CMakeCache.txt").is_file()
+            ),
+            None,
+        )
+        if cache is not None:
+            source = _cache_value(cache, "CMAKE_HOME_DIRECTORY")
+            nvcc = _cache_value(cache, "CMAKE_CUDA_COMPILER")
+            entry.update(
+                {
+                    "build_tree": str(cache.parent),
+                    "source_tree": source,
+                    "build_type": _cache_value(cache, "CMAKE_BUILD_TYPE"),
+                    "cuda_compiler": nvcc,
+                    "cuda_compiler_version": _first_line([nvcc, "--version"], last=True)
+                    if nvcc
+                    else None,
+                    "commit": _commit(Path(source)) if source else None,
+                }
+            )
+        objs.append(entry)
+    return {
+        "what": "ESCHER-GPU's unpatched build objects" if escher else "dynG's counting kernels",
+        "objects": objs,
+        "cuobjdump": _first_line([cuobjdump(), "--version"], last=True),
+        "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+
 def report(objects: list[Path], escher: bool) -> dict:
     out: dict[str, dict] = {}
     for obj in objects:
@@ -154,6 +227,9 @@ def main() -> int:
         if not objs:
             ap.error("--object or --escher")
         rep = report(objs, args.escher)
+        prov = provenance(objs, args.escher)
+        for o in prov["objects"]:
+            print(f"object {o['path']} (commit {o.get('commit')}, {o.get('build_type')})")
         for label, e in rep.items():
             r_ = e["resources"]
             print(
@@ -162,10 +238,21 @@ def main() -> int:
                 f"{e['digest'][:12]}"
             )
         if args.json:
-            args.json.write_text(json.dumps(rep, indent=1, sort_keys=True) + "\n")
+            out = {"provenance": prov, **rep}
+            args.json.write_text(json.dumps(out, indent=1, sort_keys=True) + "\n")
         return 0
     a = json.loads(args.a.read_text())
     b = json.loads(args.b.read_text())
+    for name, rec in (("a", a), ("b", b)):
+        prov = rec.pop("provenance", None)
+        if prov is None:
+            print(f"{name}: no provenance recorded")
+            continue
+        for o in prov.get("objects", []):
+            print(
+                f"{name}: {o.get('path')} commit {o.get('commit')} ({o.get('build_type')}, "
+                f"{o.get('cuda_compiler_version')}), {prov.get('cuobjdump')}, {prov.get('date')}"
+            )
     status = 0
     for label in sorted(set(a) | set(b)):
         x, y = a.get(label), b.get(label)
