@@ -25,6 +25,7 @@
 #include "framework/views.hpp"
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/instantiate.hpp"
+#include "util/allocation.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/backend.hpp>
@@ -683,7 +684,7 @@ void expect_not_poisoned_hypergraph(const hypergraph<vertex_t, weight_t>& h, con
 template <typename vertex_t, typename weight_t>
 triad_count::result triad_count_compute(const resources& res,
                                         const hypergraph<vertex_t, weight_t>& h,
-                                        const triad_count::options& opt) {
+                                        const triad_count::options& opt) try {
   constexpr const char* what = "triad_count::compute";
   expect_backend(res, what);
   expect_pattern(opt.kind, what);
@@ -704,14 +705,19 @@ triad_count::result triad_count_compute(const resources& res,
   run_compute<vertex_t, weight_t, triad_flavor>(res, h, *st, what);
   return triad_count_access::make(std::move(st));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("triad_count::compute (", h.hyperedge_id_bound(),
+                                  " hyperedge ids, pattern ", triad_count::to_string(opt.kind), ")")
 
 template <typename vertex_t, typename weight_t>
 triad_count::stats triad_count_update(const resources& res, hypergraph<vertex_t, weight_t>& h,
                                       const hyperedge_batch_view<vertex_t, weight_t>& batch,
-                                      triad_count::result& r) {
+                                      triad_count::result& r) try {
   using problem_t = triad_count_problem<vertex_t, weight_t>;
   return framework::update_one<problem_t>(res, h, batch, triad_flavor::handle{&r});
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("triad_count::update (", h.hyperedge_id_bound(),
+                                  " hyperedge ids; batch of ", batch.num_insertions(),
+                                  " insertions, ", batch.num_deletions(), " deletions)")
 
 template <typename vertex_t, typename weight_t>
 std::unique_ptr<hyper_update_participant<vertex_t, weight_t>> make_triad_count_participant(
@@ -727,7 +733,8 @@ std::unique_ptr<hyper_update_participant<vertex_t, weight_t>> make_triad_count_p
 template <typename vertex_t, typename weight_t>
 local_patterns_state_ptr local_patterns_compute(const resources& res,
                                                 const hypergraph<vertex_t, weight_t>& h,
-                                                const local_patterns::kernels& k, const void* op) {
+                                                const local_patterns::kernels& k,
+                                                const void* op) try {
   constexpr const char* what = "count_local_patterns::compute";
   expect_backend(res, what);
   if (k.abi != local_patterns::abi_version) {
@@ -753,16 +760,21 @@ local_patterns_state_ptr local_patterns_compute(const resources& res,
   run_compute<vertex_t, weight_t, local_patterns_flavor>(res, h, *st, what);
   return local_patterns_state_ptr(st.release());
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("count_local_patterns::compute (", h.hyperedge_id_bound(),
+                                  " hyperedge ids, ", k.num_bins, " bins)")
 
 template <typename vertex_t, typename weight_t>
 experimental::local_patterns_stats local_patterns_update(
     const resources& res, hypergraph<vertex_t, weight_t>& h,
     const hyperedge_batch_view<vertex_t, weight_t>& batch, local_patterns_state_ptr& st,
-    const void* target) {
+    const void* target) try {
   using problem_t = local_pattern_problem<vertex_t, weight_t, local_patterns_flavor>;
   return framework::update_one<problem_t>(res, h, batch,
                                           local_patterns_flavor::handle{&st, target});
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("count_local_patterns::update (", h.hyperedge_id_bound(),
+                                  " hyperedge ids; batch of ", batch.num_insertions(),
+                                  " insertions, ", batch.num_deletions(), " deletions)")
 
 template <typename vertex_t, typename weight_t>
 std::unique_ptr<hyper_update_participant<vertex_t, weight_t>> make_local_patterns_participant(
@@ -844,11 +856,12 @@ std::uint64_t local_patterns_graph_version(const local_patterns_state* st) noexc
 }
 
 local_patterns_state_ptr local_patterns_clone(const resources& res,
-                                              const local_patterns_state* st) {
+                                              const local_patterns_state* st) try {
   const auto& s = readable(st, "count_local_patterns::result::clone");
   expect_backend(res, "count_local_patterns::result::clone");
   return local_patterns_state_ptr(new local_patterns_state(s));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("count_local_patterns::result::clone")
 
 void local_patterns_op(const local_patterns_state* st, void* out, std::size_t size) {
   const auto& s = readable(st, "count_local_patterns::result::op");
@@ -919,10 +932,11 @@ memory_space result::space() const noexcept {
   return memory_space::host;
 }
 
-result result::clone(const resources& res) const {
+result result::clone(const resources& res) const try {
   const auto& st = detail::readable(impl_.get(), "triad_count::result::clone");
   detail::expect_backend(res, "triad_count::result::clone");
   return result(std::make_unique<detail::triad_count_state>(st));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("triad_count::result::clone")
 
 }  // namespace dyng::triad_count

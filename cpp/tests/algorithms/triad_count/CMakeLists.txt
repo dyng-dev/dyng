@@ -23,6 +23,13 @@ dyng_add_test(
 target_compile_definitions(
   dyng_triad_count_bins_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
 )
+# Host allocation failures in compute(), update() and clone() are out_of_memory_error (the API
+# review, ADR 0060): its own operator new, so its own executable.
+dyng_add_test(
+  NAME dyng_triad_count_allocation_failure_tests
+  SOURCES triad_count_allocation_failure_test.cpp
+  LABELS cpu triad_count
+)
 # ESCHER-GPU's make test on the host backends in hosted CI (M9a step 4, decision D5): the
 # synthetic groups against A's committed counts, the file-input shapes against the oracle.
 dyng_add_test(
