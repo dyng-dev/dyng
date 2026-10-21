@@ -12,10 +12,13 @@ The algorithm is {doc}`../algorithms/triad_count`; this page shows how to use it
 The code is two example programs, `examples/cpp/triad_count_update.cpp` and
 `examples/python/triad_count.py`, and their input `examples/data/triad_count.hg` and
 `examples/data/triad_count.dgt`. CI builds the C++ program against the installed package and runs
-both on every backend, and compares what they print with
-`examples/data/triad_count_update.expected.txt`, which a brute force over every triple of
-hyperedges agrees with. The snippets below are quoted from those files, and the documentation
-check fails when a quoted line changes without this page (`ci/tutorial_quotes.py`).
+both programs on the CPU backends (the local GPU gate, `ci/gpu_local.sh`, also on cuda), and
+compares what they print with `examples/data/triad_count_update.expected.txt`; a test rebuilds
+that file by a brute force over every triple of hyperedges after every batch
+(`python/tests/test_examples.py`), and another runs the command of section 6 and compares its
+output with this page (`python/tests/test_triad_count_cli.py`). The snippets below are quoted from
+those files, and the documentation check fails when a quoted line changes without this page
+(`ci/tutorial_quotes.py`).
 
 ## 1. The input: a `.hg` file and a batch file
 
@@ -78,7 +81,7 @@ Each pattern is its own result: `motifs` holds 30 bins (`options::kind` defaults
 **Reading the bins.** Bin k is ESCHER-GPU's h-motif k + 1, the triads whose Venn diagram has a
 given set of non-empty regions (the table is in section 1 of {doc}`../algorithms/triad_count`).
 For example the 19 triads of bin 14 have a vertex in all three hyperedges (region ABC), a vertex in
-two of the pairs only (AB, BC) and a vertex only in two of the hyperedges (A, C); the 9 of bin 29
+two of the pairs only (AB, BC) and a vertex only in two of the hyperedges (A, C); the 8 of bin 29
 share no vertex among all three, but every pair overlaps outside the third, and each hyperedge has
 a vertex of its own. Bins 20-25 are always 0: they are the *open* h-motifs, where two of the
 hyperedges are disjoint, and a triad is by definition closed. `type1` is 20: the sum of C(|e|, 3)

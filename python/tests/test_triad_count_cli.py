@@ -328,3 +328,36 @@ def test_escher_format_equals_escher_gpus_stdout(
         want = _without_generator_lines(stdout.read_text())
         assert out == want, f"{group}/{exe}: the escher lines differ from A's stdout"
         np.testing.assert_equal(len(out.splitlines()), len(want.splitlines()))
+
+
+_PAGES = [
+    Path(__file__).resolve().parents[2] / "docs" / "tutorials" / "hypergraph_triads.md",
+    Path(__file__).resolve().parents[2] / "docs" / "algorithms" / "triad_count.md",
+]
+
+
+@pytest.mark.parametrize("page", _PAGES, ids=lambda p: p.name)
+def test_the_documented_escher_output(page: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # The `dyng triad_count update ... --format escher` console block of the page is what the
+    # command prints, run from the repository root on the examples' files.
+    if not page.is_file():
+        pytest.skip("the documentation is not present")
+    root = page.parents[2]
+    lines = page.read_text().splitlines()
+    start = lines.index("```console")
+    while not lines[start + 1].startswith("$ dyng triad_count update"):
+        start = lines.index("```console", start + 1)
+    end = lines.index("```", start + 1)
+    block = lines[start + 1 : end]
+    command, i = "", 0
+    while True:
+        command += block[i].removeprefix("$ ").strip().removesuffix("\\")
+        if not block[i].endswith("\\"):
+            break
+        i += 1
+    argv = command.split()
+    assert argv[:3] == ["dyng", "triad_count", "update"]
+    argv = [str(root / a) if a.startswith("examples/") else a for a in argv[1:]]
+    status, out, _ = run(capsys, *argv)
+    assert status == 0
+    assert out.splitlines() == block[i + 1 :]
