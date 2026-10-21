@@ -219,8 +219,8 @@ template <class op_t>
 constexpr bool check_op() {
   constexpr bool num_bins_ok = has_num_bins<op_t>::value;
   static_assert(num_bins_ok,
-                "dyng::experimental::count_local_patterns: the Op must declare `static constexpr "
-                "int num_bins = <N>;`, the number of its 64-bit bins");
+                "dyng::experimental::count_local_patterns: the Op must declare 'static constexpr "
+                "int num_bins = <N>;', the number of its 64-bit bins");
   constexpr bool bins_in_range =
       !num_bins_ok || (bins_of<op_t>() >= 1 && bins_of<op_t>() <= experimental::max_pattern_bins);
   static_assert(bins_in_range,
@@ -229,14 +229,20 @@ constexpr bool check_op() {
                 "shared memory)");
   constexpr bool shape_ok = has_shape<op_t>::value;
   static_assert(shape_ok,
-                "dyng::experimental::count_local_patterns: the Op must declare `static constexpr "
-                "dyng::experimental::shape shape = dyng::experimental::shape::triangles;` (or "
+                "dyng::experimental::count_local_patterns: the Op must declare 'static constexpr "
+                "dyng::experimental::shape shape = dyng::experimental::shape::triangles;' (or "
                 "pairs, or keys)");
   constexpr bool copyable = std::is_trivially_copyable_v<op_t>;
   static_assert(copyable,
                 "dyng::experimental::count_local_patterns: the Op must be trivially copyable (the "
                 "engine copies it into every GPU thread and host worker): no virtual function, no "
                 "user-provided copy, move or destructor, no member that owns memory");
+  constexpr bool small = sizeof(op_t) <= experimental::max_op_size;
+  static_assert(small,
+                "dyng::experimental::count_local_patterns: the Op must be at most "
+                "dyng::experimental::max_op_size (4096) bytes: its value is a parameter of every "
+                "counting kernel and every GPU thread holds a copy of it; keep a table in memory "
+                "the Op points to, not in the Op");
   constexpr bool constructible = std::is_default_constructible_v<op_t>;
   static_assert(constructible,
                 "dyng::experimental::count_local_patterns: the Op must be default-constructible "
@@ -246,30 +252,30 @@ constexpr bool check_op() {
   constexpr bool begin_ok = !shape_ok || !triangles || has_begin_wedge<op_t>::value;
   static_assert(begin_ok,
                 "dyng::experimental::count_local_patterns: an Op of shape triangles must have "
-                "`DYNG_HD void begin_wedge(const dyng::experimental::hyperedge_rows& rows, int a, "
-                "int b)`");
+                "'DYNG_HD void begin_wedge(const dyng::experimental::hyperedge_rows& rows, int a, "
+                "int b)'");
   constexpr bool triangle_ok = !shape_ok || !triangles || has_triangle<op_t>::value;
   static_assert(triangle_ok,
                 "dyng::experimental::count_local_patterns: an Op of shape triangles must have "
-                "`template <class bins_t> DYNG_HD void triangle(const "
-                "dyng::experimental::hyperedge_rows& rows, int c, bins_t& bins)`");
+                "'template <class bins_t> DYNG_HD void triangle(const "
+                "dyng::experimental::hyperedge_rows& rows, int c, bins_t& bins)'");
   constexpr bool pair_ok = !shape_ok || s != experimental::shape::pairs || has_pair<op_t>::value;
   static_assert(pair_ok,
                 "dyng::experimental::count_local_patterns: an Op of shape pairs must have "
-                "`template <class bins_t> DYNG_HD void pair(const "
-                "dyng::experimental::hyperedge_rows& rows, int a, int b, bins_t& bins)`");
+                "'template <class bins_t> DYNG_HD void pair(const "
+                "dyng::experimental::hyperedge_rows& rows, int a, int b, bins_t& bins)'");
   constexpr bool key_ok = !shape_ok || s != experimental::shape::keys || has_key<op_t>::value;
   static_assert(key_ok,
                 "dyng::experimental::count_local_patterns: an Op of shape keys must have "
-                "`template <class bins_t> DYNG_HD void key(const "
-                "dyng::experimental::hyperedge_rows& rows, int a, bins_t& bins)`");
+                "'template <class bins_t> DYNG_HD void key(const "
+                "dyng::experimental::hyperedge_rows& rows, int a, bins_t& bins)'");
   constexpr bool flush_ok = has_flush<op_t>::value;
   static_assert(flush_ok,
-                "dyng::experimental::count_local_patterns: the Op must have `template <class "
-                "bins_t> DYNG_HD void flush(bins_t& bins)` (it adds the Op's register-held partial "
+                "dyng::experimental::count_local_patterns: the Op must have 'template <class "
+                "bins_t> DYNG_HD void flush(bins_t& bins)' (it adds the Op's register-held partial "
                 "sums to the bins; an Op that adds in its callbacks has an empty flush)");
-  return num_bins_ok && bins_in_range && shape_ok && copyable && constructible && begin_ok &&
-         triangle_ok && pair_ok && key_ok && flush_ok;
+  return num_bins_ok && bins_in_range && shape_ok && copyable && small && constructible &&
+         begin_ok && triangle_ok && pair_ok && key_ok && flush_ok;
 }
 
 // ---- The hand-off ------------------------------------------------------------------------------

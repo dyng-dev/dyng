@@ -16,12 +16,21 @@
  *   DYNG_CF_LP_NO_SHAPE           no shape
  *   DYNG_CF_LP_NOT_TRIVIAL        a member that owns memory (not trivially copyable)
  *   DYNG_CF_LP_NOT_DEFAULT        no default constructor
+ *   DYNG_CF_LP_TOO_LARGE          sizeof(op) > max_op_size (a table held in the Op)
  *   DYNG_CF_LP_NO_BEGIN_WEDGE     shape triangles without begin_wedge
  *   DYNG_CF_LP_NO_TRIANGLE        shape triangles without triangle
  *   DYNG_CF_LP_NO_PAIR            shape pairs without pair
  *   DYNG_CF_LP_NO_KEY             shape keys without key
  *   DYNG_CF_LP_NO_FLUSH           no flush
  *   DYNG_CF_LP_TYPES              access_rows() of an unsupported hypergraph type
+ *   DYNG_CF_LP_DEVICE_ONLY        (nvcc only) __device__-only callbacks: nvcc does not report
+ *                                 them at count_local_patterns' host template, so the program
+ *                                 would end with exit status 1 on the host backends;
+ *                                 DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op) makes nvcc report
+ *                                 them (ADR 0058)
+ *
+ * The expected messages quote code in single quotes, which nvcc prints as they are (a backtick
+ * is printed as '?' by nvcc's front end); the tests match the quotes literally.
  */
 #if defined(__CUDACC__)
 #include <dyng/experimental/local_patterns.cuh>
@@ -38,6 +47,12 @@
 namespace dx = ::dyng::experimental;
 
 namespace {
+
+#if defined(DYNG_CF_LP_DEVICE_ONLY)
+#define DYNG_CF_LP_CALLBACK __device__
+#else
+#define DYNG_CF_LP_CALLBACK DYNG_HD
+#endif
 
 struct op {
 #if defined(DYNG_CF_LP_ZERO_BINS)
@@ -63,23 +78,26 @@ struct op {
   explicit op(int k) : threshold(k) {}
   int threshold;
 #endif
+#if defined(DYNG_CF_LP_TOO_LARGE)
+  unsigned char table[dx::max_op_size + 1];
+#endif
   std::uint64_t count = 0;
 #if !defined(DYNG_CF_LP_NO_BEGIN_WEDGE)
-  DYNG_HD void begin_wedge(const dx::hyperedge_rows&, int, int) {}
+  DYNG_CF_LP_CALLBACK void begin_wedge(const dx::hyperedge_rows&, int, int) {}
 #endif
 #if !defined(DYNG_CF_LP_NO_TRIANGLE)
   template <class bins_t>
-  DYNG_HD void triangle(const dx::hyperedge_rows&, int, bins_t&) {
+  DYNG_CF_LP_CALLBACK void triangle(const dx::hyperedge_rows&, int, bins_t&) {
     ++count;
   }
 #endif
 #if defined(DYNG_CF_LP_NO_KEY)
   template <class bins_t>
-  DYNG_HD void pair(const dx::hyperedge_rows&, int, int, bins_t&) {}
+  DYNG_CF_LP_CALLBACK void pair(const dx::hyperedge_rows&, int, int, bins_t&) {}
 #endif
 #if !defined(DYNG_CF_LP_NO_FLUSH)
   template <class bins_t>
-  DYNG_HD void flush(bins_t& bins) {
+  DYNG_CF_LP_CALLBACK void flush(bins_t& bins) {
     bins.add(0, count);
   }
 #endif
@@ -90,6 +108,8 @@ struct op {
                           const dyng::hypergraph<std::int32_t, dyng::unweighted>& h) {
   (void)dx::count_local_patterns<op>::compute(res, h);
 }
+
+DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op);
 #else
 [[maybe_unused]] constexpr bool checked = ::dyng::detail::local_patterns::check_op<op>();
 #endif

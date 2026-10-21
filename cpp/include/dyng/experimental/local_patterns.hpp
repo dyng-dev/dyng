@@ -22,6 +22,7 @@
 #include <dyng/hypergraph/hypergraph.hpp>
 
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 #include <type_traits>
@@ -101,6 +102,14 @@ enum class shape : std::uint8_t {
  * @ingroup experimental
  */
 inline constexpr int max_pattern_bins = 1024;
+
+/**
+ * @brief The largest size of an Op, in bytes: the Op's value is a parameter of every counting
+ *        kernel and every GPU thread and host worker holds a copy of it, so it is small
+ *        per-worker state, not a table (the kernel-parameter space of CUDA is 32,764 bytes).
+ * @ingroup experimental
+ */
+inline constexpr std::size_t max_op_size = 4096;
 
 /**
  * @brief An opaque member code: the codes of a hyperedge's members are distinct and ascending in

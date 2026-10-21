@@ -33,6 +33,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace dyng::experimental {
@@ -189,7 +190,26 @@ class local_patterns_result {
  *     worker's run, which adds what the Op kept in its own members;
  *   - trivially copyable and default-constructible: the Op value given to compute() (op_t{} by
  *     default) is the initial state of every worker (a GPU thread, a host source), which may call
- *     the callbacks any number of times before flush().
+ *     the callbacks any number of times before flush();
+ *   - at most max_op_size (4,096) bytes: the value is a parameter of every counting kernel and
+ *     every GPU thread holds a copy of it (registers or local memory), so the Op is small
+ *     per-worker state, not a table.
+ *
+ * **Host and device callbacks.** nvcc reports a host-only callback at the engine's call, but not
+ * a `__device__`-only one: the library calls the host callbacks from a function template, where
+ * nvcc compiles such a call to a stub, and the sequential and openmp backends then end the
+ * process with exit status 1 and no message (the cuda backend works). Write each callback DYNG_HD,
+ * and put DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op_t) after the Op at namespace scope: it calls
+ * the callbacks from a non-template host function, where nvcc does report a `__device__`-only
+ * one.
+ *
+ * **The ids of a call come in no particular order.** A full count (compute()) happens to pass
+ * a < b to pair() and begin_wedge() and a < b < c for a triangle, but a frontier phase of
+ * update() passes a changed hyperedge as `a` and its neighbours in any order (b < a, c < a).
+ * The count must therefore be symmetric in a and b (pairs) and in a, b and c (triangles). An Op
+ * that counts `rows.size(a) > rows.size(b)` agrees with a brute force over every pair i < j under
+ * compute() and is silently wrong after update(); test every Op with "baseline + deltas ==
+ * recount" under updates, never against compute() alone.
  *
  * The bins handle has `add(int bin, std::uint64_t value)` (a bin outside [0, num_bins) is
  * refused and reported) and `overflow()` (report a count of the Op's own past 2^64 - 1). Every
@@ -202,6 +222,12 @@ class local_patterns_result {
  * hypergraph before the batch and adds the ones through the inserted hyperedges on the
  * hypergraph after it. The Op never holds a view or a pointer of its own into the hypergraph, so
  * the subtraction cannot read the new state (invariant I1 by construction).
+ *
+ * **Data of the user's own** (vertex labels, a vertex set): the engine passes only the rows and
+ * the ids, so such data goes in through a pointer member the caller sets. It must point to
+ * device memory on cuda and to host memory on sequential and openmp, and stay valid and
+ * unchanged for the result's whole lifetime (the result keeps the Op value for every update()).
+ * Only an Op without pointers runs on every backend unchanged.
  *
  * The rows: a member code (member_code) is opaque and ascending in the vertex ids;
  * hyperedge_rows::decode() gives the vertex id. intersect_size(), venn3() and intersects3() merge
@@ -338,6 +364,71 @@ struct count_local_patterns {
 };
 
 }  // namespace dyng::experimental
+
+namespace dyng::detail::local_patterns {
+
+/// The bins handle DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS passes to the callbacks (never run).
+struct callback_check_bins {
+  /// Add `value` to bin `bin` (a no-op: the check is never run).
+  DYNG_HD void add(int /*bin*/, std::uint64_t /*value*/) noexcept {}
+  /// Report an overflow (a no-op).
+  DYNG_HD void overflow() noexcept {}
+};
+
+}  // namespace dyng::detail::local_patterns
+
+/**
+ * @brief Paste two tokens (a helper of DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS).
+ * @ingroup experimental
+ */
+#define DYNG_DETAIL_LP_CONCAT2(a, b) a##b
+/**
+ * @brief Paste two tokens after expanding them (a helper of
+ *        DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS).
+ * @ingroup experimental
+ */
+#define DYNG_DETAIL_LP_CONCAT(a, b) DYNG_DETAIL_LP_CONCAT2(a, b)
+
+/**
+ * @brief Make nvcc check that the callbacks of the Op `op_type` can be called on the host: use it
+ *        once per Op, at namespace scope of a .cu file, after the Op's definition.
+ *
+ * nvcc does not report a `__device__`-only callback that the library calls from its host
+ * function template (the sequential and openmp backends then end the process with exit status
+ * 1 and no message: see "Host and device callbacks" at count_local_patterns). This macro defines
+ * a host function that is never called and calls the Op's callbacks from it, outside any
+ * template, where nvcc reports "calling a __device__ function ... from a __host__ function is not
+ * allowed". It also checks the Op concept (count_local_patterns<op_type>::valid). It adds no code
+ * that runs.
+ *
+ * @code
+ * struct my_op { ... };
+ * DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(my_op);
+ * @endcode
+ * @param op_type The Op (a type name).
+ * @ingroup experimental
+ */
+#define DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op_type)                                           \
+  [[maybe_unused]] static void DYNG_DETAIL_LP_CONCAT(dyng_check_host_callbacks_, __COUNTER__)() { \
+    auto dyng_check_ = [](auto* dyng_op_) {                                                       \
+      using dyng_op_t_ = ::std::remove_pointer_t<decltype(dyng_op_)>;                             \
+      if constexpr (::dyng::experimental::count_local_patterns<dyng_op_t_>::valid) {              \
+        const ::dyng::experimental::hyperedge_rows dyng_rows_{};                                  \
+        ::dyng::detail::local_patterns::callback_check_bins dyng_bins_{};                         \
+        if constexpr (dyng_op_t_::shape == ::dyng::experimental::shape::triangles) {              \
+          dyng_op_->begin_wedge(dyng_rows_, 0, 1);                                                \
+          dyng_op_->triangle(dyng_rows_, 2, dyng_bins_);                                          \
+        } else if constexpr (dyng_op_t_::shape == ::dyng::experimental::shape::pairs) {           \
+          dyng_op_->pair(dyng_rows_, 0, 1, dyng_bins_);                                           \
+        } else {                                                                                  \
+          dyng_op_->key(dyng_rows_, 0, dyng_bins_);                                               \
+        }                                                                                         \
+        dyng_op_->flush(dyng_bins_);                                                              \
+      }                                                                                           \
+    };                                                                                            \
+    dyng_check_(static_cast<op_type*>(nullptr));                                                  \
+  }                                                                                               \
+  static_assert(true, "DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS ends with a semicolon")
 
 namespace dyng::detail {
 

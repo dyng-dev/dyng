@@ -414,6 +414,13 @@ struct sizes {
   DYNG_HD void flush(bins_t&) {}
 };
 
+// Every shape through the host-callback check (ADR 0058): it compiles for DYNG_HD callbacks and
+// adds nothing that runs (the compile-failure test device_only shows nvcc reporting the others).
+DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(probe_triangles);
+DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(probe_pairs);
+DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(probe_keys);
+DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(sizes);
+
 TEST_P(LocalPatterns, TheLargestNumBinsAndTheOpsValue) {
   using graph_t = dyng::hypergraph<std::int32_t, dyng::unweighted>;
   using hist_t = dx::count_local_patterns<overlap_histogram>;
