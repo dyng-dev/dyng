@@ -4,16 +4,15 @@
  * @file triad_bins_test.cpp
  * @brief The triad-bins JSON document (io::write_triad_bins_json(), io::read_triad_bins_json()):
  *        the exact text of the writer, round trips (with and without deltas, the extremes of
- *        the value ranges, a real triad_count result), what the reader accepts (any JSON
- *        layout, escapes, unknown keys) and the errors it reports with line and column.
+ *        the value ranges), what the reader accepts (any JSON layout, escapes, unknown keys) and
+ *        the errors it reports with line and column. The io module does not depend on
+ *        triad_count; the tests that use it are in
+ *        cpp/tests/algorithms/triad_count/triad_count_bins_test.cpp.
  */
 #include "support/data_paths.hpp"
 
 #include <dyng/core/error.hpp>
-#include <dyng/core/resources.hpp>
-#include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/io/result_io.hpp>
-#include <dyng/triad_count.hpp>
 
 #include <gtest/gtest.h>
 
@@ -69,16 +68,6 @@ void expect_rejected(const std::string& text, const std::string& where, const st
   }
 }
 
-TEST(TriadBins, KindsAreTriadCountsPatterns) {
-  namespace tc = dyng::triad_count;
-  for (const tc::pattern p : {tc::pattern::h_motif, tc::pattern::stathyper_type1,
-                              tc::pattern::stathyper_type2, tc::pattern::stathyper_type3}) {
-    const int want = p == tc::pattern::h_motif ? tc::max_bins : 1;
-    EXPECT_EQ(io::triad_bins_size(std::string(tc::to_string(p))), want);
-  }
-  EXPECT_THROW((void)io::triad_bins_size("open_triads"), dyng::invalid_argument_error);
-}
-
 TEST(TriadBins, WriterText) {
   io::triad_bins b;
   b.kind = "stathyper_type1";
@@ -108,29 +97,6 @@ TEST(TriadBins, RoundTrip) {
   b.deltas[1][29] = std::numeric_limits<std::int64_t>::max();
   io::write_triad_bins_json(path, b);
   expect_equal(io::read_triad_bins_json(path), b);
-}
-
-TEST(TriadBins, RoundTripOfAResult) {
-  // A result's bins: the pattern's name, its version and its counts.
-  const dyng::resources res = dyng::resources::sequential();
-  using hgraph = dyng::hypergraph<std::int32_t, dyng::unweighted>;
-  dyng::hyperedge_list<std::int32_t, dyng::unweighted> list;
-  list.num_vertices = 5;
-  list.add_hyperedge({0, 1, 2});
-  list.add_hyperedge({1, 2, 3});
-  list.add_hyperedge({2, 3, 4});
-  list.add_hyperedge({0, 2, 4});
-  const hgraph h = hgraph::from_hyperedges(res, list.view());
-  const dyng::triad_count::result r = dyng::triad_count::compute(res, h);
-  io::triad_bins b;
-  b.kind = std::string(dyng::triad_count::to_string(r.kind()));
-  b.graph_version = r.graph_version();
-  b.counts.assign(r.counts().begin(), r.counts().end());
-  temp_dir dir;
-  io::write_triad_bins_json(dir.path("r.json"), b);
-  const io::triad_bins back = io::read_triad_bins_json(dir.path("r.json"));
-  expect_equal(back, b);
-  EXPECT_GT(r.total(), 0U);
 }
 
 TEST(TriadBins, ReaderAcceptsAnyJsonLayout) {

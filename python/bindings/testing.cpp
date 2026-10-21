@@ -156,8 +156,7 @@ void bind_testing(nb::module_& m) {
         testing::triad_reference_options opt;
         opt.threads = threads;
         auto counts = without_gil([&] {
-          return testing::triad_reference(o, mem, static_cast<std::int32_t>(num_vertices), *p,
-                                          opt);
+          return testing::triad_reference(o, mem, static_cast<std::int32_t>(num_vertices), *p, opt);
         });
         return to_numpy(std::move(counts));
       },

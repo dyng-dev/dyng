@@ -139,9 +139,9 @@ void write_histogram_csv(std::ostream& out, array_view<const std::uint64_t> coun
  * @ingroup io
  */
 struct triad_bins {
-  std::string kind;                               ///< the pattern ("h_motif", "stathyper_type1", ...)
-  std::uint64_t graph_version = 0;                ///< the hypergraph version the counts match
-  std::vector<std::uint64_t> counts;              ///< one count per bin
+  std::string kind;                   ///< the pattern ("h_motif", "stathyper_type1", ...)
+  std::uint64_t graph_version = 0;    ///< the hypergraph version the counts match
+  std::vector<std::uint64_t> counts;  ///< one count per bin
   std::vector<std::vector<std::int64_t>> deltas;  ///< optional: one row of num_bins per batch
 };
 

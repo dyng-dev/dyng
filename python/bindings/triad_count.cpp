@@ -105,11 +105,11 @@ void bind_triad_count(nb::module_& m) {
                    [](const triad_count_holder& h) {
                      return read_result(h, [](const triad_count::result& r) { return r.total(); });
                    })
-      .def_prop_ro(
-          "num_bins",
-          [](const triad_count_holder& h) {
-            return read_result(h, [](const triad_count::result& r) { return r.num_bins(); });
-          })
+      .def_prop_ro("num_bins",
+                   [](const triad_count_holder& h) {
+                     return read_result(h,
+                                        [](const triad_count::result& r) { return r.num_bins(); });
+                   })
       .def_prop_ro("kind",
                    [](const triad_count_holder& h) {
                      return read_result(h, [](const triad_count::result& r) { return r.kind(); });

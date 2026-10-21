@@ -7,7 +7,7 @@ pairwise share a vertex: the triangles of the line graph) by one of four pattern
 
 - ``"h_motif"``: the 30 h-motif classes of the triads' Venn regions (bin ``k`` is ESCHER-GPU's
   h-motif ``k + 1``; bins 20-25, ESCHER-GPU's open triads 21-26, are always 0);
-- ``"stathyper_type1"``: one bin, the sum of C(\\|e\\|, 3) over the live hyperedges;
+- ``"stathyper_type1"``: one bin, the sum of ``C(|e|, 3)`` over the live hyperedges;
 - ``"stathyper_type2"``: one bin, the sum of C(a, 2) * b * c over the adjacent pairs;
 - ``"stathyper_type3"``: one bin, the sum of x * y * z over the closed triads.
 
@@ -67,7 +67,7 @@ class Pattern(enum.StrEnum):
     """
 
     h_motif = "h_motif"  #: the 30 h-motif classes (bins 20-25, the open triads, are always 0)
-    stathyper_type1 = "stathyper_type1"  #: one bin: the sum of C(\\|e\\|, 3)
+    stathyper_type1 = "stathyper_type1"  #: one bin: the sum of ``C(|e|, 3)``
     stathyper_type2 = "stathyper_type2"  #: one bin: the sum of C(a, 2) * b * c
     stathyper_type3 = "stathyper_type3"  #: one bin: the sum of x * y * z
 

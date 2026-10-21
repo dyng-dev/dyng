@@ -197,8 +197,8 @@ class json_parser {
       v.text = number_text();
       return v;
     }
-    for (const std::string_view word : {std::string_view("true"), std::string_view("false"),
-                                        std::string_view("null")}) {
+    for (const std::string_view word :
+         {std::string_view("true"), std::string_view("false"), std::string_view("null")}) {
       if (s_.substr(pos_, word.size()) == word) {
         pos_ += word.size();
         v.type = word == "null" ? json_value::kind::null : json_value::kind::boolean;
@@ -506,8 +506,7 @@ triad_bins read_triad_bins_json(const std::string& path) try {
   const auto ver_value = integer_of<std::int64_t>(p, ver, "\"version\"");
   if (ver_value != format_version) {
     p.fail(ver.offset, "unsupported triad-bins format version " + std::to_string(ver_value) +
-                           " (this library reads version " + std::to_string(format_version) +
-                           ")");
+                           " (this library reads version " + std::to_string(format_version) + ")");
   }
   const json_value& k = require(kind, "kind");
   if (k.type != json_value::kind::string || bins_of(k.text) == 0) {

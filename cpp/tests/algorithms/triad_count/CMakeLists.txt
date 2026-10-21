@@ -14,6 +14,15 @@ dyng_add_test(
   LIBRARIES dyng::testing
 )
 target_include_directories(dyng_triad_count_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+# The triad-bins JSON of a result (M9b, ADR 0059; the io-only tests are in dyng_io_tests).
+dyng_add_test(
+  NAME dyng_triad_count_bins_tests
+  SOURCES triad_count_bins_test.cpp
+  LABELS cpu triad_count io
+)
+target_compile_definitions(
+  dyng_triad_count_bins_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
+)
 # ESCHER-GPU's make test on the host backends in hosted CI (M9a step 4, decision D5): the
 # synthetic groups against A's committed counts, the file-input shapes against the oracle.
 dyng_add_test(
