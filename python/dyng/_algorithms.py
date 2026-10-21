@@ -49,6 +49,6 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "since": "0.3",
         "container": "hypergraph",
         "maturity": "experimental",
-        "python": "no",
+        "python": "yes",
     },
 }

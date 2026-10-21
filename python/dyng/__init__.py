@@ -17,8 +17,9 @@ Quick start::
     print(tree.distances.to_numpy(), stats.invalidated)
 
 The algorithms are :mod:`dyng.sssp` (dynamic single-source shortest paths) and
-:mod:`dyng.cycle_count` (exact directed simple-cycle histograms) since 0.1, and :mod:`dyng.mosp`
-(dynamic multi-objective shortest paths) since 0.2; :func:`update` updates several results with
+:mod:`dyng.cycle_count` (exact directed simple-cycle histograms) since 0.1, :mod:`dyng.mosp`
+(dynamic multi-objective shortest paths) since 0.2, and :mod:`dyng.triad_count` (exact hypergraph
+triad counts) since 0.3; :func:`update` updates several results of a graph or a hypergraph with
 one batch. Backends: ``Resources("sequential")`` and ``Resources("openmp")`` in this
 wheel, and ``Resources.cuda()`` with a CUDA plugin wheel (``pip install "dyng[cu13]"`` or
 ``"dyng[cu12]"``). Cite with :func:`citation`.
@@ -36,6 +37,7 @@ from . import (  # noqa: E402  (after the core names)
     mosp,
     sssp,
     testing,
+    triad_count,
     triangle_delta,
 )
 from . import errors as _errors  # registers the exception classes for the native module
@@ -116,6 +118,7 @@ __all__ = [
     "sssp",
     "cycle_count",
     "mosp",
+    "triad_count",
     "dynamic_bfs",
     "triangle_delta",
     # modules

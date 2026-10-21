@@ -8,9 +8,10 @@
  * a list. As ADR 0023 (note 1) prescribes, the binding builds the type-erased participants of the
  * results itself, with the factories each algorithm header declares for dyng::update()
  * (detail::make_sssp_participant, detail::make_cycle_count_participant,
- * detail::make_mosp_participant), and runs them through
- * detail::participant_of<graph>::run(), the path dyng::update() takes: every before-apply step on
- * G_t, one commit, then every after-apply step on G_{t+1}.
+ * detail::make_mosp_participant; over a hypergraph detail::make_triad_count_participant), and
+ * runs them through detail::participant_of<graph>::run() (participant_of<hypergraph>::run()), the
+ * path dyng::update() takes: every before-apply step on G_t, one commit, then every after-apply
+ * step on G_{t+1}.
  */
 #include "types.hpp"
 
@@ -137,12 +138,75 @@ void bind_update_type(nb::module_& m) {
       "Apply one batch and update every result (a list of result objects).");
 }
 
+/// dyng::update() over a hypergraph<V, W>: every result is a triad_count result (the hypergraph
+/// algorithm of 0.3), each with its participant from detail::make_triad_count_participant().
+template <typename vertex_t, typename weight_t>
+void bind_hyper_update_type(nb::module_& m) {
+  using hgraph_t = hypergraph_holder<vertex_t, weight_t>;
+  using container_t = hypergraph<vertex_t, weight_t>;
+  using participant_t = typename detail::participant_of<container_t>::type;
+  static_assert(detail::triad_count_supported_v<vertex_t, weight_t>);
+
+  m.def(
+      "update",
+      [](const resources& res, hgraph_t& h, const hyper_batch_arrays<vertex_t, weight_t>& b,
+         const nb::list& results) {
+        DYNG_EXPECTS(nb::len(results) > 0,
+                     "dyng.update: no results (applying a batch without updating any result "
+                     "would leave every result of the hypergraph stale; use Hypergraph.apply())");
+        std::vector<triad_count::stats> stats(nb::len(results));
+        std::vector<triad_count_holder*> triad_results(stats.size(), nullptr);
+        for (std::size_t i = 0; i < stats.size(); ++i) {
+          nb::handle item = results[i];
+          if (!nb::isinstance<triad_count_holder>(item)) {
+            throw invalid_argument_error(
+                "dyng.update: result " + std::to_string(i) +
+                " is not a result of an algorithm that supports hypergraphs (dyng.triad_count)");
+          }
+          triad_results[i] = &nb::cast<triad_count_holder&>(item);
+        }
+        without_gil([&] {
+          lock_set locks;
+          locks.add(h.mutex, true);
+          for (triad_count_holder* r : triad_results) {
+            locks.add(r->mutex, true);
+          }
+          locks.lock();
+          std::vector<std::unique_ptr<participant_t>> owned;
+          std::vector<participant_t*> raw;
+          try {
+            owned.reserve(stats.size());
+            raw.reserve(stats.size());
+            for (std::size_t i = 0; i < stats.size(); ++i) {
+              owned.push_back(detail::make_triad_count_participant<vertex_t, weight_t>(
+                  triad_results[i]->for_update(res), stats[i]));
+              raw.push_back(owned.back().get());
+            }
+          } catch (const std::bad_alloc& e) {
+            detail::throw_host_allocation_failure("dyng.update (the participants)", e.what());
+          }
+          (void)detail::participant_of<container_t>::run(res, h.value, b.view(), raw.data(),
+                                                         raw.size(), "update.commit");
+        });
+        nb::list out;
+        for (const triad_count::stats& s : stats) {
+          out.append(nb::cast(s));
+        }
+        return out;
+      },
+      nb::arg("resources"), nb::arg("graph"), nb::arg("batch"), nb::arg("results"),
+      "Apply one batch to a hypergraph and update every result (a list of result objects).");
+}
+
 }  // namespace
 
 void bind_update(nb::module_& m) {
 #define DYNG_PY_BIND_UPDATE(V, E, W) bind_update_type<V, E, W>(m);
   DYNG_PY_FOR_EACH_GRAPH_TYPE(DYNG_PY_BIND_UPDATE)
 #undef DYNG_PY_BIND_UPDATE
+#define DYNG_PY_BIND_HYPER_UPDATE(V, W) bind_hyper_update_type<V, W>(m);
+  DYNG_PY_FOR_EACH_HYPERGRAPH_TYPE(DYNG_PY_BIND_HYPER_UPDATE)
+#undef DYNG_PY_BIND_HYPER_UPDATE
 }
 
 }  // namespace dyng::python

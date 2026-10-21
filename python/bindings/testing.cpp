@@ -13,10 +13,13 @@
 #include <dyng/testing/dijkstra.hpp>
 #include <dyng/testing/line_graph_oracle.hpp>
 #include <dyng/testing/mosp_oracle.hpp>
+#include <dyng/testing/triad_reference.hpp>
 
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <limits>
+#include <string>
 #include <vector>
 
 namespace dyng::python {
@@ -132,6 +135,35 @@ void bind_testing(nb::module_& m) {
       },
       nb::arg("offsets").noconvert(), nb::arg("members").noconvert(), nb::arg("num_vertices"),
       "MOSP_ESCHER's rebuildLineGraph over h2v rows: (offsets, neighbours).");
+  m.def(
+      "testing_triad_reference",
+      [](const in_array<std::int64_t>& offsets, const in_array<std::int32_t>& members,
+         std::int64_t num_vertices, const std::string& pattern, int threads) {
+        DYNG_EXPECTS(num_vertices >= 0 && num_vertices <= std::numeric_limits<std::int32_t>::max(),
+                     "triad_reference: num_vertices ", num_vertices, " does not fit int32");
+        const testing::triad_pattern all[] = {
+            testing::triad_pattern::h_motif, testing::triad_pattern::stathyper_type1,
+            testing::triad_pattern::stathyper_type2, testing::triad_pattern::stathyper_type3};
+        const testing::triad_pattern* p = nullptr;
+        for (const testing::triad_pattern& q : all) {
+          if (pattern == testing::triad_pattern_name(q)) {
+            p = &q;
+          }
+        }
+        DYNG_EXPECTS(p != nullptr, "triad_reference: unknown pattern '", pattern, "'");
+        std::vector<std::int64_t> o(offsets.data(), offsets.data() + offsets.shape(0));
+        std::vector<std::int32_t> mem(members.data(), members.data() + members.shape(0));
+        testing::triad_reference_options opt;
+        opt.threads = threads;
+        auto counts = without_gil([&] {
+          return testing::triad_reference(o, mem, static_cast<std::int32_t>(num_vertices), *p,
+                                          opt);
+        });
+        return to_numpy(std::move(counts));
+      },
+      nb::arg("offsets").noconvert(), nb::arg("members").noconvert(), nb::arg("num_vertices"),
+      nb::arg("pattern"), nb::arg("threads"),
+      "ESCHER-GPU's CPU reference triad counts of a hyperedge list (testing::triad_reference).");
   nb::class_<testing::sssp_tree_check>(m, "SsspTreeCheck", "testing::sssp_tree_check.")
       .def_ro("distance_mismatches", &testing::sssp_tree_check::distance_mismatches)
       .def_ro("inconsistent_parents", &testing::sssp_tree_check::inconsistent_parents)

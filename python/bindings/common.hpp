@@ -526,6 +526,7 @@ void bind_cycle_count(nb::module_& m);     ///< cycle_count.cpp
 void bind_mosp(nb::module_& m);            ///< mosp.cpp
 void bind_dynamic_bfs(nb::module_& m);     ///< dynamic_bfs.cpp
 void bind_triangle_delta(nb::module_& m);  ///< triangle_delta.cpp
+void bind_triad_count(nb::module_& m);     ///< triad_count.cpp
 void bind_update(nb::module_& m);          ///< update.cpp
 void bind_io(nb::module_& m);              ///< io.cpp
 void bind_generators(nb::module_& m);      ///< generators.cpp
