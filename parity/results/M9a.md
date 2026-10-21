@@ -797,3 +797,146 @@ another clock lock, another input digest or a missing store point are refused) a
 | 13 | the memory gates: store accounting 1.0000 at every gated point, the Nsight Systems peak 1.0010-1.0015 (D1); the recorded peaks, ranges, triad bytes, footprint (flagged, not gated) | 5.4 | met |
 | 14 | the suites (both validate), the 0.3 certificate plumbing and its tests, the dry 0.3 certificate passes `recheck_gates` and fails without a gate row or a replay | 5.6 | met |
 | 15 | the frozen surface, no hypergraph change (no ADR 0024 bar due), ADRs 0048-0056 logged, the records, the checks green, `ci/tests/test_regen.py` fixed (step 3), the test data within the 1.25 MB budget (D5) | 5.7 | met |
+
+## 6. The review fixes: the replays and the gates again on the final library
+
+The confirmed review findings against `fe9c56c` are fixed in `8aa1b4b`..`2eda830` (the list and
+the commits: `docs/developer/retrospectives/M9a.md`, "The review fixes"). Three of them changed
+the library (ADR 0057's exact 64-bit arithmetic, `e1b0205`; the update scratch's headroom,
+`b153ff3`; the driver host model's geometric growth, `756fb68`), so by `certify.py`'s library
+scope every step-5 replay and reading was stale; the step-5 memory records also lack the count
+guard the review added. Everything below was taken again on that final library (`e015a12` for the
+replays, the clean tree `2eda830` for the readings; `git diff e015a12 HEAD -- cpp tools cmake
+CMakeLists.txt CMakePresets.json` is empty). Records: `parity/results/M9a-review-gates/` (the
+replays, both suites' summaries and compacted records, the dry certificate `parity.json` and its
+`README.md`), `M9a-review-kernels-escher_gpu.json`, `M9a-review-maintain-head.json`,
+`M9a-review-sass-escher_gpu.json`; the full records `$DYNG_SCRATCH/runs/bench/m9a-review`,
+`$DYNG_SCRATCH/runs/m9a-review`, `$DYNG_SCRATCH/runs/m9a-review2`.
+
+### 6.1 Exact parity (criterion 8)
+
+The golden set was exported again first (`98cfd8d`, `e015a12`: no run parameter hashed; two fresh
+patched copies on GPU 1 and GPU 0, identical `MANIFEST.sha256` `4fb7dbcf...`; the counts and
+batches unchanged). `compare.py triad_count --counter algorithm --mode both`, the comparator now
+also requiring `deleted == ` A's deletions and `ignored == 0` per batch:
+
+| Backend | Cases | Result | Wall |
+|---|---|---|---|
+| cuda (GPU 1) | the 240 grid cases + make-test's 60 | **300/300 exact**, both modes | 2,138 s (3 jobs) |
+| sequential | make-test + the syn100k grid | **120/120 exact**, both modes | 912 s (6 jobs) |
+| openmp, 8 threads | + the syn1m s1 grid and coauth_b50k_s1 types 1 and 2 | **142/142 exact**, both modes | 770 s (3 jobs) |
+| openmp, 1 thread | the same | **142/142 exact**, both modes; the per-case reports identical to 8 threads but for the times | 1,789 s (10 jobs) |
+
+### 6.2 The timing gates (criterion 12)
+
+`bench_suite.py run benchmarks/paper/ipdps26_escher.yaml` (`perf_ab.py triad_count run`; GPU 0,
+the exclusive lock, the base clock lock SM 1170 / memory 7601 MHz, `CUDA_MODULE_LOADING=EAGER`,
+no `OMP_*`, one heap layout, A/B alternation, the per-round guard, the contamination audit;
+18:48-19:30 CDT on 2026-10-20): **45 / 45 gated rows within their gates, ratios 0.853-1.019;
+PASSED.** Medians (ms), A / port, ratio:
+
+| Case (rounds; rejected and repeated) | update[b1] | update[b2] | update[b3] | full_count | end_to_end |
+|---|---|---|---|---|---|
+| coauth_b50k_s1 (11; 0) | 510.3 / 485.7 **0.952** | 549.7 / 531.1 **0.966** | 549.4 / 531.7 **0.968** | 5,293.7 / 5,286.4 **0.999** | 9,827.4 / 9,006.2 **0.916** |
+| coauth_b50k_s2 (11; 0) | 540.3 / 516.1 **0.955** | 539.6 / 524.0 **0.971** | 547.6 / 519.7 **0.949** | 5,294.6 / 5,285.8 **0.998** | 9,851.7 / 9,013.9 **0.915** |
+| coauth_b50k_s3 (11; 1) | 524.8 / 499.9 **0.953** | 537.4 / 518.2 **0.964** | 533.2 / 515.5 **0.967** | 5,292.9 / 5,286.8 **0.999** | 9,820.7 / 8,990.1 **0.915** |
+| syn1m_b50k_s1 (21; 0) | 164.5 / 142.7 **0.868** | 144.4 / 144.7 **1.002** | 155.2 / 146.2 **0.942** | 635.3 / 636.7 **1.002** | 2,483.3 / 2,441.5 **0.983** |
+| syn1m_b50k_s2 (21; 0) | 164.2 / 142.9 **0.870** | 155.5 / 146.7 **0.943** | 144.9 / 145.2 **1.002** | 640.1 / 641.8 **1.003** | 2,502.7 / 2,458.3 **0.982** |
+| syn1m_b50k_s3 (21; 0) | 148.2 / 141.5 **0.954** | 161.3 / 146.2 **0.907** | 156.2 / 147.0 **0.941** | 639.5 / 641.0 **1.002** | 2,505.0 / 2,459.1 **0.982** |
+| syn2m_b50k_s1 (21; 0) | 184.3 / 157.1 **0.853** | 154.5 / 157.2 **1.018** | 170.3 / 159.4 **0.936** | 1,273.6 / 1,276.7 **1.002** | 4,503.1 / 4,353.8 **0.967** |
+| syn2m_b50k_s2 (21; 0) | 157.5 / 151.7 **0.963** | 181.3 / 161.4 **0.890** | 155.4 / 158.3 **1.019** | 1,279.1 / 1,282.2 **1.002** | 4,501.5 / 4,423.3 **0.983** |
+| syn2m_b50k_s3 (21; 0) | 157.9 / 153.0 **0.969** | 181.4 / 161.3 **0.889** | 155.2 / 157.7 **1.016** | 1,280.2 / 1,283.4 **1.003** | 4,495.9 / 4,350.1 **0.968** |
+| gate | <= 1.05 | <= 1.05 | <= 1.05 | <= 1.05 | <= 1.10 |
+
+Against step 5 the update rows are as before or lower (the highest synthetic rows 1.016-1.019
+against 1.025-1.028); ADR 0057's checked arithmetic does not touch the h_motif hot loop
+(motif_op's adds stay unchecked; the flush is carry-tested once per block and bin). A's end to
+end on coauth is 9.82-9.85 s here against 9.37-9.40 s in step 5 (the port 8.99-9.01 against
+8.84-8.86), both sides in the same session. The audit: 1-minute load at most 9.6, procs_blocked
+at most 1, no foreign process on GPU 0, no round flagged; the monitor rejected and repeated one
+round (coauth_b50k_s3 round 3, foreign CPU load 2.27 cores). Host synchronizations per batch:
+A 96 (coauth) and 90-96 (syn), the port 22 and 19-22, as in step 5.
+
+**The host model beside the gate (reported, not gated; `756fb68`, D12).** A's `update` contains
+its host model (`update.maintain_untimed`: 1.5-2.1 ms a batch, 7.3-13.1 ms in the batch where its
+`h2v_` grows); the port's driver keeps its host model after the update timer, 5.7-6.6 ms a batch
+(11.4-18.2 ms where the row vector grows). `update_with_host_model[b<N>]` (A's update against the
+port's update plus its host model) is 0.937-1.061 at the base lock, above 1.05 on three rows
+(syn2m_b50k_s1 b2 1.060, s2 b3 1.061, s3 b3 1.057; syn1m 1.042-1.043 on its highest rows), and
+1.070 on syn2m_b50k_s1 b2 at default clocks. The library-only comparison (the port's update
+against A's update minus its untimed in-maintain time) is 0.910-1.031. The gated rows compare the
+library's update with A's, as approved (ADR 0048 section 3 records the asymmetry); the driver's
+host model, which validates, sorts and copies each inserted row, is the part that costs more than
+A's assignment. Left for the author (D12, GOVERNANCE.md): a protocol that counts a host model on
+both sides, or a cheaper driver host model (a library change that would make the readings stale
+again).
+
+### 6.3 Recorded, not gated
+
+| Reading | Case | update b1 / b2 / b3 | full_count | end_to_end |
+|---|---|---|---|---|
+| default clocks (11 rounds) | coauth_b50k_s1 | 0.951 / 0.966 / 0.951 | 1.004 | 0.919 |
+| | syn1m_b50k_s1 | 0.886 / 1.000 / 0.979 | 0.998 | 0.993 |
+| | syn2m_b50k_s1 | 0.841 / 1.022 / 0.944 | 1.001 | 0.962 |
+| batch sizes (base, 5 rounds) | coauth_b100k_s1 | 0.985 / 0.990 / 0.975 | 0.999 | 0.929 |
+| | coauth_b200k_s1 | 0.986 / 1.015 / 1.018 | 0.999 | 0.949 |
+| StatHyper types (base, 5 rounds; `tkde26_escher_plus.yaml`) | coauth_b50k_s1 type1 | 0.724 / 0.751 / 0.731 | 0.138 (3.9 / 0.5 ms) | 0.791 |
+| | type2 | 0.736 / 0.789 / 0.769 | 0.824 | 0.798 |
+| | type3 | 0.950 / 0.958 / 0.963 | 0.992 | 0.927 |
+
+The kernel reading (ncu at the base clocks, syn1m_b50k_s1, 11 rounds): subtract 1.005 / 1.003 /
+1.003, add 1.002 / 1.005 / 1.005, DRAM bytes 0.999-1.004. SASS and resources against A
+(`M9a-review-sass-escher_gpu.json`): count_wedges identical; keys<choose3> 152 -> 288
+instructions, pairs<type2> 456 -> 512, triangles<type3> 512 -> 576 (the checked products and
+sums of ADR 0057), triangles<motif> 536 -> 560 (step 5: 552); registers 14 / 22 / 37 / 39 / 40
+against A's 14 / 16 / 38 / 39 / 39; no stack, no local memory. The allocation calls per update
+(nsys API trace, coauth_b50k_s1, GPU 1): 5 pool allocations in count(-) of batch 1, **none in
+batches 2 and 3** (step 5's build freed and reallocated the flags in each). The M8b maintain
+reading at HEAD (`perf_ab.py hypergraph maintain --runs 5 --lock-clocks base`): coauth50k
+`maintain` 0.788 (208.5 / 164.4 ms), syn1m 0.833 (165.5 / 137.8); `cpp/src/hypergraph` unchanged
+since M8b.
+
+### 6.4 The memory gates (criterion 13)
+
+`bench_suite.py run benchmarks/paper/tkde26_escher_plus.yaml` (GPU 1, the shared lock, no foreign
+process before or after any case; the count guard on the plain and the profiled runs of both
+sides, 4 processes a case): **11 / 11 gated rows within 1.05, ratios 1.000-1.002; PASSED.**
+
+| Case | store_memory (every gated point) | device_memory: A peak | port peak (range) | port / A | triad MiB during the apply |
+|---|---|---|---|---:|---:|
+| coauth_b50k_s1 | build, b1, b2, b3 equal in bytes: **1.0000** | 3,018.9 MiB (3,165,509,863 B) | 3,023.3 MiB (3,170,201,054 B; `hypergraph.apply.line_graph`) | **1.0015** | 4.2 |
+| syn1m_b50k_s1 | build, b3: **1.0000** | 1,131.4 MiB | 1,133.7 MiB (the same range) | **1.0021** | 2.1 |
+| syn2m_b50k_s1 | build, b3: **1.0000** | 2,211.7 MiB | 2,215.4 MiB | **1.0017** | 3.6 |
+
+The triad bytes live during the apply grew by 0.7-1.4 MiB against step 5 (the headroom of the
+update's scratch, `b153ff3`); the peaks stay in the H2H merge on both sides. Footprint at the live
+peak 1.028 / 1.018 / 0.998; between batches 1.63-1.68 (coauth), 1.64-1.69 (syn1m), 1.63 (syn2m)
+**(flagged above 1.05, not gated; D11)**. Recorded: coauth_b100k_s1 and b200k_s1, store 1.0000,
+nsys peak 1.0018 and 1.0023, between batches 1.66-1.80.
+
+### 6.5 The dry 0.3 certificate (criterion 14)
+
+`certify.py write --version 0.3.0 --results <the records> --dry-run triad_count` over the replays
+of 6.1 and the readings of 6.2-6.4: **PASSED** (17 parts outside it), with the review's new rules
+(every gated row of every case of a reading, the medians recomputed from the samples, the round
+counts, the protocol fields, the memory count guard, the release series of `VERSION`). The step-5
+directory `parity/results/M9a-gates/` given to the same command now **fails**: its gate records
+were measured on `4036351` ("does not have the release's code"), its memory records have no count
+guard, and its replays are of the earlier golden manifest. It stays as step 5's record.
+
+### 6.6 The checks of the review fixes
+
+| Check | Tree | Result |
+|---|---|---|
+| the replays (`compare.py triad_count --counter algorithm --mode both`) | `e015a12` (the final library) | cuda 300/300, sequential 120/120, openmp 142/142 at 8 and 1 threads (identical), both modes |
+| the gate readings (both suites, the kernels, the maintain reading) | `2eda830` (clean; the final library) | timing 45 / 45 within (0.853-1.019, 0.998-1.003, 0.915-0.983), memory 11 / 11 (1.0000; 1.0015-1.0021); the dry 0.3 certificate **PASSED** |
+| `parity/mutate.py run --suites triad_count,cbst,hypergraph,kit` (one parity-cuda copy per mutation, GPU 1) | `18a4a75` | **control passed, 17 / 17 detected** (`M9a-review-mutate.json`; 34 min) |
+| `ci/check.sh` (all steps) | `18a4a75` | every step passed but provenance (and pre-commit's provenance hook): the new `engine/exact.hpp` names ESCHER-GPU's operations; listed in NOT_DERIVED (`0e6e6fb`, `ci/` only), then `DYNG_CHECK_ONLY="provenance precommit" ci/check.sh` **passed**; cpu-only 1,247 / 1,247, dev 1,280 / 1,280, consumer, tidy, reuse, testdata (1,002,671 of 1,250,000 bytes), regen, harness (337 passed), python, api (1,168 declarations), scaffold, docs |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | `18a4a75` | **all 20 steps passed** in 3 h 43 min: `ctest -L gpu` 819 / 819 (the CUDA limits tests of ADR 0057 and the OOM sweep included), `ctest -L cpu` 1,280 / 1,280, the cuda golden corpora, memcheck on every gpu executable, synccheck, racecheck, the CBST and hypergraph sanitizers and replays, the triad step (synccheck and initcheck on the triad CUDA tests, memcheck / synccheck / initcheck on one coauth_b50k_s1 batch, racecheck on C1, C11, C12 and the make-test replays in both modes), the plugin wheel (`pytest -m gpu` 61 passed; `dyng-cu13` 8.21 MB for the native architecture), clang-tidy |
+| ASan + UBSan and TSan-OpenMP (Clang 18 + Archer), `ctest --preset <p> -L 'triad_count\|operators\|triangle_delta' -LE gpu -j 8` | the final library (built at 16:30 after `756fb68`) | **258 / 258** each (the host limits tests included) |
+| hosted-CI emulation, `ctest -L cpu -j 4` on 4 hardware threads | dev, asan, tsan-openmp | 1,280 / 1,280 in 703 s; 1,139 / 1,139 in 515 s and 981 s (`-LE slow`) |
+| Clang 18 `-fsyntax-only` (`clang_syntax.py`, the dev database) | `e015a12` | 420 files, **0 failures** |
+| cpu-only with `-D_FORTIFY_SOURCE=3`, no nvcc on PATH | `e015a12` | built without warnings |
+| frozen headers against `65a62c9`; `cpp/src/hypergraph` against `65a62c9` | HEAD | empty (no ADR 0024 bar due) |
+| ESCHER-GPU's working tree | | `git status --porcelain` empty |
+| signatures | `9cde147..HEAD` | every commit SSH-signed (`G`), identity S M Shovan |

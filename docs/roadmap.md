@@ -67,8 +67,8 @@ the line graph equal to ESCHER-GPU's after every batch at the same device memory
 M9a is done (pending the hosted CI and the author's merge): `triad_count` exact against
 ESCHER-GPU on all three backends by key and by content, incremental host engines (an untuned
 transliteration of the wedge engine, the author's decision of 2026-10-15) beside the CUDA port,
-every paper gate within its bar (update per batch, full count, end to end, the store accounting
-and the device-memory peak); M9b (the experimental `count_local_patterns`, Python, the command
+counts exact up to 2^64 - 1, every paper gate within its bar (update per batch, full count, end
+to end, the store accounting and the device-memory peak); M9b (the experimental `count_local_patterns`, Python, the command
 line and the freeze of `triad_count`) is next.
 
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row

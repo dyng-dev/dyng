@@ -537,6 +537,144 @@ passes `recheck_gates` (`parity/results/M9a.md` section 5). **No C++ changed in 
 | `ci/check.sh`, the sanitizers, the fresh clone (concurrent with `ci/gpu_local.sh`) | about 70 min, 60 min and 25 min |
 | `ci/gpu_local.sh` | 3 h 50 min (19:18-23:08 CDT; started one minute after `7f65284`, which changed only Python) |
 
+## The review fixes (2026-10-20)
+
+Independent reviewers confirmed 26 findings against `fe9c56c` (four lenses: parity and ownership,
+gates and memory protocol, GPU robustness and sanitizers, integration and records). **All are
+fixed in this branch; none needed a frozen header, a relaxed gate or a changed protocol, and no
+stop condition was met.** The library changed (ADR 0057, the scratch headroom, the host model's
+growth), so the replays and every gate reading were taken again on the final library
+(`parity/results/M9a.md` section 6): exact on the whole coverage table, the timing gates 45 / 45
+(update per batch 0.853-1.019), the memory gates 11 / 11 (store 1.0000, the Nsight Systems peak
+1.0015-1.0021), the dry 0.3 certificate passed over the new records, and the step-5 records are
+now refused by it (stale library, no count guard on the memory runs).
+
+### The findings and their fixes
+
+| # | Finding (severity) | Fix |
+|---|---|---|
+| 1, 14 | type 1: C(\|e\|, 3) in signed 64-bit, wrong from 2,097,152 members (UB on the host, a wrapped value and a poisoned update on cuda; the oracle wrapped from 2,642,246) (blocker / high) | `e1b0205` (ADR 0057): C(n, 3) divided before it is multiplied, exact up to n = 4,801,280 and capacity_error past 2^64 - 1; `8aa1b4b`: the oracle in 128-bit, `std::overflow_error` past 2^64 - 1; `dyng_triad_count_limits_tests` / `_cuda_tests` (2.1M, 2.2M, 3M, 4.8M members, compute and update, every backend) |
+| 2 | no overflow detection on cuda (a type-1 total past 2^64 - 1 wrapped) (medium) | `e1b0205`: the capacity bit of the device error word, set by the checked operations and the carry-tested block and global bins, raised as capacity_error; the 14 x 2M case in the limits tests |
+| 3, 15 | type-2 / type-3 products in signed 64-bit and unchecked sums on every backend and in the oracle (medium / high) | `e1b0205`: unsigned checked products (`__builtin_mul_overflow`, `__umul64hi`) and checked sums; `8aa1b4b`: the oracle in 128-bit; tests at 1.2e19 (exact) and 5e19 / 1.97e19 (capacity_error) |
+| 16 | the signed phase bins refused a valid update of 2^63 or more triads of a bin (internal_error on cuda, a false capacity_error on the host) (medium) | `e1b0205`: unsigned phase magnitudes with their signs (`triad_phase_bins`), `count - removed + added` without an intermediate past 2^64 - 1; a net change outside `stats::delta`'s signed range is capacity_error with one message on every backend; tests of 1.2e19 removed, added and swapped |
+| 17 | the frontier flags reserved exactly: a free and a malloc in count(-) of nearly every batch (criterion 7) (medium) | `b153ff3`: `scratch_buffer::reserve_with_headroom` (max(1.5 x need, 2 x capacity)) for the update's scratch on both engines; 50 equal-shape batches reserve in at most 5 updates; the nsys API trace of coauth_b50k_s1 at HEAD: 5 pool allocations in batch 1, none in batches 2 and 3 (ADR 0053 amendment) |
+| 18 | the update guarantee left out a failure inside the commit (medium) | `b700e2e`: the header names the third outcome (h poisoned, r unchanged with G_t's counts); the OOM sweep test fails every device allocation of an update in turn; `update.hpp` (frozen) and `cpp/src/hypergraph` untouched |
+| 4 | the golden set hashed the GPU (recipe, raw-trace digest) and `.zst` bytes (medium) | `98cfd8d`: run parameters in unhashed `recording.json` / `PROVENANCE.json`, content hashed decompressed, `export --twice --second-gpu`; `e015a12`: exported again on GPU 1 and GPU 0 from two fresh patched copies, identical `MANIFEST.sha256` (`4fb7dbcf...`), the counts and batches unchanged |
+| 5 | the comparator never compared what the container deleted with A's batch (low) | `20840db`: `deleted == deletions` and `ignored == 0` in every mode; planted in the self-test |
+| 6 | the oracle's isolation check ran `-MM` without the build's flags (low) | `285646e`: the OpenMP flags and the target's definitions passed; a planted include under `#ifdef _OPENMP` now fails |
+| 7 | certify.py accepted a 0.3 summary missing one case's gated row (high) | `778f5b9`: every required row of every case of a triad reading (`triad_required_rows`), with tests dropping one row |
+| 8 | the medians and `rounds` were trusted (medium) | `778f5b9`: the medians recomputed from the samples, one sample per round, at least the reading's rounds |
+| 9 | the host-model asymmetry of the gated update (medium) | `756fb68`: recorded in the region map and ADRs 0048 / 0051, `update_with_host_model[b<N>]` and `update.maintain_untimed[b<N>]` reported beside the gate; `escher_host_model::apply` grows geometrically (see the note below and D12) |
+| 10 | `--version` chose the rules (a 0.2.x label skipped the triad requirements) (medium) | `778f5b9`: a label of another release series than `VERSION` is refused |
+| 11 | the memory readings had no count guard (medium) | `778f5b9`: the plain and the profiled runs of both sides pass the guard; a memory record without it is refused; the input-verification text corrected; the memory readings taken again |
+| 12 | the protocol fields of the triad records were not validated (low) | `778f5b9`: GPU, lock, EAGER / no OMP_*, one layout, the unpatched original, `--sync-stages`; memory: GPU 1, the shared lock, D1's nsys command |
+| 13, 23 | ADR 0056 named records that do not exist; the 5-round re-take in a quiet window (low) | `9e59d0f`: the paths corrected (the rounding claim was refuted by the verifier); the re-take: every reading taken again in full (section 6 of the results) |
+| 19 | the build impact was not recorded (low) | recorded below (ci-cuda13 at `9cde147` and at the review's library) |
+| 20 | the triad tests were likely to push the hosted cpu and sanitizer jobs past 60 minutes (high) | `eaf4299`: the host triad mutants run on their killing cases (0.3-3 s each in Debug), `cpu.yml` runs ctest on 4 jobs; `13f305e`: the triad kit's executable carries `slow` and leaves the hosted sanitizer jobs (it runs in `cpu.yml`, `ci/check.sh` and locally under the sanitizers); measured below |
+| 21 | D4, D6-D10 (and D11) missing from GOVERNANCE.md's Open decisions (medium) | `9e59d0f` |
+| 22 | the names of ADRs 0049 and 0051 accepted under delegation (medium) | `9e59d0f`: D9 lists them; ADRs 0049 and 0051 marked "technical parts accepted; names pending the author" |
+| 24 | ADR 0052 still described recounting host backends (low) | `9e59d0f`: "amended by ADR 0054 and 0057", the recount text marked historical |
+| 25 | the compile-fail test matched any diagnostic naming `count_phase` (low) | `20b320d`: a `static_assert` overload and its message matched |
+| 26 | a stale comment above `kit_openmp_threads` (low) | `20b320d` |
+
+### Deviations (each with the same intent)
+
+1. **M9a criterion 6's "Device bins are signed 64-bit, with minus and plus kept apart"** becomes
+   (ADR 0057): the device bins are unsigned 64-bit magnitudes, minus and plus kept apart, the
+   signs recorded and applied in `apply_delta`; a bin that would go negative still raises
+   internal_error and poisons the result. The signed bins could not hold a valid phase of 2^63 or
+   more triads.
+2. **ESCHER-GPU has the same overflows** (`Choose3Op`, `Type2Op`, `Type3Op`, plain `atomicAdd`s):
+   dynG is exact where A wraps or is undefined. No golden case comes near the limits (coauth's
+   largest hyperedge has 280 members), so the parity stays exact; the deviation from A is
+   recorded here and in ADR 0057.
+3. **The machine code of the counting kernels changed** (`M9a-review-sass-escher_gpu.json`):
+   count_wedges identical to A; keys<choose3> 152 -> 288 instructions, pairs<type2> 456 -> 512,
+   triangles<type3> 512 -> 576 (the checked arithmetic); triangles<motif> 536 -> 560 (step 5: 552;
+   motif_op's per-triangle adds stay unchecked, ADR 0057 section 1, the global flush is
+   carry-tested). The gated h_motif kernels read 1.002-1.006 of A under ncu (step 5:
+   1.001-1.006). StatHyper types 1-3 stay below A on coauth (update 0.72-0.96).
+4. **The triad conformance kit left the hosted sanitizer jobs** (label `slow`): under ASan and
+   TSan-OpenMP its four C2 cases had not finished after 13 minutes in a hosted-runner emulation.
+   It still runs in the hosted `cpu.yml` jobs, in `ci/check.sh`, and under both sanitizers
+   locally at each milestone (as here: 258 / 258 each).
+5. **The reviewers' "re-take two 5-round readings in a quiet window"** was met by taking every
+   reading again in full (the gated ones at 11 and 21 rounds), because the library had changed.
+
+### Notes
+
+- **The host model in the gated update (D12, for the author).** The gate compares the library's
+  `update` with A's `update`, as approved; A's timer contains its host model (1.5-2 ms a batch,
+  7-13 ms where its vector grows), the port's driver keeps its host model after its timer. The
+  driver's host model (`escher_host_model::apply`: it validates, sorts and copies each inserted
+  row) costs 5.7-6.6 ms a batch (11-18 ms where the vector grows), so the reported
+  `update_with_host_model` row reaches 1.057-1.061 on three syn2m rows at the base lock (1.070 on
+  syn2m b2 at default clocks), while the library-only comparison (A's update minus its untimed
+  in-maintain time against the port's update) is at most 1.031. Nothing in the gate changed; a
+  cheaper driver host model (it sorts rows that the generator already gives sorted) is a library
+  change (`cpp/src/generators`) that would make every reading stale again, so it is left for the
+  author's decision rather than made at the end of the review.
+- **The footprint between batches** is 1.63-1.80x A's held bytes (D11, unchanged in kind; the
+  scratch headroom adds 1.4 MiB at most to the triad bytes during the apply: 4.2 / 2.1 / 3.6 MiB
+  against 2.8 / 1.4 / 2.4).
+
+### Build impact (finding 19)
+
+The compile-only `ci-cuda13` preset (CUDA 13.1, release architectures, every instantiation and
+mutant), built from `git archive` copies at the M9a base `9cde147` and at the review's library
+(`e015a12`), `-j 28` on the shared machine (load 40-95, so the step times are upper bounds;
+CPU-minutes are the sums of `.ninja_log` step times):
+
+| | `9cde147` (M8b merged) | M9a (review fixes) |
+|---|---:|---:|
+| wall | 355 s | 314 s |
+| CPU-minutes, the whole preset (885 / 1,032 steps) | 153.8 | 138.3 |
+| of which the six triad host mutants and cbst_unfill_drops_last's copy (one architecture each) | - | 12.4 |
+| of which the triad library units (`counters.cu` 51 s, `cuda.cu` 52 s, the host units 8 s) | - | 1.8 |
+| `libdyng.so` unstripped / stripped | 40,244,088 / 39,149,600 B | 41,659,800 / 40,516,800 B (+3.5 %) |
+
+The two totals differ by less than the machine's noise (the base build ran at a higher load);
+what M9a adds is about 14 CPU-minutes, inside the hosted `cuda-build`'s 120-minute timeout. The
+plugin wheels are built and measured in M9b's packaging step; at +3.5 % of libdyng they stay far
+below the 90 MB budget (M8b: `dyng-cu13` 8.19 MB, `dyng-cu12` 8.27 MB).
+
+### Hosted-CI margins (finding 20)
+
+`ctest -L cpu` on 4 jobs pinned to 4 hardware threads of the loaded machine (a hosted-runner
+emulation; the hosted jobs also build first): dev preset (Debug) 1,280 / 1,280 in 703 s; asan and
+tsan-openmp with `-LE slow` (what `sanitizers.yml` runs after `13f305e`) 1,139 / 1,139 in 515 s
+and 981 s. Before `13f305e` the asan run was stopped after 821 s with the kit's C2 cases still
+running. The 60-minute job timeouts keep their margin; no timeout was raised.
+
+### Checks of the review fixes
+
+| Check | Tree | Result |
+|---|---|---|
+| the replays (`compare.py triad_count --counter algorithm --mode both`) | `e015a12` (the final library) | cuda 300/300, sequential 120/120, openmp 142/142 at 8 and 1 threads (identical), both modes |
+| the gate readings (both suites, the kernels, the maintain reading) | `2eda830` (clean; the final library) | timing 45 / 45 within (0.853-1.019, 0.998-1.003, 0.915-0.983), memory 11 / 11 (1.0000; 1.0015-1.0021); the dry 0.3 certificate **PASSED** |
+| `parity/mutate.py run --suites triad_count,cbst,hypergraph,kit` (one parity-cuda copy per mutation, GPU 1) | `18a4a75` | **control passed, 17 / 17 detected** (`M9a-review-mutate.json`; 34 min) |
+| `ci/check.sh` (all steps) | `18a4a75` | every step passed but provenance (and pre-commit's provenance hook): the new `engine/exact.hpp` names ESCHER-GPU's operations; listed in NOT_DERIVED (`0e6e6fb`, `ci/` only), then `DYNG_CHECK_ONLY="provenance precommit" ci/check.sh` **passed**; cpu-only 1,247 / 1,247, dev 1,280 / 1,280, consumer, tidy, reuse, testdata (1,002,671 of 1,250,000 bytes), regen, harness (337 passed), python, api (1,168 declarations), scaffold, docs |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | `18a4a75` | **all 20 steps passed** in 3 h 43 min: `ctest -L gpu` 819 / 819 (the CUDA limits tests of ADR 0057 and the OOM sweep included), `ctest -L cpu` 1,280 / 1,280, the cuda golden corpora, memcheck on every gpu executable, synccheck, racecheck, the CBST and hypergraph sanitizers and replays, the triad step (synccheck and initcheck on the triad CUDA tests, memcheck / synccheck / initcheck on one coauth_b50k_s1 batch, racecheck on C1, C11, C12 and the make-test replays in both modes), the plugin wheel (`pytest -m gpu` 61 passed; `dyng-cu13` 8.21 MB for the native architecture), clang-tidy |
+| ASan + UBSan and TSan-OpenMP (Clang 18 + Archer), `ctest --preset <p> -L 'triad_count\|operators\|triangle_delta' -LE gpu -j 8` | the final library (built at 16:30 after `756fb68`) | **258 / 258** each (the host limits tests included) |
+| hosted-CI emulation, `ctest -L cpu -j 4` on 4 hardware threads | dev, asan, tsan-openmp | 1,280 / 1,280 in 703 s; 1,139 / 1,139 in 515 s and 981 s (`-LE slow`) |
+| Clang 18 `-fsyntax-only` (`clang_syntax.py`, the dev database) | `e015a12` | 420 files, **0 failures** |
+| cpu-only with `-D_FORTIFY_SOURCE=3`, no nvcc on PATH | `e015a12` | built without warnings |
+| frozen headers against `65a62c9`; `cpp/src/hypergraph` against `65a62c9` | HEAD | empty (no ADR 0024 bar due) |
+| ESCHER-GPU's working tree | | `git status --porcelain` empty |
+| signatures | `9cde147..HEAD` | every commit SSH-signed (`G`), identity S M Shovan |
+
+### Machine time
+
+| What | Time |
+|---|---|
+| the replays (cuda 3 jobs, sequential 6, openmp 8 threads 3, then 1 thread 10) | 36, 15, 13 and 30 min wall (concurrent, the shared lock) |
+| the gate readings (both suites, the kernels, the maintain reading) | 18:48-19:43 CDT (55 min, exclusive lock on GPU 0; memory on GPU 1) |
+| the golden export twice (two fresh patched copies, GPUs 1 and 0) | ended 17:41 CDT (a first attempt failed when a concurrent rebuild replaced libdyng under it, and was run again) |
+| the build impact (two ci-cuda13 builds) | 12 min |
+| `parity/mutate.py`, `ci/check.sh` and `ci/gpu_local.sh` (concurrent, the shared lock) | 34 min, 45 min and 3 h 43 min (19:47-23:31 CDT) |
+
+## The milestone
+
 ### Deviations of M9a from PLAN 6.4.6, 4.6 and 11.3 (the milestone)
 
 - **PLAN 6.4.6**: the parity runs by content **and** by key on every backend from the start (the
@@ -560,13 +698,15 @@ step's records (evening): one day of wall-clock time for the milestone, against 
 re-baselined "M9 in 3-5 days plus the review and fix steps" (M8b's retrospective). Machine time
 dominated the later steps: the golden export (62 min), the replays (about 1.5 h per full set of
 backends), the mutation campaigns (about 1 h in step 4, 41 min here), `ci/gpu_local.sh`
-(about 3.5 h in step 3, 3 h 50 min here) and the gate readings (78 min).
+(about 3.5 h in step 3, 3 h 50 min here) and the gate readings (78 min). The review fixes took
+one more day (2026-10-20), most of it machine time: the replays, the golden export twice, every
+gate reading again and the final checks ("The review fixes" above).
 
 ### The author's pending decisions (collected for the 0.3.0 release)
 
 | # | Decision | State |
 |---|---|---|
-| D1 | the gated Nsight Systems peak (live allocations, whole process) | the author's (2026-10-15); read in 5.4: 1.0010-1.0015 |
+| D1 | the gated Nsight Systems peak (live allocations, whole process) | the author's (2026-10-15); read in 5.4: 1.0010-1.0015, at the review's library (results 6.4): 1.0015-1.0021 |
 | D2 | M9 as M9a and M9b | the author's (2026-10-15) |
 | D3 | incremental host engines, the oracle independent | the author's (2026-10-15); ADR 0054 |
 | D4 | `triad_count` frozen and stable at 0.3.0 at the end of M9b; `count_local_patterns` experimental | **pending**: taken on the plan's default |
@@ -576,7 +716,8 @@ backends), the mutation campaigns (about 1 h in step 4, 41 min here), `ci/gpu_lo
 | D8 | the suites `ipdps26_escher` and `tkde26_escher_plus` and their split | **pending**: the plan's default; the split is ours (ADR 0056) |
 | D9 | the new public names of `triad_count` (ADR 0052), of the oracle `testing::triad_*` (ADR 0049) and of the generators' host model and the port driver (ADR 0051) | **pending**: naming is not delegated (the review found ADRs 0049 and 0051 logged as fully accepted; corrected) |
 | D10 | the "paper vs fixed code" wording | **pending**: the plan's default (M9b's docs) |
-| D11 | the footprint between batches (the stream-ordered pool's reserve, 1.63-1.78x A's held bytes on every reading; reported and flagged above 1.05 under D1, not gated) | **new, for the author**: whether a later release trims the pool between updates (a library change outside M9a's scope) or the footprint stays reported only |
+| D11 | the footprint between batches (the stream-ordered pool's reserve, 1.63-1.80x A's held bytes on every reading; reported and flagged above 1.05 under D1, not gated) | **new, for the author**: whether a later release trims the pool between updates (a library change outside M9a's scope) or the footprint stays reported only |
+| D12 | the host model in the gated update (A's `update` contains its host model, the port's driver keeps its own after the timer; `update_with_host_model` reported beside the gate reaches 1.057-1.061 on three syn2m rows, results 6.2) | **new, for the author** (the review): the gate as approved and the asymmetry reported, or a protocol counting a host model on both sides, or a cheaper driver host model |
 
 Also for the author from earlier steps: the manifest key `python = false` (step 3, deviation 14)
 and the test trait `kit_openmp_threads` (step 4) were taken under delegation as technical items;
@@ -597,10 +738,13 @@ with its own CPU reference on 90 runs) replays exactly by key and by content: cu
 sequential 120/120, OpenMP 142/142 at 1 and 8 threads (identical). An independent oracle
 (`dyng::testing::triad_reference`, its own class map) reproduces ESCHER-GPU everywhere and checks
 every backend's stats. Kit (C1-C12 but C4) on every backend; the five triad mutations of PLAN 8.4
-and cbst_unfill_drops_last detected on both engines.
+and cbst_unfill_drops_last detected on both engines. Counts are exact up to 2^64 - 1 on every
+backend and refused past it with capacity_error (ADR 0057; ESCHER-GPU's StatHyper arithmetic
+overflows from 2,097,152 members per hyperedge, found by the review).
 
 **The CUDA port** is a reproducible transplant of ESCHER-GPU's wedge engine in six mechanical
-commits; the counting kernels' machine code equals ESCHER-GPU's (one +16-instruction error word).
+commits; count_wedges' machine code equals ESCHER-GPU's, the h-motif triangle kernel adds an error
+word and a carry-tested flush (+24 instructions), the StatHyper kernels checked arithmetic.
 **The host engines** are incremental (D3), through `operators::count_delta` (ADR 0055).
 
 **Gates** (against ESCHER-GPU re-measured in the same session, base clock lock, GPU 0, exclusive
@@ -608,27 +752,32 @@ lock; `benchmarks/paper/ipdps26_escher.yaml`, `tkde26_escher_plus.yaml`):
 
 | | coauth-DBLP 50K s1-s3 (11 rounds) | syn1M / syn2M 50K s1-s3 (21 rounds) | bar |
 |---|---|---|---|
-| update, each of 3 batches | 0.950-0.981 | 0.858-1.028 | 1.05 |
-| full count | 0.999 | 1.002 | 1.05 |
-| end to end | 0.941-0.944 | 0.959-0.987 | 1.10 |
+| update, each of 3 batches | 0.949-0.971 | 0.853-1.019 | 1.05 |
+| full count | 0.998-0.999 | 1.002-1.003 | 1.05 |
+| end to end | 0.915-0.916 | 0.967-0.983 | 1.10 |
 | store accounting (every gated point) | 1.0000 | 1.0000 | 1.05 |
-| Nsight Systems peak of live allocations (D1) | 1.0010 | 1.0015 / 1.0011 | 1.05 |
+| Nsight Systems peak of live allocations (D1) | 1.0015 | 1.0021 / 1.0017 | 1.05 |
 
-Host synchronizations per batch 19-22 against ESCHER-GPU's 90-96. The footprint between batches
-(the stream-ordered pool's reserve, 1.63-1.69x) is reported, not gated (D1).
+Read on the final library, after the review fixes (`parity/results/M9a.md` section 6). Host
+synchronizations per batch 19-22 against ESCHER-GPU's 90-96. The footprint between batches (the
+stream-ordered pool's reserve, 1.63-1.69x) is reported, not gated (D1). Reported beside the update
+gate: ESCHER-GPU's update contains its host model and the port's driver keeps its own after the
+timer; with the driver's host model added the port is up to 1.061x on three syn2m rows (D12).
 
 **Certificate.** From 0.3 `parity/certify.py` requires both ESCHER suites (the store rows
 rechecked point by point) and the triad replays of every backend of the coverage table by key and
-by content; the dry 0.3 certificate of `triad_count` passes (`parity/results/M9a-gates/`).
+by content, every gated row of every case with its medians recomputed from the samples, and the
+protocol fields; the dry 0.3 certificate of `triad_count` passes
+(`parity/results/M9a-review-gates/`).
 
-**Checks.** `ci/check.sh` all passed; `ci/gpu_local.sh` all 20 steps passed on GPU 1 (812 GPU tests; memcheck, synccheck and initcheck on the triad CUDA tests and a coauth batch; racecheck on C1, C11, C12 and the make-test replays); ASan/UBSan and
+**Checks** (at the final library, after the review fixes). `ci/check.sh` all passed; `ci/gpu_local.sh` all 20 steps passed on GPU 1 (819 GPU tests; memcheck, synccheck and initcheck on the triad CUDA tests and a coauth batch; racecheck on C1, C11, C12 and the make-test replays); ASan/UBSan and
 TSan-OpenMP on the triad tests; a fresh clone (CPU-only fortified, CUDA); Clang 18 syntax;
 frozen headers unchanged (`git diff 65a62c9 -- cpp/include/dyng/{hypergraph,update.hpp,core,graph}`
-empty). No C++ changed in the last step.
+empty); the mutation campaign 17 / 17 detected.
 
 **For the author**: D4 and D6-D10 are taken on the plan's defaults pending the 0.3.0 release
-(GOVERNANCE.md); the new public names (D9, ADR 0052); D11, whether a later release trims the
-pool between updates. ADRs 0048-0056. Records: `parity/results/M9a.md`,
+(GOVERNANCE.md); the new public names (D9: ADRs 0049, 0051, 0052); D11, whether a later release
+trims the pool between updates; D12, the host model in the gated update. ADRs 0048-0057. Records: `parity/results/M9a.md`,
 `docs/developer/retrospectives/M9a.md`. M9b (count_local_patterns, Python, the CLI, the freeze)
 follows on a stacked branch. Merge with a merge commit.
 
