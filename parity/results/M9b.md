@@ -295,3 +295,48 @@ case): **11 / 11 gated rows within 1.05, ratios 1.000-1.002; PASSED.**
 Recorded: coauth_b100k_s1 and b200k_s1, store 1.0000, nsys peak 1.0018 and 1.0023, triad MiB
 during the apply 5.0 and 6.6, between batches 1.66-1.80 (flagged). The same as M9a's review
 reading to the MiB (the peaks 3,023.3 / 1,133.7 / 2,215.4 MiB there too).
+
+### 3.4 Exact parity on M9b's library (the certificate's replays)
+
+`parity/compare.py triad_count --counter algorithm --mode both --certificate parity/results/M9b-gates`
+from the parity-cuda build of the measurement clone at `b732aa9` (GPU 1 and the host, the shared
+lock, concurrent):
+
+| Backend | Cases (the coverage table, D6) | Result | Wall |
+|---|---|---|---|
+| cuda (GPU 1) | the 240 grid cases + make-test's 60 | **300/300 exact**, both modes | 2,446 s (3 jobs) |
+| sequential | make-test + the syn100k grid | **120/120 exact**, both modes | 874 s (6 jobs) |
+| openmp, 8 threads | + the syn1m s1 grid and coauth_b50k_s1 types 1 and 2 | **142/142 exact**, both modes | 698 s (3 jobs) |
+| openmp, 1 thread | the same | **142/142 exact**, both modes | 1,842 s (10 jobs) |
+
+### 3.5 The dry 0.3 certificate (`M9b-gates/parity.json`)
+
+`parity/certify.py write --version 0.3.0 --results parity/results/M9b-gates --dry-run
+triad_count` at `877dc00` (the committed records): **PASSED** (the dry run of `triad_count`; 17
+parts outside it): the golden set `triad_count_escher_gpu` (manifest `4fb7dbcf...`) with the
+replays of every backend of the coverage table by key and by content, both suites with every gated
+row recomputed by `recheck_gates` (45 + 11 rows; the store rows point by point), every measured
+commit with the release's library sources. The same command over a copy of M9a's review records
+(`parity/results/M9a-review-gates/`) **fails** at this tree: "measured commit 2eda830 does not
+have the release's code" for both suites, and no replay of the release's library for any backend
+(`$DYNG_SCRATCH/runs/m9b-step3/certify-dry-m9a-records.log`): M9a's records are carried only as
+M9a's record, not as 0.3.0's.
+
+## 4. The final checks of M9b (criterion 10)
+
+| Check | Tree | Result |
+|---|---|---|
+| `ci/check.sh` (all steps) | `155f4ef` (the later commits: ADR text and records) | **all checks passed**: clang-format; cpu-only 1,279 / 1,279 and dev 1,312 / 1,312 (`ctest -L cpu`); the consumers (the documented one, the host-only one, `triad_count_update.cpp` against the installed cpu-only build on sequential and openmp); clang-tidy; REUSE; provenance (270 files); the test data 1,002,671 of 1,250,000 bytes; regen; the harness (349 passed); python (719 passed, 80 skipped); the API check (no breaking change of the frozen C++ API or of griffe against `origin/main`); the scaffold; docs (-W: Doxygen, its coverage, the API snapshot of 1,244 declarations, 10 snippets, 34 tutorial quotes, Sphinx, the links); pre-commit; the GitHub metadata |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1; `$DYNG_SCRATCH/runs/m9b-step3/gpu_local.log`) | started at `7c3781d` (the code of `155f4ef`; the later commits are records and docs) | **all 21 steps passed** in 4 h 0 min (07:44-11:44 CDT; RTX A5000, driver 590.48.01, CUDA 13.1): build; `ctest -L gpu` **861 / 861**; `ctest -L cpu` 1,312 / 1,312; the sssp and cycle_count cuda corpora; memcheck on every gpu executable; synccheck (sssp, mosp, cycle_count); racecheck; the CBST sanitizers, replays and lockstep; the hypergraph sanitizers and replays; triad_count (synccheck and initcheck on the CUDA tests, a coauth_b50k_s1 batch under memcheck, synccheck and initcheck, racecheck on the kit's C1, C11, C12 and the make-test replays); count_local_patterns (the sanitizers on the tutorial and API tests, the nvcc consumer); the plugin wheel (`dyng-cu13` 8.58 MB, `pytest -m gpu` 69 passed, `DYNG_CPU_ONLY=1` 719 passed); clang-tidy over the CUDA branches |
+| a fresh clone, cpu-only with `-D_FORTIFY_SOURCE=3`, no nvcc on PATH | `29a9ae3` | built without warnings; `ctest -L cpu` **1,279 / 1,279** |
+| a fresh clone, parity-cuda | `29a9ae3` | built; `ctest -L 'triad_count\|experimental\|examples'` **397 / 397** (GPU 1); `ci/cmake_consumer.sh` on it: the documented consumer, the host-only consumer, `triad_count_update.cpp` against the installed package on sequential, openmp and cuda, a user Op by nvcc on every backend |
+| Clang 18 `-fsyntax-only` (`clang_syntax.py`, the dev database) | `155f4ef` | 429 files, **0 failures** (the Python bindings unchanged since step 2's 445-file pass) |
+| the wheels (`ci/plugin_wheels.sh`, `DYNG_PLUGINS="cu12 cu13"`, `$DYNG_SCRATCH/wheels/m9b-step3-plugins`) | `29a9ae3` | `dyng` 2,104,814 B (+5.7 % since M8b), `dyng-cu12` 8,665,702 B (+4.8 %), `dyng-cu13` 8,581,400 B (+4.8 %): far below 90 MB; `wheel_check` and `twine check` passed, the code objects of the release architectures; with each plugin and Python 3.12 / 3.13: the smoke test (sssp, cycle_count, mosp and triad_count on cuda equal to sequential), the fallbacks, `pytest -m gpu` 69 passed, `DYNG_CPU_ONLY=1` 719 passed |
+| the ci-cuda13 compile time | step 2 (`db25f77`) | 216 s wall, 94.2 CPU-minutes (results 2.3); this step adds two host test units and no CUDA source, so the margin under the hosted 120-minute `cuda-build` stays about 107 minutes |
+| `ci/api_check.sh` and `ci/docs.sh` against a deliberate change | a throwaway clone at `155f4ef` | both fail on a changed frozen C++ declaration and on a renamed `dyng.triad_count` parameter; an experimental change is reported, not failed (ADR 0060, Outcome) |
+| the dry 0.3 certificate | `877dc00` | PASSED (3.5) |
+| frozen headers against `65a62c9` and `origin/main` (`hypergraph/*`, `update.hpp`, `core/*`, `graph/*`); `cpp/src/hypergraph` against `65a62c9` | HEAD | **empty** (all three) |
+| the library scope since the measured commit (`git diff b732aa9 HEAD -- cpp/include cpp/src cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json docs/references.bib`) | HEAD | empty |
+| the committed test data | HEAD | 1,002,671 bytes under `cpp/tests/data` (budget 1,250,000); the example data `examples/data` 1,102 bytes |
+| ESCHER-GPU's working tree | | `git status --porcelain` empty |
+| signatures | `9cde147..HEAD` | every commit SSH-signed, identity S M Shovan |
