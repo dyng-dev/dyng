@@ -161,7 +161,36 @@ Tracked or experimental (named for the author, not frozen):
 
 ## Outcome
 
-(Filled at the end of the step: the deliberate-change demonstration.)
+**The deliberate changes** (2026-10-21, a throwaway clone of this branch at `155f4ef`, the commit
+after the freeze, reverted and deleted; logs `$DYNG_SCRATCH/runs/m9b-step3/demo-*.log`):
+
+- C++: the default of `triad_count::compute(..., const options& opt = {})` removed:
+  `ci/docs.sh --doxygen-only` exits 1 with
+
+  ```text
+  api-snapshot: the public C++ API differs from the baseline (above: - baseline, + headers).
+  -  template <typename vertex_t, typename weight_t> [[nodiscard]] result dyng::triad_count::compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, const options &opt={})
+  +  template <typename vertex_t, typename weight_t> [[nodiscard]] result dyng::triad_count::compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, const options &opt)
+  ```
+
+  and, with the baseline regenerated (`ci/docs.sh --update-api`, as a pull request would),
+  `ci/api_check.sh 155f4ef` exits 1: `breaking change of the frozen API: [dyng/triad_count.hpp]
+  - template <...> [[nodiscard]] result dyng::triad_count::compute(...)`.
+- Python: `dyng.triad_count.update(hypergraph, ...)` with `hypergraph` renamed `hg`:
+  `ci/api_check.sh 155f4ef` exits 1 (`Parameter was removed`, `Parameter was added as
+  required`).
+- Experimental: `experimental::max_pattern_bins` changed from 1024 to 2048: `ci/docs.sh
+  --doxygen-only` passes and reports the changed line of the experimental section, and
+  `ci/api_check.sh 155f4ef` (baseline regenerated) passes: "no breaking change of the frozen C++
+  API".
+- Reverted: `ci/api_check.sh 155f4ef` passes for both halves, and `ci/docs.sh --doxygen-only`
+  reports `1244 declarations match public_api.txt`.
+
+**The gates on the reviewed library.** Finding 7 changed the library (`b732aa9`), so M9a's gate
+records no longer had the release's library sources (`certify.py`'s library scope). Every M9a
+timing and memory gate was read again on `b732aa9` with M9a step 5's protocol, both suites
+passed (45 / 45 and 11 / 11), and the dry 0.3 certificate passes over them
+(`parity/results/M9b.md` section 3).
 
 ## Consequences
 
