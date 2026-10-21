@@ -89,3 +89,21 @@ def test_mosp_update_writes_the_originals_combined_files(backend: str, tmp_path:
     for name in ("distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"):
         got = (tmp_path / "combinedGraph" / name).read_bytes()
         assert got == (expected / name).read_bytes(), name
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_triad_count_prints_the_expected_counts(backend: str) -> None:
+    # examples/data/triad_count_update.expected.txt: the counts of a brute force over every
+    # triple of hyperedges; examples/cpp/triad_count_update.cpp prints the same bytes (CTest
+    # example.triad_count_update.*, and ci/cmake_consumer.sh against the installed package).
+    data = REPO / "examples" / "data"
+    out = _run(
+        EXAMPLES / "triad_count.py", data / "triad_count.hg", data / "triad_count.dgt", backend
+    ).stdout
+    assert out == (data / "triad_count_update.expected.txt").read_text()
+
+
+def test_the_triad_count_examples_fit_plan_9_6() -> None:
+    # PLAN 9.6: one runnable example per algorithm, at most 60 lines.
+    for path in (REPO / "examples" / "cpp" / "triad_count_update.cpp", EXAMPLES / "triad_count.py"):
+        assert len(path.read_text().splitlines()) <= 60, path

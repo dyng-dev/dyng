@@ -111,6 +111,50 @@ cmake -S "${tmp}/host_only" -B "${tmp}/host_only/build" -G Ninja \
 }
 echo "cmake_consumer: OK (a host-only program uses the installed experimental host header)"
 
+# The triad_count example against the installed package (PLAN 9.6, M9b): examples/cpp/
+# triad_count_update.cpp built with find_package(dyng) and run on examples/data, its output
+# compared with the committed expected output by examples/cpp/compare_output.cmake (the in-tree
+# CTest example.triad_count_update.* does the same in the build tree). Backends: sequential,
+# openmp when the build has it, cuda when it has CUDA and a device is visible (77 = skipped).
+mkdir -p "${tmp}/triad_example"
+cat >"${tmp}/triad_example/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.30)
+project(dyng_triad_example CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(dyng ${major_minor} REQUIRED)
+add_executable(triad_count_update "${repo_root}/examples/cpp/triad_count_update.cpp")
+target_link_libraries(triad_count_update PRIVATE dyng::dyng)
+CMAKE
+cmake -S "${tmp}/triad_example" -B "${tmp}/triad_example/build" -G Ninja \
+  -DCMAKE_PREFIX_PATH="${tmp}/prefix" -DCMAKE_BUILD_TYPE=Release >"${tmp}/triad_example.log" 2>&1 &&
+  cmake --build "${tmp}/triad_example/build" >>"${tmp}/triad_example.log" 2>&1 || {
+  cat "${tmp}/triad_example.log"
+  echo "cmake_consumer: examples/cpp/triad_count_update.cpp does not build against the" \
+    "installed package" >&2
+  exit 1
+}
+data="${repo_root}/examples/data"
+backends="sequential"
+grep -q '^DYNG_ENABLE_OPENMP:BOOL=ON' "${build}/CMakeCache.txt" && backends="${backends} openmp"
+grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt" && backends="${backends} cuda"
+for b in ${backends}; do
+  rc=0
+  cmake "-DEXE=${tmp}/triad_example/build/triad_count_update" \
+    "-DARGS=${data}/triad_count.hg|${data}/triad_count.dgt|${b}" \
+    "-DEXPECTED=${data}/triad_count_update.expected.txt" \
+    -P "${repo_root}/examples/cpp/compare_output.cmake" >"${tmp}/triad_example.${b}.log" 2>&1 || rc=$?
+  if [ "${rc}" -eq 77 ] || grep -q 'skipped (exit code 77)' "${tmp}/triad_example.${b}.log"; then
+    echo "cmake_consumer: triad_count_update ${b}: skipped (no CUDA device visible)"
+  elif [ "${rc}" -ne 0 ]; then
+    cat "${tmp}/triad_example.${b}.log"
+    echo "cmake_consumer: the installed triad_count example differs from its expected output" \
+      "on ${b}" >&2
+    exit 1
+  fi
+done
+echo "cmake_consumer: OK (examples/cpp/triad_count_update.cpp, built against the installed" \
+  "package, prints its expected output on: ${backends})"
+
 # The nvcc consumer: a user Op against the installed package (CUDA builds only).
 if ! grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt"; then
   echo "cmake_consumer: ${build} has no CUDA; the nvcc consumer of count_local_patterns is skipped"
