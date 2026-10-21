@@ -26,7 +26,12 @@
  *   to the host), every requested pattern;
  * - **algorithm**: triad_count, one result per pattern kept up to date by one dyng::update() per
  *   batch; after every batch its counts must equal a fresh compute() (options::recount), and its
- *   stats agree with the update (the tool exits 2 when triad_count is not in the build).
+ *   stats agree with the update (the tool exits 2 when triad_count is not in the build);
+ * - **local_patterns** (M9b, ADR 0058): triad_count's four patterns as the built-in Ops of
+ *   experimental::count_local_patterns beside the algorithm's results, one commit per batch, equal
+ *   to them bit for bit (counts, per-bin deltas, removed / added, frontiers) after every batch and
+ *   to a fresh compute(); it reports count_local_patterns' counts (triad_replay_counter.hpp; CUDA
+ *   builds only, exit 2 otherwise).
  *
  * The report carries per mode the full count and, per batch, the counts after it and the net
  * delta per pattern, the deletions and insertions, the unresolved and ambiguous deletions
@@ -49,7 +54,7 @@ namespace dyng::test::triad_replay {
 /// What a replay does.
 struct options {
   std::string mode = "both";       ///< "by_content", "by_key" or "both"
-  std::string counter = "oracle";  ///< "oracle" or "algorithm"
+  std::string counter = "oracle";  ///< "oracle", "algorithm" or "local_patterns"
   /// The patterns to count (default: all four).
   std::vector<testing::triad_pattern> patterns = {
       testing::triad_pattern::h_motif, testing::triad_pattern::stathyper_type1,
