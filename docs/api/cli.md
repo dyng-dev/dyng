@@ -11,6 +11,7 @@ dyng [--version] [--log-level LEVEL] COMMAND ...
   sssp compute | update         dynamic single-source shortest paths
   mosp compute | update         dynamic multi-objective shortest paths (0.2)
   cycle_count compute | update  directed simple-cycle histograms
+  triad_count compute | update  hypergraph triad counts (0.3)
   prep SUBCOMMAND               MOSP's input preparation (the mospPrep subcommands)
   convert INPUT OUTPUT          convert a graph between formats
   generate GENERATOR            the seeded batch generators of the original tools
@@ -178,6 +179,64 @@ cycle_count update` prints `update_seconds=` (and `recompute_seconds=`, `match=`
 original's `deletions=N insertions=M` line; the batch's size is in the histogram's input (or
 `--write-batch`). The drop-in clone with the original's flags, exit statuses and timing lines is the C++ tool
 `dyng-compat-cycle-enum` (`tools/compat`, for the parity harness).
+
+## `dyng triad_count`
+
+```text
+dyng triad_count compute --input H.hg [read flags] [options] [--format json|escher] [--output FILE]
+dyng triad_count update  --input H.hg [read flags] [options] [--format json|escher] [--output FILE]
+                         --batches FILE [FILE ...] [--compare-recompute]
+```
+
+Options: `--kind h_motif|stathyper_type1|stathyper_type2|stathyper_type3` and `--cuda-engine`
+(the fields of `dyng.triad_count.Options`; default `--kind h_motif`, the 30 h-motif bins).
+
+**Hypergraph input** (`--input PATH`, also spelled `--hypergraph`): a `.hg` file
+({doc}`file_formats`), read by `dyng.io.read_hypergraph` with ESCHER-GPU's loader (the option
+set `--read-options escher_gpu`, the default; `--read-options hsosp` is H-SOSP's). The read
+flags are the keyword arguments of `dyng.io.read_hypergraph`: `--index-base`,
+`--dedupe-hyperedges`, `--max-cardinality`, `--relabel`, `--num-vertices`, `--weighted` (a file
+with `; w` on every line; the weights are ignored by triad_count) override the option set's
+fields, and `--storage`, `--line-graph`, `--id-reuse`, `--capacity` and `--store-v2h` the
+hypergraph's properties. `--min-initial-payload N` with `--capacity escher_gpu` is
+`CapacityPolicy.escher_gpu(N)`, ESCHER-GPU's `--payload-capacity`. The h-motifs and types 2 and
+3 need the line graph and the vertex-to-hyperedge rows (`--line-graph none` or
+`--no-store-v2h` is an error for them; type 1 needs neither).
+
+**Batches** (`update`): `--batches FILE ...`, applied in order; each file is a `.dgt` batch file
+(`+h v1 v2 ..` / `-h id`, any number of batches) or a `.dgb` binary batch file (by its magic). A
+`.dgb` file that carries the expected ids of every insertion (as the parity harness's recordings
+do) is checked: a batch whose inserted ids differ fails with exit status 1 (the hypergraph was not
+built as the recording's run built it, so later deletions would name other hyperedges: give the
+same `--num-vertices`, `--id-reuse`, `--capacity` and `--min-initial-payload`).
+
+**Output.** `--format json` (the default) writes the triad-bins JSON of
+`dyng.io.write_triad_bins` ({doc}`file_formats`): the kind, the hypergraph version, the counts
+(after the last batch for `update`) and, for `update`, one row of deltas per batch.
+`--format escher` prints the lines of ESCHER-GPU@abcf9b2's `build/main` (`--kind h_motif`),
+`type1`, `type2` and `type3`, byte for byte: `Hypergraph: N hyperedges, max vertex id V, P pins`,
+the baseline (`Motif counts (30 bins): c0 .. c29`, `[GPU] Type1 baseline motif count (sum_e
+C(|e|, 3)): N`, `[GPU] Type2 baseline motif count: N`, `[GPU] Type3 baseline motif count: N`),
+and per batch `Batch b (D deletions, I insertions)` (when there is more than one batch, as the
+original prints it) and the delta (`Motif delta counts (30 bins): d0 .. d29`, `[GPU] TypeN motif
+delta count: N`). The `[GPU]` prefix is the original's on every backend; `max vertex id` is the
+hypergraph's vertex count (ESCHER-GPU's 1-based largest id). Bin `k` is ESCHER-GPU's h-motif
+`k + 1`; its open triads 21-26 (bins 20-25) are always 0. `update_seconds=` goes to standard
+error, and with `--compare-recompute` also `recompute_seconds=` and `match=yes|no` (a mismatch
+exits with status 1). The original generates its hypergraph and batches itself; the parity
+harness records them as `.hg` and `.dgb` files, and `dyng triad_count update --format escher`
+on those files prints the original's standard output without its generator lines (the test
+`python/tests/test_triad_count_cli.py` diffs every make-test case).
+
+The original's flags and dynG's:
+
+| ESCHER-GPU | `dyng triad_count` |
+|---|---|
+| `build/main`, `type1`, `type2`, `type3` | `--kind h_motif`, `stathyper_type1`, `stathyper_type2`, `stathyper_type3` |
+| `--input FILE` | `--input FILE` (ESCHER-GPU's loader: `--read-options escher_gpu`) |
+| `n m r1 r2` (a generated hypergraph), `--batches`, `--batch-size`, `--seed`, `--insert-mode` | the hypergraph and batch files the generator writes (`dyng.generators.legacy.escher_hypergraph`, `EscherBatchGenerator`; `dyng-compat-escher run` is the drop-in driver) |
+| `--payload-capacity N` | `--capacity escher_gpu --min-initial-payload N` |
+| `--check`, `--reference` | `--compare-recompute`; the oracle is `dyng.testing.triad_reference` |
 
 ## `dyng prep`
 
