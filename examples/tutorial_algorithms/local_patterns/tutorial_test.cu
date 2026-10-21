@@ -131,7 +131,7 @@ dyng::hyperedge_batch<std::int32_t, typename graph_t::weight_type> random_batch(
 }
 
 /// The batches of run_tutorial: an empty, a deletion-only and an insertion-only one, then mixed.
-constexpr std::array<batch_kind, 6> batch_schedule = {batch_kind::empty,     batch_kind::deletions,
+constexpr std::array<batch_kind, 6> batch_schedule = {batch_kind::empty,      batch_kind::deletions,
                                                       batch_kind::insertions, batch_kind::mixed,
                                                       batch_kind::mixed,      batch_kind::mixed};
 
