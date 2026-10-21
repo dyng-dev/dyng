@@ -112,6 +112,9 @@ enum class pattern : std::uint8_t {
 
 /**
  * @brief The number of bins of pattern::h_motif, the size of stats::delta.
+ *
+ * The most bins a pattern of triad_count has; a pattern appended later has at most as many (a
+ * count of more bins is an Op of experimental::count_local_patterns, whose bins are its own).
  * @ingroup triad_count
  */
 inline constexpr int max_bins = 30;
@@ -153,11 +156,12 @@ struct stats : update_stats {
   std::int64_t deleted_frontier = 0;
   /// The hyperedges of the add phase: the hyperedges the batch inserted.
   std::int64_t inserted_frontier = 0;
-  /// The triads the batch destroyed, summed over the bins (for the weighted types 1-3: the sum of
-  /// the destroyed triads' weights): the count of the subtract phase.
+  /// The triads the batch destroyed, summed over the bins: the count of the subtract phase. For
+  /// the types 1-3, whose one bin is a sum of contributions (C(|e|, 3), C(a, 2) * b * c,
+  /// x * y * z; the hyperedge weights are ignored), the contributions the batch removed.
   std::uint64_t triads_removed = 0;
-  /// The triads the batch created, summed over the bins (types 1-3: their weights): the count of
-  /// the add phase.
+  /// The triads the batch created, summed over the bins: the count of the add phase (types 1-3:
+  /// the contributions the batch added).
   std::uint64_t triads_added = 0;
   /// The change of every bin: counts() after the update minus counts() before it (bins at and
   /// above result::num_bins() are 0). A fixed-size array, so the stats allocate nothing.
@@ -363,11 +367,13 @@ namespace dyng::triad_count {
 /**
  * @brief Count the triads of `h` (the static count, the oracle of update()).
  *
- * Every triangle (a, b, c) of the line graph with a < b < c is counted once, from its out-wedge
- * (a, b): the rows of a after b and of b after b are intersected for the closing c, and the triad
- * is classified with the three hyperedges' member sets (one merge over the three rows). The CUDA
- * backend runs one thread per out-wedge (ESCHER-GPU's full count); the host backends loop over the
- * same wedges.
+ * h_motif and type 3: every triangle (a, b, c) of the line graph with a < b < c is counted once,
+ * from its out-wedge (a, b): the rows of a after b and of b after b are intersected for the
+ * closing c, and the triad is classified with the three hyperedges' member sets (one merge over
+ * the three rows). Type 2 visits every pair of adjacent hyperedges (a, b), a < b, once, and type 1
+ * every live hyperedge. The CUDA backend runs one thread per out-wedge for h_motif and types 2
+ * and 3, and a grid-stride loop over the hyperedges for type 1 (ESCHER-GPU's full counts); the
+ * host backends loop over the same wedges and hyperedges.
  *
  * @tparam vertex_t Vertex id type (int32_t).
  * @tparam weight_t Hyperedge weight type (unweighted or int32_t; ignored).
