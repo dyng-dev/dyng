@@ -48,8 +48,9 @@ struct work {
 #elif defined(DYNG_CF_TRIAD_NO_OWNERSHIP)
   dyng::detail::hyper::row_views views;
   dyng::detail::triad_phase_bins bins;
-  (void)dyng::detail::triad_host::count_phase(exec, dyng::triad_count::pattern::h_motif, views,
-                                              nullptr, 0, nullptr, fw::sign::plus, scratch, bins);
+  (void)dyng::detail::triad_host::count_phase(
+      exec, dyng::detail::triad_kernels(dyng::triad_count::pattern::h_motif), nullptr, views,
+      nullptr, 0, nullptr, fw::sign::plus, scratch, bins);
   return 0;
 #else
   (void)totals;

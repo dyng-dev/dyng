@@ -532,7 +532,8 @@ TEST_P(TriadCount, ABinThatWouldGoNegativePoisonsTheResult) {
   tc::result r = tc::compute(res(), h);
   // A corrupted result (no triad) cannot lose the triads the batch destroys: the signed delta of
   // the subtract phase would take a bin below zero (every backend is incremental).
-  dyng::detail::triad_count_access::state(r).counts.fill(0);
+  auto& counts = dyng::detail::triad_count_access::state(r).counts;
+  std::fill(counts.begin(), counts.end(), std::uint64_t{0});
   batch_t b;
   b.delete_hyperedge(0);
   b.delete_hyperedge(1);

@@ -20,6 +20,10 @@
 #include "algorithms/triad_count/engine/exact.hpp"
 #include "algorithms/triad_count/engine/sets.hpp"
 
+#include <dyng/experimental/detail/local_patterns_engine.hpp>
+
+#include <type_traits>
+
 namespace dyng::detail::triad {
 
 // sum over keys of C(|row|, 3) (StatHyper type 1 / coarse inner triangles).
@@ -27,6 +31,8 @@ namespace dyng::detail::triad {
 // overflows from 2,097,152 members), the sum checked; flush() reports a count past 2^64 - 1.
 struct choose3_op {
   static constexpr int num_bins = 1;
+  /// dynG (M9b, ADR 0058): the Op's shape (experimental::count_local_patterns).
+  static constexpr experimental::shape shape = experimental::shape::keys;
   static constexpr bool unit_counts = false;  // dynG: adds C(|row|, 3), not 1 (wedge.cuh)
   unsigned long long sum;
   bool over;  // dynG: a C(|row|, 3) or the sum passed 2^64 - 1
@@ -47,3 +53,11 @@ struct choose3_op {
 };
 
 }  // namespace dyng::detail::triad
+
+namespace dyng::detail::local_patterns {
+
+/// choose3_op is one of triad_count's built-in patterns (local_patterns_kernels.cuh's bins handle).
+template <>
+struct builtin_op<triad::choose3_op> : std::true_type {};
+
+}  // namespace dyng::detail::local_patterns

@@ -24,6 +24,7 @@
 #include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
+#include "framework/enactor.hpp"
 #include "framework/scratch_buffer.hpp"
 #include "framework/workspace.hpp"
 #include "util/cuda_check.hpp"
@@ -61,24 +62,25 @@ cudaStream_t native(const resources& res) noexcept {
   return static_cast<cudaStream_t>(res.stream().get());
 }
 
-/// The pinned slot of the wedge count, after the bins.
-constexpr int wedge_slot = triad::bin_slots;
+/// The device slots of one call: the subtract phase's bins, the add phase's (a stride each), the
+/// error word.
+int bin_slots(const triad_cuda_engine& e) noexcept {
+  return 2 * e.stride + 1;
+}
 
-/// The shape of a pattern's kernels (triad_launch_counters: 0 triangles, 1 pairs, 2 keys).
-int shape_of(triad_count::pattern kind) noexcept {
-  switch (kind) {
-    case triad_count::pattern::stathyper_type1:
-      return 2;
-    case triad_count::pattern::stathyper_type2:
-      return 1;
-    default:
-      return 0;
-  }
+/// The slot of the device error word.
+int error_slot(const triad_cuda_engine& e) noexcept {
+  return 2 * e.stride;
+}
+
+/// The pinned slot of the wedge count, after the bins.
+int wedge_slot(const triad_cuda_engine& e) noexcept {
+  return bin_slots(e);
 }
 
 /// Count one call's outcome (mode 0: full count, 1: a frontier phase).
 void record(triad_cuda_engine& e, int mode, triad::wedge::launch outcome) noexcept {
-  const int shape = shape_of(e.kind);
+  const int shape = shape_index(*e.k);
   switch (outcome) {
     case triad::wedge::launch::kernel:
       ++e.launches.kernels[mode][shape];
@@ -100,17 +102,24 @@ triad::wedge::scratch scratch_of(const resources& res, triad_cuda_engine& e, boo
   s.scan_temp = full ? ws.full_scan_temp.data() : ws.scan_temp.data();
   s.scan_temp_bytes = e.scan_bytes;
   s.stream = native(res);
-  s.host_wedges = reinterpret_cast<long long*>(e.ws->get().host.data() + wedge_slot);
+  s.host_wedges = reinterpret_cast<long long*>(e.ws->get().host.data() + wedge_slot(e));
   return s;
 }
 
 /// Raise the call's device error word (read with the bins): internal_error for a triad of no
-/// class, capacity_error for a count past 2^64 - 1 (ADR 0057).
-void raise_device_errors(const unsigned long long* values, const char* what) {
-  const auto word = static_cast<std::uint32_t>(values[triad::error_slot]);
+/// class (a built-in pattern), invalid_argument_error for a bin an Op of a user named outside its
+/// range, capacity_error for a count past 2^64 - 1 (ADR 0057).
+void raise_device_errors(const triad_cuda_engine& e, const unsigned long long* values,
+                         const char* what) {
+  const auto word = static_cast<std::uint32_t>(values[error_slot(e)]);
   if (word == 0) return;
+  const bool invalid_bin = (word & bits_of(device_error::internal)) != 0;
+  if (invalid_bin && !e.k->builtin) {
+    throw invalid_argument_error(concat_message("dyng: ", what, ": the Op named a bin outside [0, ",
+                                                e.k->num_bins, ") (its num_bins)"));
+  }
   throw_device_errors(word, what,
-                      (word & bits_of(device_error::internal)) != 0
+                      invalid_bin
                           ? "a triangle of the line graph has a Venn pattern of no h-motif class"
                           : "a count exceeds 2^64 - 1");
 }
@@ -119,7 +128,7 @@ void raise_device_errors(const unsigned long long* values, const char* what) {
 const unsigned long long* read_bins(const resources& res, triad_cuda_engine& e) {
   triad_cuda_workspace& ws = e.ws->get();
   DYNG_CUDA_TRY(cudaMemcpyAsync(ws.host.data(), ws.bins.data(),
-                                sizeof(unsigned long long) * triad::bin_slots,
+                                sizeof(unsigned long long) * static_cast<std::size_t>(bin_slots(e)),
                                 cudaMemcpyDeviceToHost, native(res)));
   DYNG_CUDA_TRY(cudaStreamSynchronize(native(res)));
   note_host_sync();  // the update's budget (I9) counts it
@@ -129,7 +138,7 @@ const unsigned long long* read_bins(const resources& res, triad_cuda_engine& e) 
 /// Size the wedge scratch for phases of up to `sources` sources.
 void reserve_wedges(const resources& res, triad_cuda_engine& e, int sources, bool full = false) {
   triad_cuda_workspace& ws = e.ws->get();
-  if (!triad_reads_line_graph(e.kind)) return;  // type 1 launches no wedges
+  if (!reads_line_graph(*e.k)) return;  // the keys shape (type 1) launches no wedges
   e.scan_bytes = std::max<std::size_t>(triad::wedge::scan_temp_bytes(sources + 1), 1);
   if (full) {
     // compute(): released when it returns.
@@ -154,7 +163,7 @@ void build_frontier(const resources& res, triad_cuda_engine& e, const std::int64
     DYNG_FAIL("triad_count: a frontier of ", n, " keys exceeds the ", e.max_keys,
               " the workspace reserved before the commit");
   }
-  if (triad_reads_line_graph(e.kind)) {
+  if (reads_line_graph(*e.k)) {
     max_key = views.h2h.max_key;
     if (static_cast<std::int64_t>(max_key) + 1 > e.max_flags) {
       DYNG_FAIL("triad_count: the frontier flags of ", max_key,
@@ -172,41 +181,44 @@ void build_frontier(const resources& res, triad_cuda_engine& e, const std::int64
 
 }  // namespace
 
-void triad_cuda_open(const resources& res, triad_count::pattern kind, triad_cuda_engine& e) {
+void triad_cuda_open(const resources& res, const local_patterns::kernels& k, const void* op,
+                     triad_cuda_engine& e) {
   const scoped_device guard(res.device());
-  e.kind = kind;
+  e.k = &k;
+  e.op = op;
+  e.stride = triad::bin_stride(k.num_bins);
   e.ws.emplace(resources_access::workspaces(res).acquire<triad_cuda_workspace>(res));
   triad_cuda_workspace& ws = e.ws->get();
-  ws.bins.reserve(res, triad::bin_slots);
-  if (ws.host.size() < static_cast<std::size_t>(wedge_slot) + 1) {
+  ws.bins.reserve(res, static_cast<std::size_t>(bin_slots(e)));
+  if (ws.host.size() < static_cast<std::size_t>(wedge_slot(e)) + 1) {
     note_reservation();  // a deliberate growth of a reusable array (I9)
     ws.host = buffer<unsigned long long>();
-    ws.host = buffer<unsigned long long>(static_cast<std::size_t>(wedge_slot) + 1, res.stream(),
+    ws.host = buffer<unsigned long long>(static_cast<std::size_t>(wedge_slot(e)) + 1, res.stream(),
                                          resources_access::staging_memory(res), res.device());
   }
 }
 
 void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper::row_views& views,
-                        triad_bins& counts) {
+                        std::uint64_t* counts, const framework::hook_stages& names) {
   const scoped_device guard(res.device());
   triad_cuda_workspace& ws = e.ws->get();
   {
-    scoped_stage stage(res, "triad_count.count");
+    scoped_stage stage(res, names.count);
     reserve_wedges(res, e, views.has_h2h ? views.h2h.max_key : 0, true);
-    DYNG_CUDA_TRY(cudaMemsetAsync(ws.bins.data(), 0, sizeof(unsigned long long) * triad::bin_slots,
-                                  native(res)));
+    DYNG_CUDA_TRY(cudaMemsetAsync(
+        ws.bins.data(), 0, sizeof(unsigned long long) * static_cast<std::size_t>(bin_slots(e)),
+        native(res)));
     record(e, 0,
-           triad::count_full(e.kind, views, ws.bins.data(), ws.bins.data() + triad::error_slot,
+           triad::count_full(*e.k, e.op, views, ws.bins.data(), ws.bins.data() + error_slot(e),
                              scratch_of(res, e, true)));
   }
-  scoped_stage stage(res, "triad_count.finalize");
+  scoped_stage stage(res, names.finalize);
   const unsigned long long* values = read_bins(res, e);
   // The offsets of a full count (one per key: 20 MB on coauth-DBLP) are not kept for the updates.
   ws.full_offsets.release();
   ws.full_scan_temp.release();
-  raise_device_errors(values, "triad_count::compute");
-  counts.fill(0);
-  for (int k = 0; k < triad_num_bins(e.kind); ++k) {
+  raise_device_errors(e, values, names.compute_function.c_str());
+  for (int k = 0; k < e.k->num_bins; ++k) {
     counts[static_cast<std::size_t>(k)] = values[static_cast<std::size_t>(k)];
   }
 }
@@ -231,11 +243,12 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
   e.max_keys = sources;
   e.minus_sign = s;
   reserve_wedges(res, e, sources);
-  if (triad_reads_line_graph(e.kind)) {
+  if (reads_line_graph(*e.k)) {
     e.max_flags = static_cast<std::int64_t>(views.h2h.max_key) + insertions + 1;
     ws.flags.reserve_with_headroom(res, static_cast<std::size_t>(e.max_flags));
   }
-  DYNG_CUDA_TRY(cudaMemsetAsync(ws.bins.data(), 0, sizeof(unsigned long long) * triad::bin_slots,
+  DYNG_CUDA_TRY(cudaMemsetAsync(ws.bins.data(), 0,
+                                sizeof(unsigned long long) * static_cast<std::size_t>(bin_slots(e)),
                                 native(res)));
   if (deleted == 0) {
     record(e, 1, triad::wedge::launch::no_sources);
@@ -246,10 +259,9 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
                                 sizeof(std::int64_t) * deletions.size(), cudaMemcpyHostToDevice,
                                 native(res)));
   build_frontier(res, e, ws.ids.data(), deleted, views);
-  record(
-      e, 1,
-      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), rule,
-                         ws.bins.data(), ws.bins.data() + triad::error_slot, scratch_of(res, e)));
+  record(e, 1,
+         triad::count_phase(*e.k, e.op, views, ws.keys.data(), deleted, ws.flags.data(), rule,
+                            ws.bins.data(), ws.bins.data() + error_slot(e), scratch_of(res, e)));
 }
 
 void triad_cuda_identify_affected(const resources& res, triad_cuda_engine& e,
@@ -276,22 +288,25 @@ void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
   triad_cuda_workspace& ws = e.ws->get();
   e.plus_sign = s;
   record(e, 1,
-         triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), rule,
-                            ws.bins.data() + triad::phase_bins, ws.bins.data() + triad::error_slot,
+         triad::count_phase(*e.k, e.op, views, ws.keys.data(), e.num_keys, ws.flags.data(), rule,
+                            ws.bins.data() + e.stride, ws.bins.data() + error_slot(e),
                             scratch_of(res, e)));
 }
 
 void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_phase_bins& minus,
-                         triad_phase_bins& plus) {
+                         triad_phase_bins& plus, const char* what) {
   const scoped_device guard(res.device());
   const unsigned long long* values = read_bins(res, e);
-  raise_device_errors(values, "triad_count::update");
+  raise_device_errors(e, values, what);
   // ADR 0057: both phases' bins hold unsigned magnitudes; their signs are the phases'.
   minus.sign = e.minus_sign;
   plus.sign = e.plus_sign;
-  for (std::size_t k = 0; k < minus.counts.size(); ++k) {
+  minus.counts.fill(0);
+  plus.counts.fill(0);
+  const auto stride = static_cast<std::size_t>(e.stride);
+  for (std::size_t k = 0; k < stride; ++k) {
     minus.counts[k] = values[k];
-    plus.counts[k] = values[triad::phase_bins + k];
+    plus.counts[k] = values[stride + k];
   }
 }
 
@@ -305,9 +320,9 @@ void triad_cuda_take_launches(const triad_cuda_engine& e, triad_launch_counters&
   }
 }
 
-std::int64_t triad_cuda_host_syncs(triad_count::pattern kind) noexcept {
+std::int64_t triad_cuda_host_syncs(const local_patterns::kernels& k) noexcept {
   // The wedge count of each phase that launches wedges and the read of the bins.
-  return kind == triad_count::pattern::stathyper_type1 ? 1 : 3;
+  return reads_line_graph(k) ? 3 : 1;
 }
 
 // The frontier kernel (resources::warm_up() loads it; the wedge kernels: engine/counters.cu).

@@ -4,12 +4,13 @@
 // PairBody, keyKernel: the wedges of a full count and of a frontier phase as loops)
 /**
  * @file host_engine.hpp
- * @brief The incremental host engine of triad_count (sequential.cpp, openmp.cpp): ESCHER-GPU's
- *        wedge engine transliterated to loops over the internal row views in host memory, with the
- *        CUDA engine's operations (engine/count_ops.hpp, motif_ops.hpp, stathyper_ops.hpp), its
- *        exactly-once rule (engine/ownership.hpp) and its shared pieces (engine/phases.hpp), run by
- *        operators::count_owned (count_delta.hpp) on an executor (M9a step 4, ADR 0054; the
- *        phases as unsigned magnitudes, ADR 0057).
+ * @brief The incremental host engine of every local pattern (sequential.cpp, openmp.cpp):
+ *        ESCHER-GPU's wedge engine transliterated to loops over the internal row views in host
+ *        memory, the work of one source being the pattern's (local_patterns::host_source, the
+ *        CUDA engine's operations, its exactly-once rule), run by operators::count_owned
+ *        (count_delta.hpp) on an executor (M9a step 4, ADR 0054; the phases as unsigned
+ *        magnitudes, ADR 0057; one engine for the built-in patterns and the Ops of users,
+ *        ADR 0058).
  *
  * One count is a pattern's shape over a set of source keys, the work of one source being what
  * the device engine's threads do for that source's wedges (engine/wedge.cuh):
@@ -30,6 +31,13 @@
  * count's type-1 sources are 1..views.h2v.max_key; the frontiers hold live ids); the flags cover
  * the line graph's keys 0..views.h2h.max_key.
  *
+ * Since M9b (ADR 0058) the work of one source is the pattern's table's `source` function (the
+ * template local_patterns::host_source of <dyng/experimental/detail/local_patterns_engine.hpp>,
+ * instantiated for the four built-in operations in builtin_ops.cpp and for an Op of a user in the
+ * user's translation unit), called once per source by count_owned through a type-erased item; the
+ * loops above moved there unchanged. count_owned runs with max_pattern_bins bins per thread, and
+ * the source's own bins handle bounds its bins to the pattern's num_bins.
+ *
  * count_owned gives every thread private bins and adds them up in thread order after the pass,
  * so 1, 8 or 56 OpenMP threads give the same counts (a static partition of the sources). A phase
  * is counted as unsigned magnitudes with its sign beside them (triad_phase_bins; ADR 0057: a
@@ -39,40 +47,40 @@
  */
 #pragma once
 
-#include "algorithms/triad_count/engine/count_ops.hpp"
-#include "algorithms/triad_count/engine/motif_ops.hpp"
 #include "algorithms/triad_count/engine/ownership.hpp"
 #include "algorithms/triad_count/engine/phases.hpp"
-#include "algorithms/triad_count/engine/sets.hpp"
-#include "algorithms/triad_count/engine/stathyper_ops.hpp"
 #include "algorithms/triad_count/problem.hpp"
 #include "framework/policies.hpp"
 #include "hypergraph/row_views.hpp"
 #include "operators/count_delta.hpp"
 
 #include <dyng/core/error.hpp>
-#include <dyng/triad_count.hpp>
+#include <dyng/experimental/detail/local_patterns_engine.hpp>
+#include <dyng/experimental/local_patterns.hpp>
 
 #include <cstddef>
 #include <cstdint>
-#include <type_traits>
 
 namespace dyng::detail::triad_host {
 
-/// The rows handle of a state's h2v view.
-inline triad::hyperedge_rows rows_of(const hyper::row_views& views) {
-  return triad::hyperedge_rows{views.h2v.flat, views.h2v.loc, views.h2v.len};
+static_assert(local_patterns::host_invalid_bin == operators::count_invalid_bin &&
+                  local_patterns::host_overflow == operators::count_overflow,
+              "the Op's host bins handle reports with count_owned's status bits");
+
+/// The line graph's rows of the host work (the internal row view's layout).
+inline local_patterns::line_rows line_rows_of(const escher::row_view& v) noexcept {
+  return local_patterns::line_rows{v.flat, v.loc, v.len, v.out, v.max_key};
 }
 
-/// The key of source s: the frontier's keys[s], or s + 1 in a full count (sourceKey).
-inline int source_key(const int* keys, std::int64_t s) noexcept {
-  return keys != nullptr ? keys[s] : static_cast<int>(s) + 1;
-}
-
-/// The first wedge of source a: every neighbour in a frontier phase, the out-neighbours (b > a)
-/// in a full count (wedgeBegin).
-inline int wedge_begin(const escher::row_view& adj, int a, bool all_neighbours) noexcept {
-  return all_neighbours ? adj.loc[a] : adj.out[a];
+/// What the work of a source reads: the state's rows, the frontier's keys and flags.
+inline local_patterns::host_pass pass_of(const hyper::row_views& views, const int* keys,
+                                         const unsigned char* flags) noexcept {
+  local_patterns::host_pass p;
+  p.adj = line_rows_of(views.h2h);
+  p.rows = local_patterns::rows_factory::make(views.h2v.flat, views.h2v.loc, views.h2v.len);
+  p.keys = keys;
+  p.in_frontier = flags;
+  return p;
 }
 
 /**
@@ -87,114 +95,36 @@ inline std::int64_t count_wedges(const escher::row_view& adj, const int* keys, i
   const bool all_neighbours = keys != nullptr;
   std::int64_t wedges = 0;
   for (int s = 0; s < n; ++s) {
-    const int a = source_key(keys, s);
-    wedges += adj.loc[a] + adj.len[a] - wedge_begin(adj, a, all_neighbours);
+    const int a = local_patterns::host_source_key(keys, s);
+    wedges += adj.loc[a] + adj.len[a] - (all_neighbours ? adj.loc[a] : adj.out[a]);
   }
   return wedges;
 }
 
 /**
- * @brief The work of one source for the triangle patterns (forEachWedge with TriangleBody): every
- *        wedge (a, b) of the source that passes the frontier filter, closed into its triangles
- *        (a, b, k), k > b, that pass the closing filter.
- * @tparam op_t The operation (motif_op, type3_op).
+ * @brief The work of one source (operators::count_owned's element): the pattern's `source`
+ *        function with the worker's bins.
  */
-template <class op_t>
-struct triangle_item {
-  escher::row_view adj;              ///< the line graph's rows
-  triad::hyperedge_rows rows;        ///< the h2v rows
-  const int* keys;                   ///< the frontier's keys (nullptr: the full count)
-  const unsigned char* in_frontier;  ///< the frontier's flags (nullptr: the full count)
+struct erased_source {
+  const local_patterns::kernels* k;       ///< the pattern's table
+  const void* op;                         ///< the Op's value
+  const local_patterns::host_pass* pass;  ///< what the sources read
 
-  /// Source s (operators::count_owned's element), its counts added to `bins`.
+  /// Source s, its counts added to `bins` (a host_count_bins of max_pattern_bins bins).
   template <class bins_t>
   void operator()(std::int64_t s, framework::ownership::min_member /*rule*/, bins_t& bins) const {
-    const bool all_neighbours = keys != nullptr;
-    const int a = source_key(keys, s);
-    const int end_a = adj.loc[a] + adj.len[a];
-    op_t op{};
-    for (int p = wedge_begin(adj, a, all_neighbours); p < end_a; ++p) {
-      const int b = adj.flat[p];
-      if (triad::min_member_skips_wedge(in_frontier, b, a)) {
-        continue;
-      }
-      op.begin_wedge(rows, a - 1, b - 1);
-      int x = p + 1;
-      int y = adj.out[b];
-      const int end_b = adj.loc[b] + adj.len[b];
-      while (x < end_a && y < end_b) {
-        const int ka = adj.flat[x];
-        const int kb = adj.flat[y];
-        if (ka == kb) {
-          if (!triad::min_member_skips_closing(in_frontier, ka, a)) {
-            op.triangle(rows, ka - 1, bins);
-          }
-          ++x;
-          ++y;
-        } else if (ka < kb) {
-          ++x;
-        } else {
-          ++y;
-        }
-      }
-    }
-    op.flush(bins);
-  }
-};
-
-/**
- * @brief The work of one source for the pair pattern (forEachWedge with PairBody): every wedge
- *        (a, b) of the source that passes the frontier filter is one pair.
- * @tparam op_t The operation (type2_op).
- */
-template <class op_t>
-struct pair_item {
-  escher::row_view adj;              ///< the line graph's rows
-  triad::hyperedge_rows rows;        ///< the h2v rows
-  const int* keys;                   ///< the frontier's keys (nullptr: the full count)
-  const unsigned char* in_frontier;  ///< the frontier's flags (nullptr: the full count)
-
-  /// Source s, its counts added to `bins`.
-  template <class bins_t>
-  void operator()(std::int64_t s, framework::ownership::min_member /*rule*/, bins_t& bins) const {
-    const bool all_neighbours = keys != nullptr;
-    const int a = source_key(keys, s);
-    const int end_a = adj.loc[a] + adj.len[a];
-    op_t op{};
-    for (int p = wedge_begin(adj, a, all_neighbours); p < end_a; ++p) {
-      const int b = adj.flat[p];
-      if (triad::min_member_skips_wedge(in_frontier, b, a)) {
-        continue;
-      }
-      op.pair(rows, a - 1, b - 1, bins);
-    }
-    op.flush(bins);
-  }
-};
-
-/**
- * @brief The work of one key for the key pattern (keyKernel): the source's own count (no wedges,
- *        no filter: a key is counted once, by itself).
- * @tparam op_t The operation (choose3_op).
- */
-template <class op_t>
-struct key_item {
-  triad::hyperedge_rows rows;  ///< the h2v rows
-  const int* keys;             ///< the frontier's keys (nullptr: the full count)
-
-  /// Source s, its count added to `bins`.
-  template <class bins_t>
-  void operator()(std::int64_t s, framework::ownership::min_member /*rule*/, bins_t& bins) const {
-    op_t op{};
-    op.key(rows, source_key(keys, s) - 1, bins);
-    op.flush(bins);
+    k->source(op, *pass, s, bins.bins, bins.status);
   }
 };
 
 /// Raise count_owned's error bits (after the pass: the result is poisoned by the caller).
-inline void raise_status(std::uint32_t status, const char* what) {
+inline void raise_status(const local_patterns::kernels& k, std::uint32_t status, const char* what) {
   if ((status & operators::count_invalid_bin) != 0) {
-    DYNG_FAIL(what, ": a triangle of the line graph has a Venn pattern of no h-motif class");
+    if (k.builtin) {
+      DYNG_FAIL(what, ": a triangle of the line graph has a Venn pattern of no h-motif class");
+    }
+    throw invalid_argument_error(concat_message("dyng: ", what, ": the Op named a bin outside [0, ",
+                                                k.num_bins, ") (its num_bins)"));
   }
   if ((status & operators::count_overflow) != 0) {
     throw capacity_error(concat_message("dyng: ", what, ": a count exceeds the 64-bit range"));
@@ -203,105 +133,74 @@ inline void raise_status(std::uint32_t status, const char* what) {
 
 /**
  * @brief One count of a pattern over n sources (countWedgeShape on the host): the early outs,
- *        then `run(item)` with the source work of the pattern's shape.
- * @param[in] kind  The pattern.
+ *        then `run(n)` (the pass).
+ * @param[in] k     The pattern's table.
  * @param[in] views The row views (host memory).
  * @param[in] keys  The frontier's keys, or nullptr for the keys 1..n.
  * @param[in] n     The sources.
- * @param[in] flags The frontier's flags (nullptr: the full count).
- * @param[in] run   Called once with the source work of the pattern's shape (a triangle_item,
- *                  pair_item or key_item): the pass (count_owned with the op's
- *                  bins, bins_of).
+ * @param[in] run   Called once when the pass runs.
  * @return The outcome.
  */
 template <typename run_t>
-triad::wedge::launch dispatch(triad_count::pattern kind, const hyper::row_views& views,
-                              const int* keys, int n, const unsigned char* flags, run_t&& run) {
+triad::wedge::launch dispatch(const local_patterns::kernels& k, const hyper::row_views& views,
+                              const int* keys, int n, run_t&& run) {
   if (n <= 0) {
     return triad::wedge::launch::no_sources;
   }
-  const triad::hyperedge_rows rows = rows_of(views);
-  if (kind == triad_count::pattern::stathyper_type1) {
-    run(key_item<triad::choose3_op>{rows, keys});
+  if (k.pattern_shape == experimental::shape::keys) {
+    run();
     return triad::wedge::launch::kernel;
   }
   if (count_wedges(views.h2h, keys, n) == 0) {
     return triad::wedge::launch::no_wedges;
   }
-  switch (kind) {
-    case triad_count::pattern::h_motif:
-      run(triangle_item<triad::motif_op>{views.h2h, rows, keys, flags});
-      break;
-    case triad_count::pattern::stathyper_type2:
-      run(pair_item<triad::type2_op>{views.h2h, rows, keys, flags});
-      break;
-    case triad_count::pattern::stathyper_type3:
-      run(triangle_item<triad::type3_op>{views.h2h, rows, keys, flags});
-      break;
-    case triad_count::pattern::stathyper_type1:
-      break;
-  }
+  run();
   return triad::wedge::launch::kernel;
 }
 
-/// The bins of an item's operation.
-template <typename item_t>
-struct bins_of;
-/// The bins of a triangle item.
-template <class op_t>
-struct bins_of<triangle_item<op_t>> {
-  static constexpr int value = op_t::num_bins;  ///< the op's bins
-};
-/// The bins of a pair item.
-template <class op_t>
-struct bins_of<pair_item<op_t>> {
-  static constexpr int value = op_t::num_bins;  ///< the op's bins
-};
-/// The bins of a key item.
-template <class op_t>
-struct bins_of<key_item<op_t>> {
-  static constexpr int value = op_t::num_bins;  ///< the op's bins
-};
-
 /**
- * @brief The words of scratch the host engine's counts need on an executor (the 30 bins of
- *        h_motif per thread).
+ * @brief The words of scratch the host engine's counts need on an executor (max_pattern_bins
+ *        bins and a status word per thread).
  * @tparam exec_t The executor.
  * @param[in] exec The executor.
  * @return The words.
  */
 template <typename exec_t>
 std::size_t scratch_words(const exec_t& exec) noexcept {
-  return operators::count_scratch_words<triad_count::max_bins>(exec);
+  return operators::count_scratch_words<experimental::max_pattern_bins>(exec);
 }
 
 /**
  * @brief The full count of compute(): every out-wedge of the keys 1..full_count_keys() (no
- *        frontier, nothing filtered), the totals into `counts` (zeroed first).
+ *        frontier, nothing filtered), the totals into `counts` (max_pattern_bins words).
  * @tparam exec_t The executor.
  * @param[in]  exec    The executor.
- * @param[in]  kind    The pattern.
+ * @param[in]  k       The pattern's table.
+ * @param[in]  op      The Op's value.
  * @param[in]  views   The row views (host memory).
  * @param[in]  rule    The exactly-once rule (a full count has no frontier: nothing is skipped).
  * @param[out] scratch scratch_words(exec) words.
  * @param[out] counts  The counts.
  * @return The outcome.
- * @throws internal_error for a triad of no class; capacity_error past 2^64 - 1.
+ * @throws internal_error for a triad of no class (a built-in pattern); invalid_argument_error for
+ *         a bin an Op named outside its range; capacity_error past 2^64 - 1.
  */
 template <typename exec_t>
-triad::wedge::launch count_full(const exec_t& exec, triad_count::pattern kind,
-                                const hyper::row_views& views,
+triad::wedge::launch count_full(const exec_t& exec, const local_patterns::kernels& k,
+                                const void* op, const hyper::row_views& views,
                                 framework::ownership::min_member rule, std::uint64_t* scratch,
-                                triad_bins& counts) {
-  counts.fill(0);
+                                std::uint64_t* counts) {
+  for (int b = 0; b < experimental::max_pattern_bins; ++b) {
+    counts[b] = 0;
+  }
   std::uint32_t status = 0;
-  const triad::wedge::launch outcome = dispatch(
-      kind, views, nullptr, triad::full_count_keys(kind, views), nullptr, [&](const auto& item) {
-        constexpr int bins = bins_of<std::decay_t<decltype(item)>>::value;
-        status = operators::count_owned<bins>(exec, rule, triad::full_count_keys(kind, views), item,
-                                              scratch, counts.data());
-      });
-  raise_status(status, "triad_count::compute");
+  const int n = triad::full_count_keys(k.pattern_shape, views);
+  const local_patterns::host_pass pass = pass_of(views, nullptr, nullptr);
+  const triad::wedge::launch outcome = dispatch(k, views, nullptr, n, [&]() {
+    status = operators::count_owned<experimental::max_pattern_bins>(
+        exec, rule, n, erased_source{&k, op, &pass}, scratch, counts);
+  });
+  raise_status(k, status, k.builtin ? "triad_count::compute" : "count_local_patterns::compute");
   return outcome;
 }
 
@@ -311,33 +210,36 @@ triad::wedge::launch count_full(const exec_t& exec, triad_count::pattern kind,
  *        the phase's sign beside them (ADR 0057; count_owned, the sign applied by apply_delta()).
  * @tparam exec_t The executor.
  * @param[in]     exec    The executor.
- * @param[in]     kind    The pattern.
+ * @param[in]     k       The pattern's table.
+ * @param[in]     op      The Op's value.
  * @param[in]     views   G_t's row views (the subtract phase) or G_{t+1}'s (the add phase).
  * @param[in]     keys    The frontier's keys (ids + 1).
  * @param[in]     n       Their number.
- * @param[in]     flags   A flag per line-graph key 0..views.h2h.max_key (nullptr for type 1).
+ * @param[in]     flags   A flag per line-graph key 0..views.h2h.max_key (nullptr for keys).
  * @param[in]     s       The phase's sign (minus: G_t and the deletions; plus: G_{t+1} and the
  *                        ASSIGNED inserted ids).
  * @param[in]     rule    The exactly-once rule (invariant I2), passed explicitly.
  * @param[out]    scratch scratch_words(exec) words.
- * @param[out]    out     The phase: `s` and its triads per bin.
+ * @param[out]    out     The phase: `s` and its counts per bin.
  * @return The outcome.
- * @throws internal_error for a triad of no class; capacity_error if a count exceeds 2^64 - 1.
+ * @throws as count_full().
  */
 template <typename exec_t>
-triad::wedge::launch count_phase(const exec_t& exec, triad_count::pattern kind,
-                                 const hyper::row_views& views, const int* keys, int n,
-                                 const unsigned char* flags, framework::sign s,
+triad::wedge::launch count_phase(const exec_t& exec, const local_patterns::kernels& k,
+                                 const void* op, const hyper::row_views& views, const int* keys,
+                                 int n, const unsigned char* flags, framework::sign s,
                                  framework::ownership::min_member rule, std::uint64_t* scratch,
                                  triad_phase_bins& out) {
   std::uint32_t status = 0;
   out.sign = s;
   out.counts.fill(0);
-  const triad::wedge::launch outcome = dispatch(kind, views, keys, n, flags, [&](const auto& item) {
-    constexpr int bins = bins_of<std::decay_t<decltype(item)>>::value;
-    status = operators::count_owned<bins>(exec, rule, n, item, scratch, out.counts.data());
+  const local_patterns::host_pass pass =
+      pass_of(views, keys, k.pattern_shape == experimental::shape::keys ? nullptr : flags);
+  const triad::wedge::launch outcome = dispatch(k, views, keys, n, [&]() {
+    status = operators::count_owned<experimental::max_pattern_bins>(
+        exec, rule, n, erased_source{&k, op, &pass}, scratch, out.counts.data());
   });
-  raise_status(status, "triad_count::update");
+  raise_status(k, status, k.builtin ? "triad_count::update" : "count_local_patterns::update");
   return outcome;
 }
 
@@ -348,9 +250,9 @@ triad::wedge::launch count_phase(const exec_t& exec, triad_count::pattern kind,
  * @return Nothing (never compiles).
  */
 template <typename exec_t>
-triad::wedge::launch count_phase(const exec_t&, triad_count::pattern, const hyper::row_views&,
-                                 const int*, int, const unsigned char*, framework::sign,
-                                 std::uint64_t*, triad_phase_bins&) {
+triad::wedge::launch count_phase(const exec_t&, const local_patterns::kernels&, const void*,
+                                 const hyper::row_views&, const int*, int, const unsigned char*,
+                                 framework::sign, std::uint64_t*, triad_phase_bins&) {
   static_assert(operators::count_detail::always_false<exec_t>,
                 "triad_host::count_phase needs an ownership rule: pass "
                 "framework::ownership::min_member{} after the sign (invariant I2: exactly-once "

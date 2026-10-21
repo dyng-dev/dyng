@@ -19,7 +19,10 @@
 #include "algorithms/triad_count/engine/motif_table.hpp"
 #include "algorithms/triad_count/engine/sets.hpp"
 
+#include <dyng/experimental/detail/local_patterns_engine.hpp>
+
 #include <climits>
+#include <type_traits>
 
 namespace dyng::detail::triad {
 
@@ -57,6 +60,8 @@ static inline DYNG_TRIAD_HD int compute_motif_index(int deg_a, int deg_b, int de
 // come from a single merge over the three H2V rows.
 struct motif_op {
   static constexpr int num_bins = 30;
+  /// dynG (M9b, ADR 0058): the Op's shape (experimental::count_local_patterns).
+  static constexpr experimental::shape shape = experimental::shape::triangles;
   // dynG (ADR 0057): every add is 1, so a block's bins cannot pass 2^64 - 1 and the device's
   // shared bins are added to unchecked on this hot path (wedge.cuh); the global bins are checked.
   static constexpr bool unit_counts = true;
@@ -68,23 +73,31 @@ struct motif_op {
   DYNG_TRIAD_HD void begin_wedge(const rows_t& rows, int a, int b) {
     const row_ref ra = rows.row(a);
     const row_ref rb = rows.row(b);
-    row_a = ra.data;
-    row_b = rb.data;
-    da = ra.size;
-    db = rb.size;
+    row_a = ra.begin();
+    row_b = rb.begin();
+    da = ra.size();
+    db = rb.size();
     cab = intersect_size(row_a, da, row_b, db);
   }
   template <class rows_t, class bins_t>
   DYNG_TRIAD_HD void triangle(const rows_t& rows, int c, bins_t& bins) {
     const row_ref rc = rows.row(c);
     int cbc, cca, g;
-    venn3(row_a, da, row_b, db, rc.data, rc.size, cbc, cca, g);
+    venn3(row_a, da, row_b, db, rc.begin(), rc.size(), cbc, cca, g);
     // The class is invariant under permutations of (a, b, c); the bins handle refuses -1 (no
     // class)
-    bins.add(compute_motif_index(da, db, rc.size, cab, cbc, cca, g), 1ULL);
+    bins.add(compute_motif_index(da, db, rc.size(), cab, cbc, cca, g), 1ULL);
   }
   template <class bins_t>
   DYNG_TRIAD_HD void flush(bins_t&) {}
 };
 
 }  // namespace dyng::detail::triad
+
+namespace dyng::detail::local_patterns {
+
+/// motif_op is one of triad_count's built-in patterns (local_patterns_kernels.cuh's bins handle).
+template <>
+struct builtin_op<triad::motif_op> : std::true_type {};
+
+}  // namespace dyng::detail::local_patterns

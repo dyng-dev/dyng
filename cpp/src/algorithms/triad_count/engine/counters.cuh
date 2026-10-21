@@ -20,9 +20,12 @@
  * here the bins, the frontier and the wedge scratch are the caller's workspace, so a counter is its
  * pattern's choice of shape and operation: count_full() is the classes' count(), count_phase()
  * their phase() (subtract() with the deleted keys, add() with the inserted keys; dynG, ADR 0057:
- * both as unsigned magnitudes, the signs applied on the host). The bins of one call: 30 of the
- * subtract phase, 30 of the add phase (kept apart), and the device error word (motif_op's pattern
- * of no class; a count past 2^64 - 1).
+ * both as unsigned magnitudes, the signs applied on the host). The bins of one call: a stride of
+ * max(num_bins, 30) for the subtract phase, the same for the add phase (kept apart), and the
+ * device error word (an invalid bin: motif_op's pattern of no class, or a bin an Op of a user
+ * named outside its range; a count past 2^64 - 1). Since M9b (ADR 0058) a counter is a table of
+ * the local-pattern engine (local_patterns::kernels): the built-in patterns' and the Ops of users
+ * run through the same two functions.
  */
 #pragma once
 
@@ -30,34 +33,43 @@
 #include "framework/policies.hpp"
 #include "hypergraph/row_views.hpp"
 
-#include <dyng/triad_count.hpp>
+#include <dyng/experimental/detail/local_patterns_engine.hpp>
 
 namespace dyng::detail::triad {
 
-/// The bins of one phase (30 for h_motif; the types use the first).
+/// The smallest stride of a call's phase bins (30: h_motif's bins; M9a's layout, which the
+/// built-in patterns keep).
 constexpr int phase_bins = 30;
-/// The device slots of one call: the subtract phase's bins, the add phase's, the error word.
-constexpr int bin_slots = 2 * phase_bins + 1;
-/// The slot of the device error word (motif_op: a triangle of no class).
-constexpr int error_slot = 2 * phase_bins;
+
+/**
+ * @brief The stride of a call's phase bins on the device: the subtract phase's bins at 0, the
+ *        add phase's at the stride, the device error word at twice the stride.
+ * @param[in] num_bins The pattern's bins.
+ * @return max(num_bins, phase_bins).
+ */
+constexpr int bin_stride(int num_bins) noexcept {
+  return num_bins > phase_bins ? num_bins : phase_bins;
+}
 
 // The full count of a pattern (ESCHER-GPU's count(): computeMotifCounts for the h-motifs, the
-// keys of H2V for type 1, the out-pairs and out-triangles of H2H for types 2 and 3), added to
-// d_bins[0..30). The source keys are the line graph's (views.h2h.max_key; ESCHER-GPU's
-// numHyperedgeKeys) and, for type 1, the h2v view's (views.h2v.max_key: dynG's id bound can go
-// down and the h2v view covers the keys up to the bound only).
-wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& views,
-                         unsigned long long* d_bins, unsigned long long* d_error,
-                         const wedge::scratch& s);
+// keys of H2V for type 1, the out-pairs and out-triangles of H2H for types 2 and 3; dynG M9b: any
+// Op, through its table `k` and its value `op`), added to d_bins[0..num_bins). The source keys are
+// the line graph's (views.h2h.max_key; ESCHER-GPU's numHyperedgeKeys) and, for the keys shape, the
+// h2v view's (views.h2v.max_key: dynG's id bound can go down and the h2v view covers the keys up
+// to the bound only).
+wedge::launch count_full(const local_patterns::kernels& k, const void* op,
+                         const hyper::row_views& views, unsigned long long* d_bins,
+                         unsigned long long* d_error, const wedge::scratch& s);
 
 // One frontier phase of a pattern (ESCHER-GPU's runFrontierPhase and the counters' phase()):
 // the triads (pairs, keys) through the frontier keys d_keys[0..num_keys), each counted at its
 // smallest frontier member (the rule `rule`, ownership.hpp; flags d_flags over the line graph's
 // keys), added to d_bins as unsigned magnitudes (dynG, ADR 0057: the caller keeps the phase's
 // sign; a count past 2^64 - 1 sets the capacity bit of d_error).
-wedge::launch count_phase(triad_count::pattern kind, const hyper::row_views& views,
-                          const int* d_keys, int num_keys, const unsigned char* d_flags,
-                          framework::ownership::min_member rule, unsigned long long* d_bins,
-                          unsigned long long* d_error, const wedge::scratch& s);
+wedge::launch count_phase(const local_patterns::kernels& k, const void* op,
+                          const hyper::row_views& views, const int* d_keys, int num_keys,
+                          const unsigned char* d_flags, framework::ownership::min_member rule,
+                          unsigned long long* d_bins, unsigned long long* d_error,
+                          const wedge::scratch& s);
 
 }  // namespace dyng::detail::triad
