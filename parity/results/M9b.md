@@ -105,3 +105,93 @@ tree.
 The other steps of `ci/gpu_local.sh` (the whole-suite memcheck / synccheck / racecheck, the CBST and
 hypergraph sanitizers and replays, the plugin wheel, clang-tidy over the CUDA branches) were not
 run in this step; the release-readiness run of the milestone (criterion 10) runs them all.
+
+## 2. Step python-cli-wheels: Python, the CLI, the triad bins, the wheels (criteria 5-7)
+
+`dyng.triad_count` and `dyng.update()` over hypergraphs (ADR 0059), the triad-bins JSON
+(`io::read_triad_bins_json`, `dyng.io.read_triad_bins`), `dyng.testing.triad_reference`, and
+`dyng triad_count compute|update` with `--format json|escher`. Commits `6e98222` (the JSON),
+`86e9224` (Python), `db25f77` (the CLI), and the records commit. No library code of the
+algorithm, the engine or the operators changed in this step (`git diff 2771348 -- cpp/src/algorithms
+cpp/src/engine cpp/src/operators cpp/include/dyng/experimental cpp/include/dyng/triad_count.hpp`:
+only the manifest's `python` key): the built-in kernels are those of section 1.1, and no M9a gate
+needs a reading.
+
+### 2.1 `--format escher` against A's unpatched stdout (criterion 6)
+
+`python/tests/test_triad_count_cli.py::test_escher_format_equals_escher_gpus_stdout`: for every
+make-test group of the golden set (15 groups; the input `.hg` of A's loaded rows and the group's
+`.dgb` batches, decompressed from `$DYNG_SCRATCH/goldens/triad_count/escher_gpu`), `dyng
+triad_count update --format escher` (or `compute` for the groups without batches) with A's
+vertex count, `--id-reuse erase_first --capacity escher_gpu --min-initial-payload <A's payload
+capacity>` and each pattern, against `<exe>.stdout` (A's unpatched `build/main`, `type1`, `type2`,
+`type3`) without A's generator block (the five lines its generator prints for a generated input):
+
+| Groups | Executables | Diff |
+|---|---|---|
+| 01-smoke ... 15-medium (15) | main, type1, type2, type3 (60 stdout files) | **empty for all 60**: the `Hypergraph:` line, the baseline, every `Batch` line and every delta line byte for byte (openmp, 4 threads; 35 s, 24 s of them the h-motif count of 14-skewed's 1,200-hyperedge clique) |
+
+Every `.dgb` record carries the expected ids; the CLI checked them after every batch (they
+matched). In hosted CI (no golden set) `test_escher_format_equals_the_make_test_fixture`
+regenerates the four synthetic groups (01, 03, 07, 12) with the legacy generators, records them as
+`.hg` and `.dgb` files, and compares the CLI's count and batch lines with A's counts in the
+committed fixture (`escher_gpu_make_test.txt`): equal on sequential and openmp.
+
+### 2.2 Python against A's counts and the oracles (criterion 5)
+
+| Test (`python/tests/test_triad_count.py`) | Result |
+|---|---|
+| A's make-test counts (the committed fixture, D5): the four synthetic groups regenerated, all four patterns on 01 and 12, types 1 and 2 on the syn100k groups 03 and 07, every batch's (deletions, insertions, delta) through `dyng.update()` | equal on sequential and openmp (and on cuda with the cu12 and cu13 plugins, `test_triad_count_cuda.py`) |
+| compute / update against `dyng.testing.triad_reference` (ESCHER-GPU's CPU reference) and a pure-Python brute force (every triple, its Venn regions, the documented table of canonical ids), every pattern, unweighted and weighted, both host backends | equal after every batch |
+| Hypothesis "update chain == compute" (`dst.hypergraphs()`, `dst.hyperedge_batches(model)`, both id orders, 1-4 patterns updated by one `dyng.update()`, 40 examples x 3 batches) | passed; every chain also equal to the brute force and its deltas to the counts' differences |
+| the PLAN 5.5 example (adapted: `inserted_ids` is already an int64 array) | passed (`test_plan_examples.py`) |
+
+### 2.3 Wheels (criterion 7)
+
+`ci/plugin_wheels.sh` with `DYNG_PLUGINS="cu12 cu13"` (CUDA 12.9 and 13.1, the glibc 2.28
+toolchain, the release architectures), records in `$DYNG_SCRATCH/wheels/m9b-step2-plugins`:
+
+| Distribution | M8b (`0.3.0.dev0-plugins`, 2026-10-14) | M9b step 2 | Growth | Budget |
+|---|---:|---:|---:|---:|
+| `dyng` (CPU) | 1,991,049 B | 2,102,460 B (2.10 MB) | +111,411 B (+5.6 %) | 90 MB |
+| `dyng` sdist | 1,422,705 B | 1,588,201 B | +165,496 B | - |
+| `dyng-cu12` | 8,268,291 B | 8,665,367 B (8.67 MB) | +397,076 B (+4.8 %) | 90 MB |
+| `dyng-cu13` | 8,188,078 B | 8,579,930 B (8.58 MB) | +391,852 B (+4.8 %) | 90 MB |
+
+The growth is triad_count (M9a: the wedge engine's kernels, the host engine, the oracle) and this
+step's bindings and JSON reader; `ci/wheel_check.py`, `twine check --strict` and the code-object
+check (SASS sm_75-sm_120 and PTX sm_120 per toolkit) passed. Install tests in fresh venvs (Python
+3.12 and 3.13, each plugin): the smoke test (`ci/plugin_smoke.py`, now with triad_count compute
+and a `dyng.update()` of two results on GPU 1, equal to the sequential backend), the fallbacks
+(no device, no driver), `pytest -m gpu` **69 passed** (61 before; the 8 triad_count CUDA tests),
+the suite with `DYNG_CPU_ONLY=1` **715 passed**. The CPU wheel alone in a fresh venv:
+`pytest -k triad` **78 passed** (the golden diff included). `ci/gpu_local.sh` step `plugin`
+(`DYNG_GPU_PLUGIN_WHEELS`, cu13, GPU 1): passed.
+
+**The ci-cuda13 compile time.** The compile-only preset `ci-cuda13` (CUDA 13.1, release
+architectures, every instantiation, test and mutant), from `git archive` copies, `-j 28` on the
+shared machine one after the other (load 9-22; CPU-minutes are the sums of `.ninja_log` step
+times):
+
+| | M9a merge `6716eec` | M9b step 2 (`db25f77`) |
+|---|---:|---:|
+| wall | 214 s | 216 s |
+| steps | 1,032 | 1,065 |
+| CPU-minutes | 92.5 | 94.2 (+1.6: `local_patterns_test.cu` 28 s, `tutorial_test.cu` 22 s, `triad_replay_local_patterns.cu` 13 s, the two `.cuh` self-containment units 6 s each, the host units) |
+| `libdyng.so` (unstripped) | 41,659,800 B | 41,801,272 B (+0.3 %) |
+
+The hosted `cuda-build` jobs of M9a's head (`6716eec`, run 39555385200) took 10.5 min (CUDA 13.1.1),
+12.0 min (13.4.1) and 12.7 min (ci-cuda12 with 12.9.2) of their `timeout-minutes: 120`; M9b adds
+1.8 % of the preset's compile work, so the margin stays about 107 minutes.
+
+### 2.4 Tests and checks of the step
+
+| Check | Result |
+|---|---|
+| `ci/python.sh` (editable install, stubs, mypy strict, pytest) | 715 passed, 80 skipped (the CUDA tests without a plugin, pandas) |
+| `dyng_io_tests` `TriadBins.*` (dev) | 8 / 8: the writer's text, round trips (extremes, a real result), any JSON layout, the reader's errors with line and column |
+| `fuzz.replay.triad_bins`, `fuzz.selftest.triad_bins` | passed (the planted writer bug reported) |
+| `ci/api_check.sh` against `origin/main` | no breaking change: the frozen C++ API (an include added to `dyng.hpp` by M9a) and griffe (additions only) |
+| frozen headers against `65a62c9` and `origin/main` | empty |
+| Clang 18 `-fsyntax-only` (a dev database with the Python bindings) | 444 files, **0 failures** |
+| cpu-only with `-D_FORTIFY_SOURCE=3` (with the bindings) | built without warnings |

@@ -123,3 +123,99 @@ SASS builds a few seconds each. Everything on GPU 1 under the shared lock; no ti
   nvcc compile-failure cases are not compiled by it (they are tests). Record the ci-cuda13 compile
   time with them (criterion 7).
 - The wheels do not install the `.cuh` headers (no C++ headers in the wheels); nothing to do.
+
+## Step 2: Python, the command line, the triad bins and the wheels (python-cli-wheels)
+
+**Done** (M9b acceptance criteria 5-7). `dyng.triad_count` and `dyng.update()` over hypergraphs in
+Python, the triad bins as JSON (C++ and Python), `dyng.testing.triad_reference`, `dyng triad_count
+compute|update` with `--format json|escher`, and the three wheels. ADR 0059 records the design and
+the new public names (D9, for the author). No library code of the algorithm, the engine or the
+operators changed (only the manifest's `python` key), so the built-in kernels are those of step 1
+and no M9a gate needs a reading.
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `6e98222` | `io::triad_bins`, `io::triad_bins_size()`, `io::write_triad_bins_json()`, `io::read_triad_bins_json()` (`cpp/src/io/triad_bins.cpp`: a strict RFC 8259 reader), the format in `file_formats.md`, `dyng_io_tests` `TriadBins.*`, the fuzzer `fuzz_triad_bins` and its corpus, the API baseline (tracked additions) |
+| `86e9224` | `python/bindings/triad_count.cpp`, the hypergraph branch of `python/bindings/update.cpp`, the bindings of the JSON and of the oracle; `python/dyng/triad_count.py`, `_update.py`, `io.py` (`TriadBins` ...), `testing.triad_reference`; the manifest, `_algorithms.py` and the stubs regenerated; `test_triad_count.py`, `test_triad_count_cuda.py`, `triad_fixture.py`, the API surface and the PLAN 5.5 example; `ci/plugin_smoke.py`; `python_gaps.md` |
+| `db25f77` | `python/dyng/cli/_triad_count.py`, the generated flags' unions (`cli/_common.py`), `docs/api/cli.md`, `test_triad_count_cli.py` |
+| (the records commit) | ADR 0059, GOVERNANCE, CHANGELOG, `parity/results/M9b.md` section 2, this section; a test fix of the CUDA tests (below) |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **The container parameter is named `hypergraph`** in `dyng.triad_count.compute` and `update`
+   (PLAN 5.4's table writes `graph`): the uniform-contract test reads the expected name from the
+   registry's `container`. `dyng.update(graph, batch, *results)` keeps its frozen parameter name
+   and takes either container.
+2. **`Pattern` is an `enum.StrEnum`**, the first public enumeration class of the typed layer (PLAN
+   5.5's `kind=str|enum`); every function still takes the names (PLAN 5.4 rule 5), and a member is
+   its name. `PatternName` (the `Literal`) and `MAX_BINS` are new names beside it.
+3. **`Result.counts` is a read-only NumPy copy** (the step's text), not a `dyng.Array` as the other
+   results' arrays; `Stats.delta` has the result's `num_bins` values (C++: 30). Both in
+   `python_gaps.md`.
+4. **`--format escher` prints the whole of A's output for a file input**, not only the count lines:
+   the `Hypergraph:` line and the `Batch` lines are reproduced too, so the diff against A's stdout
+   is of every line but the five its generator prints for a generated input (the test removes that
+   block). The `[GPU]` prefix is A's text on every backend.
+5. **The read flags and two flags that are not fields.** The `.hg` read flags are generated from
+   `dyng.io.read_hypergraph`'s keywords; its `options=` is `--read-options` (a flag `--options`
+   would read as the algorithm's options), and `--min-initial-payload N` builds
+   `CapacityPolicy.escher_gpu(N)` (A's `--payload-capacity`, needed for A's ids). The flag
+   generator now unwraps `X | None` first and gives a union with one `Literal` its choices; no
+   existing flag changed (none had such a hint; the CLI tests and the documented-flags test pass).
+6. **A `.dgb` recording's expected ids are checked** by `dyng triad_count update` (a mismatch exits
+   with status 1): without it a hypergraph built with other properties than the recording's would
+   delete other hyperedges silently.
+7. **The triad bins are a C++ writer and reader** (tracked, `result_io.hpp`) with a JSON parser of
+   their own (no third-party code) and, as PLAN 5.7 asks of every reader, a libFuzzer target; the
+   ninth target lowers the fuzz workflow's dispatch limit from 750 s to 660 s per target.
+8. **`dyng.testing.triad_reference`** binds ADR 0049's oracle, so the Python tests check against
+   it and against a pure-Python brute force (which classifies triads by the documented table of
+   canonical Venn ids, independent of both).
+9. **The diff against A's stdout needs the golden set** (367 MB, `$DYNG_SCRATCH`): the test skips
+   without it; hosted CI runs the fixture variant (the four synthetic groups regenerated, recorded
+   as `.hg` / `.dgb` files and replayed through the CLI against the committed counts).
+10. **The wheels were written to `$DYNG_SCRATCH/wheels/m9b-step2-plugins`** (`DYNG_PLUGIN_OUT`), so
+    M8b's records in `0.3.0.dev0-plugins` stay as they were for the growth comparison.
+11. **The first install test found a test bug**: `test_results_on_cuda` built its "host" hypergraph
+    without resources, which under a plugin module are the cuda defaults; it now names
+    `Resources.sequential()`. The wheels were not rebuilt (the bug was in `python/tests`, which the
+    install tests read from the tree); `DYNG_PLUGIN_TEST_ONLY=1` reran every install test.
+
+### Measurements and checks
+
+(`parity/results/M9b.md` section 2.)
+
+- **`--format escher` == A's unpatched stdout**: all 60 stdout files of make-test (15 groups x 4
+  executables), empty diff; the expected ids of every `.dgb` record matched.
+- **Python == A**: the committed make-test counts on sequential, openmp and cuda (both plugins);
+  both oracles after every batch; Hypothesis "update chain == compute".
+- **Wheels**: `dyng` 2.10 MB (+5.6 % since M8b), `dyng-cu12` 8.67 MB (+4.8 %), `dyng-cu13`
+  8.58 MB (+4.8 %), all far below 90 MB; `pytest -m gpu` 69 passed with each plugin and Python;
+  the smoke test runs triad_count compute and a two-result update on GPU 1.
+- **ci-cuda13**: 216 s wall, 94.2 CPU-minutes (+1.6 against M9a's merge measured the same way);
+  the hosted job took 10.5-12.7 minutes at M9a's head, against its 120-minute timeout.
+- Tests: `ci/python.sh` 715 passed; the CPU wheel in a fresh venv `pytest -k triad` 78 passed;
+  `ci/gpu_local.sh` step `plugin`; Clang 18 syntax 444 files; the fortified build; the frozen
+  headers against `65a62c9` and `origin/main`: empty; `ci/api_check.sh` green.
+
+### Machine time
+
+The wheels 4.5 minutes (the core wheel and both plugins, up to the first install test's failure),
+then the install tests of both plugins on both Pythons again after the test fix (5 minutes);
+the two ci-cuda13 builds 4 minutes each; the portability builds 10 minutes; `ci/python.sh` 1
+minute; the golden diff 35 s. Everything under the shared lock, the GPU work on GPU 1; no timed
+reading.
+
+### Notes for step 3 (the docs, the examples, the API review and the freeze)
+
+- The API review covers `dyng.triad_count` as built here (ADR 0059 section 5 lists its names) and
+  `dyng triad_count`'s flags; freezing them means: the manifest's maturity `stable` (with
+  `origin`), the API snapshot section of `triad_count.hpp` frozen, griffe's baseline the reviewed
+  names, and `docs/api/cli.md`'s table the frozen flags.
+- `examples/python/triad_count.py` can follow `test_plan_examples.py::test_triad_count_example`;
+  the tutorial "Hypergraph triads" can quote `dyng.triad_count`'s docstring example and the CLI's
+  `--format escher` (the make-test fixture's groups give real output without the golden set).
+- The triad-bins JSON is tracked (io); whether its format version 1 is stable from 0.3.0 belongs
+  with the `.hg` / `.dgb` line of the Open decisions.

@@ -93,7 +93,7 @@ def test_results_on_cuda() -> None:
     with pytest.raises(dyng.NotSupportedError, match="operators"):
         dyng.triad_count.compute(h, cuda_engine="operators")
     assert dyng.triad_count.compute(h, cuda_engine="fused").total == 1
-    host = dyng.Hypergraph.from_lists([[0, 1, 2]])
+    host = dyng.Hypergraph.from_lists([[0, 1, 2]], resources=dyng.Resources.sequential())
     with pytest.raises(dyng.InvalidArgumentError, match="to_backend"):
         dyng.triad_count.compute(host, resources=res)
 

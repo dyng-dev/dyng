@@ -10,6 +10,26 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- **`dyng.triad_count`** (M9b, ADR 0059; Python, tracked until the API review of M9b):
+  `compute(hypergraph, kind="h_motif" | "stathyper_type1" | "stathyper_type2" |
+  "stathyper_type3" | Pattern)`, `update(hypergraph, batch, result)`, `Options` (`kind`,
+  `cuda_engine`), `Result` (`counts`, a read-only uint64 NumPy copy; `count()`, `total`,
+  `num_bins`, `kind`, `options`, `set_options()`, `graph_version`, `space`, `clone()`), `Stats`
+  (`batch` with int64 `inserted_ids`, `delta` an int64 array of `num_bins` values,
+  `triads_removed`, `triads_added`, `deleted_frontier`, `inserted_frontier`), the `Pattern`
+  `StrEnum`, `MAX_BINS`; `dyng.citation("triad_count")`. **`dyng.update()` over hypergraphs**:
+  `dyng.update(hypergraph, batch, *results)` updates several `dyng.triad_count` results with one
+  apply. `dyng.testing.triad_reference()` binds the oracle.
+- **Triad bins as JSON** (M9b, ADR 0059; tracked): `dyng::io::triad_bins`,
+  `io::write_triad_bins_json()`, `io::read_triad_bins_json()`, `io::triad_bins_size()` (format
+  `"dyng.triad_bins"` version 1, `docs/api/file_formats.md`), with the libFuzzer target
+  `fuzz_triad_bins`; Python `dyng.io.TriadBins`, `write_triad_bins()`, `read_triad_bins()`,
+  `triad_bins_json()`.
+- **The command line `dyng triad_count compute|update`** (M9b, ADR 0059): `--kind`,
+  `--cuda-engine` and the `.hg` read flags generated from the fields and keywords, `--batches`
+  (`.dgt` / `.dgb` files; a recording's expected ids checked), `--format json` (the triad-bins
+  JSON) or `--format escher` (ESCHER-GPU@abcf9b2's count lines byte for byte, diffed against its
+  unpatched stdout of every make-test case), `--compare-recompute`.
 - **Experimental** (M9b, ADR 0058; may change in any minor release, tracked by the API check
   without failing it): `dyng::experimental::count_local_patterns<op_t>`
   (`<dyng/experimental/local_patterns.cuh>`, needs nvcc): count a new hypergraph pattern, given as
@@ -234,6 +254,10 @@ Before 0.1.0 anything may change.
 
 ### Changed
 
+- The generated CLI flags (ADR 0059): a keyword typed `X | None` is the flag of `X` (a
+  `bool | None` keyword is a `--x` / `--no-x` pair), and a union with one `Literal` takes its
+  choices; no existing flag changes. The fuzz workflow's dispatch limit is 660 s per target (nine
+  targets; was 750 s for eight).
 - `VERSION` is 0.3.0.dev0, the development version after the 0.2.0 release.
 - The documented `find_package(dyng 0.3 REQUIRED)` (README.md, docs/getting_started/install.md)
   follows the development version, which `ci/cmake_consumer.sh` requires; a build of 0.2.0
