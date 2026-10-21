@@ -1,6 +1,11 @@
 # Sketch: `triad_count` (0.3)
 
-**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M9.
+**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); implemented in M9a
+(ADRs 0048-0057) and **frozen** at the end of M9b (ADR 0060; maturity `stable` from 0.3.0, pending
+the author's confirmation at the release): the frozen API is {doc}`../../api/cpp/triad_count`, and
+where it differs from this sketch the header wins (`stats::delta`, the `kind()` / `num_bins()`
+accessors that throw for a moved-from result rather than `noexcept`, the requirements checked per
+pattern). Both open questions are answered below. This page is kept as the record of the design.
 **Computes:** the 30-bin closed h-motif counts of a hypergraph (the triads of three hyperedges and
 how they overlap), or the StatHyper type 1 / 2 / 3 counts, kept exact under hyperedge batches.
 **Paper:** ESCHER (IPDPS 2026), ESCHER+ (TKDE 2026). **Origin:** ESCHER-GPU `HMotifCount`,
@@ -91,10 +96,15 @@ stats update(const resources& res, hypergraph<vertex_t, weight_t>& hg,
 | Differences from PLAN 5.3 / 5.5 | the plan's `stats::delta` (a signed per-bin vector) is replaced by `triads_removed` / `triads_added` plus the result's counts before and after, like cycle_count's `cycles_removed` / `cycles_added`: the stats of an update are returned by value from every call, and a per-bin `std::vector` would add one more allocation to each (the `batch` summary's `inserted_ids` already allocates, and mosp's per-objective stats do; a fixed-size `std::array<std::int64_t, 30>` would not, open question 1); the per-bin delta is `counts()` after minus before, which the Python layer can offer as `st.delta`; the example's batch is built as the frozen hypergraph API allows (no `resources` constructor, builders return `void`, `inserted_ids` a host vector: ADR 0041 section 1) |
 | Python | `dyng.triad_count.compute(hg)`, `kind="h_motif"`; `hist.counts` (30 values) |
 
-## Open questions (decided in M9)
+## Open questions (both answered in M9)
 
 1. Whether the per-bin signed delta is worth a `stats` field after all (the paper's plots show
-   per-batch deltas; a fixed-size `std::array<std::int64_t, 30>` would not allocate).
+   per-batch deltas; a fixed-size `std::array<std::int64_t, 30>` would not allocate). *Answered in
+   M9a (ADR 0052) and frozen in M9b (ADR 0060):* yes, `stats::delta` is a
+   `std::array<std::int64_t, max_bins>` (counts after minus before, 0 above `num_bins()`), so the
+   stats allocate nothing for it; `triads_removed` / `triads_added` are kept beside it. A pattern
+   appended later has at most `max_bins` = 30 bins (a count of more bins is an Op of
+   `count_local_patterns`).
 2. The `experimental::count_local_patterns<op_t>` extension point (0.5) and how its Op concept
    relates to `pattern` (a new pattern as a new Op, not a new enumerator). *Answered in M9b (ADR 0058):*
    it ships in 0.3 as `experimental::count_local_patterns<op_t>` over the same driver and engine

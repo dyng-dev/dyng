@@ -12,7 +12,7 @@ CI does not check them, and each is frozen by the milestone that implements it (
 |---|---|---|---|---|
 | {doc}`mosp` | 0.2 | `graph` (K weight columns) | fixed point (K x `sssp`, then finalize) | M7 |
 | {doc}`hypergraph` (with `hyperedge_batch`) | 0.3 | the new `hypergraph` container | - | M8 |
-| {doc}`triad_count` | 0.3 | `hypergraph` | aggregate delta | M9 |
+| {doc}`triad_count` | 0.3 | `hypergraph` | aggregate delta | M9 (frozen at the end of M9b, ADR 0060) |
 | {doc}`label_propagation` | 0.4 | `graph` (slotted or slack rows, vertex batches) | fixed point | M10 |
 | {doc}`hyper_sssp` | 0.4 | `hypergraph` (slack CSR, line graph) | fixed point (on the line graph) | M11 |
 

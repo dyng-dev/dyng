@@ -355,6 +355,33 @@ def test_the_hypergraph_headers_are_frozen_and_a_change_is_breaking() -> None:
     assert all(b.startswith("[dyng/hypergraph/hypergraph_properties.hpp]") for b in breaking)
 
 
+def test_the_triad_count_header_is_frozen_and_a_change_is_breaking() -> None:
+    # The M9b freeze (ADR 0060): triad_count's manifest says stable, so dyng/triad_count.hpp is
+    # frozen with its detail contract; the oracle and the triad-bins JSON stay tracked, and the
+    # experimental extension headers stay in their own tier. A changed default of the frozen
+    # options, a removed stats field and a changed limit are breaking changes.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    assert secs["dyng/triad_count.hpp"][0] == "frozen"
+    assert api_snapshot.status("dyng/triad_count.hpp") == "frozen"
+    for tracked in ("dyng/testing/triad_reference.hpp", "dyng/io/result_io.hpp"):
+        assert secs[tracked][0] == "tracked", tracked
+    assert secs["dyng/experimental/local_patterns.cuh"][0] == "experimental"
+    assert any(
+        "update_traits<triad_count::result>" in line for line in secs["dyng/triad_count.hpp"][1]
+    )
+    for old, new in (
+        ("pattern kind = pattern::h_motif", "pattern kind = pattern::stathyper_type1"),
+        ("      std::uint64_t triads_added = 0\n", ""),
+        (
+            "constexpr int dyng::triad_count::max_bins = 30",
+            "constexpr int dyng::triad_count::max_bins = 31",
+        ),
+    ):
+        breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new))
+        assert breaking, old
+        assert all(b.startswith("[dyng/triad_count.hpp]") for b in breaking), breaking
+
+
 def test_appended_lines_and_tracked_sections_are_not_breaking() -> None:
     lines = BASELINE_TEXT.splitlines(keepends=True)
     at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/mosp.hpp]"))

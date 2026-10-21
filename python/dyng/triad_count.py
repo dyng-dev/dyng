@@ -126,9 +126,11 @@ class Stats:
             every inserted hyperedge, int64).
         deleted_frontier: The live hyperedges the batch deleted (the subtract phase).
         inserted_frontier: The hyperedges the batch inserted (the add phase).
-        triads_removed: The triads the batch destroyed, summed over the bins (types 1-3: their
-            weights).
-        triads_added: The triads the batch created, summed over the bins.
+        triads_removed: The triads the batch destroyed, summed over the bins (types 1-3, whose
+            one bin is a sum of contributions: the contributions removed; the hyperedge weights
+            are ignored).
+        triads_added: The triads the batch created, summed over the bins (types 1-3: the
+            contributions added).
         delta: The change of every bin, ``counts`` after minus ``counts`` before (a read-only
             int64 array of the result's ``num_bins`` values).
     """
@@ -295,6 +297,8 @@ def compute(
             names the property); ``"h_motif"`` or type 3 on a hypergraph of 2,147,483,647
             vertices.
         NotSupportedError: ``cuda_engine="operators"`` on cuda, or an unavailable backend.
+        CapacityError: a count exceeds 2^64 - 1.
+        OutOfMemoryError: host or device memory cannot be allocated (also a ``MemoryError``).
     """
     _check_hypergraph(hypergraph)
     if kind is not None:
@@ -318,9 +322,13 @@ def update(
     Postcondition: ``result`` equals ``compute(hypergraph, options=result.options)`` exactly.
 
     Raises:
-        StaleResultError: ``result`` does not match the hypergraph's current state.
+        StaleResultError: ``result`` does not match the hypergraph's current state, or a failed
+            update left it unusable.
         InvalidArgumentError: the batch is invalid for the hypergraph (nothing changed).
         NotSupportedError: incidence edits (0.4; nothing changed).
+        CapacityError: a count exceeds 2^64 - 1, or a bin changes by 2^63 or more (after the
+            commit: ``result`` is left unusable; recompute it).
+        InternalError: a bin would become negative (a library bug; ``result`` is left unusable).
     """
     _check_hypergraph(hypergraph)
     if not isinstance(result, Result):
