@@ -10,6 +10,19 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- **M9b: the triad_count docs and examples**: `docs/algorithms/triad_count.md` with every section
+  of PLAN 9.5 (the 30-bin table, tested against the code's tables by `TriadCountDocs.*`; the
+  requirements per pattern; the template mapping; complexity and memory; "Differences from the
+  paper"; "Paper vs fixed code" with ESCHER-GPU's E-C1, E-C3 and E-C7, worded for the author's
+  review at 0.3.0, D10; the mapping from the original code; the gate record); the tutorial
+  "Hypergraph triads" (`docs/tutorials/hypergraph_triads.md`, C++ and Python, quoted from tested
+  code); `examples/cpp/triad_count_update.cpp` and `examples/python/triad_count.py` (each at most 60
+  lines, the same output on every backend, compared with `examples/data/triad_count_update.expected.txt`
+  in-tree, by `python/tests/test_examples.py` and, against the installed package, by
+  `ci/cmake_consumer.sh`); `docs/history/escher_gpu.md`. `ci/tutorial_quotes.py` quotes Python
+  files by `# [tutorial: <name>]` markers. `examples/cpp/compare_output.cmake` takes the program's
+  arguments (`-DARGS=a|b|c`) and a skip code 77.
+
 - **`dyng.triad_count`** (M9b, ADR 0059; Python, tracked until the API review of M9b):
   `compute(hypergraph, kind="h_motif" | "stathyper_type1" | "stathyper_type2" |
   "stathyper_type3" | Pattern)`, `update(hypergraph, batch, result)`, `Options` (`kind`,
@@ -254,6 +267,14 @@ Before 0.1.0 anything may change.
 
 ### Changed
 
+- **`triad_count` is `stable` and frozen** (M9b, ADR 0060; the plan's default D4, pending the
+  author's confirmation at the 0.3.0 release): `<dyng/triad_count.hpp>` (frozen in the API
+  baseline; `ci/doxygen_coverage.py` holds it to the freeze's rules), `dyng.triad_count` and
+  `dyng triad_count` follow PLAN 5.9's stable tier from 0.3.0. **api-change**: the header moves
+  from tracked to frozen; no signature changed. Documentation amendments of the review: the stats'
+  `triads_removed` / `triads_added` for the types 1-3 (contributions, not weights), `compute()`'s
+  shape per pattern, `max_bins` bounds every later pattern; the Python docstrings list every
+  documented exception. `experimental::count_local_patterns` stays experimental.
 - The generated CLI flags (ADR 0059): a keyword typed `X | None` is the flag of `X` (a
   `bool | None` keyword is a `--x` / `--no-x` pair), and a union with one `Literal` takes its
   choices; no existing flag changes. The fuzz workflow's dispatch limit is 660 s per target (nine
@@ -304,6 +325,13 @@ Before 0.1.0 anything may change.
   2026-10-14 (the author's decision after M8a was squash-merged as `2de6ebe`; ADR 0019 amended,
   `GOVERNANCE.md`, CONTRIBUTING.md, the pull request template). `ci/gpu_local.sh` runs the
   hypergraph container's two-host-thread C12 test under synccheck and memcheck, not racecheck.
+
+### Fixed (M9b)
+
+- `triad_count::compute()`, `update()` and `result::clone()` (and `count_local_patterns`'
+  compute, update and clone) report a host allocation failure as `out_of_memory_error`, as their
+  documentation says; a `std::bad_alloc` of the host work left the library (ADR 0060 finding 7;
+  `dyng_triad_count_allocation_failure_tests`).
 
 ### Fixed (M9a review)
 

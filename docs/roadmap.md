@@ -68,8 +68,13 @@ M9a is done (pending the hosted CI and the author's merge): `triad_count` exact 
 ESCHER-GPU on all three backends by key and by content, incremental host engines (an untuned
 transliteration of the wedge engine, the author's decision of 2026-10-15) beside the CUDA port,
 counts exact up to 2^64 - 1, every paper gate within its bar (update per batch, full count, end
-to end, the store accounting and the device-memory peak); M9b (the experimental `count_local_patterns`, Python, the command
-line and the freeze of `triad_count`) is next.
+to end, the store accounting and the device-memory peak). M9b is done too (pending the hosted CI
+and the author's merge): the experimental `count_local_patterns` (count your own pattern, an Op,
+with the same engine), `dyng.triad_count` and `dyng triad_count`, the docs, the examples and the
+tutorials, and `triad_count` frozen and `stable` (pending the author's confirmation at the
+release), its gates read again on M9b's library. **M9 is done.** Next: the alignment-flag ADR (a
+0.3 performance option, the decision of 2026-10-08; it re-measures the ESCHER suites if the flags
+change) and the 0.3.0 release candidate.
 
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
   views, hypergraph generators, and binary batch files (`.dgb`), from C++ and Python (done in
