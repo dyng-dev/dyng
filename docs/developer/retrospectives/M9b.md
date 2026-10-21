@@ -39,7 +39,9 @@ the new public names (D9, for the author).
 ### Deviations from the plan and the step's text (each with the same intent)
 
 1. **The branch** `m9b-local-patterns` was created by the orchestrator from `m9a-triad-count` at
-   `6716eec` (the accepted M9a; PR #16 open): `origin/main` (`9cde147`, M8b) does not contain M9a.
+   `6716eec` (the accepted M9a; PR #16 open): `origin/main` (`9cde147`, M8b) did not contain M9a
+   then. The author merged #16 as `4cc5c3f` (2026-10-21, with the review fix `511f8ff`), and
+   `origin/main` was merged into this branch at the M9b review (`12afe75`).
 2. **The shape of the API** (within the PLAN name): `count_local_patterns<op_t>` is a class
    template with static `compute(res, h[, op])` and `update(res, h, batch, result)`; the Op value
    is fixed at `compute()` and kept by the result (`op()`), as `options::kind` is, so `update()`
@@ -398,8 +400,8 @@ release (GOVERNANCE.md, open decisions):
     `cpp/src/hypergraph`'s OpenMP regions ends the process; fix in 0.3.0 (with its ADR 0024
     reading) or in a 0.3.x release.
 
-Also the author's: the merge of the M9a pull request (#16) and then of M9b's (a merge commit, with
-the `api-change` label).
+Also the author's: the merge of M9b's pull request (a merge commit, with the `api-change` label).
+M9a's (#16) is merged (`4cc5c3f`).
 
 ### Open items
 
@@ -412,7 +414,7 @@ the `api-change` label).
 ```markdown
 ## M9b: count_local_patterns, triad_count in Python and on the command line, the docs and the freeze (0.3)
 
-Stacked on M9a (#16). Completes M9 (PLAN 11.3; the author's decision D2): with M8a, M8b and M9a it
+Follows M9a (#16, merged as `4cc5c3f`; `main` is merged into this branch). Completes M9 (PLAN 11.3; the author's decision D2): with M8a, M8b and M9a it
 is the content of 0.3.0.
 
 **`experimental::count_local_patterns<op_t>`** (`<dyng/experimental/local_patterns.cuh>`, nvcc
@@ -466,7 +468,7 @@ tests 397 / 397, the installed-package consumers on every backend); Clang 18 syn
 `docs/developer/retrospectives/M9b.md`): D4 (triad_count stable), D9 (the new public names, ADR
 0060), D10 (the paper-vs-fixed wording), the hypergraph and file-format stability of M8b, D6-D8,
 D11, D12, and the new D13. ADRs 0058-0060. Records: `parity/results/M9b.md`. Merge with a merge
-commit, after #16.
+commit.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
