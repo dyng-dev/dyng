@@ -203,3 +203,95 @@ commit); the later commits change test files, formatting and docs only (`git dif
 759303d -- cpp/src cpp/include python/dyng python/bindings`: the whitespace of `result_io.hpp`,
 `triad_bins.cpp` and two binding files, and two docstrings), so the wheels' sizes and their tests
 stand.
+
+## 3. Step docs-freeze-release: the freeze, the gates on M9b's library, the release checks (criteria 8-10)
+
+The algorithm page, the tutorial "Hypergraph triads", the examples, ESCHER-GPU's history page and
+the triad_count API review and freeze (ADR 0060). Commits `046a6cf` (the header's documentation
+amendments), `7b8234f` (maturity `stable`, the header frozen), `b732aa9` (the review's one library
+fix: host allocation failures of compute, update and clone are `out_of_memory_error`), `ef28d64`
+(the examples), `825ec85` (the page, the tutorial, the history page), `2c9b490` (the review's
+tests), `155f4ef` (CHANGELOG, GOVERNANCE, plan, roadmap), the ADR's demonstrations and the records.
+
+### 3.1 Carry-over or re-read: re-read (criterion 3)
+
+Step 1 recorded the four built-in kernels as SASS- and resource-identical to M9a's merge build,
+but the measured library scope of `certify.py` (`git diff <measured> <release> -- cpp/include
+cpp/src cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json docs/references.bib`) is
+not otherwise unchanged since M9a's readings (`2eda830`): step 1 moved the engine and generalized
+the driver, step 2 added the triad-bins reader, and this step's review fixed the allocation
+failures (`b732aa9`). So M9a's records cannot certify 0.3.0, and **every M9a timing and memory gate
+was read again** on `b732aa9`, with M9a step 5's protocol exactly: a clean clone at `b732aa9`
+(`$DYNG_SCRATCH/m9b-gates/dyng`, no `+dirty`), its parity-cuda build, GPU 0 under the exclusive
+lock taken by the harness, the base clock lock (SM 1170 / memory 7601 MHz) for every gated and
+recorded-at-lock reading, `CUDA_MODULE_LOADING=EAGER`, no `OMP_*`, one heap layout, A/B
+alternation, the per-round guard, the contamination monitor and audit, never
+`--keep-contaminated`; the memory readings on GPU 1 under the shared lock with no foreign process.
+`git diff b732aa9 HEAD` over the library scope is empty at the end of the step. The counting
+kernels of the measured build are identical to M9a's merge build
+(`parity/triad_sass.py compare`: digests, instruction counts 48 / 560 / 576 / 512 / 288, every
+loop, registers 14 / 39 / 40 / 37 / 22, no stack or local memory; `M9b-sass-final.json`).
+
+A first execution of the timing suite was started on `7b8234f` and stopped after its first case,
+when the review found the allocation-failure defect (a library change); its partial records were
+moved aside (`$DYNG_SCRATCH/runs/bench/m9b-aborted-7b8234f`) and are not used.
+
+### 3.2 The timing gates (`ipdps26_escher.yaml`, `M9b-gates/ipdps26_escher.json`)
+
+`bench_suite.py run benchmarks/paper/ipdps26_escher.yaml --version m9b` (2026-10-21 06:42-07:23
+CDT): **45 / 45 gated rows within their gates, ratios 0.861-1.031; the suite PASSED.** Medians
+(ms), A / port, ratio:
+
+| Case (rounds) | update[b1] | update[b2] | update[b3] | full_count | end_to_end |
+|---|---|---|---|---|---|
+| coauth_b50k_s1 (11) | 510.5 / 486.8 **0.954** | 549.5 / 531.5 **0.967** | 550.7 / 534.3 **0.970** | 5,294.1 / 5,286.9 **0.999** | 9,563.9 / 8,844.3 **0.925** |
+| coauth_b50k_s2 (11) | 540.8 / 515.9 **0.954** | 539.6 / 525.1 **0.973** | 546.1 / 520.0 **0.952** | 5,293.3 / 5,286.1 **0.999** | 9,587.1 / 8,826.8 **0.921** |
+| coauth_b50k_s3 (11) | 524.7 / 501.3 **0.956** | 538.0 / 519.7 **0.966** | 533.9 / 516.3 **0.967** | 5,293.1 / 5,286.9 **0.999** | 9,577.1 / 8,810.0 **0.920** |
+| syn1m_b50k_s1 (21) | 164.2 / 143.5 **0.874** | 144.2 / 145.7 **1.011** | 155.1 / 147.3 **0.949** | 635.3 / 636.7 **1.002** | 2,482.1 / 2,460.5 **0.991** |
+| syn1m_b50k_s2 (21) | 164.3 / 143.9 **0.876** | 155.4 / 147.5 **0.949** | 144.7 / 145.9 **1.008** | 640.3 / 641.7 **1.002** | 2,494.2 / 2,463.6 **0.988** |
+| syn1m_b50k_s3 (21) | 148.5 / 142.5 **0.960** | 161.6 / 147.1 **0.910** | 156.0 / 148.0 **0.949** | 639.4 / 641.1 **1.003** | 2,491.2 / 2,469.0 **0.991** |
+| syn2m_b50k_s1 (21) | 184.2 / 158.5 **0.861** | 154.2 / 158.5 **1.028** | 169.1 / 161.3 **0.954** | 1,273.5 / 1,276.4 **1.002** | 4,440.5 / 4,249.1 **0.957** |
+| syn2m_b50k_s2 (21) | 157.3 / 153.3 **0.975** | 181.8 / 162.6 **0.895** | 155.6 / 159.7 **1.026** | 1,279.1 / 1,282.2 **1.002** | 4,431.0 / 4,255.0 **0.960** |
+| syn2m_b50k_s3 (21) | 158.0 / 154.6 **0.978** | 181.3 / 163.4 **0.901** | 154.4 / 159.2 **1.031** | 1,280.3 / 1,283.5 **1.003** | 4,424.5 / 4,269.3 **0.965** |
+| gate | <= 1.05 | <= 1.05 | <= 1.05 | <= 1.05 | <= 1.10 |
+
+The same picture as M9a's readings (step 5: 0.858-1.028; the review: 0.853-1.019): the highest
+synthetic rows (1.008-1.031) are the batches where A's maintain is at its low, 0.019-0.042 below
+the bar. The audit: no reading flagged; the monitor rejected and repeated 8 attempts (rounds 10
+and 11 of syn1m_b50k_s2 and round 13 of syn1m_b50k_s3: foreign CPU load 2.0-9.7 cores and, once,
+foreign `gst-plugin-scanner` processes on GPU 0, the machine's other users). Host synchronizations
+per batch: the port 22 (coauth) and 19-22, A 90-96, as before.
+
+**Recorded, not gated** (ratios):
+
+| Reading | Case | update b1 / b2 / b3 | full_count | end_to_end |
+|---|---|---|---|---|
+| default clocks (11 rounds) | coauth_b50k_s1 | 0.956 / 0.970 / 0.964 | 1.004 | 0.935 |
+| | syn1m_b50k_s1 | 0.888 / 1.011 / 0.990 | 1.002 | 1.011 |
+| | syn2m_b50k_s1 | 0.852 / 1.031 / 0.956 | 1.000 | 0.961 |
+| batch sizes (base, 5 rounds) | coauth_b100k_s1 | 0.987 / 0.993 / 0.976 | 0.999 | 0.934 |
+| | coauth_b200k_s1 | 0.990 / 1.019 / 1.018 | 0.999 | 0.956 |
+| StatHyper types (base, 5 rounds; `tkde26_escher_plus.yaml`) | coauth_b50k_s1 type1 | 0.741 / 0.774 / 0.753 | 0.143 (3.8 / 0.5 ms) | 0.810 |
+| | type2 | 0.748 / 0.797 / 0.769 | 0.828 | 0.813 |
+| | type3 | 0.955 / 0.956 / 0.969 | 0.992 | 0.938 |
+
+The update with the driver's host model counted (`update_with_host_model[b<N>]`, D12, reported
+beside the gate): coauth 0.963-0.990; synthetic up to 1.052-1.072 on four rows at the base lock
+(M9a's review: up to 1.061) and 1.080 on syn2m_b50k_s1 b2 at default clocks; the asymmetry and the
+choice stay the author's (D12).
+
+### 3.3 The memory gates (`tkde26_escher_plus.yaml`, `M9b-gates/tkde26_escher_plus.json`)
+
+`bench_suite.py run benchmarks/paper/tkde26_escher_plus.yaml --version m9b` (07:32-07:39 CDT; GPU
+1, the shared lock, no foreign process before or after any case; the count guard on all four processes of each
+case): **11 / 11 gated rows within 1.05, ratios 1.000-1.002; PASSED.**
+
+| Case | store_memory (every gated point) | device_memory: A peak | port peak (range) | port / A | triad MiB during the apply | footprint at the peak; between batches |
+|---|---|---|---|---:|---:|---|
+| coauth_b50k_s1 | build, b1, b2, b3 equal in bytes: **1.0000** (A's print 1,833.7 / 1,835.0 MB agrees) | 3,018.9 MiB | 3,023.3 MiB (`hypergraph.apply.line_graph`) | **1.0015** | 4.2 | 1.028; 1.63-1.68 (flagged, not gated: D11) |
+| syn1m_b50k_s1 | build, b3: **1.0000** | 1,131.4 MiB | 1,133.7 MiB | **1.0021** | 2.1 | 1.018; 1.64-1.69 (flagged) |
+| syn2m_b50k_s1 | build, b3: **1.0000** | 2,211.7 MiB | 2,215.4 MiB | **1.0016** | 3.6 | 0.998; 1.63 (flagged) |
+
+Recorded: coauth_b100k_s1 and b200k_s1, store 1.0000, nsys peak 1.0018 and 1.0023, triad MiB
+during the apply 5.0 and 6.6, between batches 1.66-1.80 (flagged). The same as M9a's review
+reading to the MiB (the peaks 3,023.3 / 1,133.7 / 2,215.4 MiB there too).

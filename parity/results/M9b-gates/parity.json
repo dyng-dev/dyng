@@ -1,0 +1,5183 @@
+{
+ "schema": 1,
+ "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
+ "version": "0.3.0",
+ "version_file": "0.3.0.dev0",
+ "date": "2026-10-21T13:20:47Z",
+ "commit": "7c3781d4a60848c7e490a8782755fd7071c475cc+dirty",
+ "branch": "m9b-local-patterns",
+ "measured_commits": [
+  "b732aa968c72c2f0ac468297a38c13edae786247"
+ ],
+ "code_paths": {
+  "library": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib"
+  ],
+  "tests": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib",
+   "cpp/tests",
+   "cpp/fuzz",
+   "examples",
+   "README.md"
+  ],
+  "packaging": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib",
+   "cpp/tests",
+   "cpp/fuzz",
+   "examples",
+   "README.md",
+   "python",
+   "pyproject.toml",
+   "VERSION",
+   "CHANGELOG.md",
+   "CITATION.cff",
+   "LICENSE",
+   "LICENSES",
+   "NOTICE",
+   "THIRD_PARTY_LICENSES.txt",
+   "THIRD_PARTY_LICENSES_CUDA.txt",
+   "AUTHORS.md",
+   "CONTRIBUTING.md",
+   "SECURITY.md",
+   "REUSE.toml",
+   "environment.yml",
+   "ruff.toml",
+   ".gitattributes",
+   ".gitignore",
+   "ci/wheels.sh",
+   "ci/wheel_check.py",
+   "ci/wheel-toolchain.yml",
+   "ci/plugin_wheels.sh",
+   "ci/plugin_pyproject.py",
+   "ci/plugin_smoke.py",
+   "ci/without_cuda_driver.sh",
+   "ci/cuda_toolkit.py",
+   "ci/cuda_toolkits.toml",
+   "ci/cibw_plugin.sh",
+   "ci/cibw_plugin_repair.sh",
+   "ci/cibuildwheel-plugin.toml",
+   ".github/workflows/release.yml",
+   ".github/workflows/wheels.yml"
+  ],
+  "repo": [
+   ".",
+   ":(exclude)benchmarks/results"
+  ]
+ },
+ "code_rule": "every measured commit has the release commit's sources (git diff <measured> <release> -- code_paths[scope] is empty): the library scope for the performance gates, the golden replays and the golden mutations; for a check, the scope it was recorded with (tests: a C++ test suite; packaging: the distributions; repo: a check of the whole tree but benchmarks/results). In the library scope only, a difference confined to metadata_paths is accepted when equivalence.json shows the measured programs unchanged (equivalences)",
+ "metadata_paths": {
+  "cpp/src/core/registry_table.inc": {
+   "what": "the algorithm registry table generated from the manifests by scripts/regen.py (names, titles, maturity, backends, citation keys), read only by dyng::algorithms()",
+   "functions": [
+    "dyng::algorithms()",
+    "dyng::algorithms() [clone .cold]"
+   ]
+  },
+  "cpp/src/algorithms/cycle_count/manifest.toml": {
+   "what": "the manifest of cycle_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/dynamic_bfs/manifest.toml": {
+   "what": "the manifest of dynamic_bfs (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/mosp/manifest.toml": {
+   "what": "the manifest of mosp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/sssp/manifest.toml": {
+   "what": "the manifest of sssp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/triad_count/manifest.toml": {
+   "what": "the manifest of triad_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/triangle_delta/manifest.toml": {
+   "what": "the manifest of triangle_delta (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  }
+ },
+ "equivalences": [],
+ "environment": {
+  "hardware": {
+   "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+   "logical_cpus": 56,
+   "memory_gb": 124.4,
+   "gpus": [
+    {
+     "index": 0,
+     "name": "NVIDIA RTX A5000",
+     "memory": "24564 MiB",
+     "compute_capability": "8.6"
+    },
+    {
+     "index": 1,
+     "name": "NVIDIA RTX A5000",
+     "memory": "24564 MiB",
+     "compute_capability": "8.6"
+    }
+   ]
+  },
+  "os": {
+   "name": "Debian GNU/Linux 12 (bookworm)",
+   "kernel": "6.1.0-52-amd64"
+  },
+  "driver": {
+   "write_time": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "cuda_driver_api": "13.1",
+   "nvidia": "590.48.01",
+   "source": "named by 7 records"
+  },
+  "toolchain": {
+   "cxx": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "nvcc": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "cmake": "cmake version 4.4.3",
+   "python": "3.12.14"
+  }
+ },
+ "originals": [
+  {
+   "name": "MOSP-OpenMP",
+   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "7284f5005e694eaa3466fd29bc0d12f7cf505a28",
+   "upstream": "https://github.com/SMShovan/MOSP-OpenMP.git",
+   "export_patch": "MOSP-OpenMP",
+   "toolchain": "system g++ 12.2, Makefile defaults: -std=c++17 -Wall -Wextra -O3 -fopenmp",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "MOSP-CUDA",
+   "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "ac29545c6ff21a05901cd124ce6760644a129263",
+   "upstream": "https://github.com/SMShovan/MOSP-CUDA.git",
+   "export_patch": "MOSP-CUDA",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, host -O3, -lineinfo, --extended-lambda (Makefile defaults)",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "CycleEnumeration-GPU",
+   "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "da2067d62c2ce8f9234908089fa15bc53b5979c0",
+   "upstream": "git@github.com:SMShovan/CycleEnumeration-GPU.git",
+   "export_patch": "CycleEnumeration-GPU",
+   "toolchain": "system g++ 12.2 and CUDA 13.1 nvcc (sm_86), CMake Release (-O3 -DNDEBUG), OpenMP and CUDA enabled as in the original's docs/RESULTS.md",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "6a44c1cf5f1639721d35b418f99b420c5c45674e",
+   "upstream": "git@github.com:SMShovan/ESCHER-GPU.git",
+   "export_patch": "ESCHER-GPU",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo -Xcompiler -fopenmp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); C++ objects: the Makefile's hard-coded CXX = g++ (-std=c++17 -O3 -Wall -fopenmp)",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "80cee6284aae8836e5319eabf5e8bd127c0dca82",
+   "upstream": "git@github.com:SMShovan/MOSP_ESCHER.git",
+   "export_patch": "MOSP_ESCHER",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo --extended-lambda -Xcompiler -fopenmp for .cu and .cpp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); tests/local: g++ -O2 -Wall -Wextra -std=c++17 -fopenmp",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  }
+ ],
+ "golden_suites": [
+  {
+   "set": "triad_count_escher_gpu",
+   "kind": "triad_count",
+   "reference": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "generated_by": "parity/triad_goldens.py export --twice (parity/export_goldens.py triad_count)",
+   "cases": 300,
+   "files": 686,
+   "manifest_sha256": "4fb7dbcf63286cfe549ed1c5fa1ea5c195e420f17d904233d64ccbac3a4ea28f",
+   "case_sha256": {
+    "test/01-smoke/main": "0245cdf48e87faae41f52247264d6d022aa96ea8b60c813ab193d2b497d7b3bf",
+    "test/01-smoke/type1": "81a0143af5e975028ae5b1eda7819145aadb0d6e95702025bb4751f94c074ad8",
+    "test/01-smoke/type2": "23c82cc6c7dd8b47a2d56d37de1a90c3202b66f50566352d4fc276ee9e127c21",
+    "test/01-smoke/type3": "97436285774795b1cc76d6c8e7b398193c67404bb8e10f0b551f07e21d62782b",
+    "test/02-reference_small/main": "2319c69baa099f309fc717b52ce1641febf26156d0aef0ad40350e31b4200ad8",
+    "test/02-reference_small/type1": "9cd670dc9ee62e6aa2f77dd75731059d91aad479453d1d9cf4744741cd71533d",
+    "test/02-reference_small/type2": "a773fde7e719ef1ebbb4d9b4fb99b0352635dbe76a6ea1e746cb3824dd200536",
+    "test/02-reference_small/type3": "5f928f9d6c712d970d3cb8814d7af84f0602af4932fdc3fbcf024b875306c73b",
+    "test/03-reference_syn100k/main": "f47fc72ea6e8aff3b34e156cb33edee1a7cd8229875ad9c17139f8f54ac0e1a2",
+    "test/03-reference_syn100k/type1": "4ccef9e0ffb3174723d5ffd7b092ea957e1e9b9cc2330fc6a325d9200c3c438c",
+    "test/03-reference_syn100k/type2": "a45cccdec6a6469861ea6ba20869c9bf995add7ed0060fb5738d14614c238da2",
+    "test/03-reference_syn100k/type3": "a36d5914d39ff5d44dc6e62e1f68ca1df46a3e283ec95704d0f4f3336043961b",
+    "test/04-small_b20/main": "450117ecae4493909850ca8246935e2c3da96db9ac7ed7f95e9f16ae69aa9787",
+    "test/04-small_b20/type1": "0acf7ac6ab39054adcb3f48877185dcd777a0e7dae7c4bf277c2181fdce39db0",
+    "test/04-small_b20/type2": "9909ddb5d11df8544045c4f4ddb6916129a449ed1e8c925846e6b90dee424162",
+    "test/04-small_b20/type3": "6ed93987f1af7bfff0778acab98491535275692711f79c0c999b71015ef88b9e",
+    "test/05-small_b200/main": "ff1e7122ea0f011813d0e8551635225d7651dd4ec8c1309d93a60204ff5aed7f",
+    "test/05-small_b200/type1": "c1becb2215414dffc32ab66b7641199207ec48252ee876d7252a947458127cce",
+    "test/05-small_b200/type2": "5a43783e0dc2ac9db23b22f2848d21b7cef473355a9d1187bcf89e63830a6986",
+    "test/05-small_b200/type3": "2553cb3b2d2937c4768bbdefedd464b695d023872884d9f4add17a224310ccef",
+    "test/06-small_b1000/main": "9b154cea7147b0d17ff46a24549c647b5570d765c8ee1779ae6e8d53b1a3b223",
+    "test/06-small_b1000/type1": "831f9b61fb61d8babd79713150aad2b2e89a0ce01e23d3ced6dd43a0cea44bba",
+    "test/06-small_b1000/type2": "59fb04637b69ea3d8194b819f07ecf43f6cab6d8dfd04ab8858d3a7dd308b864",
+    "test/06-small_b1000/type3": "eb2c10d9fa23d30c87c6b6cda0363bf491a01c83ac878c96c8361b3a0883e588",
+    "test/07-syn100k_b5000/main": "d2663ff818a6ab439d6241d6e181bf0cf553bd55d1c5c8e336da14b89476789d",
+    "test/07-syn100k_b5000/type1": "9e9be0379c2a85515233ece5bfd9374c75a48373c6e75a669d7a7b10f57ad872",
+    "test/07-syn100k_b5000/type2": "8e5a73d51735310b4e1cc4a08055049854f7c8c941fbf9f76f1e0b8928ba06dd",
+    "test/07-syn100k_b5000/type3": "7f1ef67343712a9fe4f7279978f9e4af4af3bc94acc63cc10660741d875895d2",
+    "test/08-deletions_only/main": "9c61cff861afe5b0346c2462b00681301811f55503e7e51a92301752df1d7a03",
+    "test/08-deletions_only/type1": "10a5a6f9f2589a94aab6924b69fd2be88f288bbebca9e4b9f620eb1e38646554",
+    "test/08-deletions_only/type2": "61c3c73ddabbbeb68688019f7bc0f5c7f354de5031dd4fc0e4bfd7d82df0a532",
+    "test/08-deletions_only/type3": "98b19330fe607aede9343ab0293cb8fb191db72dd0e5b1ea1f2857e4a4875f38",
+    "test/09-insertions_only/main": "3550f282e0bd72d8d14ef40944b545a6076ad442666c14b62cb8834ef9c4c110",
+    "test/09-insertions_only/type1": "cb45396a45902b9d5b23b491722979646d515af395520288041760293bacdc2b",
+    "test/09-insertions_only/type2": "1a4b658e9dc15fdfaee3686ac69893a5c0d675b7e738f5fe9f16c064ffecfc97",
+    "test/09-insertions_only/type3": "b1d05de0c86585725280b19b0ca9a1ee0942b4deda18b034cbd0d663ea099269",
+    "test/10-more_deletions/main": "034cc3e19b1b8fd2495810d957fcf461d40a77f9c7da3aab37e0664ff4cfae56",
+    "test/10-more_deletions/type1": "4aedfa1eb611412b3d4deed8d5ee5f1f53c39bdad84c25ff15b5f0680f0cfbfe",
+    "test/10-more_deletions/type2": "9584d0c62801ba409b7e372fdc5e6b769ad340cdef772fff8336a46f7b39c7ec",
+    "test/10-more_deletions/type3": "808e18cb985fb1e84758a6558e39a471e2c63071fbb9837641e0c6f96b041f78",
+    "test/11-random_inserts_file/main": "57de5f63dae03fdb01a001c17654984a0985c4ea612503a2fb8c8d76d41b55a4",
+    "test/11-random_inserts_file/type1": "e736778990cff5aad9f1b7a3245dcd9e616cf4d33130c75e11b0de6b5a4673f1",
+    "test/11-random_inserts_file/type2": "97d24fc9ef517d9bd6e518f51dad1edd98847d77cb6a63667f6c53e7611a7772",
+    "test/11-random_inserts_file/type3": "5ad4f650495c2e1cb3e174360ff1447f914f7c46da12db2669ecf5c3a84d3a99",
+    "test/12-sampled_inserts_synthetic/main": "d2506d3e2907187e5aa8eea15c59eab0c2be9dd7c310017116d638c0faf043f5",
+    "test/12-sampled_inserts_synthetic/type1": "d00da4c039a6aaed0a223ad94482cc1008ac918bf51c9ff21ef7a9b87f939999",
+    "test/12-sampled_inserts_synthetic/type2": "b4afd274435460233c232b071af8886717015ee79ab66da5ff61e76cde1c2c9c",
+    "test/12-sampled_inserts_synthetic/type3": "082ca2b47edf49a558b1809d90151d8ff059f52edb7ff6e217cc6c48cdb688da",
+    "test/13-batch_larger_than_graph/main": "e76a9e3b7a6f3e82f1269cb243c85c405d9d5cad9205dc867e16ab3c8095273d",
+    "test/13-batch_larger_than_graph/type1": "a83f8bdf82b184b4e181f71fcfaf234f5420273cd973149007ebf4d4b7b08e8b",
+    "test/13-batch_larger_than_graph/type2": "a98c8b954bc34e0b7ea313030ebaae13da3a4cf72294d3dca6b0baeaa06457b3",
+    "test/13-batch_larger_than_graph/type3": "b10d0dfdd9e1a0eafd3c1126d7abe72206ba541e649c14cb13267cf6638b590c",
+    "test/14-skewed/main": "a65983909a58707f2e92afd7111cd944370f4ed8850a8c6e4a0dca816f15aa8c",
+    "test/14-skewed/type1": "ced39d2ca5c2be3c712701b030711e77fd6367b51a98c0c146d5c9732ffa769e",
+    "test/14-skewed/type2": "a7e52cf177fc4b8671afb9e87a0482cb43e44165aa8e9647cff413ab73bb16b4",
+    "test/14-skewed/type3": "1658378df9dbab8d84ce27eec5215db5d340dd01aea98702bdb8dfeaa732c324",
+    "test/15-medium/main": "2f7aafabf0d3dc48f6696d35b5436df9580d604d12438b6fa25e51dd898e6e41",
+    "test/15-medium/type1": "036ebfefc7e5ddee60f4deed29f6890d8c2f0a2756e7ee64c7a6aa199e955257",
+    "test/15-medium/type2": "c5eca1324b838d76587a8841a3ccb2351b78af68c35ebd3cf1b7437a4920438e",
+    "test/15-medium/type3": "cc72b9f9f29ce6ca784b33ebcd9931a107e2bebf0fea20cb0ec4a90e08254e6c",
+    "syn100k_b20_s1/main": "2d63fcd83299c019c9cb8fc9079167f9c00cca59ccd9c05ee6926c496f402961",
+    "syn100k_b20_s1/type1": "756df18f47f7dcf4057d03ceb8d2638e0acf795fed2758be6529d98c4c4d2bbc",
+    "syn100k_b20_s1/type2": "60e5276e231c983dae4d92ae9f913a260e4a951bf7a156e5ab3561b0513e4c63",
+    "syn100k_b20_s1/type3": "fcc21d9c6fcb1563259c1d662eb409feb996e6f7d58302718368edbd2aee781b",
+    "syn100k_b5k_s1/main": "92e1afae1b7c035f6c820da73ddb1c7ce41aa33ab49faf9594cc5adff04d4eb1",
+    "syn100k_b5k_s1/type1": "aed1af7e66fe540a3c439cb63c3d63fa6fe11649698c3089c37efd9be436d5af",
+    "syn100k_b5k_s1/type2": "d48a64c732fa02c804268e3e42f6f2cf08df785f54869877c31a747001d62197",
+    "syn100k_b5k_s1/type3": "2bd978287095d021bccbb01ee665e4d8c1882d00102f0aae743232a15203fea1",
+    "syn100k_b50k_s1/main": "0d98b50cd7201d58b129885952be5cb3c3aec7717920d02f4e3d205cd00e07e6",
+    "syn100k_b50k_s1/type1": "6a9e5a4b259741b5170fb49c4e60b0c2699f81874036700ca432eb7ff5d41b97",
+    "syn100k_b50k_s1/type2": "0c6ec71def98b3e8f7be72ca95c0683c91b7010b69e691b27ed424670869ec54",
+    "syn100k_b50k_s1/type3": "b9b3f22af293e461c282582205d895f733b3fef21bab885b7e24588b262d5fc7",
+    "syn100k_b100k_s1/main": "89c94d6cfbd93de8969bff63ee1337740641aa391ac936025646e3bbd5aca21c",
+    "syn100k_b100k_s1/type1": "618db63845ca6ba78cdbdcbdeb93d34452043bd739b57caf2103909e955ffde5",
+    "syn100k_b100k_s1/type2": "cf9390044f479c7af39d51e6be195225ffb344e085ffd43aff65f267384b6f07",
+    "syn100k_b100k_s1/type3": "300a3530ae46e6cebd862f89a90d9826c2acee527b8d96998c831c0f360e13a3",
+    "syn100k_b200k_s1/main": "7181bccf5620018b9ca893ec14cefaac06091585e1a160072f495fef875704de",
+    "syn100k_b200k_s1/type1": "4c00453bdadd0954cd387645a52e581a40dfc4f6455a70227c131bc77844481f",
+    "syn100k_b200k_s1/type2": "3ba0ab66b83a305377c1a330e832b720019d47921bc2e0042e1cc936b1efd9dd",
+    "syn100k_b200k_s1/type3": "78e48e173b33e6205319e85e54467f475fceab10b8493deaac1a36c30e7f882c",
+    "syn100k_b20_s2/main": "e055bd78d2b6f5eecde2dcfd048fa33b0cdacdbc6b79bbc7690cad7d46b66d5b",
+    "syn100k_b20_s2/type1": "f0eee57ae04d9b600e6efa457324eada5ff70dd9bf2ba3878758445df684b24b",
+    "syn100k_b20_s2/type2": "64c323172a19bab8cd7e687dbc1393213e9f9ab93791929632a5361613e98b3d",
+    "syn100k_b20_s2/type3": "8bb4ae9c17695928e053c510a9c2c4ee631a545991dd3ad0fb104ad7f6428d4e",
+    "syn100k_b5k_s2/main": "f7a9c9500b01b29a57c09e23cf3b727316a3800221638110b2cf0774bbc9e9e5",
+    "syn100k_b5k_s2/type1": "171e23ce85a9bc36d339b50c511e7d8f300f66c3b590f7ef175ab413932a695e",
+    "syn100k_b5k_s2/type2": "a64b1083e40aa62165380522bcfd03f2b6ef5b0c503aa00114963aba2e382d51",
+    "syn100k_b5k_s2/type3": "264d3093b39e540c4063e7d818d4f0978de5cc75ae78fa9e1658757b9932641f",
+    "syn100k_b50k_s2/main": "bc25f292ab6c19c183a1629a748face44314f198d8dee20727ae208d5d353161",
+    "syn100k_b50k_s2/type1": "dc21fb0a56a2f758a35478a4928a901abca9becac57295b493bc9e87d930cc27",
+    "syn100k_b50k_s2/type2": "8dbd737be35d30c4e36067272237409f54cd20e82a7811cfbde48c73354d9d5e",
+    "syn100k_b50k_s2/type3": "521632183cdbe3ea62b125cb1c358cffdaaece65ffb8448cd6adbdb0d7809423",
+    "syn100k_b100k_s2/main": "d9d60d0fa357be2e600ecc5d756ad3166b990783e991cd815951b81b6be19d65",
+    "syn100k_b100k_s2/type1": "5afcf4d7b0747bfdbea26f39bee67b365c0e882e31d5de128a412a9826401e87",
+    "syn100k_b100k_s2/type2": "370ad0c0014cce4261d679dc16c10e3275c431b5a2e1559ee978ea247ee58b89",
+    "syn100k_b100k_s2/type3": "a36211209a3b519ccf7fe9c3347e67b84e6d9eddf964f2a906d2c59cb4eca753",
+    "syn100k_b200k_s2/main": "2d808bae402ea949e6f37b8bcfd4ec8b3cf61d139f723fb64b5aed863938c94e",
+    "syn100k_b200k_s2/type1": "82dd74bd764845d1720ee251034044bc7ed2426b19803d92f5dffea1e177e58c",
+    "syn100k_b200k_s2/type2": "239f3547be11a2a5fc0e140ee016dba4c3dcf214e626bf43832814c59b8bab94",
+    "syn100k_b200k_s2/type3": "fe2228b6965bf190981c79d6d2dc89bc9c0704e0ae8bd7395f64897c54c4730b",
+    "syn100k_b20_s3/main": "27a3dcbb8e73121e6597208018c9cd73fc26989797c3b10394d8e5a97e5f2d6b",
+    "syn100k_b20_s3/type1": "188ed90837f7ff180ab1728e4874281a52964d4fbbe4712f6d03e5b99fd03381",
+    "syn100k_b20_s3/type2": "11a40e45959175cc5bd92ffcc5884ce2d4f4771f12056c2df50d26083d63d64d",
+    "syn100k_b20_s3/type3": "cdbdd5e263f1c087cd6f0d2bce5dac127d5ba09f579db3e0f140704f5e9afb01",
+    "syn100k_b5k_s3/main": "d5d82656a6fda05aa8d0655d67fa65a7d9b2ebf254da0c720dd7c041b2448d8c",
+    "syn100k_b5k_s3/type1": "0bb935a00406a950f7af75b1acbfcb269a540888732d129ff94f73ea61093319",
+    "syn100k_b5k_s3/type2": "eec6f4b791b8c9792df77e5714e776e1727fbc21c5cc4fdfed8ddade3c7a6fae",
+    "syn100k_b5k_s3/type3": "a3d97f0d6f3071fbce96a068fe62c04afef3f1d3e562719a2e310c412a9c0914",
+    "syn100k_b50k_s3/main": "38a0c0aa669382bbefb61e8ce7e1d9970ae0c7de08fbe436186874d1b8afdff4",
+    "syn100k_b50k_s3/type1": "ff760a3983932f2b50739e72df75e3e2e194287b584f57fd0ae218474bf58a15",
+    "syn100k_b50k_s3/type2": "f766bdb3b95c8c02e2554a272610a9b60b52fbaa2a42549e3f629d320ede944b",
+    "syn100k_b50k_s3/type3": "e79b33e1e185c6ab59cebcb2622e572a98d84f23970440f272b187736099db44",
+    "syn100k_b100k_s3/main": "9d1f0cbae1b87411771df21149d8dbca3ba7d815a2061be564ea6c9d9b0118c5",
+    "syn100k_b100k_s3/type1": "fe37066d708b3def532c7cdcac2b516c0d877c52ad1b37ba700b1af5fc75591a",
+    "syn100k_b100k_s3/type2": "e12e51ea0b60c736b1e338c7d12f6cf81a03273cd1041eab010b5dc1be52bda3",
+    "syn100k_b100k_s3/type3": "aa385526716643c915c4604ee0d28caba069df7e56dd913a7749900699dae8f1",
+    "syn100k_b200k_s3/main": "ef8d67d56f8c3ef45989a4c0ea679407de6a60a512be652467449aa183322253",
+    "syn100k_b200k_s3/type1": "e5b39b3504949030a3817648a6c80e92f771f3a594e3fa11d30743b3d1a765c8",
+    "syn100k_b200k_s3/type2": "d583b75267d889524941b247520dee85051b9da4ede092b02b447dfbbed60ced",
+    "syn100k_b200k_s3/type3": "88aa733c01daae6043859b3fb68c0764a15dc1bc8c6c088a3d88dbd240214bb4",
+    "syn1m_b20_s1/main": "fb16c30a2d21984e8568e25bd4fdd3cd942646a41eee4b5bd8b1ad154cd87bae",
+    "syn1m_b20_s1/type1": "af09e4b7ff168b95cab53ee0c8100a93556f63cd0c0a48fe7950b80fd3570524",
+    "syn1m_b20_s1/type2": "f51b4bf2aa5216e4e29204ba883cfef74d99575a53ccb8e3e57b96d76d4a2029",
+    "syn1m_b20_s1/type3": "5e467e0d36e68bf13c9e8b7db1835665d2b0c6d7a3399608ca68cf22d62ec219",
+    "syn1m_b5k_s1/main": "331fc471e8b9577fa00f15ce01054ca13d30d524fcc139b740df338a1311215e",
+    "syn1m_b5k_s1/type1": "88dd0dd9ed86bdae81e9be4941fb7e7a89ed1df63abbc097b2541f6c2179e6f4",
+    "syn1m_b5k_s1/type2": "1eee7cfaa99fafbc28cf4223c181913250009e1f572dff1005a793f52f09f820",
+    "syn1m_b5k_s1/type3": "212174354ae771ce690dd0c7f314143d99756e2150ba3814eca88c1a86e8520a",
+    "syn1m_b50k_s1/main": "0a86f7b176842c1aebdbc3afd361da64f6ee24f7836923ec536d7cd3cb8ab552",
+    "syn1m_b50k_s1/type1": "e7c2f4fa9233671b254108edc0d97a7518f76f464ffe1726b70e9f0aa33a28cd",
+    "syn1m_b50k_s1/type2": "90d765100a1fe08bea2f942ec9404eb98c9d0c3d2e53ad2b142794909f7b08b0",
+    "syn1m_b50k_s1/type3": "e0014bcffe38025f9db4664cd997b1bcc2efcee672e9c9d8e65ca0dbf841aaf5",
+    "syn1m_b100k_s1/main": "eea70f3653b0de28a542fbffef58bb1ef85fcc419039956e1bd54eb22b294fa7",
+    "syn1m_b100k_s1/type1": "2c2d60825204d51fe6ffdbe41a00fbd4e710610e995565402fadd00fd3ef22b4",
+    "syn1m_b100k_s1/type2": "e485d774d4a157b948a267cea5bc5228b3f6717806d3aa6cf373be90bac3cc01",
+    "syn1m_b100k_s1/type3": "e5528cff02eba9652662980d39adf6ac5b8bcc6fc15e99d1dfc244a4a6bf7f7f",
+    "syn1m_b200k_s1/main": "8013e4f9ba6e4d973c9c3935281d4be6a65a6cc88fff8f2b0187636ab9d38d71",
+    "syn1m_b200k_s1/type1": "1fe7b93c219ee3ef5fd21753ab8e2d8c8bf8d80d3aa17b85a41f934af49ca0cb",
+    "syn1m_b200k_s1/type2": "36abf23407e0d6350c047c4e6c89410d460a9fd7433409977c8cb66b7ad6bc87",
+    "syn1m_b200k_s1/type3": "2eaba4a82ae8146b708239bfa501ccb46e14d218e46dbe93570396de49b96ae2",
+    "syn1m_b20_s2/main": "1a99ed7d832379d7e9dd313f4a7f615072495a4e2f879a1fbdb1b6a72db6907e",
+    "syn1m_b20_s2/type1": "ad8d3c61513241c9bc1eaffeff8208cf83c5809a953a20bfdc40f9de5494c833",
+    "syn1m_b20_s2/type2": "231e4b9a413871cbe4a090cc593685af61c18ec748a9a8daaa0e5f966364e442",
+    "syn1m_b20_s2/type3": "d6f2230691bc6cc802e261fea769e0574c4439fa94a7f7595424cab10285b8b9",
+    "syn1m_b5k_s2/main": "b1b9cfdd39b5355afb7a595fe6d360353c83ed0da95ec78fd8c29fe9a912fa72",
+    "syn1m_b5k_s2/type1": "17b16b01bb6fcf0f7648fb6080ce43ddbd9f49ea19a69f17f321102e75ecb97b",
+    "syn1m_b5k_s2/type2": "fc8d513a4e4d3f54bdd6386d0fa64d79be22955828966f95a20475fd7e92c653",
+    "syn1m_b5k_s2/type3": "794d1015061fc18a758ccf0605674a4eb67253d4de7b495b24f892059534a642",
+    "syn1m_b50k_s2/main": "eeda4b20e2a857677527a7f8c9866e6bd34392a06e9129b2c034cab5af041ff4",
+    "syn1m_b50k_s2/type1": "79edf0cbf20d733bc75d9b90bd65e16ec9c865883268112091e2f255537f0251",
+    "syn1m_b50k_s2/type2": "8aa5d33727a7dff14f58202d0bc5074c207b33501afc7ab4d07ba15ea7cc15f4",
+    "syn1m_b50k_s2/type3": "edfe0c9099c5c068a8de054b6b3c74eb6bc47aa46b3e8b055f0c13bfaceccf4d",
+    "syn1m_b100k_s2/main": "6aca0b497c476ab3231112bcadb14cded334f6074cc786af916974c449529d1b",
+    "syn1m_b100k_s2/type1": "d29ca9439c0bb8d6031a7a922e74470d8e52a3ca2c2a627a6d21110801894834",
+    "syn1m_b100k_s2/type2": "12d96cedb6fc2ba3a3b748f7692026ba0c4374c0acbe0710c4adf7282d2b5a45",
+    "syn1m_b100k_s2/type3": "47951690426758dead893984d6d44090f5ea5d3ac1f9957cb6d9807bac65da15",
+    "syn1m_b200k_s2/main": "79af419025326b0fe77d62dfeedd3d1eadecf2975d6f46712816b7e528b2c2f6",
+    "syn1m_b200k_s2/type1": "332439defa05410d7def752d8b09ca5aeefb13c6f08b2fa6f3926c2a28840b39",
+    "syn1m_b200k_s2/type2": "34bde3d670f0a3e3262d0ab46c7168a9318a5ddcb5d53cb1602faf5a59f920ae",
+    "syn1m_b200k_s2/type3": "0785e9ce9875a09c25d56a0b07091759d461b3b03354cbdbc247fa65c9a5b66d",
+    "syn1m_b20_s3/main": "852790adc403dd2c017686c7a74a5026ec97dda7f8305eeaa691d2eb3dc05f16",
+    "syn1m_b20_s3/type1": "bd0be12b4411900416cc51630b0e81d0bb28ac82d3f71bf2bb36eb90eb5dde45",
+    "syn1m_b20_s3/type2": "1868c571fb97223e5ce5654dd30541408060165325d752eb1c92ce97d0473500",
+    "syn1m_b20_s3/type3": "8add7ce8c8cef00d3f3971b01f569e022b49e1157e6c2977bca3e266de33557c",
+    "syn1m_b5k_s3/main": "03b117111b89e9616a6e9f1185d1ab70df0425eba3adcda3bd91feccba02da8c",
+    "syn1m_b5k_s3/type1": "ae9d719028e73e4a037a2a59252dddb350814060cb5f67af0cf097de8423e7f0",
+    "syn1m_b5k_s3/type2": "1901e21f45d9843786eef8680b51693d4f2596b3d86bc7443508d1f1b4cdeeae",
+    "syn1m_b5k_s3/type3": "ab47bacb99cb807d51a4a86062ea142360efdaa636c7cd590008cd99ffb7dce0",
+    "syn1m_b50k_s3/main": "276e5a42c3b5164a77b3d32e8176df109762b65652f85b7a5d7a1e4822dbf4f5",
+    "syn1m_b50k_s3/type1": "45859c1d4302d58a1ed82fc4a505b803b4a1acd5d8311a5e4d2567ee630d0063",
+    "syn1m_b50k_s3/type2": "5e9cac68fd976d192b0c22623f1e2e0fb27ef09330d4d612fdf8e4d633bbb0a1",
+    "syn1m_b50k_s3/type3": "7eda118759e1b744cf2d3af1209ad17afbf8feac3937205d4987d8216e99a392",
+    "syn1m_b100k_s3/main": "191b87289de443565d5da93663b377c25030159ff394b5fb59b074d52d7762ff",
+    "syn1m_b100k_s3/type1": "5118e703354fdb77c2e02fcc23248122b7a8ad5a089b0efd7a3a142e97b287b4",
+    "syn1m_b100k_s3/type2": "f80166c8cac49ad5ac2fbf48c79d4c324cb34ebee864f34c8d5a735213ae4e33",
+    "syn1m_b100k_s3/type3": "af41bd066cf15d6d289438ef83cce01f89b44b7e207caa4c4f29a38b59d58ca6",
+    "syn1m_b200k_s3/main": "f89a0a527760a89946128d6830a50d8ce87e19ce94f239204a23fbb2765b99da",
+    "syn1m_b200k_s3/type1": "2a2f62c0e34dd2987ed295384be58ddfcf38c611e28e4c7251ec92072ea1df03",
+    "syn1m_b200k_s3/type2": "d00866c6c5c0129228ca78fef13ce790fb3797d73f5ded077ab65d71b6f96a6f",
+    "syn1m_b200k_s3/type3": "57b9512c4cf76f9e646947f396bc1dd4409213a85206e0faf17c223399080a37",
+    "syn2m_b20_s1/main": "e6304128ab7095860ac080838ba8de08a68f36e1deea69902b485f0a3436c66b",
+    "syn2m_b20_s1/type1": "ae694f1b89d9678da2653f19638227974a9cd5e7ebd75d1696e2427faec976c2",
+    "syn2m_b20_s1/type2": "6e473fee4694ddf0b627afbab73b7ae1f98a4fb62bc39887c57e3903b1e8953e",
+    "syn2m_b20_s1/type3": "4d48b0891d16635b2b8697fea22a6ff5fb67b6ca73917d1ca5bba1a57a72d545",
+    "syn2m_b5k_s1/main": "b34a6bb9d3f3baa79f429f3c2b2595b6de5402bebe14dbe43bc5b2e2803b1fe7",
+    "syn2m_b5k_s1/type1": "2b42e7c3cfc70c7e1be1a1367f37dc3b382bf154f5bdced1d426431f239c67ed",
+    "syn2m_b5k_s1/type2": "b5349cfbbba9a7df2c2fd71191767f0a6335fbbb5a64f049cec6dea327a801e4",
+    "syn2m_b5k_s1/type3": "117fb0f69243a677536fb0bb3a7ad32679e77165f5d365afed73baf658f2649d",
+    "syn2m_b50k_s1/main": "ef0729860e9a7f07e5ac4b20daef2b86c73aef707eff9a48a9008caab968c02c",
+    "syn2m_b50k_s1/type1": "2a58b05b5b2e77f12842b6647a18e75fc8a28fc87209093ed075b317f6c3f080",
+    "syn2m_b50k_s1/type2": "b935705dd8d06ff0ae80a2279956a6b1e311fe004906b25eeeb6a5275d07cf78",
+    "syn2m_b50k_s1/type3": "9a0952b123e92b87f6e5a4228fc4d750ed2ac192e59bb4fffa3440905dc3e842",
+    "syn2m_b100k_s1/main": "1f4d7e7f0c6acb7cb4fa15b341775e689e9519a71e11f955b75a82d8882e9fbc",
+    "syn2m_b100k_s1/type1": "42d212a812befa6691c849d46d14761fb67b0e80fa73d7be5d3456261da6d2b7",
+    "syn2m_b100k_s1/type2": "15319d6432b2f84a007b3ace78dcfcccdc942bfd9655cc8172ee5299fce81473",
+    "syn2m_b100k_s1/type3": "789a8627040c1b331225a5b3dc3e858d39ed4cdf725b0896406372ef35c52036",
+    "syn2m_b200k_s1/main": "0287e21eb1338694ba193392144c22d749d124b648484a528558b75ee06a7538",
+    "syn2m_b200k_s1/type1": "f1f616655596cc81cfef058589c23f9b2f6893e1a208787cd644bb0b52878f55",
+    "syn2m_b200k_s1/type2": "688347132c3e0c0a4bbd0fc61ec454d54ca5319966dfd68e6625ae58ea5f9282",
+    "syn2m_b200k_s1/type3": "4902a53926b74e30128c1732a07ef8d237b06cd1eaa858729868cf449dfae9b0",
+    "syn2m_b20_s2/main": "fea2090bb4013a4849e46e960451c6445ae02cef5f3d43ae7fc34595268dd663",
+    "syn2m_b20_s2/type1": "77a7e61147cf8e88f6ce32ec6e5fb29a0a5055c962a89ff6dd01cda42184af6f",
+    "syn2m_b20_s2/type2": "17073f3c54190a785e721361f26b9cad86a4b308eba8d65e5a43aca19d4abfdf",
+    "syn2m_b20_s2/type3": "ccbaa28ac491696d9ddeae16ad767476eea3e37136ba6ebc7acf07f674d8f950",
+    "syn2m_b5k_s2/main": "233a0d5928b183d95bfe8ea0b54249933fe5f599e174361c7dd7b925e670154a",
+    "syn2m_b5k_s2/type1": "e2aa9f7b85aa57d0e54be893a346a8802f32fa752620ec3c41c97e1c485b6ed0",
+    "syn2m_b5k_s2/type2": "1cdc239f1b752a6fdf41a78dd0191e812da0603f2590f1dcf04e51f51e2892e0",
+    "syn2m_b5k_s2/type3": "e011165087d819052418b348c60026f1b5e272ffdeaf0707c8886c3e30a28979",
+    "syn2m_b50k_s2/main": "9e87c009c189fa595dd06a7fa71633c4c6b854880f987b0e4120ad91982bf139",
+    "syn2m_b50k_s2/type1": "fa4f043e2845174da644f78ff1785c7ad4c22c02c63765c9322573743ff2a86e",
+    "syn2m_b50k_s2/type2": "51a454291e80b68f659e2c56945a8b1d73a8bba05d84267d3af49c32247883c4",
+    "syn2m_b50k_s2/type3": "b97c7e6728cb2d040527ed17215d8ff885f670699959aff4b79a9364f714508d",
+    "syn2m_b100k_s2/main": "38ab82b44d5086d0c702f072c951b4a1e6c3695c065c5b4b85fd44a35ef4e756",
+    "syn2m_b100k_s2/type1": "263b9604fb954e2099e8b50ba0157073434ae00e845998d63a35d76c82e55ef4",
+    "syn2m_b100k_s2/type2": "0846e046032bb5f9394f93cfe2a42613a76bb7232a2778a3a679cc332ff7335f",
+    "syn2m_b100k_s2/type3": "276ea480ba5f6b380dfab916c665488a6c121591d40e73126b8dea60e70ffcfa",
+    "syn2m_b200k_s2/main": "e4842966d841914cd71375e6cfb2987207cbc2b3edf440a5a452a917e7b30cb0",
+    "syn2m_b200k_s2/type1": "61b2635d257f8123e09fed1006d18f0ec113e4c3e2dd9f3dfb81727396f0732d",
+    "syn2m_b200k_s2/type2": "39cb0ce06bcc7d80c63e8e001a3fb01586b7bd8e243bef16270770f8421362ba",
+    "syn2m_b200k_s2/type3": "4d217d916f168661a4cc5a4fff44becbbd546e298d1b5650e440e31f713cddc2",
+    "syn2m_b20_s3/main": "412b37b4a5e4645fd62bf6297bfefe7869985bd6efd745c72d99622082158db5",
+    "syn2m_b20_s3/type1": "bb9b20358ab797a30e48f98ce0b83b294e39911b6bb94e68b882ed03153fd024",
+    "syn2m_b20_s3/type2": "7a12fb69e03bf025cbc53b833add2c5257b664db32957ac00f9fa20364bf8cfb",
+    "syn2m_b20_s3/type3": "34734eae67259bcfb868f3e273ffd7bb8444082d5133242767f03598a9848241",
+    "syn2m_b5k_s3/main": "aa49d0ed2e2252321a1ab3461944bd84678f202e38fafb0f86cf18deee7253d8",
+    "syn2m_b5k_s3/type1": "13c25a84ba00e9ee017a2028f77f0ba00ad2227fd34b3e8b6cf615a920336267",
+    "syn2m_b5k_s3/type2": "7f0e65773cbc2787ca6caf85f05a05f2952472b77339d52a1c411f9cd4158b19",
+    "syn2m_b5k_s3/type3": "04d6b80b19cc544ae44a6b06921e2a895f84a5a7884aa549177f3a8587783634",
+    "syn2m_b50k_s3/main": "e645777b8ebbe332d155f527e190d9752ace1ea799ea3621a81527ecd6d5ab92",
+    "syn2m_b50k_s3/type1": "e7ff8f358f96735132d38bb0358558277e44a5d2349157bf5f04264cdebc2f0f",
+    "syn2m_b50k_s3/type2": "bd515c07051b85a67bf5093f32a37803474e674b13e52e9a6329e959658fd3e8",
+    "syn2m_b50k_s3/type3": "95381fdb9f4ec43c8adc50a417e99d38e2c10c77922386fb0dcb063ff853ada6",
+    "syn2m_b100k_s3/main": "8ad8956e371001e92e80b1549eb6cd42d51bb932f44f9dd46e071390f3ab4b63",
+    "syn2m_b100k_s3/type1": "1e2c5a06bc7bc5d2588b176c457d9b9c35b51d407c77a801fab30c9b6281af7c",
+    "syn2m_b100k_s3/type2": "9e9f5198276e75dc7ba3e24fa602a3379d2ea20b61d8bda8a26602030b3a3c3b",
+    "syn2m_b100k_s3/type3": "098ee396a38185f268d5ea372550d3d9ce00139b0c6f0003156b4dd798add178",
+    "syn2m_b200k_s3/main": "a2c8619a7868345de128989e700b25e79096d4edecda12bc3546605f02dcd805",
+    "syn2m_b200k_s3/type1": "7d44d95a9e36e25f231885a1a29d4bc1d7d2b656463c8fa3332cebc3a7628eab",
+    "syn2m_b200k_s3/type2": "1827984fc48fb7446f379ee8a2dbc844fa983fcb498182c380691dbcd74d4047",
+    "syn2m_b200k_s3/type3": "0d5f6e2547261fac3d2e1e2db701a15d5dce005e563d8ef7b0949767a15352bd",
+    "coauth_b20_s1/main": "a8f1134254390bccf8198d7845c7410d4e61f7012740722a693d1d2d08f70cd8",
+    "coauth_b20_s1/type1": "65a9064942de1ab01ca98ea1ede6840394116283447de5d018da4a81d4eb9562",
+    "coauth_b20_s1/type2": "25f7e27cf64adf6032798d4e04d3e42134898054a2f45ec7909bac5398dd6850",
+    "coauth_b20_s1/type3": "059216ce86b5821d58b961d0bc8ee5f81c57178ac29e835b69ef361c0f5744e5",
+    "coauth_b5k_s1/main": "445f0260c8a003d94c647e5182e4ca3995faff1cbc8d31aea0cd12243da89316",
+    "coauth_b5k_s1/type1": "97304b043b516a33ae22c1b40a1787af0f92f532712ee77d2069eecb51bbccc4",
+    "coauth_b5k_s1/type2": "8654b119dbc1b42cf24c4af48c16e265c929d160b52dc610aa3f68998d10fea6",
+    "coauth_b5k_s1/type3": "23ed8af75ded3f9828dd8eae831809abda5a39642ac9a4198ecdb319cf07a67b",
+    "coauth_b50k_s1/main": "3fedae4d94afa18a4ad4fd3e7386a36415cb266e0d2863f68c9cc3c949a7d0a9",
+    "coauth_b50k_s1/type1": "3e6eca61e95e646cf58485c17ceb1c02ae9377da40619607f4974337d49be53f",
+    "coauth_b50k_s1/type2": "aa12d465c9b12b8c12fe630520af8fcfff52d511281221d622b89ff4b8ca4b1d",
+    "coauth_b50k_s1/type3": "65280944b9ea8742814a34c29f1998104f97914fae74ed16d1f8695918f92069",
+    "coauth_b100k_s1/main": "0104b2bbecc415bc88742f94cb95fdc508f3624dfee50f956abad11080e6e3c7",
+    "coauth_b100k_s1/type1": "50c2ca70bfedd924d52de8dba2239561bc3541ded3f171bca10bde7d481838c0",
+    "coauth_b100k_s1/type2": "77f9bef189839a3291a944a170c1e73ef76519fe2215b0ea3232cf468711e4a3",
+    "coauth_b100k_s1/type3": "af747685beaddc59c6d27f7a77fadcd85b746f02590457303616e084042f939a",
+    "coauth_b200k_s1/main": "83694715f0cc0210ce3575a319c30cea638c6aaa807e2abb2c2cb780c9bce816",
+    "coauth_b200k_s1/type1": "0e5f1bbd2b5370b2d5030b8d9fbdc1fc1490e052f0022e72d0d14cc1db3a6ba4",
+    "coauth_b200k_s1/type2": "14a9c7bf0db0761cff3593f80e004f9b575df6aa5215bc2597abc2b593f2b89a",
+    "coauth_b200k_s1/type3": "79515a0d2b688a4be20ed981624e2c3d77a3d1d41f87dfa7d49df7831bf41cd8",
+    "coauth_b20_s2/main": "dedeed53fee3bab6032d578b8e8657f8ee4fb6994b05456e596746126824ea02",
+    "coauth_b20_s2/type1": "b6b890b3c53489f88a900dabe47bbcafb5d52fc05d4537689a7bff268c7bae8c",
+    "coauth_b20_s2/type2": "fee3f8ecee4401a99c445f4ec70d2f6d98e7c651d46808231b4a55bf02d962a8",
+    "coauth_b20_s2/type3": "1ad82f3b951e102a618a2f3f817f04fda12d69cd75fd3d721fe3ea5e44a7722d",
+    "coauth_b5k_s2/main": "5a4ebb863da8bbb5eab07fee519174cf4c3b302b151a3fd669278074d9d6f940",
+    "coauth_b5k_s2/type1": "f2f75434331c157e1f70f5578fa8c81812677e6b7c7f191d0ea59442026510a4",
+    "coauth_b5k_s2/type2": "af0bcc2f271e911fc5219146447a8e8737eef44765a8f05d503b4c443b37bc45",
+    "coauth_b5k_s2/type3": "06f6b2397a605e22bab2ac3f085956b97f85ccf826d3349d822b4219a52285a0",
+    "coauth_b50k_s2/main": "ce90389ce3c7cfa15f320fe6e5fd51d7a933b234c58509fedfd442dbf7783507",
+    "coauth_b50k_s2/type1": "c26fb7495470dc8a1bad81704daea75110eaf90f314cdbfe4b7d94058ac25d39",
+    "coauth_b50k_s2/type2": "b118ca97fbeb93c09ec4fd5f393784215c1e9e58ab04ff968cc5bdc5b8ee5dca",
+    "coauth_b50k_s2/type3": "5ff36cfe5459a1bde8d0a1b1b6567377d0361791c49352b5408daf7b9fb321a5",
+    "coauth_b100k_s2/main": "8d2e0457c10cc64bccf05014529e675e7598f0327f3efcf628d5b17b52fcd9af",
+    "coauth_b100k_s2/type1": "fbbcb9d52f843008ec3c2c432c7d8701ebcb89e3b8ff3a5f09403f1d56765d48",
+    "coauth_b100k_s2/type2": "b42612c56e679ed309b1c293d9a5d2fdaa239e3c49794de9f530975c1ec35bc7",
+    "coauth_b100k_s2/type3": "b237c7db3eee7df6f24ca81b2efb28ee0744a7904a25d33c5ecfe931c354bf39",
+    "coauth_b200k_s2/main": "8fb96b92f63f7d5f5ea42ac28ccf827a6f882fa59231c38eb4b50c3777c03851",
+    "coauth_b200k_s2/type1": "d7b010830b7c72a9a43628e7c099561dca9ca35993035b93f6a89b7d3826b490",
+    "coauth_b200k_s2/type2": "d91fa048b0d057446353150fb665c78fda969b85405f30eb6f7dccfb82d0f522",
+    "coauth_b200k_s2/type3": "3744dd9104eaf5af8b878164897c830951966c2285df8581b942f43dc01e283c",
+    "coauth_b20_s3/main": "59683ff8f6ad059e9a6ae5007c7be5a9e258bdeeeab077d9cedc07fab58085c7",
+    "coauth_b20_s3/type1": "a980259b372432bffb111a8622de7faf656a03ebd3b4beba0e8a5bbd763bbe3f",
+    "coauth_b20_s3/type2": "8c3fc951cc048d20d1de20832cbb3ebdb5a3eca4c3fd9bf5325b7c566638ced5",
+    "coauth_b20_s3/type3": "2a794d141fbd3e02ed0d3d9e939e698ea3c643bf39297fbe0c7ba802fd299ef9",
+    "coauth_b5k_s3/main": "d04671e7448ef7b1328530148f2a700c97bd4860f5bb214e9641497a6d359c31",
+    "coauth_b5k_s3/type1": "91a62409acfbaf40f237df384c3f02997608636aedc66aba848b7ac1aa84e16e",
+    "coauth_b5k_s3/type2": "3862239d830ea6e8d0b73db006886e01cf919572a619ae464bfe13a95750cb77",
+    "coauth_b5k_s3/type3": "f760bbd8bd5d6ffd3466c34490cb3c298f91600304df02be54371d1588095ff5",
+    "coauth_b50k_s3/main": "1dfe2feabcadae015be4ec614c11e6a0858f88b58b33ad7e634bcf08167b13f9",
+    "coauth_b50k_s3/type1": "e7c460a2f320da172c86461a4d72d66184eb5ab98d3f478447507b720ec66b0b",
+    "coauth_b50k_s3/type2": "22b5222e4200450cb2680d26af1dc77aa963acd0c9804e7c3526aae3a6f43d14",
+    "coauth_b50k_s3/type3": "c32e3f94959d859a3d947696c1747e1d92170d17c8b72ad89913011edfa66774",
+    "coauth_b100k_s3/main": "0ab9d6033013875220ad1444d09781287d1b74250036d796e4dcd10239317749",
+    "coauth_b100k_s3/type1": "d262bf6405893f21430d98feb6b1219f1ec1be1573c854e5c3e40a3004620bf7",
+    "coauth_b100k_s3/type2": "23649e8af24c3e240630299120e99ed85111b51618bc747ffd0b17dcd641abc5",
+    "coauth_b100k_s3/type3": "4fedfb3e26e1221249bef50ab86d3ff761e55ed7caf8de51c0a9d479f529f55b",
+    "coauth_b200k_s3/main": "f6b4dbbfe21e4e54a073b92ff0177648786a6b43c4a5c4b64c3d8544aa822ef2",
+    "coauth_b200k_s3/type1": "11ea6f44f7b5dffccf25beff668146557d35cd092cea5ad03f09c0d63c92e6dd",
+    "coauth_b200k_s3/type2": "33b29d04c7d67c392aff0585a8bed4a1a00c29dce5e5a915ee6a06b148feddd8",
+    "coauth_b200k_s3/type3": "abd7eb19da1a3fa861f7146c9366c18e35f54d47cb6ef5fbc1c604f111a5c7d9"
+   },
+   "replays": [
+    {
+     "record": "parity-triad_count_escher_gpu-cuda-both-algorithm.json",
+     "date": "2026-10-21T13:20:33Z",
+     "port_commit": "b732aa968c72c2f0ac468297a38c13edae786247",
+     "executable": "build/parity-cuda/cpp/tests/dyng_triad_replay",
+     "build": null,
+     "reference": null,
+     "configs": [
+      "cuda:triad/by_key",
+      "cuda:triad/by_content"
+     ],
+     "checks": {
+      "counter": "algorithm",
+      "modes": [
+       "by_key",
+       "by_content"
+      ],
+      "coverage": true,
+      "integrity_after_every_batch": true,
+      "recount_after_every_batch": true
+     },
+     "tolerance": null,
+     "compared": 600,
+     "failed": 0,
+     "matrix": {
+      "coauth_b100k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b100k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b200k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b20_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b50k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "coauth_b5k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b20_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b100k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b200k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b20_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b50k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s1/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s1/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s1/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s1/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s2/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s2/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s2/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s2/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s3/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s3/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s3/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "syn2m_b5k_s3/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/01-smoke/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/01-smoke/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/01-smoke/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/01-smoke/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/02-reference_small/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/04-small_b20/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/05-small_b200/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/14-skewed/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/14-skewed/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/14-skewed/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/14-skewed/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/15-medium/main": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/15-medium/type1": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/15-medium/type2": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      },
+      "test/15-medium/type3": {
+       "cuda:triad/by_key": "equal",
+       "cuda:triad/by_content": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-triad_count_escher_gpu-openmp-t1-both-algorithm.json",
+     "date": "2026-10-21T13:10:29Z",
+     "port_commit": "b732aa968c72c2f0ac468297a38c13edae786247",
+     "executable": "build/parity-cuda/cpp/tests/dyng_triad_replay",
+     "build": null,
+     "reference": null,
+     "configs": [
+      "openmp/t1:triad/by_key",
+      "openmp/t1:triad/by_content"
+     ],
+     "checks": {
+      "counter": "algorithm",
+      "modes": [
+       "by_key",
+       "by_content"
+      ],
+      "coverage": true,
+      "integrity_after_every_batch": true,
+      "recount_after_every_batch": true
+     },
+     "tolerance": null,
+     "compared": 284,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "coauth_b50k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/01-smoke/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/01-smoke/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/01-smoke/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/01-smoke/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/02-reference_small/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/04-small_b20/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/05-small_b200/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/14-skewed/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/14-skewed/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/14-skewed/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/14-skewed/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/15-medium/main": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/15-medium/type1": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/15-medium/type2": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      },
+      "test/15-medium/type3": {
+       "openmp/t1:triad/by_key": "equal",
+       "openmp/t1:triad/by_content": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-triad_count_escher_gpu-openmp-t8-both-algorithm.json",
+     "date": "2026-10-21T12:51:25Z",
+     "port_commit": "b732aa968c72c2f0ac468297a38c13edae786247",
+     "executable": "build/parity-cuda/cpp/tests/dyng_triad_replay",
+     "build": null,
+     "reference": null,
+     "configs": [
+      "openmp/t8:triad/by_key",
+      "openmp/t8:triad/by_content"
+     ],
+     "checks": {
+      "counter": "algorithm",
+      "modes": [
+       "by_key",
+       "by_content"
+      ],
+      "coverage": true,
+      "integrity_after_every_batch": true,
+      "recount_after_every_batch": true
+     },
+     "tolerance": null,
+     "compared": 284,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "coauth_b50k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b100k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b200k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b20_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b50k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "syn1m_b5k_s1/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/01-smoke/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/01-smoke/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/01-smoke/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/01-smoke/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/02-reference_small/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/04-small_b20/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/05-small_b200/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/14-skewed/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/14-skewed/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/14-skewed/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/14-skewed/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/15-medium/main": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/15-medium/type1": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/15-medium/type2": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      },
+      "test/15-medium/type3": {
+       "openmp/t8:triad/by_key": "equal",
+       "openmp/t8:triad/by_content": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-triad_count_escher_gpu-sequential-both-algorithm.json",
+     "date": "2026-10-21T12:54:21Z",
+     "port_commit": "b732aa968c72c2f0ac468297a38c13edae786247",
+     "executable": "build/parity-cuda/cpp/tests/dyng_triad_replay",
+     "build": null,
+     "reference": null,
+     "configs": [
+      "sequential:triad/by_key",
+      "sequential:triad/by_content"
+     ],
+     "checks": {
+      "counter": "algorithm",
+      "modes": [
+       "by_key",
+       "by_content"
+      ],
+      "coverage": true,
+      "integrity_after_every_batch": true,
+      "recount_after_every_batch": true
+     },
+     "tolerance": null,
+     "compared": 240,
+     "failed": 0,
+     "matrix": {
+      "syn100k_b100k_s1/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s1/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s2/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b100k_s3/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s1/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s2/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b200k_s3/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s1/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s2/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b20_s3/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s1/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s2/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b50k_s3/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s1/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s2/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "syn100k_b5k_s3/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/01-smoke/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/01-smoke/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/01-smoke/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/01-smoke/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/02-reference_small/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/02-reference_small/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/03-reference_syn100k/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/04-small_b20/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/04-small_b20/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/05-small_b200/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/05-small_b200/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/06-small_b1000/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/07-syn100k_b5000/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/08-deletions_only/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/09-insertions_only/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/10-more_deletions/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/11-random_inserts_file/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/12-sampled_inserts_synthetic/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/13-batch_larger_than_graph/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/14-skewed/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/14-skewed/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/14-skewed/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/14-skewed/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/15-medium/main": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/15-medium/type1": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/15-medium/type2": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      },
+      "test/15-medium/type3": {
+       "sequential:triad/by_key": "equal",
+       "sequential:triad/by_content": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": true,
+   "required_coverage": {
+    "cuda": 300,
+    "openmp": 142,
+    "sequential": 120
+   },
+   "triad_coverage": {
+    "cuda": {
+     "by_content": 300,
+     "by_key": 300
+    },
+    "openmp": {
+     "by_content": 142,
+     "by_key": 142
+    },
+    "sequential": {
+     "by_content": 120,
+     "by_key": 120
+    }
+   }
+  }
+ ],
+ "committed_fixtures": [],
+ "required_suites": {
+  "ipdps25_dynamosp_sosp": {
+   "algorithm": "sssp",
+   "since": "0.1"
+  },
+  "ieee_tc_dyntrucy": {
+   "algorithm": "cycle_count",
+   "since": "0.1"
+  },
+  "ipdps25_dynamosp_mosp": {
+   "algorithm": "mosp",
+   "since": "0.2"
+  },
+  "ipdps26_escher": {
+   "algorithm": "triad_count",
+   "since": "0.3"
+  },
+  "tkde26_escher_plus": {
+   "algorithm": "triad_count",
+   "since": "0.3"
+  }
+ },
+ "performance": [
+  {
+   "suite": "ipdps26_escher",
+   "algorithm": "triad_count",
+   "summary": "ipdps26_escher.json",
+   "suite_file": "benchmarks/paper/ipdps26_escher.yaml",
+   "suite_sha256": "148a18d5daab3e68d15b918aa5005f4d369b892d45009c198be17cf2b1e3ce26",
+   "port_commits": [
+    "b732aa968c72c2f0ac468297a38c13edae786247"
+   ],
+   "baselines": {
+    "ESCHER-GPU": {
+     "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+     "variant": "unpatched",
+     "backend": "cuda"
+    }
+   },
+   "tolerance": {
+    "compute": 1.05,
+    "compute_short": 1.1,
+    "short_region_ms": 10.0,
+    "end_to_end": 1.1,
+    "memory": 1.05
+   },
+   "inputs": {
+    "verified": true,
+    "run_check": {
+     "coauth": "all digests equal",
+     "syn1m": "the golden set's stored rows of every seed have the digests",
+     "syn2m": "the golden set's stored rows of every seed have the digests"
+    },
+    "by_record": {
+     "ipdps26_escher-cuda-coauth.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+     },
+     "ipdps26_escher-cuda.json": {
+      "datasets": [
+       "syn1m",
+       "syn2m"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+     },
+     "ipdps26_escher-cuda-default-clocks.json": {
+      "datasets": [
+       "coauth",
+       "syn1m",
+       "syn2m"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+     },
+     "ipdps26_escher-cuda-batch-sizes.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+     }
+    }
+   },
+   "readings": [
+    {
+     "reading": "cuda-coauth",
+     "dataset": null,
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ipdps26_escher-cuda-coauth.json",
+     "date": "2026-10-21T11:42:07Z",
+     "protocol": {
+      "order": "A/B alternation (A first in every round)",
+      "lock": "perf.lock: held exclusively by this process",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+    },
+    {
+     "reading": "cuda",
+     "dataset": null,
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ipdps26_escher-cuda.json",
+     "date": "2026-10-21T11:53:57Z",
+     "protocol": {
+      "order": "A/B alternation (A first in every round)",
+      "lock": "perf.lock: held exclusively by this process",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "dataset": null,
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ipdps26_escher-cuda-default-clocks.json",
+     "date": "2026-10-21T12:11:27Z",
+     "protocol": {
+      "order": "A/B alternation (A first in every round)",
+      "lock": "perf.lock: held exclusively by this process",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "dataset": null,
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": false,
+     "record": "ipdps26_escher-cuda-batch-sizes.json",
+     "date": "2026-10-21T12:18:05Z",
+     "protocol": {
+      "order": "A/B alternation (A first in every round)",
+      "lock": "perf.lock: held exclusively by this process",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+    }
+   ],
+   "execution_started": "2026-10-21T11:42:07Z",
+   "gated_regions": 45,
+   "within_gate": 45,
+   "ratio_range": [
+    0.8605065380772406,
+    1.031109758387784
+   ],
+   "gate_table": [
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.9535676301393207,
+     "original_ms": 510.549,
+     "port_ms": 486.843,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b2]",
+     "ratio": 0.967341731607089,
+     "original_ms": 549.478,
+     "port_ms": 531.533,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b3]",
+     "ratio": 0.9702292002956018,
+     "original_ms": 550.741,
+     "port_ms": 534.345,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/main",
+     "region": "full_count",
+     "ratio": 0.9986277241281609,
+     "original_ms": 5294.125,
+     "port_ms": 5286.86,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/main",
+     "region": "end_to_end",
+     "ratio": 0.9247640282329638,
+     "original_ms": 9563.856,
+     "port_ms": 8844.31,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s2/main",
+     "region": "update[b1]",
+     "ratio": 0.9538250183975121,
+     "original_ms": 540.834,
+     "port_ms": 515.861,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s2/main",
+     "region": "update[b2]",
+     "ratio": 0.9730703872475348,
+     "original_ms": 539.629,
+     "port_ms": 525.097,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s2/main",
+     "region": "update[b3]",
+     "ratio": 0.9521490884319859,
+     "original_ms": 546.092,
+     "port_ms": 519.961,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s2/main",
+     "region": "full_count",
+     "ratio": 0.9986418705875907,
+     "original_ms": 5293.31,
+     "port_ms": 5286.121,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s2/main",
+     "region": "end_to_end",
+     "ratio": 0.9206899465115695,
+     "original_ms": 9587.12,
+     "port_ms": 8826.765,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s3/main",
+     "region": "update[b1]",
+     "ratio": 0.9555838917987541,
+     "original_ms": 524.652,
+     "port_ms": 501.349,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s3/main",
+     "region": "update[b2]",
+     "ratio": 0.9660251382006223,
+     "original_ms": 537.986,
+     "port_ms": 519.708,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s3/main",
+     "region": "update[b3]",
+     "ratio": 0.9670274097299484,
+     "original_ms": 533.898,
+     "port_ms": 516.294,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s3/main",
+     "region": "full_count",
+     "ratio": 0.998842072608792,
+     "original_ms": 5293.078,
+     "port_ms": 5286.949,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-coauth",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s3/main",
+     "region": "end_to_end",
+     "ratio": 0.9198990467053604,
+     "original_ms": 9577.102,
+     "port_ms": 8809.967,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.8736609399455545,
+     "original_ms": 164.201,
+     "port_ms": 143.456,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b2]",
+     "ratio": 1.0106734170192109,
+     "original_ms": 144.19,
+     "port_ms": 145.729,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b3]",
+     "ratio": 0.94947209653092,
+     "original_ms": 155.142,
+     "port_ms": 147.303,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s1/main",
+     "region": "full_count",
+     "ratio": 1.0022463208035752,
+     "original_ms": 635.261,
+     "port_ms": 636.688,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s1/main",
+     "region": "end_to_end",
+     "ratio": 0.9912981118848718,
+     "original_ms": 2482.105,
+     "port_ms": 2460.506,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s2/main",
+     "region": "update[b1]",
+     "ratio": 0.8757554547944371,
+     "original_ms": 164.305,
+     "port_ms": 143.891,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s2/main",
+     "region": "update[b2]",
+     "ratio": 0.9491731548806384,
+     "original_ms": 155.41,
+     "port_ms": 147.511,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s2/main",
+     "region": "update[b3]",
+     "ratio": 1.0084591727426657,
+     "original_ms": 144.695,
+     "port_ms": 145.919,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s2/main",
+     "region": "full_count",
+     "ratio": 1.0023397073960056,
+     "original_ms": 640.251,
+     "port_ms": 641.749,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s2/main",
+     "region": "end_to_end",
+     "ratio": 0.987724937897014,
+     "original_ms": 2494.244,
+     "port_ms": 2463.627,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s3/main",
+     "region": "update[b1]",
+     "ratio": 0.9595824212830443,
+     "original_ms": 148.475,
+     "port_ms": 142.474,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s3/main",
+     "region": "update[b2]",
+     "ratio": 0.9101745265503156,
+     "original_ms": 161.58,
+     "port_ms": 147.066,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s3/main",
+     "region": "update[b3]",
+     "ratio": 0.9490316004077471,
+     "original_ms": 155.979,
+     "port_ms": 148.029,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s3/main",
+     "region": "full_count",
+     "ratio": 1.0026118154150283,
+     "original_ms": 639.402,
+     "port_ms": 641.072,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn1m_b50k_s3/main",
+     "region": "end_to_end",
+     "ratio": 0.9910654719709189,
+     "original_ms": 2491.234,
+     "port_ms": 2468.976,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.8605065380772406,
+     "original_ms": 184.152,
+     "port_ms": 158.464,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b2]",
+     "ratio": 1.0281348501160934,
+     "original_ms": 154.186,
+     "port_ms": 158.524,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b3]",
+     "ratio": 0.954104623245142,
+     "original_ms": 169.102,
+     "port_ms": 161.341,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s1/main",
+     "region": "full_count",
+     "ratio": 1.0022724685022828,
+     "original_ms": 1273.505,
+     "port_ms": 1276.399,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s1/main",
+     "region": "end_to_end",
+     "ratio": 0.9568992949155503,
+     "original_ms": 4440.461,
+     "port_ms": 4249.074,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s2/main",
+     "region": "update[b1]",
+     "ratio": 0.9750799615930001,
+     "original_ms": 157.263,
+     "port_ms": 153.344,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s2/main",
+     "region": "update[b2]",
+     "ratio": 0.8947672467388136,
+     "original_ms": 181.759,
+     "port_ms": 162.632,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s2/main",
+     "region": "update[b3]",
+     "ratio": 1.0258146587171053,
+     "original_ms": 155.648,
+     "port_ms": 159.666,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s2/main",
+     "region": "full_count",
+     "ratio": 1.0023586122572787,
+     "original_ms": 1279.142,
+     "port_ms": 1282.159,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s2/main",
+     "region": "end_to_end",
+     "ratio": 0.9602923968029538,
+     "original_ms": 4430.965,
+     "port_ms": 4255.022,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s3/main",
+     "region": "update[b1]",
+     "ratio": 0.978335580154556,
+     "original_ms": 158.001,
+     "port_ms": 154.578,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s3/main",
+     "region": "update[b2]",
+     "ratio": 0.9011208437217307,
+     "original_ms": 181.292,
+     "port_ms": 163.366,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s3/main",
+     "region": "update[b3]",
+     "ratio": 1.031109758387784,
+     "original_ms": 154.421,
+     "port_ms": 159.225,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s3/main",
+     "region": "full_count",
+     "ratio": 1.0025041866626674,
+     "original_ms": 1280.256,
+     "port_ms": 1283.462,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "syn2m_b50k_s3/main",
+     "region": "end_to_end",
+     "ratio": 0.9649288908858646,
+     "original_ms": 4424.468,
+     "port_ms": 4269.297,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    }
+   ],
+   "recorded_not_gated": [
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.9564888178727651,
+     "original_ms": 515.063,
+     "port_ms": 492.652,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b2]",
+     "ratio": 0.9699237500973268,
+     "original_ms": 552.263,
+     "port_ms": 535.653,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b3]",
+     "ratio": 0.9639592005630434,
+     "original_ms": 565.498,
+     "port_ms": 545.117,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "coauth_b50k_s1/main",
+     "region": "full_count",
+     "ratio": 1.0041697256662019,
+     "original_ms": 5024.791,
+     "port_ms": 5045.743,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "coauth_b50k_s1/main",
+     "region": "end_to_end",
+     "ratio": 0.9347256904520248,
+     "original_ms": 9164.938,
+     "port_ms": 8566.703,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.8881130507065669,
+     "original_ms": 132.33,
+     "port_ms": 117.524,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b2]",
+     "ratio": 1.0113178136965877,
+     "original_ms": 118.044,
+     "port_ms": 119.38,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b3]",
+     "ratio": 0.9901392064176517,
+     "original_ms": 122.911,
+     "port_ms": 121.699,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn1m_b50k_s1/main",
+     "region": "full_count",
+     "ratio": 1.001837508480008,
+     "original_ms": 480.542,
+     "port_ms": 481.425,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn1m_b50k_s1/main",
+     "region": "end_to_end",
+     "ratio": 1.0114627828305616,
+     "original_ms": 2183.065,
+     "port_ms": 2208.089,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.8521564858952798,
+     "original_ms": 158.174,
+     "port_ms": 134.789,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b2]",
+     "ratio": 1.0310876487347074,
+     "original_ms": 131.274,
+     "port_ms": 135.355,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b3]",
+     "ratio": 0.9556977894165007,
+     "original_ms": 143.582,
+     "port_ms": 137.221,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn2m_b50k_s1/main",
+     "region": "full_count",
+     "ratio": 1.0003512556355867,
+     "original_ms": 967.956,
+     "port_ms": 968.296,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "syn2m_b50k_s1/main",
+     "region": "end_to_end",
+     "ratio": 0.9611350773336768,
+     "original_ms": 3960.435,
+     "port_ms": 3806.513,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b100k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.9867270961476206,
+     "original_ms": 942.145,
+     "port_ms": 929.64,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b100k_s1/main",
+     "region": "update[b2]",
+     "ratio": 0.9933373743910255,
+     "original_ms": 976.642,
+     "port_ms": 970.135,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b100k_s1/main",
+     "region": "update[b3]",
+     "ratio": 0.9761216840432846,
+     "original_ms": 991.946,
+     "port_ms": 968.26,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b100k_s1/main",
+     "region": "full_count",
+     "ratio": 0.998556773398689,
+     "original_ms": 5293.694,
+     "port_ms": 5286.054,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b100k_s1/main",
+     "region": "end_to_end",
+     "ratio": 0.9336814389629536,
+     "original_ms": 10904.353,
+     "port_ms": 10181.192,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b200k_s1/main",
+     "region": "update[b1]",
+     "ratio": 0.9895020860402545,
+     "original_ms": 1838.651,
+     "port_ms": 1819.349,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b200k_s1/main",
+     "region": "update[b2]",
+     "ratio": 1.0189000881746326,
+     "original_ms": 1836.129,
+     "port_ms": 1870.832,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b200k_s1/main",
+     "region": "update[b3]",
+     "ratio": 1.0175206452342644,
+     "original_ms": 1847.763,
+     "port_ms": 1880.137,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b200k_s1/main",
+     "region": "full_count",
+     "ratio": 0.9986931994226423,
+     "original_ms": 5293.08,
+     "port_ms": 5286.163,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-batch-sizes",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b200k_s1/main",
+     "region": "end_to_end",
+     "ratio": 0.9556143569445039,
+     "original_ms": 13561.66,
+     "port_ms": 12959.717,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    }
+   ],
+   "passed": true
+  },
+  {
+   "suite": "tkde26_escher_plus",
+   "algorithm": "triad_count",
+   "summary": "tkde26_escher_plus.json",
+   "suite_file": "benchmarks/paper/tkde26_escher_plus.yaml",
+   "suite_sha256": "9084e95934ba2a8c11f98003275d2672e13e8ef2bc5d8673d1a37fd0c4c23f3c",
+   "port_commits": [
+    "b732aa968c72c2f0ac468297a38c13edae786247"
+   ],
+   "baselines": {
+    "ESCHER-GPU": {
+     "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+     "variant": "unpatched",
+     "backend": "cuda"
+    }
+   },
+   "tolerance": {
+    "compute": 1.05,
+    "compute_short": 1.1,
+    "short_region_ms": 10.0,
+    "end_to_end": 1.1,
+    "memory": 1.05
+   },
+   "inputs": {
+    "verified": true,
+    "run_check": {
+     "coauth": "all digests equal",
+     "syn1m": "the golden set's stored rows of every seed have the digests",
+     "syn2m": "the golden set's stored rows of every seed have the digests"
+    },
+    "by_record": {
+     "tkde26_escher_plus-cuda-memory.json": {
+      "datasets": [
+       "coauth",
+       "syn1m",
+       "syn2m"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+     },
+     "tkde26_escher_plus-cuda-memory-batch-sizes.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+     },
+     "tkde26_escher_plus-cuda-types.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+     }
+    }
+   },
+   "readings": [
+    {
+     "reading": "cuda-memory",
+     "dataset": null,
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": true,
+     "record": "tkde26_escher_plus-cuda-memory.json",
+     "date": "2026-10-21T12:32:27Z",
+     "protocol": {
+      "lock": "shared (flock -s by the caller); no foreign process on the GPU (checked before and after each case)"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "dataset": null,
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": false,
+     "record": "tkde26_escher_plus-cuda-memory-batch-sizes.json",
+     "date": "2026-10-21T12:34:08Z",
+     "protocol": {
+      "lock": "shared (flock -s by the caller); no foreign process on the GPU (checked before and after each case)"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+    },
+    {
+     "reading": "cuda-types",
+     "dataset": null,
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": false,
+     "record": "tkde26_escher_plus-cuda-types.json",
+     "date": "2026-10-21T12:36:14Z",
+     "protocol": {
+      "order": "A/B alternation (A first in every round)",
+      "lock": "perf.lock: held exclusively by this process",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+    }
+   ],
+   "execution_started": "2026-10-21T12:32:27Z",
+   "gated_regions": 11,
+   "within_gate": 11,
+   "ratio_range": [
+    1.0,
+    1.002099010524365
+   ],
+   "gate_table": [
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b50k_s1/main",
+     "region": "device_memory",
+     "ratio": 1.001481970110039,
+     "original_mib": 3018.865454673767,
+     "port_mib": 3023.3393230438232,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[b1]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[b2]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "syn1m_b50k_s1/main",
+     "region": "device_memory",
+     "ratio": 1.002099010524365,
+     "original_mib": 1131.3669290542603,
+     "port_mib": 1133.7416801452637,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "syn1m_b50k_s1/main",
+     "region": "store_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "syn1m_b50k_s1/main",
+     "region": "store_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "syn2m_b50k_s1/main",
+     "region": "device_memory",
+     "ratio": 1.0016455450177595,
+     "original_mib": 2211.7417669296265,
+     "port_mib": 2215.381287574768,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "syn2m_b50k_s1/main",
+     "region": "store_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "syn2m_b50k_s1/main",
+     "region": "store_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    }
+   ],
+   "recorded_not_gated": [
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b100k_s1/main",
+     "region": "device_memory",
+     "ratio": 1.0017587422285041,
+     "original_mib": 3079.6748332977295,
+     "port_mib": 3085.091187477112,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[b1]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[b2]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b200k_s1/main",
+     "region": "device_memory",
+     "ratio": 1.0022787828873063,
+     "original_mib": 3203.8855600357056,
+     "port_mib": 3211.1865196228027,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[b1]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[b2]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory-batch-sizes",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type1",
+     "region": "update[b1]",
+     "ratio": 0.7408932699205569,
+     "original_ms": 75.274,
+     "port_ms": 55.77,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type1",
+     "region": "update[b2]",
+     "ratio": 0.7743939780556265,
+     "original_ms": 78.38,
+     "port_ms": 60.697,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type1",
+     "region": "update[b3]",
+     "ratio": 0.7531210986267167,
+     "original_ms": 80.1,
+     "port_ms": 60.325,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type1",
+     "region": "full_count",
+     "ratio": 0.14300626304801672,
+     "original_ms": 3.832,
+     "port_ms": 0.548,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type1",
+     "region": "end_to_end",
+     "ratio": 0.8097656723052842,
+     "original_ms": 2658.926,
+     "port_ms": 2153.107,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type2",
+     "region": "update[b1]",
+     "ratio": 0.7476586623114809,
+     "original_ms": 78.374,
+     "port_ms": 58.597,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type2",
+     "region": "update[b2]",
+     "ratio": 0.7965303655957297,
+     "original_ms": 79.432,
+     "port_ms": 63.27,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type2",
+     "region": "update[b3]",
+     "ratio": 0.7693536287297631,
+     "original_ms": 82.646,
+     "port_ms": 63.584,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type2",
+     "region": "full_count",
+     "ratio": 0.8284702549575071,
+     "original_ms": 35.3,
+     "port_ms": 29.245,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type2",
+     "region": "end_to_end",
+     "ratio": 0.813432090297762,
+     "original_ms": 2682.68,
+     "port_ms": 2182.178,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type3",
+     "region": "update[b1]",
+     "ratio": 0.9552635625268837,
+     "original_ms": 513.787,
+     "port_ms": 490.802,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type3",
+     "region": "update[b2]",
+     "ratio": 0.9560520284784435,
+     "original_ms": 556.772,
+     "port_ms": 532.303,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type3",
+     "region": "update[b3]",
+     "ratio": 0.968741254069397,
+     "original_ms": 553.829,
+     "port_ms": 536.517,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type3",
+     "region": "full_count",
+     "ratio": 0.9917266979832025,
+     "original_ms": 5027.376,
+     "port_ms": 4985.783,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-types",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "coauth_b50k_s1/type3",
+     "region": "end_to_end",
+     "ratio": 0.9382276042640938,
+     "original_ms": 9082.633,
+     "port_ms": 8521.577,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    }
+   ],
+   "passed": true
+  }
+ ],
+ "checks": [],
+ "dry_run": {
+  "algorithm": "triad_count",
+  "what": "a dry run of one algorithm's parts of a certificate: its performance suites (recheck_gates) and golden sets judged as in a release; not a release's certificate",
+  "outside": [
+   "golden set sssp",
+   "golden set cycle_count",
+   "golden set cycle_count_cuda",
+   "golden set mosp_scale",
+   "golden set cbst_trace_escher_gpu_test",
+   "golden set cbst_trace_escher_gpu_targeted",
+   "golden set cbst_trace_mosp_escher_targeted",
+   "golden set cbst_trace_escher_gpu_coauth50k",
+   "golden set cbst_trace_mosp_escher_dblp50k_hyperedge",
+   "golden set cbst_trace_mosp_escher_dblp50k_vertex",
+   "golden set cbst_trace_escher_gpu_syn1m",
+   "golden set cbst_trace_mosp_escher_test",
+   "suite ipdps25_dynamosp_sosp (sssp)",
+   "suite ieee_tc_dyntrucy (cycle_count)",
+   "suite ipdps25_dynamosp_mosp (mosp)",
+   "the release checks (checks.json)",
+   "the committed fixtures"
+  ]
+ },
+ "verdict": {
+  "golden_parity": true,
+  "committed_fixtures": "outside this dry run",
+  "performance_gates": true,
+  "checks": "outside this dry run",
+  "problems": [
+   "the release tree is dirty (commit first, or --allow-dirty for a draft)"
+  ],
+  "passed": false
+ }
+}
