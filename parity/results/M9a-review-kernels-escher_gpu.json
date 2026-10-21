@@ -1,0 +1,351 @@
+{
+ "schema": 1,
+ "algorithm": "triad_count",
+ "what": "the update's subtract and add kernels at locked clocks (Nsight Compute --clock-control base), recorded, not gated (ADR 0018 rule 1)",
+ "date": "2026-10-21T00:37:25Z",
+ "date_end": "2026-10-21T00:38:50Z",
+ "reference": {
+  "name": "ESCHER-GPU",
+  "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/unpatched/build",
+  "build": "its own Makefile (parity/references.toml: make all-types build/cbst_test ARCH=sm_86)"
+ },
+ "protocol": {
+  "rounds": 11,
+  "order": "A/B alternation (A first in every round)",
+  "gpu": 0,
+  "lock": "perf.lock: held exclusively by this process",
+  "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+  "ncu": "--clock-control base --cache-control none --kernel-name-base function --kernel-name <the pattern's kernels> --launch-skip <the full count's launches> --launch-count <the batches' launches>, metrics gpu__time_duration.sum,dram__bytes.sum,sm__cycles_elapsed.avg.per_second,launch__registers_per_thread,launch__grid_size,launch__block_size,launch__occupancy_limit_registers",
+  "kernels": {
+   "original": {
+    "main": "regex:^(countWedges|triangleKernel)",
+    "type2": "regex:^(countWedges|pairKernel)",
+    "type3": "regex:^(countWedges|triangleKernel)",
+    "type1": "regex:^keyKernel"
+   },
+   "port": {
+    "main": "regex:^(count_wedges_kernel|triangle_kernel)",
+    "type2": "regex:^(count_wedges_kernel|pair_kernel)",
+    "type3": "regex:^(count_wedges_kernel|triangle_kernel)",
+    "type1": "regex:^key_kernel"
+   }
+  },
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "statistic": "median"
+ },
+ "port": {
+  "commit": "2eda830ab9359c8411cd938de352c7ce6d689144",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-escher",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "syn1m_b50k_s1/main": {
+   "case": "syn1m_b50k_s1",
+   "pattern": "main",
+   "rounds": 11,
+   "regions": [
+    {
+     "region": "update.subtract.kernels[b1]",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "gate_kind": "none",
+     "original_ms": 47.382304,
+     "port_ms": 47.615488,
+     "ratio": 1.0049213309677807,
+     "original_samples": [
+      47.381568,
+      47.682272,
+      47.301024,
+      47.716128,
+      47.294432,
+      47.398848,
+      47.472032,
+      47.447232,
+      47.382304,
+      47.312992,
+      47.30256
+     ],
+     "port_samples": [
+      47.541024,
+      47.607296,
+      47.655008,
+      47.513376,
+      47.519616,
+      47.839136,
+      47.684064,
+      47.714368,
+      47.5016,
+      47.615488,
+      47.683712
+     ],
+     "original_spread": 0.00889986269979605,
+     "port_spread": 0.0070887859009236675,
+     "original_dram_bytes": 6429208448.0,
+     "port_dram_bytes": 6450823168.0
+    },
+    {
+     "region": "update.add.kernels[b1]",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "gate_kind": "none",
+     "original_ms": 47.930272,
+     "port_ms": 48.006816,
+     "ratio": 1.0015969865558034,
+     "original_samples": [
+      47.887616,
+      47.930272,
+      48.034624,
+      48.099712,
+      47.78256,
+      47.827136,
+      48.0344,
+      47.860512,
+      48.004512,
+      47.832992,
+      48.182208
+     ],
+     "port_samples": [
+      48.056224,
+      47.87424,
+      48.13376,
+      47.924096,
+      48.070816,
+      48.078016,
+      47.98528,
+      48.006816,
+      48.181088,
+      47.867136,
+      47.966464
+     ],
+     "original_spread": 0.00833811249808902,
+     "port_spread": 0.006539738023867287,
+     "original_dram_bytes": 6495482240.0,
+     "port_dram_bytes": 6524025088.0
+    },
+    {
+     "region": "update.subtract.kernels[b2]",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "gate_kind": "none",
+     "original_ms": 47.761696,
+     "port_ms": 47.903232,
+     "ratio": 1.0029633788548882,
+     "original_samples": [
+      47.738464,
+      48.21664,
+      47.91216,
+      47.727232,
+      47.761696,
+      47.723328,
+      47.629792,
+      47.713056,
+      47.772352,
+      47.765984,
+      47.84688
+     ],
+     "port_samples": [
+      47.836576,
+      47.93056,
+      47.95504,
+      47.962176,
+      47.803264,
+      47.903232,
+      47.966176,
+      47.653664,
+      47.880224,
+      47.920928,
+      47.8864
+     ],
+     "original_spread": 0.012287000863620844,
+     "port_spread": 0.006523818685135861,
+     "original_dram_bytes": 6469808384.0,
+     "port_dram_bytes": 6495669504.0
+    },
+    {
+     "region": "update.add.kernels[b2]",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "gate_kind": "none",
+     "original_ms": 47.637184,
+     "port_ms": 47.896832,
+     "ratio": 1.0054505320885467,
+     "original_samples": [
+      47.773088,
+      47.682336,
+      47.536032,
+      47.805024,
+      47.849792,
+      47.637184,
+      47.418048,
+      47.61072,
+      47.7568,
+      47.623712,
+      47.632096
+     ],
+     "port_samples": [
+      47.995008,
+      47.86048,
+      47.987744,
+      47.928416,
+      47.897248,
+      47.593344,
+      48.020832,
+      47.734496,
+      47.574112,
+      47.884,
+      47.896832
+     ],
+     "original_spread": 0.009063172163996972,
+     "port_spread": 0.009326712881553399,
+     "original_dram_bytes": 6471744128.0,
+     "port_dram_bytes": 6471838976.0
+    },
+    {
+     "region": "update.subtract.kernels[b3]",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "gate_kind": "none",
+     "original_ms": 47.604928,
+     "port_ms": 47.742592,
+     "ratio": 1.0028918014538326,
+     "original_samples": [
+      47.510624,
+      47.335488,
+      47.5392,
+      47.751008,
+      47.604928,
+      47.606528,
+      47.862208,
+      47.38736,
+      47.661312,
+      47.6472,
+      47.522432
+     ],
+     "port_samples": [
+      47.677312,
+      47.639584,
+      47.797568,
+      47.927456,
+      47.742592,
+      47.739712,
+      47.789632,
+      47.561344,
+      48.004256,
+      48.06384,
+      47.64624
+     ],
+     "original_spread": 0.011064400727588634,
+     "port_spread": 0.010525109319577803,
+     "original_dram_bytes": 6453688320.0,
+     "port_dram_bytes": 6463908608.0
+    },
+    {
+     "region": "update.add.kernels[b3]",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "gate_kind": "none",
+     "original_ms": 47.710976,
+     "port_ms": 47.970208,
+     "ratio": 1.005433382876091,
+     "original_samples": [
+      47.701248,
+      47.696928,
+      47.81168,
+      47.710976,
+      47.882496,
+      47.998464,
+      47.57728,
+      47.626176,
+      48.041184,
+      47.681216,
+      47.847616
+     ],
+     "port_samples": [
+      48.156224,
+      47.911968,
+      47.934752,
+      48.03424,
+      47.863072,
+      47.893696,
+      47.970208,
+      48.097792,
+      47.723168,
+      48.17088,
+      48.048608
+     ],
+     "original_spread": 0.009723213375471494,
+     "port_spread": 0.009333126093595335,
+     "original_dram_bytes": 6493310464.0,
+     "port_dram_bytes": 6486291712.0
+    }
+   ],
+   "launch": {
+    "original": [
+     {
+      "name": "countWedges(RowView, const int *, int, bool, long long *)",
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 98.0,
+      "launch__block_size": 256.0,
+      "launch__occupancy_limit_registers": 16.0,
+      "sm_clock_hz": 1158657731.68
+     },
+     {
+      "name": "void triangleKernel<MotifOp>(RowView, const int *, int, const long long *, long long, bool, const unsigned char *, T1, long long, unsigned long long *)",
+      "launch__registers_per_thread": 39.0,
+      "launch__grid_size": 8815.0,
+      "launch__block_size": 256.0,
+      "launch__occupancy_limit_registers": 6.0,
+      "sm_clock_hz": 1169560166.62
+     }
+    ],
+    "port": [
+     {
+      "name": "count_wedges_kernel(row_view, const int *, int, bool, long long *)",
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 98.0,
+      "launch__block_size": 256.0,
+      "launch__occupancy_limit_registers": 16.0,
+      "sm_clock_hz": 1158057776.16
+     },
+     {
+      "name": "void triangle_kernel<motif_op>(row_view, hyperedge_rows, const int *, int, const long long *, long long, bool, const unsigned char *, T1, unsigned long long *, unsigned long long *)",
+      "launch__registers_per_thread": 39.0,
+      "launch__grid_size": 8815.0,
+      "launch__block_size": 256.0,
+      "launch__occupancy_limit_registers": 6.0,
+      "sm_clock_hz": 1169542760.02
+     }
+    ]
+   },
+   "launch_order": [
+    "b1.subtract",
+    "b1.subtract",
+    "b1.add",
+    "b1.add",
+    "b2.subtract",
+    "b2.subtract",
+    "b2.add",
+    "b2.add",
+    "b3.subtract",
+    "b3.subtract",
+    "b3.add",
+    "b3.add"
+   ]
+  }
+ }
+}
