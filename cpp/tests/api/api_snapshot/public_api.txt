@@ -437,6 +437,9 @@
       template <typename vertex_t, typename weight_t> [[nodiscard]] static result compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, const op_t &op)
       template <typename vertex_t, typename weight_t> [[nodiscard]] static result compute(const resources &res, const hypergraph< vertex_t, weight_t > &h)
       template <typename vertex_t, typename weight_t> static stats update(const resources &res, hypergraph< vertex_t, weight_t > &h, const hyperedge_batch_view< vertex_t, weight_t > &batch, result &r)
+  #define DYNG_DETAIL_LP_CONCAT2(a, b)
+  #define DYNG_DETAIL_LP_CONCAT(a, b)
+  #define DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op_type)
   detail: template <class op_t> struct update_traits<experimental::local_patterns_result<op_t>> { using stats_type = experimental::local_patterns_stats; }
 
 [dyng/experimental/local_patterns.hpp] experimental
@@ -445,6 +448,7 @@
   enum class dyng::experimental::shape : std::uint8_t { triangles, pairs, keys }
   [[nodiscard]] std::string_view dyng::experimental::to_string(shape s) noexcept
   constexpr int dyng::experimental::max_pattern_bins = 1024
+  constexpr std::size_t dyng::experimental::max_op_size = 4096
   using dyng::experimental::member_code = std::int32_t
   class dyng::experimental::member_span
       constexpr member_span() noexcept=default
