@@ -129,7 +129,7 @@ def update(
         >>> motifs.total, type1.total, st_type1.batch.deleted_hyperedges
         (1, 3, 1)
     """
-    from . import cycle_count, mosp, sssp
+    from . import cycle_count, mosp, sssp, triad_count
 
     if isinstance(graph, Hypergraph):
         return _update_hypergraph(graph, batch, results, resources)
@@ -153,6 +153,12 @@ def update(
         elif isinstance(r, mosp.Result):
             mosp._check_graph(graph)
             kinds.append(mosp.Stats)
+        elif isinstance(r, triad_count.Result):
+            # DYNG_TRIAD_COUNT_CONTAINER_MESSAGE of <dyng/triad_count.hpp>, in Python's names
+            raise TypeError(
+                f"dyng.update: argument {i + 2} is a dyng.triad_count.Result, a result of a "
+                "hypergraph algorithm; dyng.update() takes a dyng.Hypergraph for it"
+            )
         else:
             raise TypeError(
                 f"dyng.update: argument {i + 2} is not a dynG result ({type(r).__name__})"

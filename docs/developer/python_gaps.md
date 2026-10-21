@@ -26,8 +26,8 @@ tables below.
 | `to_string(...)` of the enumerations | enumerations are strings in Python | by design |
 | `testing::edge_set_after_batch()` | `dyng.testing.oracles.GraphModel.apply()` (pure Python) | by design |
 | `testing::check_sssp_tree()` on arrays (without a result) | `dyng.testing.check_sssp_tree(graph, result)` | after 0.2.0 (not in 0.2.0) |
-| `dyng::update(res, g, batch, r...)` with `dynamic_bfs::result` or `triangle_delta::result` | `dyng.update()` accepts sssp, cycle_count and mosp results only; call `dyng.dynamic_bfs.update()` / `dyng.triangle_delta.update()` | by design: teaching algorithms (ADR 0033) |
-| `experimental::count_local_patterns<op_t>`, `local_patterns_result<op_t>`, `local_patterns_stats`, the Op concept, `member_span`, `hyperedge_rows`, the set helpers, `experimental::access_rows()` (`<dyng/experimental/local_patterns.hpp>`, `.cuh`) | none | by design: C++ and nvcc only. An Op is compiled into the engine's kernels, so it cannot come from Python; the experimental tier is not bound (ADR 0058). The four built-in Ops are `dyng.triad_count`'s patterns |
+| `dyng::update(res, g, batch, r...)` with `dynamic_bfs::result` or `triangle_delta::result` | `dyng.update()` accepts sssp, cycle_count and mosp results over a graph and `dyng.triad_count` results over a hypergraph only; call `dyng.dynamic_bfs.update()` / `dyng.triangle_delta.update()` | by design: teaching algorithms (ADR 0033) |
+| `experimental::count_local_patterns<op_t>`, `local_patterns_result<op_t>`, `local_patterns_stats`, the Op concept (`max_pattern_bins`, `max_op_size`, `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS`), `member_span`, `hyperedge_rows`, the set helpers, `experimental::access_rows()` (`<dyng/experimental/local_patterns.hpp>`, `.cuh`) | none | by design: C++ and nvcc only. An Op is compiled into the engine's kernels, so it cannot come from Python; the experimental tier is not bound (ADR 0058). The four built-in Ops are `dyng.triad_count`'s patterns |
 
 ## PLAN 5.4 features that are not in the 0.1 Python package
 
@@ -80,7 +80,8 @@ names as strings), `MAX_BINS`, `Options` (`kind`, `cuda_engine`), `Stats`, `Resu
 | `triad_count::result::get_options()`, `set_options()` | `Result.options`, `Result.set_options()` | by design (the other results' spelling) |
 | `triad_count::stats::delta` (`std::array<std::int64_t, max_bins>`, 0 above `num_bins()`) | `Stats.delta`: a read-only int64 NumPy array of the result's `num_bins` values | by design: the zero bins above `num_bins()` carry nothing |
 | `triad_count::to_string(pattern)` | `str(Pattern.h_motif)` (a `StrEnum`) | by design |
-| `DYNG_TRIAD_COUNT_TYPES_MESSAGE`, `DYNG_TRIAD_COUNT_CONTAINER_MESSAGE` | `NotSupportedError` / `TypeError` with the same content | by design: compile-time messages |
+| `DYNG_TRIAD_COUNT_TYPES_MESSAGE` | none: `dyng.Hypergraph` holds the supported types only (int32 vertex ids, unweighted or int32 weights) | by design: a compile-time message |
+| `DYNG_TRIAD_COUNT_CONTAINER_MESSAGE` | `TypeError` from `dyng.update(graph, batch, triad_result)` with a `dyng.Graph`: "argument N is a dyng.triad_count.Result, a result of a hypergraph algorithm; dyng.update() takes a dyng.Hypergraph for it" | by design: a compile-time message |
 | `io::triad_bins` (`kind`, `graph_version`, `counts`, `deltas` as vectors) | `dyng.io.TriadBins` (`counts` uint64, `deltas` an int64 array of shape `(batches, num_bins)`) | by design |
 | `io::triad_bins_size()` | none | by design: `30 if kind == "h_motif" else 1`, or `Result.num_bins` |
 | `testing::triad_reference_all()`, `triad_reference_removed()`, `triad_reference_added()`, `triad_reference_counts`, the class-map helpers (`triad_motif_class()`, `triad_venn_id()`, ...) (tracked, ADR 0049) | `dyng.testing.triad_reference(hypergraph, kind, threads=)` | the counts of one pattern cover the Python tests; the rest after 0.3 if asked |

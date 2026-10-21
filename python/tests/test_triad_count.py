@@ -388,7 +388,11 @@ def test_update_errors_over_hypergraphs(res: dyng.Resources) -> None:
     g = dyng.Graph.from_edges([0, 1, 2], [1, 2, 0], [1, 1, 1])
     with pytest.raises(TypeError, match="hypergraph algorithm"):
         dyng.update(h, dyng.HyperedgeBatch(), dyng.sssp.compute(g, 0))  # type: ignore[call-overload]
-    with pytest.raises(TypeError):  # a triad result with a graph
+    with pytest.raises(
+        TypeError,
+        match=r"argument 2 is a dyng\.triad_count\.Result, a result "
+        r"of a hypergraph algorithm; dyng\.update\(\) takes a dyng\.Hypergraph",
+    ):
         dyng.update(g, dyng.EdgeBatch(), r)  # type: ignore[call-overload]
     assert h.version == 0
     check(h, r)
