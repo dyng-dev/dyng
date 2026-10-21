@@ -2,7 +2,9 @@
 
 The public C++ API lives in `cpp/include/dyng/` (namespace `dyng`) and compiles with a plain
 host compiler, also in a build with the CUDA backend (CUDA objects appear only as opaque
-handles, such as `stream_ref`); `#include <dyng/dyng.hpp>` includes all of it. These pages are
+handles, such as `stream_ref`); `#include <dyng/dyng.hpp>` includes all of it. The one exception
+is the experimental extension header `<dyng/experimental/local_patterns.cuh>`, which needs nvcc and
+is not in `dyng.hpp` ({doc}`experimental`). These pages are
 generated from the Doxygen comments of the public headers (Breathe over Doxygen XML) and are **curated**: one page
 per Doxygen group, in the order a new user meets them. `dyng::detail` is private and not shown.
 
@@ -22,6 +24,7 @@ mosp
 dynamic_bfs
 triangle_delta
 triad_count
+experimental
 generators
 testing
 ```

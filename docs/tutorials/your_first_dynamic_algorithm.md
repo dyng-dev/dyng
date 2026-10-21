@@ -112,6 +112,7 @@ vertex, so that a vertex enters a frontier only once per round. Scratch arrays l
 allocates nothing (invariant I9, which the kit's check C8 enforces). In `problem.hpp`, add to
 `my_bfs_workspace`, after `before`:
 
+% quote: examples/tutorial_algorithms/my_bfs/problem.hpp#workspace 2458248b5f0b
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/problem.hpp
 :language: cpp
 :start-after: "// [tutorial: workspace]"
@@ -120,6 +121,7 @@ allocates nothing (invariant I9, which the kit's check C8 enforces). In `problem
 
 and size them in `my_bfs_workspace::reserve()` (in `my_bfs.cpp`), counting their bytes too:
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs.cpp#reserve aa8bddc74e43
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
 :start-after: "// [tutorial: reserve]"
@@ -133,6 +135,7 @@ fixed point by itself. A real frontier lets the enactor run the rounds: it calls
 swaps the two frontiers and calls it again until `empty()` is true. In `problem.hpp`, before the
 problem class, add:
 
+% quote: examples/tutorial_algorithms/my_bfs/problem.hpp#frontier be6c85fb4674
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/problem.hpp
 :language: cpp
 :start-after: "// [tutorial: frontier]"
@@ -161,6 +164,7 @@ out-edges); replace that definition with:
 Replace the declaration of `loop` (under `// ---- Step 2 ----`) with the three hooks of the
 update:
 
+% quote: examples/tutorial_algorithms/my_bfs/problem.hpp#hooks 696e7cf35b0f
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/problem.hpp
 :language: cpp
 :start-after: "// [tutorial: hooks]"
@@ -197,6 +201,7 @@ may be farther too. Those are *invalidated*: their level becomes -1 and they joi
 Every vertex outside that set keeps a shortest path that the batch did not touch, so its level is
 still right.
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs.cpp#identify_affected 0155db99f227
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
 :start-after: "// [tutorial: identify_affected]"
@@ -218,6 +223,7 @@ that subtracts on G_t would get an `old_view` (invariant I1).
 
 A vertex enters a frontier when its level drops. One helper does the offering:
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs.cpp#offer 984bf6d6be24
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
 :start-after: "// [tutorial: offer]"
@@ -230,6 +236,7 @@ its in-neighbours offer, and every inserted edge `u -> v` offers `level[u] + 1` 
 (that `v` is in `u`'s out-row); without that check, a batch that inserts and deletes the same edge
 would give `v` a level along an edge that does not exist:
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs.cpp#seed f0ce59473029
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
 :start-after: "// [tutorial: seed]"
@@ -240,6 +247,7 @@ would give `v` a level along an edge that does not exist:
 
 Replace the scaffold's `loop` (the recompute) with one round of offers:
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs.cpp#loop a5e12a64aa44
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
 :start-after: "// [tutorial: loop]"
@@ -255,6 +263,7 @@ point is the BFS level of every vertex whatever order the offers come in.
 `loop` until the frontier is empty. The scaffold's static solve used to run in `loop`; move it
 into `seed_static`, so that the frontier stays empty and `loop` does not run:
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs.cpp#seed_static 4208be4019c0
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
 :start-after: "// [tutorial: seed_static]"
@@ -274,6 +283,7 @@ Finally, the seed needs the in-edges, so reject graphs that do not store them be
 changes. At the end of `begin_update` (which runs before the commit, so a rejected batch leaves the
 graph and the result unchanged):
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs.cpp#requirement 5ad289b17359
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
 :start-after: "// [tutorial: requirement]"
@@ -292,6 +302,7 @@ placeholder recomputes. It no longer does:
 Replace the test's `TODO(my_bfs)` comment with one that says what it checks, and add a case for
 the trap of 4.5, an edge inserted and deleted in one batch:
 
+% quote: examples/tutorial_algorithms/my_bfs/my_bfs_test.cpp#hand test cd3456c3b152
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs_test.cpp
 :language: cpp
 :start-after: "// [tutorial: hand test]"
@@ -362,6 +373,7 @@ request). Two improvements that `dynamic_bfs` makes are worth reading first:
   a CUDA kernel. Words that several elements may write in one pass change through atomics, so the
   same functor is correct on all three. The offer of `my_bfs` becomes:
 
+% quote: cpp/src/algorithms/dynamic_bfs/engine.hpp#at-95f5e3f0 d0b0aa104a52
 ```{literalinclude} ../../cpp/src/algorithms/dynamic_bfs/engine.hpp
 :language: cpp
 :start-at: "struct offer {"
@@ -370,6 +382,7 @@ request). Two improvements that `dynamic_bfs` makes are worth reading first:
 
 and each backend file is one instantiation:
 
+% quote: cpp/src/algorithms/dynamic_bfs/cuda.cu#at-dfc0df21 72703a9768ff
 ```{literalinclude} ../../cpp/src/algorithms/dynamic_bfs/cuda.cu
 :language: cpp
 :start-at: "template <typename vertex_t, typename edge_t>"

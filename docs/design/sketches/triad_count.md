@@ -96,4 +96,7 @@ stats update(const resources& res, hypergraph<vertex_t, weight_t>& hg,
 1. Whether the per-bin signed delta is worth a `stats` field after all (the paper's plots show
    per-batch deltas; a fixed-size `std::array<std::int64_t, 30>` would not allocate).
 2. The `experimental::count_local_patterns<op_t>` extension point (0.5) and how its Op concept
-   relates to `pattern` (a new pattern as a new Op, not a new enumerator).
+   relates to `pattern` (a new pattern as a new Op, not a new enumerator). *Answered in M9b (ADR 0058):*
+   it ships in 0.3 as `experimental::count_local_patterns<op_t>` over the same driver and engine
+   as `triad_count`; a new pattern is a new Op, and the four enumerators of `pattern` are four
+   built-in Ops of that engine.

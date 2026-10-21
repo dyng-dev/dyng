@@ -273,7 +273,11 @@ struct count_local_patterns {
    * @param[in] res Execution resources.
    * @param[in] h   The hypergraph.
    * @return The counts, matching `h.version()`.
-   * @throws as compute(res, h, op).
+   * @throws invalid_argument_error as compute(res, h, op).
+   * @throws not_supported_error    as compute(res, h, op).
+   * @throws capacity_error         if a count exceeds 2^64 - 1.
+   * @throws out_of_memory_error    if host or device memory cannot be allocated.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync The counts are complete on return.
    * @backends sequential, openmp, cuda
    * @determinism As compute(res, h, op).

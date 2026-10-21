@@ -10,6 +10,34 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- **Experimental** (M9b, ADR 0058; may change in any minor release, tracked by the API check
+  without failing it): `dyng::experimental::count_local_patterns<op_t>`
+  (`<dyng/experimental/local_patterns.cuh>`, needs nvcc): count a new hypergraph pattern, given as
+  an Op (`num_bins`, a `shape` of `triangles`, `pairs` or `keys`, DYNG_HD callbacks that see
+  0-based hyperedge ids and the members as opaque ascending codes with `hyperedge_rows::decode()`),
+  with triad_count's wedge engine on cuda, sequential and openmp; `compute(res, h[, op])`,
+  `update(res, h, batch, result)` (the exact delta: the engine owns the frontier, the sign and the
+  exactly-once rule), `local_patterns_result<op_t>` (`counts()`, `count()`, `total()`, `op()`,
+  `clone()`), `local_patterns_stats` (`removed`, `added`, `delta`); its results compose with
+  triad_count and the other hypergraph results in one `dyng::update()`. The host-compilable
+  `<dyng/experimental/local_patterns.hpp>`: `shape`, `max_pattern_bins` (1024), `member_span`,
+  `hyperedge_rows`, the set helpers `intersect_size()`, `venn3()`, `intersects3()`, and
+  `experimental::access_rows(h)`, the rows the engine reads (compiled into libdyng for both
+  hypergraph instantiations). The `.cuh` headers are installed. triad_count's four patterns are
+  four built-in Ops of the same engine and driver (their kernels' machine code unchanged).
+- Docs: the tutorial "Count a new hypergraph pattern (an Op)" (`docs/tutorials/
+  count_a_new_hypergraph_pattern.md`; its code in `examples/tutorial_algorithms/local_patterns/`,
+  tested on every backend and both instantiations, the host half in the CPU jobs), the API page
+  `docs/api/cpp/experimental.md`; `ci/tutorial_quotes.py` (run by `ci/docs.sh`) pins every quote of
+  the tutorials, so a quoted line that moves or changes without its page fails the docs check.
+- CI: the API snapshot's experimental tier (`dyng/experimental/*`: listed, a difference reported,
+  never failed); Doxygen reads `*.cuh` and `ci/doxygen_coverage.py` holds the group
+  `experimental` and its banner; `ci/cmake_consumer.sh` also builds a host-only consumer of the
+  experimental header and, from a CUDA build, a user Op compiled by nvcc against the installed
+  package (`ci/gpu_local.sh` step `experimental`, with compute-sanitizer memcheck, racecheck and
+  synccheck over the tutorial's CUDA run); `parity/compare.py triad_count --counter
+  local_patterns` (the built-in Ops through count_local_patterns, bit for bit against triad_count
+  and against ESCHER-GPU's goldens).
 - `triad_count` (experimental, aggregate delta; `<dyng/triad_count.hpp>`): the 30 h-motif counts and StatHyper's triad types 1-3 of a hypergraph, kept exact under hyperedge batches (`options::kind`; `stats::delta`, `triads_removed` / `triads_added`; several patterns in one `dyng::update()`). The cuda backend runs ESCHER-GPU@abcf9b2's wedge engine (exact against ESCHER-GPU on every golden case); the sequential and OpenMP backends run the same engine as loops (an incremental host engine, untuned; the author's decision D3, ADR 0054), exact against ESCHER-GPU on the golden cases of the coverage table, with identical results on every OpenMP thread count. `dyng-compat-escher run` counts and prints ESCHER-GPU's output; `parity/compare.py triad_count --counter algorithm`.
 - Internal (internal-stable, ADR 0055): `operators::count_delta` / `count_owned`, the signed count of one aggregate-delta phase with a required ownership rule (I2), on every executor (host: private bins per thread added in thread order; cuda: atomic bins read once); `triangle_delta` and `triad_count`'s host engine count with it (the rule of two). The executors gain `download()` and `threads()`.
 - Benchmarks (M9a, ADR 0056): the paper suites `benchmarks/paper/ipdps26_escher.yaml` (the timing gates of `triad_count` against ESCHER-GPU@abcf9b2: update per batch, full count, end to end on coauth-DBLP and syn1M / syn2M) and `tkde26_escher_plus.yaml` (the store accounting and the Nsight Systems peak; the StatHyper types and other batch sizes recorded); `parity/certify.py` requires both, and the triad golden replays of every backend of the coverage table by key and by content, from the 0.3 series (`compare.py triad_count --certificate`; `certify.py write --dry-run <algorithm>`); `perf_ab.py triad_count kernels` (the update's kernels under ncu at the base clocks) and the contamination audit of the triad readings.

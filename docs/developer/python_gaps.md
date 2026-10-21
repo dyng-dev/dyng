@@ -26,6 +26,7 @@ the Python package does not bind, and why; each entry names the release that clo
 | `testing::edge_set_after_batch()` | `dyng.testing.oracles.GraphModel.apply()` (pure Python) | by design |
 | `testing::check_sssp_tree()` on arrays (without a result) | `dyng.testing.check_sssp_tree(graph, result)` | after 0.2.0 (not in 0.2.0) |
 | `dyng::update(res, g, batch, r...)` with `dynamic_bfs::result` or `triangle_delta::result` | `dyng.update()` accepts sssp, cycle_count and mosp results only; call `dyng.dynamic_bfs.update()` / `dyng.triangle_delta.update()` | by design: teaching algorithms (ADR 0033) |
+| `experimental::count_local_patterns<op_t>`, `local_patterns_result<op_t>`, `local_patterns_stats`, the Op concept, `member_span`, `hyperedge_rows`, the set helpers, `experimental::access_rows()` (`<dyng/experimental/local_patterns.hpp>`, `.cuh`) | none | by design: C++ and nvcc only. An Op is compiled into the engine's kernels, so it cannot come from Python; the experimental tier is not bound (ADR 0058). The four built-in Ops are `dyng.triad_count`'s patterns |
 
 ## PLAN 5.4 features that are not in the 0.1 Python package
 

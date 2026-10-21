@@ -51,11 +51,15 @@ why those two keep GitHub's standard names.
 | Label | Category | Typical task |
 |---|---|---|
 | `good first issue` | any | small, well-described, with a pointer to the files to change |
-| `good-first-issue:op` | a new hypergraph pattern Op (from 0.3) | a StatHyper-style pattern for `count_local_patterns` |
+| `good-first-issue:op` | a new hypergraph pattern Op (from 0.3) | a new pattern for `experimental::count_local_patterns`, written as in {doc}`../tutorials/count_a_new_hypergraph_pattern`: the Op, its brute-force oracle and a test on every backend |
 | `good-first-issue:reader` | a file format | a reader or writer in `cpp/src/io/` with round-trip tests |
 | `good-first-issue:backend` | a backend | an OpenMP backend for a sequential-only algorithm |
 | `good-first-issue:docs` | documentation | a how-to guide, an example, a clarified page |
 | `help wanted` | larger tasks | where outside help is welcome; see the roadmap |
+
+The labels exist on GitHub once `.github/labels.yml` reaches `main` (the `labels` workflow applies
+it); creating a label by hand is an account-level action of the maintainers (the repository's
+Settings), not needed while the workflow runs.
 
 At every release the maintainers curate a backlog of good first issues. The seeds:
 StatHyper-style Ops; a CPU incremental `triad_count`; an OpenMP `label_propagation`;
