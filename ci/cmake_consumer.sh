@@ -162,16 +162,14 @@ if ! grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt"; then
 fi
 nvcc="$(sed -n 's/^CMAKE_CUDA_COMPILER:[A-Z]*=//p' "${build}/CMakeCache.txt")"
 mkdir -p "${tmp}/op"
-cat >"${tmp}/op/CMakeLists.txt" <<CMAKE
-cmake_minimum_required(VERSION 3.30)
-project(dyng_op_consumer CXX CUDA)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CUDA_STANDARD 17)
-find_package(dyng ${major_minor} REQUIRED)
-add_executable(op "${src}/op.cu")
-set_target_properties(op PROPERTIES CUDA_ARCHITECTURES native)
-target_link_libraries(op PRIVATE dyng::dyng)
-CMAKE
+# The tutorial's CMakeLists.txt, unchanged (it quotes ci/consumer/op.CMakeLists.txt).
+if ! grep -qx "find_package(dyng ${major_minor} REQUIRED)" "${src}/op.CMakeLists.txt"; then
+  echo "cmake_consumer: ci/consumer/op.CMakeLists.txt does not ask for dyng ${major_minor}" \
+    "(update it and the tutorial's quote pin: ci/tutorial_quotes.py --update)" >&2
+  exit 1
+fi
+cp "${src}/op.CMakeLists.txt" "${tmp}/op/CMakeLists.txt"
+cp "${src}/op.cu" "${tmp}/op/my_patterns.cu"
 cmake -S "${tmp}/op" -B "${tmp}/op/build" -G Ninja -DCMAKE_CUDA_COMPILER="${nvcc}" \
   -DCMAKE_PREFIX_PATH="${tmp}/prefix" -DCMAKE_BUILD_TYPE=Release >"${tmp}/op.log" 2>&1 &&
   cmake --build "${tmp}/op/build" >>"${tmp}/op.log" 2>&1 || {
@@ -179,7 +177,7 @@ cmake -S "${tmp}/op" -B "${tmp}/op/build" -G Ninja -DCMAKE_CUDA_COMPILER="${nvcc
   echo "cmake_consumer: a user Op does not build with nvcc against the installed package" >&2
   exit 1
 }
-"${tmp}/op/build/op" || {
+"${tmp}/op/build/my_patterns" || {
   echo "cmake_consumer: the user Op's program failed" >&2
   exit 1
 }

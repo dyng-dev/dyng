@@ -18,8 +18,11 @@ You should be comfortable with C++17 and know what a hypergraph is ({doc}`../con
 The code of this tutorial is in `examples/tutorial_algorithms/local_patterns/`: the Ops
 (`patterns.hpp`), a brute-force oracle (`oracle.hpp`) and the programs that run them
 (`tutorial_test.cu` on every backend, `tutorial_host_test.cpp` without nvcc). The snippets below
-are quoted from those files; CI builds and runs them on every backend and both hypergraph types,
-and fails when a quoted line changes without this page (`ci/tutorial_quotes.py`).
+are quoted from those files. The local GPU gate (`ci/gpu_local.sh`, run on a machine with nvcc and
+a GPU) builds and runs `tutorial_test.cu` on every backend and both hypergraph types; hosted CI has
+no nvcc, so it runs the host half (`tutorial_host_test.cpp`, which drives the Ops' callbacks by
+hand against the brute force) and the drift check, which fails when a quoted line changes without
+this page (`ci/tutorial_quotes.py`).
 
 ## 1. The idea: a pattern is an Op over wedges, pairs or keys
 
@@ -61,13 +64,29 @@ The smallest triangles Op counts every triangle once:
 - The callbacks are `DYNG_HD` (`__host__ __device__` under nvcc): the same Op runs on the GPU and
   on the host. The ones that receive `bins` are templates, because the GPU and the host hand the
   Op different bins handles.
+- Write every callback `DYNG_HD`, never `__device__` alone. nvcc reports a host-only callback, but
+  **not a `__device__`-only one**: the library calls the host callbacks from a template, where nvcc
+  compiles such a call to a stub, so the program compiles, counts on the GPU, and on `sequential`
+  and `openmp` ends with exit status 1 and no message. Put
+  `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(your_op);` after each Op, at namespace scope of the `.cu`
+  file: it makes nvcc report a `__device__`-only callback ("calling a `__device__` function ...
+  from a `__host__` function is not allowed") and adds no code that runs. The tutorial's test does
+  it for its four Ops:
+
+% quote: examples/tutorial_algorithms/local_patterns/tutorial_test.cu#host check 5209cf030820
+```{literalinclude} ../../examples/tutorial_algorithms/local_patterns/tutorial_test.cu
+:language: cpp
+:start-after: "// [tutorial: host check]"
+:end-before: "// [tutorial: host check end]"
+```
+
 - `count` is a partial sum in the Op's own member; `flush()` adds it to the bin once per worker.
   The Op must be trivially copyable and default-constructible: the engine copies the Op value you
   give it (here the default, `count = 0`) into every worker.
 
 Count it, and a pattern of the next section, on a hypergraph:
 
-% quote: examples/tutorial_algorithms/local_patterns/tutorial_test.cu#compute 238234ac704e
+% quote: examples/tutorial_algorithms/local_patterns/tutorial_test.cu#compute aa19cb0ceab3
 ```{literalinclude} ../../examples/tutorial_algorithms/local_patterns/tutorial_test.cu
 :language: cpp
 :start-after: "// [tutorial: compute]"
@@ -149,10 +168,15 @@ one `dyng::update()`, so one commit updates several patterns (and `triad_count`)
 The stats (`experimental::local_patterns_stats`) hold the batch summary (`batch.inserted_ids`:
 the ids the store gave the inserted hyperedges), the frontier sizes (`deleted_frontier`,
 `inserted_frontier`), `removed` and `added` (the two phases' counts, summed over the bins) and
-`delta`, the change of every bin. After every batch the test checks the counts against the brute
-force and against a fresh `compute()` ("baseline + deltas == recount"). A result that was not
-part of an update is stale: using it on the new hypergraph throws `stale_result_error`, and it
-must be computed again.
+`delta`, the change of every bin. The test updates all four Ops (the other two, with
+`triad_count`, in a second `dyng::update()` over a copy of the hypergraph), under both id-reuse
+orders (`hypergraph_properties::reuse`: `erase_first` and `insert_first`), through an empty, a
+deletion-only and an insertion-only batch and three mixed ones. After every batch it checks every
+updated result against the brute force and against a fresh `compute()` ("baseline + deltas ==
+recount"). **Test every new Op this way, under updates, on every backend you claim**: a check of
+`compute()` alone cannot catch an Op that depends on the order of its ids (section 6). A result
+that was not part of an update is stale: using it on the new hypergraph throws
+`stale_result_error`, and it must be computed again.
 
 ## 5. The same Op on the host and on the GPU
 
@@ -169,19 +193,23 @@ The Op is compiled for both: run it on the GPU with `dyng::resources::cuda()` an
 In your own project, put the Op and the calls in a `.cu` file and build it with nvcc against the
 installed library:
 
-```cmake
-cmake_minimum_required(VERSION 3.30)
-project(my_patterns CXX CUDA)
-set(CMAKE_CUDA_STANDARD 17)
-find_package(dyng 0.3 REQUIRED)
-add_executable(my_patterns my_patterns.cu)
-set_target_properties(my_patterns PROPERTIES CUDA_ARCHITECTURES native)
-target_link_libraries(my_patterns PRIVATE dyng::dyng)
+% quote: ci/consumer/op.CMakeLists.txt#op consumer cb2e261b55c8
+```{literalinclude} ../../ci/consumer/op.CMakeLists.txt
+:language: cmake
+:start-after: "# [tutorial: op consumer]"
+:end-before: "# [tutorial: op consumer end]"
 ```
 
-(`ci/cmake_consumer.sh` builds such a program against an installed build and runs it on every
-backend.) A program that only reads the rows (`experimental::access_rows()`) or names the types
-includes the host header `<dyng/experimental/local_patterns.hpp>` and needs no nvcc.
+(`ci/cmake_consumer.sh` builds this file, unchanged, against an installed build with a user Op as
+`my_patterns.cu`, and runs it on every backend of the build; in CI without nvcc it is skipped.) A
+program that only reads the rows (`experimental::access_rows()`) or names the types includes the
+host header `<dyng/experimental/local_patterns.hpp>` and needs no nvcc.
+
+The same Op value runs on every backend because it holds only scalars. An Op that needs data of
+your own (vertex labels, a vertex set) gets it through a pointer member you set: on `cuda` it must
+point to device memory, on `sequential` and `openmp` to host memory, and the data must stay valid
+and unchanged for the result's whole lifetime, because the result keeps the Op value and every
+`update()` counts with it. Such an Op value belongs to one backend.
 
 ## 6. Why the Op never sees the frontier or the sign
 
@@ -197,9 +225,30 @@ phase and the bins' arithmetic. The Op only says what one triangle (pair, hypere
 That is why an Op written for `compute()` is already correct for `update()`, and why it cannot get
 the update wrong: it holds no view of the hypergraph, so the subtraction cannot read the
 hypergraph after the batch. What the Op must guarantee is that a structure's count does not depend
-on who counts it or in which order: the engine may hand a triangle to any worker, as any of its
-three wedges in a full count, and from the changed hyperedge in an update. (A bin that the
-subtraction would take below zero is reported as an `internal_error`.)
+on who counts it or in which order: the engine may hand a triangle to any worker.
+
+**The ids of a call come in no particular order.** A full count happens to pass `a < b` to
+`pair()` and `begin_wedge()`, and `a < b < c` for a triangle, because it walks each hyperedge's
+larger neighbours. An update's phases start from the changed hyperedges instead: `a` is a changed
+hyperedge and `b` any neighbour, smaller or larger (and `c` any common neighbour above `b`). So an
+Op's count must be **symmetric in `a` and `b`** (pairs) and **in `a`, `b` and `c`** (triangles).
+This Op is not:
+
+% quote: examples/tutorial_algorithms/local_patterns/tutorial_test.cu#asymmetric 81dded2cbe11
+```{literalinclude} ../../examples/tutorial_algorithms/local_patterns/tutorial_test.cu
+:language: cpp
+:start-after: "// [tutorial: asymmetric]"
+:end-before: "// [tutorial: asymmetric end]"
+```
+
+On the hyperedges `{0, 1, 2}`, `{2, 3}` and `{3, 4, 5, 6}` its `compute()` gives 1, as a brute
+force over every pair `i < j` does. Deleting hyperedge 2 subtracts the pair counted from the
+changed hyperedge as `pair(2, 1)`, which this Op counts (|2| > |1|) although the full count did
+not (`pair(1, 2)`): `update()` gives 0, a recount gives 1, and nothing is reported. The test
+`AnOpThatDependsOnTheOrderOfItsIdsIsWrongAfterAnUpdate` shows it on every backend. A symmetric
+version counts the pairs of different sizes, `rows.size(a) != rows.size(b)`. (A bin that the
+subtraction would take below zero is reported as an `internal_error`, but an asymmetric Op need
+not take one there.)
 
 ## 7. Limits
 
@@ -207,6 +256,16 @@ subtraction would take below zero is reported as an `internal_error`.)
   in its shared memory (8 KiB at 1024 bins), and those of a host thread on its stack. A bin
   outside `[0, num_bins)` is not written: `compute()` or `update()` throws
   `invalid_argument_error` (after the commit, the result is left unusable).
+- **The Op is at most `experimental::max_op_size` (4,096) bytes**: its value is a parameter of
+  every counting kernel and every GPU thread holds a copy of it, so it is small per-worker state,
+  not a table (a larger Op stops at its own `static_assert`). Keep tables in memory the Op points
+  to (section 5).
+- **Data of your own** comes through a pointer member, into the memory of the result's backend,
+  valid for the result's lifetime (section 5); a pointer-free Op is the only kind that runs on
+  every backend unchanged.
+- **`__device__`-only callbacks are not reported by nvcc** unless the Op goes through
+  `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS` (section 2); without it the host backends end the
+  program with exit status 1.
 - **C++ and nvcc only**, by design: the Op is compiled into kernels. No Python binding
   ({doc}`../developer/python_gaps`).
 - **Experimental**: the API may change in any minor release; `ci/api_snapshot.py` tracks it and
@@ -235,6 +294,7 @@ ctest --preset dev-cuda -R 'Tutorial'      # the Ops on every backend, against t
 and without nvcc, the host half (the Ops' callbacks driven by hand on the host rows):
 
 ```bash
+cmake --preset cpu-only && cmake --build --preset cpu-only
 ctest --preset cpu-only -R 'TutorialHost'
 ```
 

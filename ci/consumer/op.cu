@@ -36,6 +36,9 @@ struct triangles {
   }
 };
 
+// nvcc reports a __device__-only callback here (the host backends would end with exit(1)).
+DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(triangles);
+
 using graph_t = dyng::hypergraph<std::int32_t, dyng::unweighted>;
 
 bool run(const dyng::resources& res) {

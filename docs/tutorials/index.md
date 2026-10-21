@@ -48,7 +48,8 @@ committed expected output.
 line graph's triangles, the pairs of hyperedges sharing `k` vertices, triangles by the size of
 their core, and pairs through a vertex), checks them against a brute force and `triad_count`, and
 keeps them exact under hyperedge batches on the GPU and the CPU. Its code is in
-`examples/tutorial_algorithms/local_patterns/`, built and run by CI on every backend (the host half
-without nvcc in the CPU jobs); the page quotes it by marked ranges, and `ci/tutorial_quotes.py`
+`examples/tutorial_algorithms/local_patterns/`, built and run on every backend by the local GPU
+gate (`ci/gpu_local.sh`: it needs nvcc and a GPU), while hosted CI runs its host half (the Ops'
+callbacks driven by hand, without nvcc); the page quotes it by marked ranges, and `ci/tutorial_quotes.py`
 (run by `ci/docs.sh`) pins every quote of the tutorials, so a quoted line that moves or changes
 without its page fails the documentation check.

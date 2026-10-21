@@ -103,7 +103,25 @@ updated with another (`dyng::update` specializes its traits per Op type).
   triangle(rows, c, bins)`; pairs `pair(rows, a, b, bins)`; keys `key(rows, a, bins)`; and
   `flush(bins)`; all DYNG_HD;
 - trivially copyable and default-constructible: the Op value given to `compute()` is the initial
-  state of every worker (a GPU thread, a host source), which flushes once.
+  state of every worker (a GPU thread, a host source), which flushes once;
+- at most `max_op_size` (4,096) bytes (added at the M9b review): the value is a parameter of every
+  counting kernel (CUDA's kernel-parameter space is 32,764 bytes, and nvcc reported a larger Op
+  only as "Formal parameter space overflowed" in a mangled kernel name) and every GPU thread holds
+  a copy of it.
+
+**The ids of a call are unordered** (stated at the M9b review). A full count happens to pass
+`a < b` (and `a < b < c`), because it walks the out-neighbours; a frontier phase passes the changed
+hyperedge as `a` and every neighbour as `b`, in either order (the closing `c` is always above `b`).
+An Op's count must be symmetric in its ids: an Op counting `|a| > |b|` agrees with a brute force
+over `i < j` under `compute()` and is silently wrong after `update()` (no bin goes negative, so no
+`internal_error`). The concept's documentation and the tutorial say so, show the counter-example
+(a test, `Tutorial.AnOpThatDependsOnTheOrderOfItsIdsIsWrongAfterAnUpdate`) and ask for "baseline +
+deltas == recount" tests of every Op under updates.
+
+**User data** (labels, a vertex set): the engine passes only the rows and the ids, so it goes in
+through a pointer member the caller sets, to device memory on cuda and host memory on the host
+backends, valid and unchanged for the result's whole lifetime (the result keeps the Op for every
+update). Only a pointer-free Op runs unchanged on every backend (an open question, section 7).
 
 `detail::local_patterns::check_op<op_t>()` fires one `static_assert`, with its own message, per
 missing or ill-formed member (no cascade: each later check is skipped when its premise fails).
@@ -111,8 +129,23 @@ The callbacks are detected with the Op's real host bins handle (`host_bins<num_b
 probe type, because nvcc warns about (and with `-Werror` refuses) a callback instantiated for a
 type no code calls it with. Compile-failure tests run each case through the host compiler
 (hosted CPU CI) and, in CUDA builds, through nvcc and `count_local_patterns<op_t>::compute()`
-itself (`cpp/tests/compile_fail/local_patterns_op.cpp`). Whether a callback is DYNG_HD cannot be
-tested by a `static_assert`; nvcc reports a host-only or device-only callback at the call.
+itself (`cpp/tests/compile_fail/local_patterns_op.cpp`). The messages quote code in single
+quotes: nvcc's front end prints a backtick as `?` (corrected at the M9b review; the tests match the
+quotes literally, under nvcc too).
+
+Whether a callback is DYNG_HD cannot be tested by a `static_assert`. nvcc reports a host-only
+callback at the engine's call, but **not a `__device__`-only one** (corrected at the M9b review:
+this ADR first said nvcc reports both). nvcc diagnoses a call to a `__device__` function only from
+a host function that is not a template; the engine calls the host callbacks from the function
+template `host_source<op_t>`, where nvcc compiles the call to a stub that ends the process with
+`exit(1)`. Such an Op runs on cuda, and on sequential and openmp the program ends with exit status 1
+and no message. A `DYNG_HD` callback that calls a `__device__` function is reported. The mitigation
+is `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op_t)`, used once per Op at namespace scope: it defines
+a host function that is never called and calls the callbacks from a generic lambda in it (not in a
+template), where nvcc does report them; it checks the concept too and adds no code that runs. The
+tutorial and the API tests use it on every Op, and the compile-failure test `device_only` shows
+nvcc reporting a `__device__`-only Op through it. Making the check automatic would need the engine
+to call the callbacks outside a template, which it cannot (the Op is its template parameter).
 
 **What the callbacks see**: 0-based live hyperedge ids and member spans of the store's codes
 (`member + 1`, ascending); `decode()` gives the vertex. No CBST key (id + 1), sentinel (the
@@ -168,11 +201,13 @@ layout (a stride of max(num_bins, 30)), so the built-ins' device memory and copi
 `local_patterns_result` (`op_type`, `num_bins`, `counts`, `count`, `total`, `op`,
 `graph_version`, `space`, `clone`), `local_patterns_stats` (`batch`, `deleted_frontier`,
 `inserted_frontier`, `removed`, `added`, `delta`), `shape` (`triangles`, `pairs`, `keys`),
-`to_string(shape)`, `max_pattern_bins`, `member_code`, `member_span` (`begin`, `end`, `size`,
+`to_string(shape)`, `max_pattern_bins`, `max_op_size` (added at the M9b review), `member_code`, `member_span` (`begin`, `end`, `size`,
 `empty`, `operator[]`), `hyperedge_rows` (`row`, `size`, `decode`), `venn_counts` (`ab`, `bc`,
 `ca`, `abc`), `intersect_size`, `venn3`, `intersects3`, `row_access` (`hyperedges`, `id_bound`,
 `has_line_graph`, `space`, `device`), `access_rows`; the macros `DYNG_HD`, `DYNG_HD_INLINE`,
-`DYNG_LOCAL_PATTERNS_TYPES_MESSAGE`; the profiler stages `count_local_patterns.*`; in
+`DYNG_LOCAL_PATTERNS_TYPES_MESSAGE`, `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS` (added at the M9b
+review, with its helpers `DYNG_DETAIL_LP_CONCAT` / `DYNG_DETAIL_LP_CONCAT2` and
+`detail::local_patterns::callback_check_bins`); the profiler stages `count_local_patterns.*`; in
 `dyng::detail` (the API snapshot's detail contract): `local_patterns_supported_v`,
 `update_traits<local_patterns_result<op_t>>`, and the hand-off (`local_patterns::kernels`,
 `device_pass`, `host_pass`, `host_bins`, `builtin_op`, `check_op`, `make_kernels`,
@@ -183,7 +218,9 @@ layout (a stride of max(num_bins, 30)), so the built-ins' device memory and copi
 Any of section 6 in a minor release, with a CHANGELOG entry: the bins handle (a typed handle per
 shape; a `bins.add()` without the carry test for an Op that declares `unit_counts`), more shapes
 (open wedges, for the open triads; incidence-based patterns), Ops that see the hyperedges'
-weights, a device-only Op on cuda alone, a sparse or larger bin space, and the promotion of the
+weights, a device-only Op on cuda alone, a sparse or larger bin space, a side-data argument (for
+example an `array_view` bound per backend, so that an Op with user data runs on every backend
+unchanged; the M9b review's open question), and the promotion of the
 engine to `cpp/src/operators/` as the operator `local_patterns` of PLAN 4.5.3 (with a second
 in-tree user).
 
