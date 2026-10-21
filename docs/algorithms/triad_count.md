@@ -299,15 +299,19 @@ dynG / ESCHER-GPU, medians):
 | Nsight Systems peak of live allocations | 1.0015 (3,023 MiB) | 1.0021 (1,134 MiB) | 1.0017 (2,215 MiB) | 1.05 |
 
 M9b moved the engine into the installed headers without changing the counting kernels' machine
-code, and read every gate again on its own library, the 0.3.0 candidate's, with the same protocol
-(`parity/results/M9b.md` section 3): update per batch 0.952-0.973 (coauth-DBLP) and 0.861-1.031
-(synthetic), full count 0.999-1.003, end to end 0.920-0.991, the store accounting 1.0000 and the
-peak 1.0015-1.0021; 45 / 45 and 11 / 11 rows within their bars. Recorded,
-not gated: the default clocks (update 0.84-1.02), 100K and 200K coauth batches (0.98-1.02),
-StatHyper's types on coauth (update 0.72-0.96 of ESCHER-GPU's), and the update with the driver's
-host model counted (up to 1.061 on three syn2m rows: D12). The figures of ESCHER-GPU's README
-(coauth 50K update 0.546 s, full count 5.22 s, 9.1 s end to end, 1.83 GB) are its own default-clock
-medians of 3 runs; dynG at default clocks reads 0.50-0.55 s, 5.05 s and 8.6 s.
+code, and read every gate again on its own library, the 0.3.0 candidate's, with the same protocol:
+at step 3 (`b732aa9`) and again after the M9b review changed the experimental headers (`c83cebf`,
+`parity/results/M9b.md` section 5; the counting kernels still identical to M9a's). The latest
+reading: update per batch 0.951-0.971 (coauth-DBLP) and 0.862-1.033 (synthetic), full count
+0.999-1.003, end to end 0.940-0.992, the store accounting 1.0000 and the peak 1.0015-1.0021; 45 /
+45 and 11 / 11 rows within their bars. Recorded, not gated, in the same reading: the default
+clocks (update 0.85-1.03), 100K and 200K coauth batches (0.98-1.02), StatHyper's types on coauth
+(update 0.74-0.97 of ESCHER-GPU's), and the update with the driver's host model counted (D12: up
+to 1.074 on three syn2m rows at the base lock, 1.084 on syn2m_b50k_s1 b2 at default clocks).
+The figures of ESCHER-GPU's `results/README.md` (coauth 50K update 0.546 s, full count 5.22 s,
+9.1 s end to end, 1.83 GB) are its own default-clock medians of 3 runs; dynG at default clocks
+read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` section 5.3), and
+0.49-0.55 s, 5.04 s and 8.58 s in M9b's latest reading.
 
 ## 6. Limitations
 
