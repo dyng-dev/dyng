@@ -10,6 +10,7 @@
  */
 #include "parity/escher/triad_replay.hpp"
 
+#include <dyng/core/backend.hpp>
 #include <dyng/core/copy.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
@@ -145,7 +146,11 @@ std::filesystem::path temp_dir(const std::string& name) {
 TEST(TriadReplay, OracleCountsFollowTheStateInBothModes) {
   const auto dir = temp_dir("ok");
   const case_files c = write_case(dir, 11);
-  for (const auto& res : {dyng::resources::sequential(), dyng::resources::openmp(3)}) {
+  std::vector<dyng::resources> backends{dyng::resources::sequential()};
+  // OpenMP only where it is built (the hosted openmp=OFF and tsan jobs build without it).
+  if (dyng::backend_available(dyng::backend::openmp))
+    backends.push_back(dyng::resources::openmp(3));
+  for (const auto& res : backends) {
     trp::options opt;
     opt.num_vertices = 40;
     const trp::report rep = trp::replay(res, c.hg, c.batches, opt);
