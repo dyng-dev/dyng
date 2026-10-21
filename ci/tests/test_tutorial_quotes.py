@@ -102,3 +102,27 @@ def test_a_missing_or_repeated_marker_fails(repo: Path, capsys) -> None:
 
 def test_the_repository_tutorials_match_their_pins() -> None:
     assert run("--check") == 0
+
+
+def test_a_python_file_is_quoted_by_hash_markers(repo: Path, capsys) -> None:
+    # The Python examples mark their ranges with `# [tutorial: <name>]` (M9b: the "Hypergraph
+    # triads" tutorial quotes examples/python/triad_count.py).
+    (repo / "examples" / "code.py").write_text(
+        "import dyng\n# [tutorial: run]\nx = 1\n# [tutorial: run end]\n"
+    )
+    page = repo / "docs" / "tutorials" / "page.md"
+    page.write_text(
+        PAGE
+        + "\n```{literalinclude} ../../examples/code.py\n:language: python\n"
+        + ':start-after: "# [tutorial: run]"\n:end-before: "# [tutorial: run end]"\n```\n'
+    )
+    assert run("--update") == 0
+    assert "% quote: examples/code.py#run " in page.read_text()
+    assert run("--check") == 0
+    code = repo / "examples" / "code.py"
+    code.write_text(code.read_text().replace("x = 1", "x = 2"))
+    assert run("--check") == 1
+    # `//` markers do not quote a Python file.
+    page.write_text(page.read_text().replace('"# [tutorial: run]"', '"// [tutorial: run]"'))
+    with pytest.raises(tutorial_quotes.QuoteError):
+        tutorial_quotes.quotes(page)

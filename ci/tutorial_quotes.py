@@ -9,9 +9,9 @@ CI breaks on drift; M9b, ADR 0058).
 
 Every `literalinclude` of a tutorial page (docs/tutorials/*.md) quotes a file of the repository by
 markers (`:start-after:` / `:end-before:`, the `// [tutorial: <name>]` comments of the reference
-code), by the first and last quoted lines (`:start-at:` / `:end-at:`, anchor `at-<digest of the
-two strings>`) or by line numbers (`:lines: a-b`), and is preceded by a MyST comment that pins what
-it quotes:
+code; `# [tutorial: <name>]` in a Python, CMake or shell file), by the first and last quoted lines
+(`:start-at:` / `:end-at:`, anchor `at-<digest of the two strings>`) or by line numbers
+(`:lines: a-b`), and is preceded by a MyST comment that pins what it quotes:
 
     % quote: examples/tutorial_algorithms/my_bfs/problem.hpp#workspace 3f2a9c01d4e7
 
@@ -61,6 +61,15 @@ class Quote:
     pinned: str | None  # the pinned digest
 
 
+# The line-comment prefix of the markers by the quoted file's suffix (`// [tutorial: <name>]` in
+# C++ and CUDA, `# [tutorial: <name>]` in Python, CMake and shell files).
+HASH_COMMENT_SUFFIXES = (".py", ".cmake", ".sh", ".txt", ".toml", ".yaml", ".yml")
+
+
+def comment_of(path: str) -> str:
+    return "#" if path.endswith(HASH_COMMENT_SUFFIXES) else "//"
+
+
 def unquote(value: str) -> str:
     return value[1:-1] if len(value) >= 2 and value[0] == value[-1] == '"' else value
 
@@ -84,11 +93,14 @@ def quotes(page: Path) -> list[Quote]:
         except ValueError as e:
             raise QuoteError(f"{page}:{i + 1}: {m['target']} is outside the repository") from e
         if "start-after" in options:
-            marker = re.match(r"^// \[tutorial: (?P<name>[^\]]+)\]$", options["start-after"])
-            if not marker or options.get("end-before") != f"// [tutorial: {marker['name']} end]":
+            c = comment_of(path)
+            marker = re.match(
+                rf"^{re.escape(c)} \[tutorial: (?P<name>[^\]]+)\]$", options["start-after"]
+            )
+            if not marker or options.get("end-before") != f"{c} [tutorial: {marker['name']} end]":
                 raise QuoteError(
-                    f"{page}:{i + 1}: quote by the markers `// [tutorial: <name>]` and "
-                    "`// [tutorial: <name> end]`"
+                    f"{page}:{i + 1}: quote by the markers `{c} [tutorial: <name>]` and "
+                    f"`{c} [tutorial: <name> end]`"
                 )
             anchor = marker["name"]
         elif "start-at" in options and "end-at" in options:
@@ -138,7 +150,8 @@ def quoted_text(path: str, anchor: str) -> str:
         if not 1 <= a <= b <= len(lines):
             raise QuoteError(f"{path}: lines {a}-{b} are outside the file ({len(lines)} lines)")
         return "".join(lines[a - 1 : b])
-    begin, end = f"// [tutorial: {anchor}]", f"// [tutorial: {anchor} end]"
+    c = comment_of(path)
+    begin, end = f"{c} [tutorial: {anchor}]", f"{c} [tutorial: {anchor} end]"
     if text.count(begin) != 1 or text.count(end) != 1:
         raise QuoteError(f"{path}: the marker {begin!r} or its end is missing or repeated")
     start = text.index("\n", text.index(begin)) + 1

@@ -30,6 +30,20 @@ dyng_add_test(
   SOURCES triad_count_allocation_failure_test.cpp
   LABELS cpu triad_count
 )
+# The 30-bin table of docs/algorithms/triad_count.md against the engine's and the oracle's tables
+# (M9b): a documentation change that disagrees with the code fails here.
+if(EXISTS "${PROJECT_SOURCE_DIR}/docs/algorithms/triad_count.md")
+  dyng_add_test(
+    NAME dyng_triad_count_docs_tests
+    SOURCES triad_count_docs_test.cpp
+    LABELS cpu triad_count docs
+    LIBRARIES dyng::testing
+  )
+  target_include_directories(dyng_triad_count_docs_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  target_compile_definitions(
+    dyng_triad_count_docs_tests PRIVATE DYNG_DOCS_DIR="${PROJECT_SOURCE_DIR}/docs"
+  )
+endif()
 # ESCHER-GPU's make test on the host backends in hosted CI (M9a step 4, decision D5): the
 # synthetic groups against A's committed counts, the file-input shapes against the oracle.
 dyng_add_test(

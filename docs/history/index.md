@@ -13,7 +13,7 @@ ported file ({doc}`../developer/provenance`).
 | {doc}`mosp_openmp` | `sssp` (sequential, OpenMP); later `mosp` | `c352151` | `baseline-2026-09` = `7284f50` | 0.1 |
 | {doc}`mosp_cuda` | `sssp` (CUDA); later `mosp` | `e220ee2` | `baseline-2026-09` = `ac29545` | 0.1 |
 | {doc}`cycle_enumeration_gpu` | `cycle_count` | `0a976ad` | `baseline-2026-09` = `da2067d` | 0.1 |
-| ESCHER-GPU | the ESCHER hypergraph store, `triad_count` | `abcf9b2` | | 0.3 (planned) |
+| {doc}`escher_gpu` | the ESCHER hypergraph store, `triad_count`, `experimental::count_local_patterns` | `abcf9b2` | `baseline-2026-09` = `6a44c1c` | 0.3 |
 | MOSP_ESCHER | `hyper_sssp`, the sssp operators engine | `4b86159` | | 0.2 (the operators engine) / 0.4 (`hyper_sssp`, planned) |
 | LabelPropagation-CUDA | `label_propagation` | `a276a3a` | | 0.4 (planned) |
 
@@ -27,4 +27,5 @@ no license; the basis for publishing their code under Apache-2.0 is recorded in
 mosp_openmp
 mosp_cuda
 cycle_enumeration_gpu
+escher_gpu
 ```
