@@ -111,7 +111,8 @@ run in this step; the release-readiness run of the milestone (criterion 10) runs
 `dyng.triad_count` and `dyng.update()` over hypergraphs (ADR 0059), the triad-bins JSON
 (`io::read_triad_bins_json`, `dyng.io.read_triad_bins`), `dyng.testing.triad_reference`, and
 `dyng triad_count compute|update` with `--format json|escher`. Commits `6e98222` (the JSON),
-`86e9224` (Python), `db25f77` (the CLI), and the records commit. No library code of the
+`86e9224` (Python), `db25f77` (the CLI), `7012270` (the records), `759303d` (the bins tests
+without triad_count in `dyng_io_tests`, clang-format). No library code of the
 algorithm, the engine or the operators changed in this step (`git diff 2771348 -- cpp/src/algorithms
 cpp/src/engine cpp/src/operators cpp/include/dyng/experimental cpp/include/dyng/triad_count.hpp`:
 only the manifest's `python` key): the built-in kernels are those of section 1.1, and no M9a gate
@@ -193,5 +194,12 @@ The hosted `cuda-build` jobs of M9a's head (`6716eec`, run 39555385200) took 10.
 | `fuzz.replay.triad_bins`, `fuzz.selftest.triad_bins` | passed (the planted writer bug reported) |
 | `ci/api_check.sh` against `origin/main` | no breaking change: the frozen C++ API (an include added to `dyng.hpp` by M9a) and griffe (additions only) |
 | frozen headers against `65a62c9` and `origin/main` | empty |
-| Clang 18 `-fsyntax-only` (a dev database with the Python bindings) | 444 files, **0 failures** |
-| cpu-only with `-D_FORTIFY_SOURCE=3` (with the bindings) | built without warnings |
+| `ci/check.sh` (all steps) | the first run (`7012270`): every step passed but `format` (clang-format of four new C++ files) and `scaffold` (the scaffold's build has no triad_count, and two tests of `dyng_io_tests` used it); after `759303d` (the two tests moved to `dyng_triad_count_bins_tests`, the files formatted) **all checks passed**: clang-format, cpu-only 1,273 / 1,273 and dev 1,306 / 1,306 (`ctest -L cpu`), the consumers, clang-tidy, REUSE, provenance, the data budget, regen, the harness (344 passed), python (715 passed, 80 skipped), the API check, the scaffold (80 + 3 + 54 + 41), docs (-W), pre-commit |
+| Clang 18 `-fsyntax-only` (a dev database with the Python bindings) | 445 files at `759303d`, **0 failures** |
+| cpu-only with `-D_FORTIFY_SOURCE=3` (with the bindings) | built without warnings at `759303d` |
+
+The wheels and the install tests ran on the tree of `db25f77` (plus the test fix of the records
+commit); the later commits change test files, formatting and docs only (`git diff db25f77
+759303d -- cpp/src cpp/include python/dyng python/bindings`: the whitespace of `result_io.hpp`,
+`triad_bins.cpp` and two binding files, and two docstrings), so the wheels' sizes and their tests
+stand.

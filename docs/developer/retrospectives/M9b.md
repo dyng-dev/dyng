@@ -140,7 +140,8 @@ and no M9a gate needs a reading.
 | `6e98222` | `io::triad_bins`, `io::triad_bins_size()`, `io::write_triad_bins_json()`, `io::read_triad_bins_json()` (`cpp/src/io/triad_bins.cpp`: a strict RFC 8259 reader), the format in `file_formats.md`, `dyng_io_tests` `TriadBins.*`, the fuzzer `fuzz_triad_bins` and its corpus, the API baseline (tracked additions) |
 | `86e9224` | `python/bindings/triad_count.cpp`, the hypergraph branch of `python/bindings/update.cpp`, the bindings of the JSON and of the oracle; `python/dyng/triad_count.py`, `_update.py`, `io.py` (`TriadBins` ...), `testing.triad_reference`; the manifest, `_algorithms.py` and the stubs regenerated; `test_triad_count.py`, `test_triad_count_cuda.py`, `triad_fixture.py`, the API surface and the PLAN 5.5 example; `ci/plugin_smoke.py`; `python_gaps.md` |
 | `db25f77` | `python/dyng/cli/_triad_count.py`, the generated flags' unions (`cli/_common.py`), `docs/api/cli.md`, `test_triad_count_cli.py` |
-| (the records commit) | ADR 0059, GOVERNANCE, CHANGELOG, `parity/results/M9b.md` section 2, this section; a test fix of the CUDA tests (below) |
+| `7012270` | ADR 0059, GOVERNANCE, CHANGELOG, `parity/results/M9b.md` section 2, this section; a test fix of the CUDA tests (below) |
+| `759303d` | the two bins tests that need triad_count moved from `dyng_io_tests` to `dyng_triad_count_bins_tests` (the scaffold check builds without the algorithm); clang-format of the new C++ files |
 
 ### Deviations from the plan and the step's text (each with the same intent)
 
@@ -182,6 +183,13 @@ and no M9a gate needs a reading.
     without resources, which under a plugin module are the cuda defaults; it now names
     `Resources.sequential()`. The wheels were not rebuilt (the bug was in `python/tests`, which the
     install tests read from the tree); `DYNG_PLUGIN_TEST_ONLY=1` reran every install test.
+12. **The first `ci/check.sh` failed `format` and `scaffold`**: four new C++ files were not
+    clang-formatted (the formatter of the environment, 22.1.8, differs from what was typed), and
+    the scaffold check builds the library without triad_count (`DYNG_ALGORITHMS`), where two tests
+    in `dyng_io_tests` (the pattern names against `triad_count::to_string()`, a result's round
+    trip) did not link: they are in `dyng_triad_count_bins_tests` now, built with the algorithm.
+    The io module itself never depended on triad_count (its own list of names, checked by that
+    test). The second run passed every step.
 
 ### Measurements and checks
 
@@ -196,16 +204,17 @@ and no M9a gate needs a reading.
   the smoke test runs triad_count compute and a two-result update on GPU 1.
 - **ci-cuda13**: 216 s wall, 94.2 CPU-minutes (+1.6 against M9a's merge measured the same way);
   the hosted job took 10.5-12.7 minutes at M9a's head, against its 120-minute timeout.
-- Tests: `ci/python.sh` 715 passed; the CPU wheel in a fresh venv `pytest -k triad` 78 passed;
-  `ci/gpu_local.sh` step `plugin`; Clang 18 syntax 444 files; the fortified build; the frozen
-  headers against `65a62c9` and `origin/main`: empty; `ci/api_check.sh` green.
+- Tests: `ci/check.sh` all steps (the second run; cpu-only 1,273, dev 1,306, python 715 passed);
+  the CPU wheel in a fresh venv `pytest -k triad` 78 passed; `ci/gpu_local.sh` step `plugin`;
+  Clang 18 syntax 445 files; the fortified build; the frozen headers against `65a62c9` and
+  `origin/main`: empty; `ci/api_check.sh` green.
 
 ### Machine time
 
 The wheels 4.5 minutes (the core wheel and both plugins, up to the first install test's failure),
 then the install tests of both plugins on both Pythons again after the test fix (5 minutes);
-the two ci-cuda13 builds 4 minutes each; the portability builds 10 minutes; `ci/python.sh` 1
-minute; the golden diff 35 s. Everything under the shared lock, the GPU work on GPU 1; no timed
+the two ci-cuda13 builds 4 minutes each; the portability builds 10 minutes (twice); `ci/check.sh`
+30 minutes (twice); `ci/python.sh` 1 minute; the golden diff 35 s. Everything under the shared lock, the GPU work on GPU 1; no timed
 reading.
 
 ### Notes for step 3 (the docs, the examples, the API review and the freeze)
