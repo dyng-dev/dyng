@@ -8,7 +8,7 @@ Each step adds its section.
 
 | Item | Value |
 |---|---|
-| Branch | `m9b-local-patterns`, created by the orchestrator from `m9a-triad-count` at `6716eec` (the accepted M9a; PR #16 open, not merged: `origin/main` is `9cde147`, M8b) |
+| Branch | `m9b-local-patterns`, created by the orchestrator from `m9a-triad-count` at `6716eec` (the accepted M9a; PR #16 then open: `origin/main` was `9cde147`, M8b); the author merged #16 as `4cc5c3f`, and `origin/main` was merged into the branch at the M9b review (`12afe75`, section 5) |
 | Reference | ESCHER-GPU `abcf9b2bd42f896ec3103a6835edf713ed5e416c` (A) |
 | Golden set | `triad_count_escher_gpu`, manifest `4fb7dbcf...` (M9a's, unchanged) |
 | Toolchain | GCC 12.2.0, CUDA 13.1 (`/usr/local/cuda-13.1/bin/nvcc`), sm_86 |
@@ -183,7 +183,9 @@ times):
 
 The hosted `cuda-build` jobs of M9a's head (`6716eec`, run 39555385200) took 10.5 min (CUDA 13.1.1),
 12.0 min (13.4.1) and 12.7 min (ci-cuda12 with 12.9.2) of their `timeout-minutes: 120`; M9b adds
-1.8 % of the preset's compile work, so the margin stays about 107 minutes.
+1.8 % of the preset's compile work, so the margin stays about 107 minutes. (Those hosted runs had
+a warm ccache, 80 % hits: the margin for the cold-cache case the timeout is sized for is about
+90-95 minutes, section 5.7.)
 
 ### 2.4 Tests and checks of the step
 
@@ -324,6 +326,10 @@ M9a's record, not as 0.3.0's.
 
 ## 4. The final checks of M9b (criterion 10)
 
+The state at the end of step 3 (`a71954c`). The M9b review changed the experimental headers after
+it and read the gates, the replays and the certificate again: section 5 supersedes this table's
+rows on the library scope, the dry certificate and the ci-cuda13 margin.
+
 | Check | Tree | Result |
 |---|---|---|
 | `ci/check.sh` (all steps) | `155f4ef` (the later commits: ADR text and records) | **all checks passed**: clang-format; cpu-only 1,279 / 1,279 and dev 1,312 / 1,312 (`ctest -L cpu`); the consumers (the documented one, the host-only one, `triad_count_update.cpp` against the installed cpu-only build on sequential and openmp); clang-tidy; REUSE; provenance (270 files); the test data 1,002,671 of 1,250,000 bytes; regen; the harness (349 passed); python (719 passed, 80 skipped); the API check (no breaking change of the frozen C++ API or of griffe against `origin/main`); the scaffold; docs (-W: Doxygen, its coverage, the API snapshot of 1,244 declarations, 10 snippets, 34 tutorial quotes, Sphinx, the links); pre-commit; the GitHub metadata |
@@ -340,3 +346,163 @@ M9a's record, not as 0.3.0's.
 | the committed test data | HEAD | 1,002,671 bytes under `cpp/tests/data` (budget 1,250,000); the example data `examples/data` 1,102 bytes |
 | ESCHER-GPU's working tree | | `git status --porcelain` empty |
 | signatures | `9cde147..HEAD` | every commit SSH-signed, identity S M Shovan |
+
+## 5. The M9b review fixes (2026-10-21)
+
+Independent reviewers confirmed 20 findings at `a71954c` (the Op concept and its tutorial, the
+docs' figures and claims, the release records, the branch). The fixes are commits `12afe75` (the
+merge of `origin/main`) to the records commit of this section; the retrospective lists each
+finding with its commit. **This section supersedes the state recorded in sections 3.5 and 4**: the
+library scope changed after step 3's readings, so every M9a gate and the replays were read again.
+
+### 5.1 The branch: `origin/main` merged in
+
+The author merged M9a as `4cc5c3f` (#16, a merge commit whose second parent is the review fix
+`511f8ff`: the triad replay test uses OpenMP only where it is built). The branch did not contain
+it, so the hosted OpenMP=OFF and tsan jobs would have failed at its head (reproduced by the
+reviewer: `TriadReplay.OracleCountsFollowTheStateInBothModes`, "the openmp backend is not
+built"). `12afe75` merges `origin/main` with a merge commit (clean; the one file
+`cpp/tests/parity/escher/triad_replay_test.cpp`, outside the library scope). A cpu-only build with
+`-DDYNG_ENABLE_OPENMP=OFF` at `12afe75`: `ctest -L cpu` **1,122 / 1,122** passed (the four
+TriadReplay tests included).
+
+### 5.2 The library change: the experimental headers only
+
+`git diff b732aa9 HEAD` over the library scope names three files, all of the experimental tier
+(`cpp/include/dyng/experimental/{local_patterns.cuh, local_patterns.hpp,
+detail/local_patterns_engine.hpp}`; `cca0dd1`): the Op's size limit `max_op_size` (4,096 bytes)
+with its own `static_assert`; the concept's messages in single quotes (nvcc printed each backtick
+as `?`); the macro `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS` (nvcc does not report a
+`__device__`-only callback at the engine's host template; the macro calls the callbacks from a
+non-template host function, where it does); and documentation (the ids of a call are unordered;
+user data through a pointer). No frozen or tracked header changed, and nothing compiled into
+libdyng changed (the checks are instantiated only by a user's `count_local_patterns<op_t>`).
+
+### 5.3 The built-in kernels: SASS and resources (criterion 3; `M9b-sass-review.json`)
+
+`parity/triad_sass.py` now writes a `provenance` entry (every object's path and SHA-256, its build
+tree, source tree, build type, CUDA compiler and version, the source tree's commit with `+dirty`,
+the cuobjdump version, the date) and `compare` prints it. The three earlier records were read
+again from clean clones of their commits with it, each with the reduced parity-cuda build of
+`engine/counters.cu.o` (`-DDYNG_ALGORITHMS=triad_count`): `M9b-sass-m9a-merge-build.json`
+(`6716eec`), `M9b-sass-step1.json` (`2771348`), `M9b-sass-final.json` (`b732aa9`, the build of
+step 3's readings); each is identical to the record it replaces. `M9b-sass-review.json` is the
+measurement clone's full parity-cuda build at `c83cebf`. `compare` of `6716eec` against `c83cebf`:
+**all five kernels identical** (digests; instructions 48 / 560 / 576 / 512 / 288 for count_wedges,
+triangles<motif>, triangles<type3>, pairs<type2>, keys<choose3>; every loop; registers 14 / 39 /
+40 / 37 / 22; no stack or local memory; shared 0 / 240 / 8 / 8 / 8 bytes).
+
+### 5.4 The gates read again (criterion 3; `M9b-gates/`, replacing step 3's records)
+
+The same protocol as section 3.1 (M9a step 5's): a clean clone at `c83cebf`
+(`$DYNG_SCRATCH/m9b-review-gates/dyng`, no `+dirty`), its parity-cuda build, GPU 0 under the
+exclusive lock taken by the harness, the base clock lock (SM 1170 / memory 7601 MHz) for every
+gated and recorded-at-lock reading, `CUDA_MODULE_LOADING=EAGER` (set by the harness), no `OMP_*`,
+one heap layout, A/B alternation, the per-round guard, the contamination monitor and audit, never
+`--keep-contaminated`; the memory readings on GPU 1 under the shared lock with no foreign process.
+`bench_suite.py run benchmarks/paper/ipdps26_escher.yaml --version m9b-review` (17:46-18:27 UTC)
+and `tkde26_escher_plus.yaml` (18:27-18:35 UTC). The monitor rejected and repeated two rounds
+(coauth_b50k_s3 round 9: foreign CPU load 2.38 cores; coauth_b200k_s1 round 5: GPU 0 at 7600 MHz
+memory, not the locked 7601).
+
+**ipdps26_escher: 45 / 45 gated rows within their gates, ratios 0.862-1.033; PASSED.** Medians
+(ms), A / port, ratio:
+
+| Case (rounds) | update[b1] | update[b2] | update[b3] | full_count | end_to_end |
+|---|---|---|---|---|---|
+| coauth_b50k_s1 (11) | 511.1 / 486.0 **0.951** | 549.6 / 533.5 **0.971** | 550.0 / 533.5 **0.970** | 5,293.1 / 5,285.5 **0.999** | 9,398.4 / 8,840.2 **0.941** |
+| coauth_b50k_s2 (11) | 540.8 / 518.2 **0.958** | 540.9 / 525.4 **0.971** | 547.4 / 520.6 **0.951** | 5,293.6 / 5,286.0 **0.999** | 9,413.0 / 8,846.0 **0.940** |
+| coauth_b50k_s3 (11) | 523.7 / 500.0 **0.955** | 537.8 / 520.4 **0.968** | 534.3 / 516.6 **0.967** | 5,292.6 / 5,286.2 **0.999** | 9,370.8 / 8,827.7 **0.942** |
+| syn1m_b50k_s1 (21) | 164.2 / 143.7 **0.876** | 144.3 / 145.6 **1.009** | 155.1 / 147.4 **0.950** | 635.2 / 636.8 **1.002** | 2,483.3 / 2,462.4 **0.992** |
+| syn1m_b50k_s2 (21) | 164.2 / 143.9 **0.876** | 155.4 / 147.8 **0.952** | 144.9 / 146.2 **1.009** | 640.1 / 641.7 **1.002** | 2,498.2 / 2,465.5 **0.987** |
+| syn1m_b50k_s3 (21) | 148.5 / 142.6 **0.960** | 161.1 / 147.1 **0.913** | 156.0 / 148.1 **0.950** | 639.5 / 641.0 **1.002** | 2,488.8 / 2,466.5 **0.991** |
+| syn2m_b50k_s1 (21) | 184.0 / 158.6 **0.862** | 154.8 / 158.7 **1.025** | 169.0 / 161.2 **0.954** | 1,273.5 / 1,276.7 **1.002** | 4,422.4 / 4,241.9 **0.959** |
+| syn2m_b50k_s2 (21) | 157.2 / 153.4 **0.976** | 181.4 / 162.5 **0.896** | 155.6 / 159.9 **1.028** | 1,279.1 / 1,282.2 **1.002** | 4,415.2 / 4,242.0 **0.961** |
+| syn2m_b50k_s3 (21) | 157.6 / 154.4 **0.980** | 181.1 / 163.2 **0.901** | 154.3 / 159.3 **1.033** | 1,280.2 / 1,283.5 **1.003** | 4,428.4 / 4,247.5 **0.959** |
+| gate | <= 1.05 | <= 1.05 | <= 1.05 | <= 1.05 | <= 1.10 |
+
+The same picture as step 3 (0.861-1.031) and M9a (0.853-1.028): the highest synthetic rows
+(1.009-1.033) are the batches where A's maintain is at its low. The coauth end to end is
+0.940-0.942 (step 3: 0.920-0.925): the port's is the same (8,828-8,846 ms; step 3 8,810-8,844),
+A's was faster in this session (9,371-9,413 ms; step 3 9,564-9,587); the bar is 1.10.
+
+**Recorded, not gated** (ratios):
+
+| Reading | Case | update b1 / b2 / b3 | full_count | end_to_end |
+|---|---|---|---|---|
+| default clocks (11 rounds) | coauth_b50k_s1 | 0.959 / 0.976 / 0.961 | 1.005 | 0.945 |
+| | syn1m_b50k_s1 | 0.893 / 1.013 / 0.995 | 1.003 | 1.001 |
+| | syn2m_b50k_s1 | 0.847 / 1.033 / 0.953 | 1.000 | 0.962 |
+| batch sizes (base, 5 rounds) | coauth_b100k_s1 | 0.988 / 0.991 / 0.975 | 0.999 | 0.952 |
+| | coauth_b200k_s1 | 0.991 / 1.017 / 1.019 | 0.998 | 0.970 |
+| StatHyper types (base, 5 rounds; `tkde26_escher_plus.yaml`) | coauth_b50k_s1 type1 | 0.743 / 0.775 / 0.756 | 0.143 (3.9 / 0.6 ms) | 0.862 |
+| | type2 | 0.752 / 0.807 / 0.782 | 0.826 | 0.867 |
+| | type3 | 0.953 / 0.958 / 0.966 | 0.992 | 0.952 |
+
+The update with the driver's host model counted (`update_with_host_model[b<N>]`, D12, reported
+beside the gate): coauth 0.962-0.991; synthetic up to 1.066 / 1.068 / 1.074 on three syn2m rows
+at the base lock (step 3: up to 1.072 on four rows; M9a's review: up to 1.061) and 1.084 on
+syn2m_b50k_s1 b2 at default clocks; the asymmetry and the choice stay the author's (D12).
+
+**tkde26_escher_plus: 11 / 11 gated rows within 1.05, ratios 1.000-1.002; PASSED**, equal to step
+3's reading to the MiB: the store accounting 1.0000 at every gated point; the nsys peaks of live
+allocations A / port 3,018.9 / 3,023.3 MiB (coauth_b50k_s1, **1.0015**), 1,131.4 / 1,133.7 MiB
+(syn1m_b50k_s1, **1.0021**), 2,211.7 / 2,215.4 MiB (syn2m_b50k_s1, **1.0016**), each in
+`hypergraph.apply.line_graph`; the triad MiB during the apply 4.2 / 2.1 / 3.6. Recorded:
+coauth_b100k_s1 and b200k_s1, peaks 1.0018 and 1.0023.
+
+### 5.5 Exact parity on the review's library (the certificate's replays)
+
+`parity/compare.py triad_count --counter algorithm --mode both --certificate` from the
+measurement clone's parity-cuda build at `c83cebf` (GPU 1 and the host, the shared lock,
+concurrent):
+
+| Backend | Cases (the coverage table, D6) | Result | Wall |
+|---|---|---|---|
+| cuda (GPU 1) | the 240 grid cases + make-test's 60 | **300/300 exact**, both modes | 2,205 s (3 jobs) |
+| sequential | make-test + the syn100k grid | **120/120 exact**, both modes | 812 s (6 jobs) |
+| openmp, 8 threads | + the syn1m s1 grid and coauth_b50k_s1 types 1 and 2 | **142/142 exact**, both modes | 640 s (3 jobs) |
+| openmp, 1 thread | the same | **142/142 exact**, both modes | 1,744 s (10 jobs) |
+
+### 5.6 The dry 0.3 certificate (`M9b-gates/parity.json`)
+
+`parity/certify.py write --version 0.3.0 --results parity/results/M9b-gates --dry-run
+triad_count` at `3e825eb` (the committed records): **PASSED** (the dry run of `triad_count`; 17
+parts outside it): the golden set with the replays of every backend by key and by content, both
+suites with every gated row recomputed (45 + 11 rows), the measured commit `c83cebf` with the
+release's library sources (`git diff c83cebf HEAD` over the library scope is empty at the end of
+the review).
+
+### 5.7 The ci-cuda13 compile time and its margin (criterion 7)
+
+The compile-only preset `ci-cuda13` from a `git archive` copy of `4fc70af`, `-j 28` on the shared
+machine (load 15-23): **217 s wall, 1,073 steps, 94.7 CPU-minutes** (step 2: 216 s, 1,065 steps,
+94.2; the review adds the tutorial test's new cases and the nvcc compile-failure cases). The
+hosted `cuda-build` figures of section 2.3 (10.5-12.7 min of `timeout-minutes: 120`) were runs with
+a **warm ccache**: run 39555385200 (CUDA 13.1.1) restored `ccache-cuda-13.1.1-9cde147...` and
+served 701 of 871 compilations (80.5 %) from it; its compile step took 8.7 min. The cold-cache
+case, for which the 120-minute timeout is sized (the workflow's own comment), is not recorded by a
+hosted run; estimated from the local CPU time: 94.7 CPU-minutes on the hosted runner's 4 cores is
+about **24 minutes** of compiling (more on slower cores), plus about 2 minutes of container
+setup, so the margin is **about 90-95 minutes**, not the 107 minutes section 2.3 states for a warm
+cache. The first hosted run of the M9b pull request will give the measured figure.
+
+### 5.8 The checks of the review
+
+| Check | Tree | Result |
+|---|---|---|
+| `ci/check.sh` (all steps) | `d4a78f1` | **all checks passed** (a first run at `a0428fd` failed only clang-format on one line of `tutorial_test.cu`, fixed in `d4a78f1`): clang-format; cpu-only 1,280 / 1,280 and dev 1,313 / 1,313 (`ctest -L cpu`); the consumers; clang-tidy; REUSE; provenance (270 files); the test data 1,002,671 of 1,250,000 bytes; regen; the harness (349 passed); python (722 passed, 81 skipped); the API check (no breaking change of the frozen C++ API or of griffe against `origin/main`, now `4cc5c3f`); the scaffold; docs (-W: Doxygen, its coverage, the API snapshot of 1,355 declarations, 10 snippets, 37 tutorial quotes, Sphinx, the links); pre-commit; the GitHub metadata |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1; `$DYNG_SCRATCH/runs/m9bfix/gpu_local.log`) | started at `a0428fd` (its summary names `d4a78f1`, one whitespace line later, "dirty" with this record's text being written) | **all 21 steps passed** in about 3 h 35 min (14:24-17:59 CDT): build; `ctest -L gpu` **866 / 866** (861 at step 3: the nvcc compile-failure cases `too_large` and `device_only`, the counter-example on three backends); `ctest -L cpu` 1,313 / 1,313; the cuda corpora; memcheck, synccheck, racecheck; the CBST and hypergraph sanitizers and replays; triad_count's sanitizers; count_local_patterns (the sanitizers on the tutorial and API tests, the nvcc consumer from `ci/consumer/op.CMakeLists.txt`); the plugin wheel (`dyng-cu13` 8,581,398 B, built fresh: 8.58 MB, step 3 8,581,400 B; `pytest -m gpu` **70 passed**, the new cuda case of the triad_count example included; `DYNG_CPU_ONLY=1` 722 passed); clang-tidy |
+| cpu-only with `-DDYNG_ENABLE_OPENMP=OFF` (the hosted OpenMP=OFF jobs) | `12afe75` | `ctest -L cpu` **1,122 / 1,122** |
+| the experimental tests in dev-cuda (`ctest -L experimental`, GPU 1) | `cca0dd1`-`29ed869` | **63 / 63**: the compile-failure tests under the host compiler and nvcc (with `too_large` and the nvcc-only `device_only`), the self-contained headers, the API tests, the tutorial on every backend with both id_reuse orders and the counter-example |
+| a fresh clone, cpu-only with `-D_FORTIFY_SOURCE=3`, no nvcc on PATH | `93c4a2e` | built without warnings; `ctest -L cpu` **1,280 / 1,280**; `ci/cmake_consumer.sh`: the documented consumer, the host-only consumer, `triad_count_update.cpp` on sequential and openmp (the nvcc consumer skipped: no CUDA) |
+| a fresh clone, parity-cuda (the measurement clone) | `c83cebf` | built; `ctest -L 'triad_count\|experimental\|examples'` **403 / 403** (GPU 1); `ci/cmake_consumer.sh` on it: every consumer, and the user Op built from `ci/consumer/op.CMakeLists.txt` (the tutorial's quoted file) by nvcc, on sequential, openmp and cuda |
+| Clang 18 `-fsyntax-only` (`clang_syntax.py`, the dev database with the Python bindings) and the fortified cpu-only build | `c1c74db` | **448 files, 0 failures**; the fortified build without warnings |
+| Python (the dev install) | `c1c74db` | `test_examples.py`, `test_triad_count_cli.py`, `test_triad_count.py`: all passed on CPU (the cuda example case skipped without a plugin; it runs in `ci/gpu_local.sh`'s plugin step) |
+| the ci-cuda13 compile time | `4fc70af` | 217 s wall, 94.7 CPU-minutes; margin about 90-95 minutes cold (5.7) |
+| the dry 0.3 certificate | `3e825eb` | PASSED (5.6) |
+| the API baseline | `a0428fd` | the experimental tier gains `max_op_size` and the three macros; no frozen or tracked line changed |
+| frozen headers against `65a62c9` and `origin/main` (`hypergraph/*`, `update.hpp`, `core/*`, `graph/*`); `cpp/src/hypergraph` against `65a62c9`; `triad_count.hpp`, `mosp.hpp`, `sssp.hpp`, `cycle_count.hpp` against `a71954c` | HEAD | **empty** (all) |
+| the library scope since the measured commit (`git diff c83cebf HEAD -- cpp/include cpp/src cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json docs/references.bib`) | HEAD | empty |
+| ESCHER-GPU's working tree | | `git status --porcelain` empty |
+| signatures | `a71954c..HEAD` | every commit of the review SSH-signed, identity S M Shovan (`git log --format=%G?`: G); the merge `12afe75` is a merge commit; main's `4cc5c3f` is the author's GitHub merge (signed by GitHub's key, not checkable locally: E) and `511f8ff` the M9a review's (G) |

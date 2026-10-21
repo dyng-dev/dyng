@@ -329,6 +329,73 @@ exact on the whole coverage table, and the dry 0.3 certificate passes over the n
 | the fresh clone (cpu-only fortified; parity-cuda and its tests) | 10 and 15 min |
 | the three wheels and their install tests (`ci/plugin_wheels.sh`, cu12 and cu13) | 9 min |
 
+## The M9b review (2026-10-21)
+
+Independent reviewers checked `a71954c` through three lenses (an outside Op author, the truth of
+the Python, CLI and docs claims, the freeze and release readiness), and a skeptic confirmed each
+finding. Every confirmed finding was fixed in this milestone except D13's library fix, which is
+the author's decision (below). Records: `parity/results/M9b.md` section 5.
+
+### The findings and their fixes
+
+| # | Finding (severity) | Fix (commit) |
+|---|---|---|
+| 1 | The branch lacked main's M9a review fix `511f8ff`, so the hosted OpenMP=OFF and tsan jobs would fail (high) | `origin/main` merged with a merge commit (`12afe75`); cpu-only with `-DDYNG_ENABLE_OPENMP=OFF`: 1,122 / 1,122 |
+| 2 | A `__device__`-only callback compiles without a diagnostic and ends a host backend's run with exit status 1; ADR 0058 said nvcc reports it (medium) | `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS(op_t)` (`cca0dd1`; the nvcc compile-failure test `device_only`); ADR 0058, the concept's Doxygen and the tutorial corrected (`e111e93`); every Op of the tutorial, the API tests and the nvcc consumer goes through it |
+| 3 | The ids of a call are unordered, so an Op that assumes `a < b` passes compute() checks and is silently wrong after update() (medium) | stated in the concept's Doxygen (`cca0dd1`), ADR 0058 and tutorial section 6 (`e111e93`; the "any of its three wedges" sentence corrected); the counter-example is a test on every backend (`Tutorial.AnOpThatDependsOnTheOrderOfItsIdsIsWrongAfterAnUpdate`, `29ed869`); "baseline + deltas == recount" tests asked of every Op (tutorial section 4, `labels.md`) |
+| 4 | The tutorial test never ran core_triads or hub_pairs through update(); no insert_first, insertion-only, deletion-only or empty batch (medium) | every Op updated (a second `dyng::update()` with triad_count over a copy), both id_reuse orders, the empty / deletion-only / insertion-only batches (`29ed869`) |
+| 5 | nvcc printed the concept messages' backticks as `?` (low) | single quotes; the compile-failure tests match the quotes literally under both compilers (`cca0dd1`) |
+| 6 | No limit on the Op's size: an Op over ~32 KB failed in the engine with a mangled-name error (low) | `max_op_size` (4,096 bytes) with its own `static_assert` (`cca0dd1`; test `too_large`); tutorial section 7 (`e111e93`) |
+| 7 | No portable way to give an Op data of the user's own (low) | documented: a pointer into the memory of the result's backend, valid for the result's lifetime (`cca0dd1`, `e111e93`); a side-data argument is an open question of ADR 0058 section 7 |
+| 8 | The tutorial's CI claims, section 8's cpu-only commands, section 5's untested CMake block (low) | the claims name `ci/gpu_local.sh` and the hosted host half (also `docs/tutorials/index.md`); the configure and build line; the block is quoted from `ci/consumer/op.CMakeLists.txt`, which `ci/cmake_consumer.sh` builds unchanged (`e111e93`) |
+| 9 | "the 9 of bin 29" (8) (medium) | `c1c74db` |
+| 10 | The algorithm page credited M9b's reading with M9a's recorded figures; D12 understated (medium) | the page and the D12 row quote M9b's latest reading, the review's (`ad05113`) |
+| 11 | The README status table said triad_count "planned (0.3, M9)" (medium; two reviewers) | a working row and an experimental row (`437810a`) |
+| 12 | Two gate-table cells differed from M9a's record (low) | 0.868-1.002 and 152-161 ms (`ffcdc64`) |
+| 13 | The CHANGELOG's Added entries said experimental and tracked while Changed said stable (low; two reviewers) | "stable from 0.3.0, pending the author's confirmation" (`437810a`) |
+| 14 | `dyng.update(graph, batch, triad_result)` said "not a dynG result"; python_gaps.md wrong and stale (low) | a message naming the hypergraph result, a test that matches it; both python_gaps rows (`31634f2`) |
+| 15 | Untested tutorial claims: the brute force, the Python example on cuda, the CLI output (low) | a brute-force rebuild of the expected output, the cuda parametrization (marker gpu), the console blocks of both pages run and compared (`c1c74db`) |
+| 16 | ESCHER-GPU's figures attributed to its README, not `results/README.md` (low) | `ffcdc64` |
+| 17 | The documented `out_of_memory_error` of `update()` on the host backends does not hold (D13), and no user-facing note said so (medium) | a CHANGELOG "Known issues" entry and notes on the triad_count and hypergraph pages (`437810a`, `ffcdc64`); the fix stays the author's (D13) |
+| 18 | GOVERNANCE listed D4 twice and the triad-bins format in the wrong row (low) | one D4 row; the format with the .hg / .dgb row (`ffcdc64`) |
+| 19 | The records called M9a's merge pending (low) | plan, roadmap and this retrospective (`ffcdc64`, `3e825eb`) |
+| 20 | The ci-cuda13 margin was extrapolated from warm-ccache hosted runs (low) | measured again (94.7 CPU-minutes) with a cold-cache estimate of about 24 minutes, a margin of about 90-95 minutes (`parity/results/M9b.md` 5.7) |
+| 21 | The SASS identity records carried no provenance (low) | `triad_sass.py` writes and prints it (`c83cebf`); the three records read again from clean clones of their commits, and a new one at the review's head (`93c4a2e`) |
+
+### Deviations and what the review found beyond the findings
+
+1. **The gates were read again, not carried over.** The fixes of findings 2, 3, 5, 6 and 7 are in
+   `cpp/include/dyng/experimental/`, inside `certify.py`'s library scope, so step 3's readings at
+   `b732aa9` no longer certified the head. No code compiled into libdyng or the measured tools
+   changed, and the five counting kernels stayed identical to M9a's merge build (SASS, registers,
+   memory: `M9b-sass-review.json`), but the plan's rule is mechanical and certify.py has no
+   exception for documentation or `static_assert` changes (its METADATA_PATHS cover the generated
+   algorithm metadata only); widening it would change the certification policy, which is not a
+   fix of this round. So every M9a timing and memory gate and the replays of every backend were
+   read again on `c83cebf` with M9a's protocol: 45 / 45 (0.862-1.033) and 11 / 11 (1.000-1.002),
+   300 / 120 / 142 / 142 exact, the dry 0.3 certificate passed. About 2 hours of machine time.
+2. **D13 is wider than recorded.** The review recorded the terminate for `threads > 1` and more
+   than 1,024 rows; a test of an exception that leaves `#pragma omp parallel for ... if (false)`
+   under GCC 12 shows that the region is still a region and the process ends (`terminate called
+   after throwing ...`), so every build with OpenMP is affected on the sequential backend too,
+   with any thread count, and also the line graph's build (`flat_adjacency.cpp`) at construction.
+   The CHANGELOG, the pages and the D13 row say so. The fix (catch inside each region, rethrow
+   after it) is still the author's: 0.3.0 or 0.3.x.
+3. **The wheels were not all rebuilt.** The review changed no native code that goes into a wheel
+   (the experimental headers' checks are instantiated only by a user's Op; the Python change is
+   pure Python), so the sizes of section 2.3 and step 3 stand; `ci/gpu_local.sh` rebuilt the
+   `dyng-cu13` plugin and ran its tests on GPU 1 (8,581,398 B, 2 bytes from step 3's;
+   `pytest -m gpu` 70 passed; `parity/results/M9b.md` 5.8).
+4. **`tutorial_test.cu` grew** (both reuse orders, six batches, the second update chain, the
+   counter-example), which the ci-cuda13 reading includes (+0.5 CPU-minutes).
+
+### For the author, added by the review
+
+- D9: the new experimental names `max_op_size`, `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS` and its
+  helpers `DYNG_DETAIL_LP_CONCAT` / `DYNG_DETAIL_LP_CONCAT2` (ADR 0058 section 6, ADR 0060).
+- D13: its scope as above, and the Known-issues entry that ships with 0.3.0 unless the fix does.
+- ADR 0058 section 7: a side-data argument for Ops (user data on every backend unchanged).
+
 ## The milestone
 
 ### The acceptance criteria of M9b, checked at the end
@@ -345,6 +412,11 @@ exact on the whole coverage table, and the dry 0.3 certificate passes over the n
 | 8 | the docs: the algorithm page with every PLAN 9.5 section (the tested 30-bin table, requirements per pattern, the template mapping, the paper differences, "Paper vs fixed code", the mapping, the gate table), the tutorial "Hypergraph triads" in C++ and Python, tested, the two examples (<= 60 lines, built and run against the installed package), the README catalogue, the CHANGELOG, `docs/history/escher_gpu.md`, the sketch frozen, the docs with -W and the link and snippet checks | step 3 | met |
 | 9 | the API review ADR (0060) with every new public name; the maturity `stable` with origin pending the author (a GOVERNANCE row); the baselines frozen and a deliberate change failing both checks, an experimental change reported; the frozen paths' diff against `65a62c9` and `main` empty | step 3; ADR 0060 | met |
 | 10 | `ci/check.sh` and `ci/gpu_local.sh` green; fresh clones CPU-only and CUDA; the dry 0.3 certificate over the ESCHER records; the records; merge commits only | step 3; results 3-4 | met |
+
+After the M9b review, criteria 3 (the kernels identical, the gates and the replays read again on
+`c83cebf`), 4 (every Op under updates), 7 (the ci-cuda13 margin, cold) and 10 (`ci/check.sh`,
+`ci/gpu_local.sh`, fresh clones, the dry certificate) were checked again: all met
+(`parity/results/M9b.md` section 5).
 
 ### Deviations of M9b from the plan (the milestone)
 
@@ -389,7 +461,8 @@ release (GOVERNANCE.md, open decisions):
    types 1-2 (the 0.3 certificate requires exactly this table).
 7. **The nsys-peak reading (D1, decided) and its neighbours**: the gated peak of live allocations
    1.0015-1.0021; the footprint between batches 1.63-1.80x (D11, reported, not gated); the host
-   model in the gated update (D12: `update_with_host_model` up to 1.072 on synthetic rows, reported).
+   model in the gated update (D12: `update_with_host_model` up to 1.072 on synthetic rows at step 3,
+   up to 1.074 in the review's reading; reported).
    With them the gate rows, cases and rounds (D7) and the two suites (D8).
 8. **The "paper vs fixed code" wording (D10)**: section 8 of `docs/algorithms/triad_count.md`
    (E-C1, E-C3, E-C7 in ESCHER-GPU's words), marked for the author's review.
@@ -397,8 +470,12 @@ release (GOVERNANCE.md, open decisions):
    the flags are a 0.3 performance option with their own ADR; if the release builds change their
    flags, the ESCHER suites (and every other suite of the certificate) must be measured again.
 10. **New: the container's OpenMP allocation-failure defect (D13)**: a host allocation failure in
-    `cpp/src/hypergraph`'s OpenMP regions ends the process; fix in 0.3.0 (with its ADR 0024
-    reading) or in a 0.3.x release.
+    `cpp/src/hypergraph`'s OpenMP regions ends the process, in every build with OpenMP and with
+    any thread count (the review's finding); fix in 0.3.0 (with its ADR 0024 reading) or in a
+    0.3.x release; until then the CHANGELOG's "Known issues" entry ships with 0.3.0.
+11. **From the review: the new experimental names** `max_op_size`,
+    `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS` and its helpers (D9, ADR 0058 section 6), and the open
+    question of a side-data argument for Ops (ADR 0058 section 7).
 
 Also the author's: the merge of M9b's pull request (a merge commit, with the `api-change` label).
 M9a's (#16) is merged (`4cc5c3f`).
@@ -436,20 +513,29 @@ confirmation at the release). **api-change**: the header moves from tracked to f
 signature changed. The review fixed one defect (host allocation failures of compute, update and
 clone are `out_of_memory_error`, as documented) and reports one in the container (D13).
 
+**The review** (21 confirmed findings, all fixed; `parity/results/M9b.md` section 5): `main`
+merged in (M9a's OpenMP=OFF test fix); `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS` (nvcc does not
+report a `__device__`-only callback, which would end a host backend's run with exit 1); the Op
+size limit `max_op_size`; nvcc-readable concept messages; the Op contract states that a call's
+ids are unordered, with a tested counter-example; the tutorial updates every Op under both
+id_reuse orders; docs, CHANGELOG, README, GOVERNANCE and records corrected; a "Known issues" entry
+for D13.
+
 **Docs**: `docs/algorithms/triad_count.md` (the 30-bin table tested against the code, requirements
 per pattern, differences from the paper, "Paper vs fixed code" for the author's review: D10, the
 gate record), the tutorial "Hypergraph triads" (C++ and Python), `examples/cpp/triad_count_update.cpp`
 and `examples/python/triad_count.py` (run in CI, the C++ one against the installed package),
 `docs/history/escher_gpu.md`.
 
-**Gates, read again on M9b's library** (the library scope changed since M9a's readings; ESCHER-GPU
-re-measured in the same session, GPU 0, base clock lock, M9a's protocol):
+**Gates, read again on M9b's final library** (`c83cebf`, after the review; the library scope
+changed since M9a's readings; ESCHER-GPU re-measured in the same session, GPU 0, base clock lock,
+M9a's protocol):
 
 | | coauth-DBLP 50K s1-s3 (11 rounds) | syn1M / syn2M 50K s1-s3 (21 rounds) | bar |
 |---|---|---|---|
-| update, each of 3 batches | 0.952-0.973 | 0.861-1.031 | 1.05 |
+| update, each of 3 batches | 0.951-0.971 | 0.862-1.033 | 1.05 |
 | full count | 0.999 | 1.002-1.003 | 1.05 |
-| end to end | 0.920-0.925 | 0.957-0.991 | 1.10 |
+| end to end | 0.940-0.942 | 0.959-0.992 | 1.10 |
 | store accounting (every gated point) | 1.0000 | 1.0000 | 1.05 |
 | Nsight Systems peak of live allocations (D1) | 1.0015 | 1.0021 / 1.0016 | 1.05 |
 
@@ -457,9 +543,9 @@ Parity (exact, by key and by content, on M9b's library): cuda 300/300, sequentia
 142/142 at 1 and 8 threads; the dry 0.3 certificate of triad_count passes
 (`parity/results/M9b-gates/`).
 
-**Checks**: `ci/check.sh` all passed; `ci/gpu_local.sh` all 21 steps passed on GPU 1 (`ctest -L gpu` 861 / 861; memcheck, synccheck, racecheck and initcheck clean, the triad and count_local_patterns steps included); a fresh clone
-(CPU-only fortified without nvcc: 1,279 / 1,279; parity-cuda: the triad, experimental and example
-tests 397 / 397, the installed-package consumers on every backend); Clang 18 syntax; `ci/docs.sh`
+**Checks** (at the review's head): `ci/check.sh` all passed; `ci/gpu_local.sh` all 21 steps passed on GPU 1 (`ctest -L gpu` 866 / 866; memcheck, synccheck, racecheck and initcheck clean, the triad and count_local_patterns steps included); a fresh clone
+(CPU-only fortified without nvcc: 1,280 / 1,280; parity-cuda: the triad, experimental and example
+tests 403 / 403, the installed-package consumers on every backend); Clang 18 syntax; `ci/docs.sh`
 -W; the API checks and their deliberate-change demonstrations; frozen headers unchanged
 (`git diff 65a62c9 -- cpp/include/dyng/{hypergraph,update.hpp,core,graph}` empty, also against
 `main`).
