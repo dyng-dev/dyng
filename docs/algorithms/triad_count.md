@@ -299,7 +299,10 @@ dynG / ESCHER-GPU, medians):
 | Nsight Systems peak of live allocations | 1.0015 (3,023 MiB) | 1.0021 (1,134 MiB) | 1.0017 (2,215 MiB) | 1.05 |
 
 M9b moved the engine into the installed headers without changing the counting kernels' machine
-code and read every gate again on its own library (`parity/results/M9b.md` section 3). Recorded,
+code, and read every gate again on its own library, the 0.3.0 candidate's, with the same protocol
+(`parity/results/M9b.md` section 3): update per batch 0.952-0.973 (coauth-DBLP) and 0.861-1.031
+(synthetic), full count 0.999-1.003, end to end 0.920-0.991, the store accounting 1.0000 and the
+peak 1.0015-1.0021; 45 / 45 and 11 / 11 rows within their bars. Recorded,
 not gated: the default clocks (update 0.84-1.02), 100K and 200K coauth batches (0.98-1.02),
 StatHyper's types on coauth (update 0.72-0.96 of ESCHER-GPU's), and the update with the driver's
 host model counted (up to 1.061 on three syn2m rows: D12). The figures of ESCHER-GPU's README
