@@ -251,6 +251,8 @@ NOT_DERIVED = {
     "cpp/include/dyng/testing/mosp_oracle.hpp": "public API of mosp_oracle.cpp (header there)",
     "cpp/include/dyng/testing/cbst_host_model.hpp": "public API of cbst_host_model.cpp (header "
     "there)",
+    "cpp/src/algorithms/triad_count/engine/exact.hpp": "new exact arithmetic (ADR 0057); names "
+    "ESCHER-GPU's Choose3Op / Type2Op / Type3Op only to say what it replaces",
 }
 
 
