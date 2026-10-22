@@ -81,6 +81,19 @@ def backend_args(spec: str) -> list[str]:
     return ["--backend", name, *(["--threads", threads] if threads else [])]
 
 
+def layout_timing(work: Path, r: int, layouts: int) -> Path:
+    """The --timing file of round r: its path 8 * (r mod layouts) characters longer (ADR 0024
+    rule 1), the length beyond 200 characters in directory components, as perf_ab.layout_timing
+    (a file name has at most 255 bytes: 85 layouts reach 672 characters)."""
+    extra = 8 * (r % layouts)
+    folder = work
+    while extra > 200:
+        folder = folder / ("x" * 200)
+        extra -= 200
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / ("t" + "x" * extra + ".json")
+
+
 def stage_sums(timing: Path, stages: tuple[str, ...]) -> dict[str, float]:
     """Per stage: the ms of every batch (`<stage>[b<N>]`) and their sum (`<stage>`)."""
     doc = json.loads(timing.read_text())
@@ -229,7 +242,7 @@ def run(args: argparse.Namespace) -> int:
                     while done < args.rounds:
                         if repeated > args.rounds:
                             raise SystemExit(f"{key}: too many contaminated rounds")
-                        timing = Path(tmp) / ("t" + "x" * (8 * (done % args.layouts)) + ".json")
+                        timing = layout_timing(Path(tmp), done, args.layouts)
                         got: dict[str, dict[str, float]] = {}
                         contaminated = False
                         for side, exe in sides.items():

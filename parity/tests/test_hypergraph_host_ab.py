@@ -152,3 +152,15 @@ def test_the_lock_field_is_what_perf_lock_found(
     regions = {r["region"]: r for r in doc["results"]["c1/sequential/apply"]["regions"]}
     assert regions["hypergraph.build"]["port_samples"] == [5.0, 5.0, 5.0]
     assert regions["apply_ms"]["ratio"] == 1.0
+
+
+def test_85_layouts_fit_the_file_name_limit(tmp_path: Path) -> None:
+    """ADR 0024's longer reading (85 layouts): the path grows by 8 characters per layout, with no
+    component longer than 255 bytes (the first try of R030's reading failed at round 32)."""
+    lengths = []
+    for r in range(170):
+        p = hab.layout_timing(tmp_path, r, 85)
+        assert all(len(part) <= 255 for part in p.parts)
+        p.write_text("{}")
+        lengths.append(len(str(p)) - str(p).count("/"))  # the characters, not the separators
+    assert lengths[84] - lengths[0] == 8 * 84 and lengths[85] == lengths[0]
