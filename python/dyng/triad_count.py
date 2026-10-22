@@ -328,6 +328,12 @@ def update(
         NotSupportedError: incidence edits (0.4; nothing changed).
         CapacityError: a count exceeds 2^64 - 1, or a bin changes by 2^63 or more (after the
             commit: ``result`` is left unusable; recompute it).
+        OutOfMemoryError: host or device memory cannot be allocated (also a ``MemoryError``),
+            with one of three outcomes: before the commit, ``hypergraph`` and ``result`` are
+            unchanged; inside the commit, ``hypergraph`` is unusable (as for
+            :meth:`Hypergraph.apply`) and ``result`` keeps the counts before the batch (recompute
+            it once the hypergraph is built again); after the commit, ``hypergraph`` holds the
+            new version and ``result`` is left unusable (recompute it).
         InternalError: a bin would become negative (a library bug; ``result`` is left unusable).
     """
     _check_hypergraph(hypergraph)
