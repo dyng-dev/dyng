@@ -1900,6 +1900,53 @@ def test_the_golden_mutation_record_is_read(cert, certified) -> None:
     assert write() == 0, problems()
 
 
+def test_the_gtest_mutation_rows_need_the_release_tests(
+    cert, certified, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR 0061 section 4: the rows of a GoogleTest suite of mutate.py (cbst and the suites after
+    it) are detected by the C++ tests, so a golden-mutation record with such rows needs the
+    release's cpp/tests as well as its library; a record without them is bound to the library
+    only, and a difference outside cpp/tests (README.md, the examples) does not matter."""
+    results, write, problems = certified
+    path = results / "mutation-goldens.json"
+    commit = head()
+    mutate = load("parity/mutate.py")
+    gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
+    assert "cbst" in gtest and cert.GTEST_MUTATION_PATHS == ["cpp/tests"]
+    # The real diff: the last commit that changed cpp/tests differs from its parent there only.
+    last = subprocess.check_output(
+        ["git", "-C", REPO, "log", "-1", "--format=%H", "--", "cpp/tests"], text=True
+    ).strip()
+    parent = subprocess.check_output(
+        ["git", "-C", REPO, "rev-parse", f"{last}~1"], text=True
+    ).strip()
+    changed = cert.paths_diff(parent, last, cert.GTEST_MUTATION_PATHS)
+    assert changed and all(f.startswith("cpp/tests/") for f in changed)
+    assert cert.paths_diff(commit, commit, cert.GTEST_MUTATION_PATHS) == []
+    real = cert.paths_diff
+
+    def other_tests(c: str, h: str, paths: list[str]) -> list[str] | None:
+        if paths == cert.GTEST_MUTATION_PATHS:
+            return ["cpp/tests/hypergraph/escher/cbst_host_test.cpp"]
+        return real(c, h, paths)
+
+    monkeypatch.setattr(cert, "paths_diff", other_tests)
+    message = "does not have the release's C++ test suites (cpp/tests)"
+    assert write() == 1 and message in problems() and "cbst" in problems(), problems()
+    doc = json.loads(path.read_text())
+    doc["results"] = [r for r in doc["results"] if r.get("suite") not in gtest]
+    doc["results"][0]["replays"] = [
+        r for r in doc["results"][0]["replays"] if r.get("suite") not in gtest
+    ]
+    stripped = results / "mutation-goldens-no-gtest.json"
+    stripped.write_text(json.dumps(doc))
+    found = cert.golden_mutations(stripped, commit, results)
+    assert found and not any(message in p for p in found), found  # missing rows, not the tests
+    monkeypatch.setattr(cert, "paths_diff", real)
+    stripped.unlink()
+    assert write() == 0, problems()
+
+
 def test_the_gate_rows_are_recomputed(cert, certified) -> None:
     results, write, problems = certified
     path = results / "ipdps25_dynamosp_mosp.json"

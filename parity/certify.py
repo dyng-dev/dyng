@@ -150,6 +150,12 @@ CODE_PATHS = {
     "packaging": PACKAGING_PATHS,
     "repo": REPO_PATHS,
 }
+# The sources that detect the mutations of a GoogleTest suite of parity/mutate.py (the cbst,
+# hypergraph, triad_count, kit and oracle suites: their executables and the committed data they
+# read), beside the library: a golden-mutation record with such rows must have them too (ADR 0061
+# section 4). Narrower than the tests scope: README.md, the examples and the fuzzers are not part
+# of those executables, so a final release that changes only them keeps its record.
+GTEST_MUTATION_PATHS = ["cpp/tests"]
 # The scopes from the narrowest to the widest: a record of a wider scope covers a narrower one.
 SCOPE_ORDER = ["library", "tests", "packaging", "repo"]
 SCOPE_HELP = {
@@ -346,10 +352,15 @@ def resolve(commit: str) -> str | None:
 
 def code_diff(commit: str, head: str, scope: str = "library") -> list[str] | None:
     """The files of CODE_PATHS[scope] that differ between `commit` and `head`; None if unknown."""
+    return paths_diff(commit, head, CODE_PATHS[scope])
+
+
+def paths_diff(commit: str, head: str, paths: list[str]) -> list[str] | None:
+    """The files under `paths` that differ between `commit` and `head`; None if unknown."""
     base = resolve(commit)
     if base is None:
         return None
-    out = git("diff", "--name-only", base, head, "--", *CODE_PATHS[scope])
+    out = git("diff", "--name-only", base, head, "--", *paths)
     return sorted(out.splitlines())
 
 
@@ -1531,8 +1542,11 @@ def golden_mutations(record_path: Path, head: str, results: Path) -> list[str]:
     of `parity/mutate.py list` must be in it and detected, the control must have passed, the
     record's commit must have the release's library sources, and every replay must have used
     a golden manifest of parity/goldens.toml (but those of a GoogleTest suite, the cbst suite of
-    M8a, which replays no golden corpus: its tests read the committed CBST traces of
-    cpp/tests/data)."""
+    M8a and the hypergraph, triad_count, kit and oracle suites after it, which replay no golden
+    corpus: their tests read the committed traces and fixtures of cpp/tests/data). A record with
+    rows of a GoogleTest suite must also have the release's C++ test suites (GTEST_MUTATION_PATHS,
+    ADR 0061 section 4): those rows are detected by the tests, so the tests that detected them
+    must be the release's."""
     if not record_path.is_file():
         return [f"its record {record_path.name} is not next to checks.json"]
     sys.path.insert(0, str(REPO / "parity"))
@@ -1563,6 +1577,13 @@ def golden_mutations(record_path: Path, head: str, results: Path) -> list[str]:
     }
     gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
     replays = [*(control or {}).get("replays", []), *rows.values()]
+    gtest_suites = sorted({r.get("suite") for r in replays if r.get("suite") in gtest})
+    if gtest_suites and paths_diff(doc.get("commit", ""), head, GTEST_MUTATION_PATHS) != []:
+        out.append(
+            f"its commit {doc.get('commit')} does not have the release's C++ test suites "
+            f"({', '.join(GTEST_MUTATION_PATHS)}), which detected the mutations of its GoogleTest "
+            f"suites ({', '.join(gtest_suites)})"
+        )
     for r in replays:
         if r.get("suite") in gtest:
             continue
