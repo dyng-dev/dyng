@@ -386,9 +386,11 @@ value_t integer_of(const json_parser& p, const json_value& v, const std::string&
   return out;
 }
 
-const json_value& array_of(const json_parser& p, const json_value& v, const std::string& what) {
+// `what` is a C string, not a std::string: the result is a reference to `v`, and a temporary
+// std::string argument made GCC 13's -Wdangling-reference warn at every call (a false positive).
+const json_value& array_of(const json_parser& p, const json_value& v, const char* what) {
   if (v.type != json_value::kind::array) {
-    p.fail(v.offset, what + " must be an array");
+    p.fail(v.offset, std::string(what) + " must be an array");
   }
   return v;
 }
