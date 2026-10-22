@@ -1,0 +1,22 @@
+{
+ "set": "cbst_trace_escher_gpu_coauth50k",
+ "date": "2026-10-22T12:28:25+00:00",
+ "goldens": {
+  "manifest_sha256": "7ddec4438292cdf25cbbcd028e26f87e04bd518ee50b6ef856c3e5ea8635ae57"
+ },
+ "port": {
+  "commit": "8a7a43aa31f76611299a7ff5bcb0f7b013d8e55b"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "reference": "ESCHER-GPU",
+ "configs": [
+  "device:escher_gpu/exact"
+ ],
+ "judged_against_host_model": false,
+ "matrix": {
+  "coauth_b50k_s1": {
+   "device:escher_gpu/exact": "equal"
+  }
+ },
+ "passed": true
+}

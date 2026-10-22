@@ -1,0 +1,25 @@
+{
+ "set": "cbst_trace_escher_gpu_targeted",
+ "date": "2026-10-22T12:33:51+00:00",
+ "goldens": {
+  "manifest_sha256": "6f4c9428ac5e93b9182a11c6934937832cacf1b590eb5fd2e98363f071a9c260"
+ },
+ "port": {
+  "commit": "8a7a43aa31f76611299a7ff5bcb0f7b013d8e55b"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "reference": "ESCHER-GPU",
+ "configs": [
+  "device:dyng_default/policy"
+ ],
+ "judged_against_host_model": false,
+ "matrix": {
+  "targeted_large": {
+   "device:dyng_default/policy": "equal"
+  },
+  "targeted_small": {
+   "device:dyng_default/policy": "equal"
+  }
+ },
+ "passed": true
+}
