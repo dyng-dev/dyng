@@ -38,17 +38,34 @@ The properties are keywords (or a `dyng.HypergraphProperties`): `line_graph="non
 "default" | "escher_gpu" | "mosp_escher"` (or a `dyng.CapacityPolicy`, e.g.
 `dyng.CapacityPolicy.mosp_escher(extra=1 << 20)`), `store_v2h=True`. A hypergraph belongs to the
 backend of its resources: `resources=dyng.Resources("openmp")`, or `dyng.Resources.cuda()` with a
-CUDA plugin (`pip install "dyng[cu13]"`); `h.to_backend(res)` copies it to another backend.
+CUDA plugin of the same version as `dyng` (the lines of {doc}`../getting_started/install`,
+"CUDA from Python": `pip install "dyng[cu13]"` for a release on PyPI, TestPyPI's for a release
+candidate); `h.to_backend(res)` copies it to another backend.
 
 ## Apply batches and read the ids
 
+<!-- snippet: hypergraph-python-apply -->
 ```python
+import dyng
+
+h = dyng.Hypergraph.from_lists([[0, 1, 2], [1, 3], [2, 3, 4]])
 b = dyng.HyperedgeBatch(delete_hyperedges=[1], insert_hyperedges=[[0, 4], [4, 4, 1]])
-s = h.apply(b)
-print(s.inserted_ids)          # int64 ids chosen by the store, e.g. [1 3]
-print(s.deleted_hyperedges, s.dropped_members, s.skipped_ops)   # 1 1 1
-print(h.version)               # 1
+s = h.apply(b)                 # one commit: version 0 -> 1
+print(s.inserted_ids)          # int64 ids chosen by the store
+print(s.deleted_hyperedges, s.dropped_members, s.skipped_ops, s.ignored_deletions)
+print(h.version)
 ```
+<!-- snippet-output: hypergraph-python-apply -->
+```text
+[1 3]
+1 1 1 0
+1
+```
+
+Hyperedge 1 is deleted and the two insertions get the ids 1 and 3 (here the first takes the
+freed slot 1); the repeated member of `[4, 4, 1]` is dropped (`dropped_members`), and
+`skipped_ops` is `ignored_deletions + dropped_members`. Every `apply()` is a new commit: the same
+batch applied again would be version 2, with ids chosen again.
 
 **Read the ids from `inserted_ids`; never predict them**: the store reuses the slots of deleted
 hyperedges by best fit, and the batch order (`id_reuse`) changes which slots are free
@@ -111,10 +128,12 @@ which redraw its published runs exactly.
 
 ## Test with Hypothesis
 
+<!-- snippet: hypergraph-python-hypothesis -->
 ```python
-from hypothesis import given, strategies as st
+from hypothesis import given, settings, strategies as st
 from dyng.testing import strategies as dst
 
+@settings(deadline=None)  # the first CUDA use initialises the device (some 0.3 s)
 @given(dst.hypergraphs(), st.data())
 def test_ids_are_valid(hg, data):
     h, model = hg.to_hypergraph(), hg.model()
@@ -125,13 +144,46 @@ def test_ids_are_valid(hg, data):
         v = h.h2v()
         assert [v.row(i).tolist() for i in range(v.num_rows)] == model.rows_by_id(
             h.hyperedge_id_bound)
+
+test_ids_are_valid()  # pytest finds it by its name; called here, it runs the examples once
 ```
 
 Batches are drawn from the model's current state, because the ids a batch may delete depend on
 the ids the earlier batches got; failing cases shrink to small hypergraphs and short batches.
+`deadline=None` matters with a CUDA plugin: the hypergraphs are built on the default resources,
+cuda there, and the first CUDA call of a process initialises the device, which takes longer
+than Hypothesis's default deadline of 200 ms for one example (a `FlakyFailure` /
+`DeadlineExceeded` on the first example otherwise). `resources=dyng.Resources("sequential")` in
+the test avoids the device altogether.
+
+## Several results, one batch: `dyng.update()`
+
+`h.apply(batch)` changes the structure alone, and every result computed on `h` is then stale. To
+keep results up to date, apply the batch through them: `dyng.update(h, batch, *results)` applies
+it to the hypergraph **once** and updates every result (from 0.3 the results of
+`dyng.triad_count`), returning their stats as a tuple in the order of the results:
+
+<!-- snippet: hypergraph-python-update -->
+```python
+import dyng
+
+h = dyng.Hypergraph.from_lists([[0, 1, 2], [1, 3], [2, 3, 4]], line_graph="sorted_merge")
+motifs = dyng.triad_count.compute(h)                     # h_motif, 30 bins (reads the line graph)
+type1 = dyng.triad_count.compute(h, kind="stathyper_type1")
+batch = dyng.HyperedgeBatch(delete_hyperedges=[1], insert_hyperedges=[[0, 4], [4, 4, 1]])
+st, st1 = dyng.update(h, batch, motifs, type1)           # one commit, both counts exact
+print(st.batch.inserted_ids, motifs.total, type1.total)
+```
+<!-- snippet-output: hypergraph-python-update -->
+```text
+[1 3] 4 2
+```
+
+The algorithm is {doc}`../algorithms/triad_count`; the {doc}`../tutorials/hypergraph_triads`
+tutorial does it step by step.
 
 ## Not yet
 
-`dyng.update()` over hypergraphs (several results, one batch) arrives with the first hypergraph
-algorithm, `triad_count` (0.3); until then `Hypergraph.apply()` changes the structure. The list
-of C++ symbols without a Python counterpart is {doc}`../developer/python_gaps`.
+Incidence edits (`delete_incidences=`, `insert_incidences=`) and the `slack_csr` storage are
+planned for 0.4. The list of C++ symbols without a Python counterpart is
+{doc}`../developer/python_gaps`.
