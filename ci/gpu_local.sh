@@ -100,7 +100,12 @@
 #              racecheck on the kit's C1, C11 and C12 (dyng_triad_count_conformance_cuda_tests)
 #              and on the replays of make-test, all four patterns, by key and by content
 #              (parity/compare.py triad_count --counter algorithm through a racecheck wrapper of
-#              dyng_triad_replay; skipped without the triad goldens)
+#              dyng_triad_replay; skipped without the triad goldens); the step is "partial" when
+#              the coauth batch or the replays were skipped
+#
+# A step is recorded passed, FAILED, skipped (DYNG_GPU_SKIP="<step> ...", or its inputs missing)
+# or partial; a release certificate needs the steps of its series passed (parity/certify.py,
+# GPU_LOCAL_STEPS).
 #   experimental  experimental::count_local_patterns (M9b, ADR 0058): compute-sanitizer memcheck,
 #              racecheck and synccheck on the CUDA runs of the tutorial's test
 #              (dyng_local_patterns_tutorial_tests) and of the API tests (dyng_local_patterns_tests;
@@ -130,7 +135,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,100p' "${BASH_SOURCE[0]}"
+      sed -n '5,/^set -euo/{/^set -euo/!p}' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -164,9 +169,12 @@ heavy() {
     nice -n 10 "$@"
   fi
 }
+# A step's result: passed, FAILED, skipped (by DYNG_GPU_SKIP or without its inputs) or partial
+# (a part of it skipped because its inputs are missing). Skipped and partial are not failures here;
+# a release certificate needs its series' steps passed (parity/certify.py GPU_LOCAL_STEPS).
 record() {
   results+=("| $1 | $2 |")
-  if [ "$2" != "passed" ] && [ "$2" != "skipped" ]; then
+  if [ "$2" != "passed" ] && [ "$2" != "skipped" ] && [ "$2" != "partial" ]; then
     failed+=("$1")
   fi
 }
@@ -454,7 +462,7 @@ if ! skipped hypergraph; then
   if [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/escher_gpu_test/MANIFEST.sha256" ] ||
     [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/mosp_escher_test/MANIFEST.sha256" ]; then
     echo "the CBST trace goldens are missing (parity/export_goldens.py cbst_trace); skipped"
-    record "hypergraph replays (cuda, small sets)" skipped
+    record "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)" skipped
   elif heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
     --exe "${hg_tool}" --record "${hg_records}" --certificate "${hg_records}" \
     --set cbst_trace_escher_gpu_test --set cbst_trace_mosp_escher_test &&
@@ -473,6 +481,7 @@ fi
 if ! skipped triad; then
   step "triad_count: sanitizers and the small replays (GPU ${gpu})"
   tc_ok=1
+  tc_partial=0
   tc_tests="${build_dir}/cpp/tests/algorithms/triad_count/dyng_triad_count_cuda_tests"
   tc_kit="${build_dir}/cpp/tests/dyng_triad_count_conformance_cuda_tests"
   tc_replay="${build_dir}/cpp/tests/dyng_triad_replay"
@@ -500,6 +509,7 @@ if ! skipped triad; then
       done
     else
       echo "${coauth} or ${tc_driver} missing: the coauth_b50k_s1 batch is skipped"
+      tc_partial=1
     fi
     if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all \
       --error-exitcode 1 "${tc_kit}" --gtest_brief=1 --gtest_filter='*.C1_*:*.C11_*:*.C12_*'; then
@@ -520,9 +530,12 @@ if ! skipped triad; then
       rm -f "${wrapper}"
     else
       echo "the triad goldens or ${tc_replay} missing: the racecheck of the replays is skipped"
+      tc_partial=1
     fi
   fi
-  if [ "${tc_ok}" = 1 ]; then
+  if [ "${tc_ok}" = 1 ] && [ "${tc_partial}" = 1 ]; then
+    record "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)" partial
+  elif [ "${tc_ok}" = 1 ]; then
     record "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)" passed
   else
     record "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)" FAILED

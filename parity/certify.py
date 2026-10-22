@@ -55,7 +55,7 @@ content with the algorithm counter (TRIAD_REPLAYS_SINCE). `write --dry-run <algo
 algorithm's suites and golden sets only and lists every other part as outside the dry run.
 Every gated row is recomputed from the compacted record next to its summary and the suite file's
 tolerance (recheck_gates). The checks part needs every check of REQUIRED_CHECKS of the version's
-series, each with at least its scope (and gpu_local its compute-sanitizer steps); the
+series, each with at least its scope (and gpu_local the steps of its series, GPU_LOCAL_STEPS); the
 golden-mutation record is read against `parity/mutate.py list` (golden_mutations).
 """
 
@@ -293,12 +293,44 @@ REQUIRED_CHECKS = {
     "distributions": {"since": (0, 1), "scope": "packaging"},
     "check-parity": {"since": (0, 1), "scope": "repo"},
     "api-check": {"since": (0, 2), "scope": "repo"},
-    "gpu_local": {
-        "since": (0, 1),
-        "scope": "repo",
-        "steps": ["memcheck", "synccheck", "racecheck"],
-    },
+    "gpu_local": {"since": (0, 1), "scope": "repo", "steps": "GPU_LOCAL_STEPS"},
 }
+# The steps of ci/gpu_local.sh (by their names in its summary) that a gpu_local record must have
+# passed, by the release series that added them to the release (ADR 0062): a step recorded
+# "skipped" (DYNG_GPU_SKIP, or inputs missing) or "partial" (a part of it skipped because its
+# inputs are missing) does not count. From 0.1 the build, the GPU and CPU tests, the CUDA golden
+# corpora and compute-sanitizer on sssp and cycle_count; from 0.2 mosp's synccheck, the CUDA
+# plugin wheel and clang-tidy over the CUDA branches; from 0.3 the CBST store's, the hypergraph
+# container's and triad_count's sanitizers and replays and count_local_patterns (R030 review: until
+# then only memcheck, synccheck and racecheck were required, so a 0.3 record with the new steps
+# skipped would have certified).
+GPU_LOCAL_STEPS = {
+    (0, 1): [
+        "build",
+        "ctest -L gpu",
+        "ctest -L cpu",
+        "parity (cuda goldens)",
+        "parity (cycle_count cuda goldens)",
+        "memcheck",
+        "synccheck",
+        "synccheck (cycle_count)",
+        "racecheck",
+    ],
+    (0, 2): ["synccheck (mosp)", "plugin wheel (pytest -m gpu)", "clang-tidy"],
+    (0, 3): [
+        "cbst sanitizers (racecheck, synccheck, initcheck)",
+        "cbst replays (device, small sets)",
+        "cbst replays (device, default preset)",
+        "cbst bin/main recorded and replayed once",
+        "cbst lockstep with the host model (compact after every op; every preset)",
+        "hypergraph sanitizers (racecheck, synccheck, initcheck)",
+        "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)",
+        "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)",
+        "count_local_patterns (sanitizers on the tutorial and API tests; nvcc consumer)",
+    ],
+}
+# The results of a step of ci/gpu_local.sh that are not a failure (only "passed" counts as run).
+GPU_STEP_RESULTS_OK = ("passed", "skipped", "partial")
 RELEASE_SERIES = re.compile(r"^v?(\d+)\.(\d+)(?:[.\-+a-z]|$)", re.I)
 # A region of a summary named after its metric: "sosp_update obj1" (per objective),
 # "update[resident]", "device_memory[original]" (cycle_count's scopes), "store_memory[b2]"
@@ -1016,6 +1048,23 @@ def required_suites(version: str) -> dict[str, dict]:
     }
 
 
+def step_since(step: str) -> tuple[int, int]:
+    """The series from which GPU_LOCAL_STEPS requires `step`."""
+    return next(since for since, steps in GPU_LOCAL_STEPS.items() if step in steps)
+
+
+def gpu_local_steps(version: str) -> list[str]:
+    """The steps of GPU_LOCAL_STEPS a gpu_local record of `version` must have passed (every
+    series' for an unparsable version)."""
+    series = release_series(version)
+    return [
+        step
+        for since, steps in sorted(GPU_LOCAL_STEPS.items())
+        if series is None or series >= since
+        for step in steps
+    ]
+
+
 def required_checks(version: str) -> dict[str, dict]:
     """The checks of REQUIRED_CHECKS a certificate of `version` needs (for an unparsable version,
     those of the newest series)."""
@@ -1505,7 +1554,7 @@ def cmd_check(args: argparse.Namespace) -> int:
         entry["steps"] = steps
         required = [x for x in (args.require_steps or "").split(",") if x]
         entry["required_steps"] = required
-        passed &= all(v in ("passed", "skipped") for v in steps.values())
+        passed &= all(v in GPU_STEP_RESULTS_OK for v in steps.values())
         for step in required:
             if steps.get(step) != "passed":
                 entry.setdefault("missing_steps", []).append(step)
@@ -1614,9 +1663,15 @@ def checks(results: Path, head: str, problems: list[str], version: str = "") -> 
             problems.append(
                 f"check {name}: recorded with scope {scope}, it needs at least {spec['scope']}"
             )
-        for step in spec.get("steps", []):
-            if (c.get("steps") or {}).get(step) != "passed":
-                problems.append(f"check {name}: the step {step} did not pass or was not run")
+        steps = gpu_local_steps(version) if spec.get("steps") == "GPU_LOCAL_STEPS" else []
+        for step in steps:
+            got = (c.get("steps") or {}).get(step)
+            if got != "passed":
+                problems.append(
+                    f"check {name}: the step {step} did not pass or was not run "
+                    f"({got or 'not in the record'}; required from "
+                    f"{'.'.join(map(str, step_since(step)))})"
+                )
     for c in out:
         code = same_code(c.get("commit", ""), head, c.get("scope", "tests"), results)
         c["release_code"] = code is True

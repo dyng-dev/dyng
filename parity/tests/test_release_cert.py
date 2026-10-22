@@ -462,8 +462,8 @@ def _release_checks(cert, results: Path, tmp_path: Path, commit: str, skip=()) -
     log.write_text(_ctest_log(_fixture_test_names(cert)))
     gpu = tmp_path / "gpu_local_summary.md"
     gpu.write_text(
-        "| step | result |\n|---|---|\n| memcheck | passed |\n| synccheck | passed |\n"
-        "| racecheck | passed |\n"
+        "| step | result |\n|---|---|\n"
+        + "".join(f"| {step} | passed |\n" for step in cert.gpu_local_steps(""))
     )
     (results / "mutation-goldens.json").write_text(json.dumps(_golden_mutation_record(commit)))
     base = ["check", "--results", str(results), "--commit", commit, "--command", "x"]
@@ -1872,6 +1872,50 @@ def test_a_certificate_needs_every_release_check(cert, certified) -> None:
     assert "check gpu_local: the step racecheck did not pass or was not run" in text
     (results / "checks.json").write_text(full)
     assert write() == 0, problems()
+
+
+def test_gpu_local_needs_the_steps_of_its_series(cert, certified) -> None:
+    """R030 review: a 0.3 gpu_local record with a 0.3 step skipped (DYNG_GPU_SKIP), partial
+    (a part skipped without its inputs) or missing fails; a 0.2 certificate does not need the
+    0.3 steps; the names are the ones ci/gpu_local.sh records."""
+    results, write, problems = certified
+    assert write("0.3.0rc1") == 0, problems()
+    assert cert.gpu_local_steps("0.1.0")[-1] == "racecheck"
+    assert "clang-tidy" in cert.gpu_local_steps("0.2.0")
+    assert not set(cert.GPU_LOCAL_STEPS[(0, 3)]) & set(cert.gpu_local_steps("0.2.0"))
+    assert set(cert.GPU_LOCAL_STEPS[(0, 3)]) <= set(cert.gpu_local_steps("0.3.0"))
+    triad = "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)"
+    hyper = "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)"
+    for step, result in ((triad, "skipped"), (triad, "partial"), (hyper, None)):
+
+        def edit(cs: list[dict], step: str = step, result: str | None = result) -> None:
+            steps = next(c for c in cs if c["name"] == "gpu_local")["steps"]
+            if result is None:
+                del steps[step]
+            else:
+                steps[step] = result
+
+        full = _edit_checks(results, edit)
+        assert write("0.3.0rc1") == 1, step
+        assert f"check gpu_local: the step {step} did not pass or was not run" in problems()
+        assert "required from 0.3" in problems()
+        assert write("0.2.0rc1") == 0, problems()
+        (results / "checks.json").write_text(full)
+    # Every required name is one ci/gpu_local.sh records.
+    script = (REPO / "ci" / "gpu_local.sh").read_text()
+    for step in cert.gpu_local_steps(""):
+        assert f'record "{step}" passed' in script or f"record {step} passed" in script, step
+
+
+def test_a_partial_gpu_step_is_recorded_but_not_a_failure(cert, tmp_path: Path) -> None:
+    results = tmp_path / "r"
+    summary = tmp_path / "gpu.md"
+    summary.write_text("| step | result |\n|---|---|\n| memcheck | passed |\n| triad | partial |\n")
+    gpu = ["check", "--results", str(results), "--name", "gpu", "--command", "ci/gpu_local.sh"]
+    assert cert.main([*gpu, "--gpu-summary", str(summary)]) == 0
+    assert cert.main([*gpu, "--gpu-summary", str(summary), "--require-steps", "triad"]) == 1
+    entry = json.loads((results / "checks.json").read_text())["checks"][-1]
+    assert entry["steps"]["triad"] == "partial" and entry["missing_steps"] == ["triad"]
 
 
 def test_the_golden_mutation_record_is_read(cert, certified) -> None:
