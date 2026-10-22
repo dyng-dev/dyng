@@ -341,6 +341,14 @@ dyng_add_test(
   LIBRARIES dyng_cbst_compare
 )
 list(APPEND _dyng_private_tests dyng_hypergraph_tests)
+# Host allocation failures inside the container's OpenMP regions are out_of_memory_error with the
+# documented guarantee (D13, ADR 0061): its own operator new, so its own executable.
+dyng_add_test(
+  NAME dyng_hypergraph_allocation_failure_tests
+  SOURCES hypergraph/hypergraph_allocation_failure_test.cpp
+  LABELS cpu hypergraph
+)
+list(APPEND _dyng_private_tests dyng_hypergraph_allocation_failure_tests)
 if(DYNG_ENABLE_CUDA)
   dyng_add_test(
     NAME dyng_hypergraph_cuda_tests
