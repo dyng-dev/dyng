@@ -1,8 +1,8 @@
 # triad_count: hypergraph h-motif triad counts
 
 Maturity: **stable** from 0.3.0 (SemVer applies, as for `sssp`, `cycle_count` and `mosp`; the
-API review and freeze of {doc}`ADR 0060 <../adr/0060-triad-count-api-review-and-freeze-0-3>`, on
-the plan's default D4, **pending the author's confirmation at the 0.3.0 release**). The
+API review and freeze of {doc}`ADR 0060 <../adr/0060-triad-count-api-review-and-freeze-0-3>`; the
+author's decision of 2026-10-22, GOVERNANCE.md). The
 sequential, OpenMP and CUDA backends, the Python module `dyng.triad_count`, the command line
 `dyng triad_count` and the benchmark suites `benchmarks/paper/ipdps26_escher.yaml` and
 `tkde26_escher_plus.yaml` are new in 0.3.0. Header: `<dyng/triad_count.hpp>`. Container:
@@ -329,14 +329,11 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
   the sources statically, and divergent rows (hubs) are not balanced.
 - **No coarse triangles** (ESCHER-GPU's `coarseTriangle`: inner, outer, hybrid and hyperedge
   triangles, which need the vertex-to-vertex graph): planned for 0.4.
-- **Known issue, host memory exhaustion in an update** (D13, the author's decision at 0.3.0): in
-  a build with OpenMP (the default builds and the wheels), a host allocation failure inside the
-  hypergraph container's OpenMP loops (the vertex-to-hyperedge rows that `hypergraph::apply()`
-  changes, the line graph's build) ends the process with `std::terminate` instead of throwing
-  `out_of_memory_error`, on the sequential and openmp backends with any thread count. So
-  `update()` on a host backend can end the process when host memory runs out; `compute()` and
-  `clone()` on a hypergraph whose line graph is built throw `out_of_memory_error` as documented,
-  and the cuda backend's device allocations are not affected (CHANGELOG, "Known issues").
+- **Host memory exhaustion** is `out_of_memory_error` on every backend, with the guarantee of
+  `update()`'s documentation (the hypergraph poisoned when the failure is inside the commit, the
+  result then unchanged): since 0.3.0rc1 also inside the hypergraph container's OpenMP loops,
+  which ended the process with `std::terminate` before (D13; {doc}`ADR 0061
+  <../adr/0061-exceptions-out-of-openmp-regions>`).
 
 ## 7. Differences from the paper
 
