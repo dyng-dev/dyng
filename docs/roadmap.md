@@ -121,7 +121,8 @@ Deferred beyond 0.3.0:
 - **0.5:** performance tuning of `triad_count`'s OpenMP backend (0.3.0 ships incremental host
   engines on sequential and OpenMP, an untuned transliteration of the CUDA wedge engine: the
   author's decision of 2026-10-15); more cycle modes (Read-Tarjan, time windows, temporal);
-  64-bit hypergraph offsets.
+  64-bit hypergraph offsets; ESCHER-GPU's coarse triangles (inner, outer, hybrid and hyperedge
+  triangles over the vertex graph; PLAN 11.5's old 0.4 item, one minor up by Appendix F).
 - **0.6:** the framework for writing update algorithms becomes public (experimental).
 - **1.0:** the API of the core and the stable algorithms is frozen. The release criterion: an
   outside contributor has added an algorithm using only the documentation.

@@ -328,7 +328,8 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
 - **The host backends are not tuned** (no performance gate; D3): the OpenMP backend partitions
   the sources statically, and divergent rows (hubs) are not balanced.
 - **No coarse triangles** (ESCHER-GPU's `coarseTriangle`: inner, outer, hybrid and hyperedge
-  triangles, which need the vertex-to-vertex graph): planned for 0.4.
+  triangles, which need the vertex-to-vertex graph): planned for a later release (0.5 in the
+  {doc}`roadmap <../roadmap>`).
 - **Host memory exhaustion** is `out_of_memory_error` on every backend, with the guarantee of
   `update()`'s documentation (the hypergraph poisoned when the failure is inside the commit, the
   result then unchanged): since 0.3.0rc1 also inside the hypergraph container's OpenMP loops,
@@ -344,7 +345,8 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
   Chapters 6-7; THyMe+) are in no code of the originals; they are on the roadmap as future
   patterns ("good first issue" material: an Op of `count_local_patterns`).
 - **No coarse triangles.** ESCHER-GPU's `coarseTriangle` executable (inner, outer, hybrid and
-  hyperedge triangles over the vertex graph) is not ported in 0.3 (PLAN 6.1, C6; planned for 0.4).
+  hyperedge triangles over the vertex graph) is not ported in 0.3 (PLAN 6.1, C6; planned for a
+  later release, 0.5 in the {doc}`roadmap <../roadmap>`).
 - **The exact frontier-incident delta.** dynG's update is the fixed code's exact delta (each
   changed triad counted once at its smallest changed member), not the papers' anchored delta,
   which was inexact (section 8, E-C3).

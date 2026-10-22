@@ -38,7 +38,7 @@ and `make test`, which dynG's parity harness builds on.
 | `utils/utils.cpp` (`generateHypergraph`, `loadHypergraph`), `include/batch.hpp` and `utils/batch.cpp` (`Batch`, `BatchGenerator`) | `generators::legacy::escher_hypergraph`, `escher_batch_generator`, `escher_host_model`; `io::read_hypergraph` (`hypergraph_read_options::escher_gpu()`) |
 
 Not ported: `coarseTriangle` (inner, outer, hybrid and hyperedge triangles over the vertex graph
-V2V; planned for 0.4), the `--verbose` dumps, and the GPU monitor scripts of `bench/`.
+V2V; planned for a later release, 0.5 in the {doc}`roadmap <../roadmap>`), the `--verbose` dumps, and the GPU monitor scripts of `bench/`.
 
 ## What was fixed in the original before the port
 
