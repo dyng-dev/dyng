@@ -389,8 +389,16 @@ std::vector<hyperedge_batch<vertex_t, weight_t>> read_hyperedge_batches(
     members.clear();
     std::size_t i = 0;
     for (; i < tokens.size() && tokens[i].text != ";"; ++i) {
-      members.push_back(
-          detail::parse_integer<vertex_t>(scanner, tokens[i], 0, id_max, "vertex id"));
+      const auto v = detail::parse_integer<vertex_t>(scanner, tokens[i], 0,
+                                                     detail::max_as_int64<vertex_t>(), "vertex id");
+      if (static_cast<std::int64_t>(v) > id_max) {
+        // The batch's vertex count is the hypergraph's: say where it is fixed (R030 review).
+        scanner.fail(tokens[i], "vertex id " + std::to_string(static_cast<std::int64_t>(v)) +
+                                    " out of range [0, " + std::to_string(id_max) +
+                                    "]: the hypergraph has " + std::to_string(id_max + 1) +
+                                    " vertices, fixed when it is built (its num_vertices)");
+      }
+      members.push_back(v);
     }
     if (members.empty()) {
       scanner.fail_line("a hyperedge insertion lists at least one vertex ('+h v1 v2 .. [; w]')");

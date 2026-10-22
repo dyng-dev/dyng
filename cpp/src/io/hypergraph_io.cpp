@@ -90,6 +90,50 @@ struct hg_token {
   std::int64_t column = 0;
 };
 
+/// An ASCII letter in lower case (any other byte unchanged).
+constexpr char ascii_lower(char c) noexcept {
+  return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+/// Whether `line` starts with `prefix`, ignoring the case of ASCII letters.
+bool starts_with_nocase(std::string_view line, std::string_view prefix) noexcept {
+  if (line.size() < prefix.size()) return false;
+  for (std::size_t i = 0; i < prefix.size(); ++i) {
+    if (ascii_lower(line[i]) != ascii_lower(prefix[i])) return false;
+  }
+  return true;
+}
+
+/// Refuse the files of the other formats that a user may pass for a `.hg` file (R030 review): a
+/// `.dgb` batch file (its magic) and a `.dgt` batch file (its header line) would fail at their
+/// first token with an unhelpful message, and a Matrix Market file would be read as a hypergraph
+/// without an error (its banner is a comment line, its size line a hyperedge). ESCHER-GPU's
+/// loader skips the two header lines as comments; no `.hg` file of either original starts with
+/// them (docs/api/file_formats.md).
+void refuse_other_formats(const std::string& path, std::string_view text) {
+  const std::string_view first = text.substr(0, text.find('\n'));
+  if (first.substr(0, 8) == "DYNGBAT1") {
+    detail::throw_io_error(
+        path, 1, 1,
+        "this is a .dgb batch file (the magic DYNGBAT1), not a .hg hypergraph: read its batches "
+        "with io::batch_reader (Python dyng.io.BatchReader; the command line's --batches)");
+  }
+  if (starts_with_nocase(first, "%dgt") && (first.size() == 4 || is_separator(first[4]))) {
+    detail::throw_io_error(
+        path, 1, 1,
+        "this is a .dgt batch file (its '%dgt' header), not a .hg hypergraph: read its batches "
+        "with io::read_hyperedge_batches (Python dyng.io.read_hyperedge_batches; the command "
+        "line's --batches)");
+  }
+  if (starts_with_nocase(first, "%%MatrixMarket")) {
+    detail::throw_io_error(
+        path, 1, 1,
+        "this is a Matrix Market file (its '%%MatrixMarket' banner), not a .hg hypergraph: a "
+        "Matrix Market file holds a graph (io::read_matrix_market; Python "
+        "dyng.io.read_matrix_market)");
+  }
+}
+
 }  // namespace
 
 template <typename vertex_t, typename weight_t>
@@ -127,6 +171,7 @@ hyperedge_list<vertex_t, weight_t> read_hypergraph(const std::string& path,
   const bool weights_from_file = weighted && !options.random_weights.has_value();
 
   const std::string text = detail::read_file(path);
+  refuse_other_formats(path, text);
   hypergraph_file_info local_info;
   hypergraph_file_info& out_info = info != nullptr ? *info : local_info;
   out_info = hypergraph_file_info{};
@@ -177,14 +222,24 @@ hyperedge_list<vertex_t, weight_t> read_hypergraph(const std::string& path,
     for (; t < tokens.size() && tokens[t].text != ";"; ++t) {
       std::int64_t value = 0;
       if (!detail::parse_int64(tokens[t].text, value)) {
-        fail(tokens[t], "invalid vertex id '" + std::string(tokens[t].text) +
-                            "' (expected a decimal integer)");
+        const std::string_view x = tokens[t].text;
+        const bool batch_op = x == "+h" || x == "-h" || x == "+e" || x == "-e";
+        fail(tokens[t], "invalid vertex id " + detail::quoted_token(x) +
+                            (batch_op ? " (a line of a .dgt batch file: read its batches with "
+                                        "io::read_hyperedge_batches; the command line's --batches)"
+                                      : " (expected a decimal integer)"));
       }
       if (relabel_none) {
         if (value < options.index_base || value - options.index_base > vertex_limit) {
+          // An id below a positive base is most often a 0-based file read with the default
+          // base 1: name the option in each interface (R030 review).
+          const std::string hint = value >= 0 && value < options.index_base
+                                       ? " (a 0-based file needs index_base 0: Python "
+                                         "index_base=0, the command line --index-base 0)"
+                                       : std::string();
           fail(tokens[t], "vertex id " + std::to_string(value) + " out of range [" +
                               std::to_string(options.index_base) + ", " +
-                              std::to_string(options.index_base + vertex_limit) + "]");
+                              std::to_string(options.index_base + vertex_limit) + "]" + hint);
         }
       }
       ids.push_back(value);
@@ -198,19 +253,20 @@ hyperedge_list<vertex_t, weight_t> read_hypergraph(const std::string& path,
         fail(semicolon, "';' must be followed by the hyperedge's weight");
       }
       if (t + 2 < tokens.size()) {
-        fail(tokens[t + 2], "unexpected '" + std::string(tokens[t + 2].text) +
-                                "' after the weight (a line is 'v1 v2 .. [; w]')");
+        fail(tokens[t + 2], "unexpected " + detail::quoted_token(tokens[t + 2].text) +
+                                " after the weight (a line is 'v1 v2 .. [; w]')");
       }
       if (!weighted) {
         fail(semicolon,
-             "the file has hyperedge weights; read it with a weighted type (or remove '; w')");
+             "the file has hyperedge weights; read it as weighted (C++: a weighted weight_t; "
+             "Python: weighted=True; the command line: --weighted), or remove '; w'");
       }
       if (!weights_from_file) {
         fail(semicolon, "the file has hyperedge weights and random_weights is set");
       }
       if (!detail::parse_int64(tokens[t + 1].text, weight_value)) {
-        fail(tokens[t + 1], "invalid weight '" + std::string(tokens[t + 1].text) +
-                                "' (expected a decimal integer)");
+        fail(tokens[t + 1], "invalid weight " + detail::quoted_token(tokens[t + 1].text) +
+                                " (expected a decimal integer)");
       }
       if (weight_value < 1 || weight_value > weight_limit) {
         fail(tokens[t + 1], "weight " + std::to_string(weight_value) + " out of range [1, " +

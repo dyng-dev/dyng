@@ -48,6 +48,16 @@ std::string read_file(const std::string& path);
                                  const std::string& message);
 
 /**
+ * @brief A token's text quoted for an error message: `'text'`, cut after 32 bytes (`'...'`).
+ *
+ * The token of a binary file (a `.dgb` read as text) can be long and hold any byte;
+ * throw_io_error() writes the message's control bytes as `\xHH`, so a NUL does not end what().
+ * @param[in] text The token.
+ * @return The quoted text.
+ */
+std::string quoted_token(std::string_view text);
+
+/**
  * @brief One whitespace-separated token and where it starts.
  */
 struct token {
@@ -301,8 +311,8 @@ int_t parse_integer(const text_scanner& scanner, const token& at, std::int64_t m
   static_assert(std::is_integral_v<int_t>, "parse_integer needs an integer type");
   std::int64_t value = 0;
   if (!parse_int64(at.text, value)) {
-    scanner.fail(at, std::string("invalid ") + what + " '" + std::string(at.text) +
-                         "' (expected a decimal integer)");
+    scanner.fail(at, std::string("invalid ") + what + " " + quoted_token(at.text) +
+                         " (expected a decimal integer)");
   }
   if (value < minimum || value > maximum) {
     scanner.fail(at, std::string(what) + " " + std::to_string(value) + " out of range [" +

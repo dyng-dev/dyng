@@ -179,7 +179,12 @@ arguments), `read_binary_batches(path)` and the streaming `BatchReader(path)` (r
 One hyperedge per line: its vertex ids, decimal integers separated by spaces, tabs, carriage
 returns or commas, and for a weighted file ` ; w` at the end (w in [1, max]; `;` may touch its
 neighbours). A line whose **first** character is `#` or `%` is a comment; a line without ids is
-skipped. Each line's ids are sorted and deduplicated; hyperedge i of the result is the i-th kept
+skipped. Three files of other formats are refused at their first line with an `io_error` that
+names the format and its reader: a `.dgb` batch file (it starts with the magic `DYNGBAT1`), a
+`.dgt` batch file (a first line `%dgt ...`) and a Matrix Market file (a first line
+`%%MatrixMarket ...`, any case), which the comment rule would otherwise read as a hypergraph of
+its size line and entries. ESCHER-GPU's loader skips those two lines as comments; no `.hg` file of
+either original starts with them. Each line's ids are sorted and deduplicated; hyperedge i of the result is the i-th kept
 line (the id `hypergraph::from_hyperedges()` gives it). Tokens are whole integers with an
 optional `-` (no `+`). The format has no version field (see the top of this page): these are its
 rules as of 0.3, its version 1, a stable-tier format from 0.3.0.
@@ -203,7 +208,9 @@ The originals' preprocessing are two option sets:
 
 Errors are `io_error` with the path, line and column (a token that is not an integer, an id
 outside the range, a weight missing, misplaced or out of range, more vertices than the vertex
-type holds). The writer writes every hyperedge's members in list order plus `index_base`
+type holds); the messages of the common mistakes name the remedy in C++, Python and the command
+line (a weighted file read as unweighted, a 0-based file read with `index_base` 1), and a quoted
+token is cut after 32 bytes with its control bytes written as `\xHH`. The writer writes every hyperedge's members in list order plus `index_base`
 (default 1), separated by single spaces, and ` ; w` when weighted; it refuses empty hyperedges,
 members outside [0, n) and weights below 1. `datasets/preprocess/benson_to_hg.py` converts the
 timestamped simplicial datasets of Benson's collection (coauth-DBLP, ...) to `.hg` with either

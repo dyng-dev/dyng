@@ -6,10 +6,12 @@
  */
 #include "util/parser.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 namespace dyng::detail {
@@ -67,6 +69,42 @@ std::string read_file(const std::string& path) {
   return text;
 }
 
+namespace {
+
+/// `message` with its control bytes (below 0x20 but tab and newline, and 0x7f) written as `\xHH`:
+/// a token of a binary file quoted in a message would otherwise put raw bytes into it, or a NUL
+/// that ends what() there.
+std::string printable(const std::string& message) {
+  constexpr char digits[] = "0123456789abcdef";
+  std::string out;
+  out.reserve(message.size());
+  for (const char c : message) {
+    const auto u = static_cast<unsigned char>(c);
+    if ((u < 0x20U && c != '\t' && c != '\n') || u == 0x7fU) {
+      out += "\\x";
+      out += digits[u >> 4U];
+      out += digits[u & 0xfU];
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+}  // namespace
+
+std::string quoted_token(std::string_view text) {
+  constexpr std::size_t limit = 32;
+  if (text.size() <= limit) {
+    return "'" + std::string(text) + "'";
+  }
+  std::size_t cut = limit;
+  while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xc0U) == 0x80U) {
+    --cut;  // not inside a UTF-8 sequence
+  }
+  return "'" + std::string(text.substr(0, cut)) + "...'";
+}
+
 void throw_io_error(const std::string& path, std::int64_t line, std::int64_t column,
                     const std::string& message) {
   std::string where = path;
@@ -76,7 +114,7 @@ void throw_io_error(const std::string& path, std::int64_t line, std::int64_t col
       where += ":" + std::to_string(column);
     }
   }
-  throw io_error("dyng: " + where + ": " + message, path, line, column);
+  throw io_error("dyng: " + where + ": " + printable(message), path, line, column);
 }
 
 }  // namespace dyng::detail
