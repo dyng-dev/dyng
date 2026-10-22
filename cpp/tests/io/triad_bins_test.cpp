@@ -72,7 +72,9 @@ TEST(TriadBins, WriterText) {
   io::triad_bins b;
   b.kind = "stathyper_type1";
   b.graph_version = 2;
-  b.counts = {47093};
+  // assign(), not = {47093}: Ubuntu's GCC 12 at -O2 reported a false -Warray-bounds in the
+  // initializer_list assignment of one element (the cpu-only / gcc-12 job).
+  b.counts.assign(1, 47093);
   EXPECT_EQ(text_of(b),
             "{\n  \"format\": \"dyng.triad_bins\",\n  \"version\": 1,\n  \"kind\": "
             "\"stathyper_type1\",\n  \"num_bins\": 1,\n  \"graph_version\": 2,\n  \"counts\": "
