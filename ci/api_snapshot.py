@@ -86,8 +86,8 @@ DEFAULT_XML = REPO / "build" / "doxygen" / "xml"
 ALGORITHMS_DIR = REPO / "cpp" / "src" / "algorithms"
 
 # The core of the 0.1 freeze (PLAN Section 5, M3; ADR 0023) and the hypergraph container's
-# headers, frozen at M8b for 0.3 (PLAN 11.3; ADR 0047; stable from 0.3.0, which awaits the
-# author's confirmation at the release).
+# headers, frozen at M8b for 0.3 (PLAN 11.3; ADR 0047; stable from 0.3.0, the author's decision
+# of 2026-10-22).
 CORE_FROZEN = [
     "dyng/core/*",
     "dyng/graph/*",

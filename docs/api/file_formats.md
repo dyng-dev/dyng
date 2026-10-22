@@ -11,8 +11,12 @@ formats of dynG's own are a stable tier (PLAN 5.9): `.dgt` and `.dgb` carry thei
 version (`%dgt 1`; the `.dgb` header's version field), version 1 being the format of 0.3. `.hg`
 carries none: it is ESCHER-GPU's line format plus dynG's documented `; w` extension, kept
 without a version line so that both originals still read dynG's unweighted files
-(MOSP_ESCHER's loader rejects any non-numeric token); its 0.3 rules below are what is stable.
-That `.hg` and `.dgb` are stable from 0.3.0 awaits the author's confirmation at the release.
+(MOSP_ESCHER's loader rejects any non-numeric token); its 0.3 rules below are its version 1.
+From 0.3.0, `.hg`, `.dgb` (`DYNGBAT1`, format version 1) and the triad bins (`"dyng.triad_bins"`
+version 1) are **stable-tier formats** (the author's decision of 2026-10-22, GOVERNANCE.md;
+`.dgt` since 0.1.0): a later release reads every file of version 1 as this page describes it, and
+a change of a format's rules is a new format version with a CHANGELOG entry, never a silent
+change of version 1.
 
 ## MOSP text CSR (`read_csr_triplet` / `write_csr_triplet`)
 
@@ -99,7 +103,8 @@ update --batch FILE.dgt`.
 
 The binary form of the same batches, for benchmarks and replays: one file holds a sequence of
 graph batches or of hypergraph batches, read one batch at a time in bounded memory. **Format
-version 1** (0.3); every number is little-endian.
+version 1** (0.3; stable tier from 0.3.0, see the top of this page); every number is
+little-endian.
 
 **Header** (64 bytes):
 
@@ -177,7 +182,7 @@ neighbours). A line whose **first** character is `#` or `%` is a comment; a line
 skipped. Each line's ids are sorted and deduplicated; hyperedge i of the result is the i-th kept
 line (the id `hypergraph::from_hyperedges()` gives it). Tokens are whole integers with an
 optional `-` (no `+`). The format has no version field (see the top of this page): these are its
-rules as of 0.3.
+rules as of 0.3, its version 1, a stable-tier format from 0.3.0.
 
 The reader's options, applied in file order: `max_cardinality` drops hyperedges with more
 distinct vertices; `dedupe_hyperedges` keeps the first hyperedge of every distinct vertex set;
@@ -232,7 +237,9 @@ exactly once, in any order. The writers produce the same bytes as MOSP's `writeD
 ## Triad bins (JSON: `read_triad_bins_json` / `write_triad_bins_json`)
 
 The counts of a `triad_count` result (and, optionally, the deltas of its updates) as one JSON
-document (RFC 8259) of dynG's own, format `"dyng.triad_bins"` version 1 (0.3). Python:
+document (RFC 8259) of dynG's own, format `"dyng.triad_bins"` version 1 (0.3; a stable-tier
+format from 0.3.0, see the top of this page; the C++ and Python functions that read and write it
+are tracked with `dyng::io`). Python:
 `dyng.io.write_triad_bins()`, `read_triad_bins()`, `triad_bins_json()` and `dyng.io.TriadBins`;
 the command line's `dyng triad_count ... --format json` writes it.
 

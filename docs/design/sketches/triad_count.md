@@ -1,8 +1,8 @@
 # Sketch: `triad_count` (0.3)
 
 **Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); implemented in M9a
-(ADRs 0048-0057) and **frozen** at the end of M9b (ADR 0060; maturity `stable` from 0.3.0, pending
-the author's confirmation at the release): the frozen API is {doc}`../../api/cpp/triad_count`, and
+(ADRs 0048-0057) and **frozen** at the end of M9b (ADR 0060; maturity `stable` from 0.3.0, the
+author's decision of 2026-10-22): the frozen API is {doc}`../../api/cpp/triad_count`, and
 where it differs from this sketch the header wins (`stats::delta`, the `kind()` / `num_bins()`
 accessors that throw for a moved-from result rather than `noexcept`, the requirements checked per
 pattern). Both open questions are answered below. This page is kept as the record of the design.
