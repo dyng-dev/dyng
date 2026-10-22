@@ -60,7 +60,14 @@ template <typename vertex_t>
 void normalize_rows(array_view<const std::int64_t> offsets, array_view<const vertex_t> members,
                     vertex_t num_vertices, const char* what, detail::hyper::member_rows& out,
                     std::int64_t& dropped, bool batch_payload = false) {
-  (void)batch_payload;  // only a mutation reads it
+  // A batch's rows are its insertions: "inserted hyperedge i of the batch", not the id i (R030
+  // review), and a member outside the vertex set names where that set is fixed.
+  const char* row_name = batch_payload ? "inserted hyperedge " : "hyperedge ";
+  const char* of_batch = batch_payload ? " of the batch" : "";
+  const char* fixed = batch_payload
+                          ? " (the vertex count is fixed when the hypergraph is built: its "
+                            "num_vertices)"
+                          : "";
   out.clear();
   dropped = 0;
   if (offsets.empty()) {
@@ -85,14 +92,15 @@ void normalize_rows(array_view<const std::int64_t> offsets, array_view<const ver
   for (std::int64_t i = 0; i < num_rows; ++i) {
     const std::int64_t begin = offsets[static_cast<std::size_t>(i)];
     const std::int64_t end = offsets[static_cast<std::size_t>(i) + 1];
-    DYNG_EXPECTS(begin <= end, what, ": the offsets decrease at hyperedge ", i);
-    DYNG_EXPECTS(begin < end, what, ": hyperedge ", i, " is empty (a hyperedge needs a member)");
+    DYNG_EXPECTS(begin <= end, what, ": the offsets decrease at ", row_name, i, of_batch);
+    DYNG_EXPECTS(begin < end, what, ": ", row_name, i, of_batch,
+                 " is empty (a hyperedge needs a member)");
     row.clear();
     for (std::int64_t k = begin; k < end; ++k) {
       const vertex_t v = members[static_cast<std::size_t>(k)];
-      DYNG_EXPECTS(v >= 0 && v < num_vertices, what, ": hyperedge ", i, " has the vertex ",
-                   static_cast<std::int64_t>(v), ", outside [0, ",
-                   static_cast<std::int64_t>(num_vertices), ")");
+      DYNG_EXPECTS(v >= 0 && v < num_vertices, what, ": ", row_name, i, of_batch,
+                   " has the vertex ", static_cast<std::int64_t>(v), ", outside [0, ",
+                   static_cast<std::int64_t>(num_vertices), ")", fixed);
       row.push_back(static_cast<std::int32_t>(v));
     }
     std::sort(row.begin(), row.end());
