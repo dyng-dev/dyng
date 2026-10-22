@@ -38,9 +38,11 @@ license-files = ["LICENSE", "NOTICE", "LICENSES/Apache-2.0.txt", "THIRD_PARTY_LI
 authors = [{ name = "S M Shovan", email = "sm.shovan@gmail.com" }]
 keywords = [
   "dynamic graph",
+  "hypergraph",
   "batch update",
   "shortest paths",
   "cycle counting",
+  "triad counting",
   "GPU",
   "OpenMP",
   "graph algorithms",
@@ -62,8 +64,9 @@ classifiers = [
 dependencies = ["numpy>=1.26"]
 
 [project.scripts]
-# The command line (PLAN Section 5.6; ADR 0025): `dyng sssp ...`, `dyng cycle_count ...`,
-# `dyng prep ...`, `dyng convert`, `dyng generate`.
+# The command line (PLAN Section 5.6; ADR 0025): the algorithms `dyng sssp ...`, `dyng mosp ...`,
+# `dyng cycle_count ...` and `dyng triad_count ...`; the utilities `dyng prep ...`,
+# `dyng convert`, `dyng generate` and `dyng config`.
 dyng = "dyng.cli:main"
 
 [project.urls]
