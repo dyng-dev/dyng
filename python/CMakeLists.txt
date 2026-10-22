@@ -101,6 +101,7 @@ nanobind_add_module(
   bindings/mosp.cpp
   bindings/dynamic_bfs.cpp
   bindings/triangle_delta.cpp
+  bindings/triad_count.cpp
   bindings/update.cpp
   bindings/io.cpp
   bindings/generators.cpp

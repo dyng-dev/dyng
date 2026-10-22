@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+# Two hyperedge batches for examples/data/triad_count.hg (members are 0-based vertex ids:
+# file id - 1). Batch 0 deletes hyperedges 1 and 6 and inserts two; batch 1 deletes hyperedge 3
+# and inserts one.
+%dgt 1 hypergraph
+%batch 0
+-h 1
+-h 6
++h 0 4 8
++h 1 2 5 9
+%batch 1
+-h 3
++h 2 3 4

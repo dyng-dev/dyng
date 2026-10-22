@@ -21,12 +21,17 @@
  * dynG (the Op form, c6): the operations are value-initialized and read the h2v rows through the
  * rows handle the engine passes; the subtract and add phases name the exactly-once rule they
  * follow (ownership::min_member).
+ *
+ * dynG (M9b, ADR 0058): a count runs any Op through its table (local_patterns::kernels): the
+ * kernels of the four built-in operations are instantiated here (triad_device_launch()), those
+ * of the Ops of users in the users' translation units (<dyng/experimental/local_patterns.cuh>).
  */
 #include "algorithms/triad_count/engine/count_ops.hpp"
 #include "algorithms/triad_count/engine/counters.cuh"
 #include "algorithms/triad_count/engine/motif_ops.hpp"
 #include "algorithms/triad_count/engine/phases.hpp"
 #include "algorithms/triad_count/engine/stathyper_ops.hpp"
+#include "algorithms/triad_count/problem.hpp"
 #include "util/kernel_registry.hpp"
 
 namespace dyng::detail::triad {
@@ -35,33 +40,20 @@ namespace {
 
 /// The rows handle of a state's h2v view.
 hyperedge_rows rows_of(const hyper::row_views& views) {
-  return hyperedge_rows{views.h2v.flat, views.h2v.loc, views.h2v.len};
+  return make_rows(views.h2v.flat, views.h2v.loc, views.h2v.len);
 }
 
 }  // namespace
 
 // Full count: every triangle i < j < k of the line graph, one thread per
-// out-wedge (i, j), j > i (kernel/wedge.cuh), classified into 30 bins.
-wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& views,
-                         unsigned long long* d_bins, unsigned long long* d_error,
-                         const wedge::scratch& s) {
-  const hyperedge_rows rows = rows_of(views);
+// out-wedge (i, j), j > i (kernel/wedge.cuh), classified into 30 bins (h_motif; the Op's bins).
+wedge::launch count_full(const local_patterns::kernels& k, const void* op,
+                         const hyper::row_views& views, unsigned long long* d_bins,
+                         unsigned long long* d_error, const wedge::scratch& s) {
   // dynG: the source keys of phases.hpp (shared with the host engine).
-  const int keys = full_count_keys(kind, views);
-  switch (kind) {
-    case triad_count::pattern::h_motif:  // computeMotifCounts
-      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, motif_op{}, d_bins,
-                                    d_error, s);
-    case triad_count::pattern::stathyper_type1:  // Type1Counter::count
-      return wedge::count_keys(rows, nullptr, keys, choose3_op{}, d_bins, d_error, s);
-    case triad_count::pattern::stathyper_type2:  // Type2Counter::count
-      return wedge::count_pairs(views.h2h, rows, nullptr, keys, nullptr, type2_op{}, d_bins,
-                                d_error, s);
-    case triad_count::pattern::stathyper_type3:  // Type3Counter::count
-      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, type3_op{}, d_bins,
-                                    d_error, s);
-  }
-  return wedge::launch::no_sources;
+  const int keys = full_count_keys(k.pattern_shape, views);
+  return wedge::count_shape(k, op, views.h2h, rows_of(views), nullptr, keys, nullptr, d_bins,
+                            d_error, s);
 }
 
 // Exact frontier-incident delta: the triangles containing at least one
@@ -70,33 +62,41 @@ wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& view
 // deleted hyperedges, add on the new snapshot with the inserted ones; one
 // thread per frontier wedge (f, j) (kernel/wedge.cuh). dynG (ADR 0057): both phases add unsigned
 // magnitudes; the caller keeps the phase's sign.
-wedge::launch count_phase(triad_count::pattern kind, const hyper::row_views& views,
-                          const int* d_keys, int num_keys, const unsigned char* d_flags,
-                          framework::ownership::min_member /*rule*/, unsigned long long* d_bins,
-                          unsigned long long* d_error, const wedge::scratch& s) {
+wedge::launch count_phase(const local_patterns::kernels& k, const void* op,
+                          const hyper::row_views& views, const int* d_keys, int num_keys,
+                          const unsigned char* d_flags, framework::ownership::min_member /*rule*/,
+                          unsigned long long* d_bins, unsigned long long* d_error,
+                          const wedge::scratch& s) {
   if (num_keys == 0) return wedge::launch::no_sources;
-  const hyperedge_rows rows = rows_of(views);
+  // The keys shape reads no flags (type 1: Type1Counter::phase).
+  const unsigned char* flags = k.pattern_shape == experimental::shape::keys ? nullptr : d_flags;
+  return wedge::count_shape(k, op, views.h2h, rows_of(views), d_keys, num_keys, flags, d_bins,
+                            d_error, s);
+}
+
+}  // namespace dyng::detail::triad
+
+namespace dyng::detail {
+
+local_patterns::launch_fn triad_device_launch(triad_count::pattern kind) noexcept {
   switch (kind) {
-    case triad_count::pattern::h_motif:  // runFrontierPhase
-      return wedge::count_triangles(views.h2h, rows, d_keys, num_keys, d_flags, motif_op{}, d_bins,
-                                    d_error, s);
-    case triad_count::pattern::stathyper_type1:  // Type1Counter::phase
-      return wedge::count_keys(rows, d_keys, num_keys, choose3_op{}, d_bins, d_error, s);
-    case triad_count::pattern::stathyper_type2:  // Type2Counter::phase
-      return wedge::count_pairs(views.h2h, rows, d_keys, num_keys, d_flags, type2_op{}, d_bins,
-                                d_error, s);
-    case triad_count::pattern::stathyper_type3:  // Type3Counter::phase
-      return wedge::count_triangles(views.h2h, rows, d_keys, num_keys, d_flags, type3_op{}, d_bins,
-                                    d_error, s);
+    case triad_count::pattern::h_motif:  // computeMotifCounts, runFrontierPhase
+      return &local_patterns::launch<triad::motif_op>;
+    case triad_count::pattern::stathyper_type1:  // Type1Counter
+      return &local_patterns::launch<triad::choose3_op>;
+    case triad_count::pattern::stathyper_type2:  // Type2Counter
+      return &local_patterns::launch<triad::type2_op>;
+    case triad_count::pattern::stathyper_type3:  // Type3Counter
+      return &local_patterns::launch<triad::type3_op>;
   }
-  return wedge::launch::no_sources;
+  return nullptr;
 }
 
 // The kernels, once per operation (resources::warm_up() loads them).
-DYNG_REGISTER_KERNEL(wedge::count_wedges_kernel);
-DYNG_REGISTER_KERNEL(wedge::triangle_kernel<motif_op>);
-DYNG_REGISTER_KERNEL(wedge::triangle_kernel<type3_op>);
-DYNG_REGISTER_KERNEL(wedge::pair_kernel<type2_op>);
-DYNG_REGISTER_KERNEL(wedge::key_kernel<choose3_op>);
+DYNG_REGISTER_KERNEL(triad::wedge::count_wedges_kernel);
+DYNG_REGISTER_KERNEL(local_patterns::triangle_kernel<triad::motif_op>);
+DYNG_REGISTER_KERNEL(local_patterns::triangle_kernel<triad::type3_op>);
+DYNG_REGISTER_KERNEL(local_patterns::pair_kernel<triad::type2_op>);
+DYNG_REGISTER_KERNEL(local_patterns::key_kernel<triad::choose3_op>);
 
-}  // namespace dyng::detail::triad
+}  // namespace dyng::detail

@@ -1729,6 +1729,127 @@ def triangle_delta_update(resources: Resources, graph: GraphI32I32U, batch: Edge
 @overload
 def triangle_delta_update(resources: Resources, graph: GraphI32I64U, batch: EdgeBatchI32U, result: TriangleDeltaResult) -> TriangleDeltaStats: ...
 
+class TriadPattern(enum.Enum):
+    """triad_count::pattern."""
+
+    h_motif = 0
+
+    stathyper_type1 = 1
+
+    stathyper_type2 = 2
+
+    stathyper_type3 = 3
+
+triad_count_max_bins: int = 30
+
+class TriadCountOptions:
+    """triad_count::options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def kind(self) -> TriadPattern: ...
+
+    @kind.setter
+    def kind(self, arg: TriadPattern, /) -> None: ...
+
+    @property
+    def cuda_engine(self) -> Engine: ...
+
+    @cuda_engine.setter
+    def cuda_engine(self, arg: Engine, /) -> None: ...
+
+class TriadCountStats:
+    """triad_count::stats."""
+
+    @property
+    def affected(self) -> int: ...
+
+    @property
+    def iterations(self) -> int: ...
+
+    @property
+    def frontier_visits(self) -> int: ...
+
+    @property
+    def fallback_used(self) -> bool: ...
+
+    @property
+    def converged(self) -> bool: ...
+
+    @property
+    def engine_used(self) -> Engine: ...
+
+    @property
+    def batch(self) -> HyperApplySummary: ...
+
+    @property
+    def deleted_frontier(self) -> int: ...
+
+    @property
+    def inserted_frontier(self) -> int: ...
+
+    @property
+    def triads_removed(self) -> int: ...
+
+    @property
+    def triads_added(self) -> int: ...
+
+    @property
+    def delta(self) -> Annotated[NDArray[numpy.int64], dict(shape=(None,))]:
+        """
+        The change of every bin (an int64 copy of max_bins values; 0 at and above the result's num_bins()).
+        """
+
+class TriadCountResult:
+    """A triad_count::result (private)."""
+
+    def counts(self) -> Annotated[NDArray[numpy.uint64], dict(shape=(None,))]: ...
+
+    def count(self, bin: int) -> int: ...
+
+    @property
+    def total(self) -> int: ...
+
+    @property
+    def num_bins(self) -> int: ...
+
+    @property
+    def kind(self) -> TriadPattern: ...
+
+    @property
+    def writer(self) -> Resources | None:
+        """The resources of the call that last wrote this result."""
+
+    @property
+    def generation(self) -> int:
+        """The number of updates of this result."""
+
+    @property
+    def options(self) -> TriadCountOptions: ...
+
+    def set_options(self, options: TriadCountOptions) -> None: ...
+
+    @property
+    def graph_version(self) -> int: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    def clone(self, resources: Resources) -> TriadCountResult: ...
+
+@overload
+def triad_count_compute(resources: Resources, hypergraph: HypergraphI32U, options: TriadCountOptions) -> TriadCountResult: ...
+
+@overload
+def triad_count_compute(resources: Resources, hypergraph: HypergraphI32I32, options: TriadCountOptions) -> TriadCountResult: ...
+
+@overload
+def triad_count_update(resources: Resources, hypergraph: HypergraphI32U, batch: HyperedgeBatchI32U, result: TriadCountResult) -> TriadCountStats: ...
+
+@overload
+def triad_count_update(resources: Resources, hypergraph: HypergraphI32I32, batch: HyperedgeBatchI32I32, result: TriadCountResult) -> TriadCountStats: ...
+
 @overload
 def update(resources: Resources, graph: GraphI32I32I32, batch: EdgeBatchI32I32, results: list) -> list: ...
 
@@ -1744,6 +1865,15 @@ def update(resources: Resources, graph: GraphI32I32U, batch: EdgeBatchI32U, resu
 @overload
 def update(resources: Resources, graph: GraphI32I64U, batch: EdgeBatchI32U, results: list) -> list:
     """Apply one batch and update every result (a list of result objects)."""
+
+@overload
+def update(resources: Resources, graph: HypergraphI32U, batch: HyperedgeBatchI32U, results: list) -> list: ...
+
+@overload
+def update(resources: Resources, graph: HypergraphI32I32, batch: HyperedgeBatchI32I32, results: list) -> list:
+    """
+    Apply one batch to a hypergraph and update every result (a list of result objects).
+    """
 
 class VertexIds(enum.Enum):
     """io::vertex_ids."""
@@ -2068,6 +2198,16 @@ def write_path_costs(path: str, costs: Annotated[NDArray[numpy.int64], dict(shap
 
 def histogram_csv(counts: Annotated[NDArray[numpy.uint64], dict(shape=(None,), order='C', device='cpu', writable=False)], include_total: bool) -> str:
     """The cycle histogram as CycleEnumeration-GPU's CSV text."""
+
+def triad_bins_json(kind: str, graph_version: int, counts: Annotated[NDArray[numpy.uint64], dict(shape=(None,), order='C', device='cpu', writable=False)], deltas: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)]) -> str:
+    """The triad-bins JSON text."""
+
+def write_triad_bins(path: str, kind: str, graph_version: int, counts: Annotated[NDArray[numpy.uint64], dict(shape=(None,), order='C', device='cpu', writable=False)], deltas: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)]) -> None: ...
+
+def read_triad_bins(path: str) -> tuple:
+    """
+    (kind, graph_version, counts uint64, deltas int64 of shape (rows, bins)).
+    """
 
 class MospChangeMode(enum.Enum):
     """generators::legacy::mosp_change_mode."""
@@ -2476,6 +2616,11 @@ def citation_keys(what: str) -> list[str]:
 
 def testing_rebuild_line_graph(offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_vertices: int) -> tuple:
     """MOSP_ESCHER's rebuildLineGraph over h2v rows: (offsets, neighbours)."""
+
+def testing_triad_reference(offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_vertices: int, pattern: str, threads: int) -> Annotated[NDArray[numpy.uint64], dict(shape=(None,))]:
+    """
+    ESCHER-GPU's CPU reference triad counts of a hyperedge list (testing::triad_reference).
+    """
 
 class SsspTreeCheck:
     """testing::sssp_tree_check."""

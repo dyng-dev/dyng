@@ -16,6 +16,7 @@
 #include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
+#include <dyng/triad_count.hpp>
 
 #include <optional>
 
@@ -35,6 +36,9 @@ using cycle_count_holder = result_holder<cycle_count::result>;
 /// The holder of a mosp result.
 template <typename vertex_t>
 using mosp_holder = result_holder<mosp::result<vertex_t>>;
+
+/// The holder of a triad_count result.
+using triad_count_holder = result_holder<triad_count::result>;
 
 /**
  * @brief A batch of edge changes whose arrays are Python arrays (kept alive, never copied).

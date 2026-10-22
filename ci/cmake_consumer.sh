@@ -10,7 +10,20 @@
 # finds the installed package (SameMinorVersion before 1.0, cmake/install.cmake), as
 # `find_package(dyng 0.1 REQUIRED)` did with 0.2.0rc1 (R020).
 #
+# Two more consumers of the installed package (M9b, ADR 0058: experimental::count_local_patterns):
+#
+#   - host_only: includes <dyng/experimental/local_patterns.hpp> (never the extension header
+#     local_patterns.cuh), reads a hypergraph's rows with experimental::access_rows() and counts
+#     with triad_count, configured as a CXX-only project: a program that does not use an Op needs
+#     no CUDA, whatever the installed build;
+#   - op (CUDA builds only): a user Op compiled by nvcc against the installed package
+#     (find_package(dyng), project(... CXX CUDA), no flag of dynG's own build), counted with
+#     count_local_patterns on cuda and on the host backends, updated under a batch and compared
+#     with triad_count and with a fresh compute(). It runs on the GPU of CUDA_VISIBLE_DEVICES
+#     (ci/gpu_local.sh runs it on GPU 1); without a visible GPU it runs the host backends only.
+#
 #   ci/cmake_consumer.sh [build directory]     # default build/cpu-only (ci/check.sh, step consumer)
+#   ci/cmake_consumer.sh build/dev-cuda        # also the nvcc consumer (ci/gpu_local.sh)
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -71,3 +84,102 @@ if [ "${got}" != "${want}" ]; then
   exit 1
 fi
 echo "cmake_consumer: OK (the documented find_package() finds and links dynG ${got})"
+
+major_minor="$(cut -d. -f1-2 "${repo_root}/VERSION")"
+src="${repo_root}/ci/consumer"
+
+# The host-only consumer: the experimental host header, no CUDA language.
+mkdir -p "${tmp}/host_only"
+cat >"${tmp}/host_only/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.30)
+project(dyng_host_only CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(dyng ${major_minor} REQUIRED)
+add_executable(host_only "${src}/host_only.cpp")
+target_link_libraries(host_only PRIVATE dyng::dyng)
+CMAKE
+cmake -S "${tmp}/host_only" -B "${tmp}/host_only/build" -G Ninja \
+  -DCMAKE_PREFIX_PATH="${tmp}/prefix" -DCMAKE_BUILD_TYPE=Release >"${tmp}/host_only.log" 2>&1 &&
+  cmake --build "${tmp}/host_only/build" >>"${tmp}/host_only.log" 2>&1 || {
+  cat "${tmp}/host_only.log"
+  echo "cmake_consumer: the host-only consumer of the experimental header does not build" >&2
+  exit 1
+}
+"${tmp}/host_only/build/host_only" || {
+  echo "cmake_consumer: the host-only consumer failed" >&2
+  exit 1
+}
+echo "cmake_consumer: OK (a host-only program uses the installed experimental host header)"
+
+# The triad_count example against the installed package (PLAN 9.6, M9b): examples/cpp/
+# triad_count_update.cpp built with find_package(dyng) and run on examples/data, its output
+# compared with the committed expected output by examples/cpp/compare_output.cmake (the in-tree
+# CTest example.triad_count_update.* does the same in the build tree). Backends: sequential,
+# openmp when the build has it, cuda when it has CUDA and a device is visible (77 = skipped).
+mkdir -p "${tmp}/triad_example"
+cat >"${tmp}/triad_example/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.30)
+project(dyng_triad_example CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(dyng ${major_minor} REQUIRED)
+add_executable(triad_count_update "${repo_root}/examples/cpp/triad_count_update.cpp")
+target_link_libraries(triad_count_update PRIVATE dyng::dyng)
+CMAKE
+cmake -S "${tmp}/triad_example" -B "${tmp}/triad_example/build" -G Ninja \
+  -DCMAKE_PREFIX_PATH="${tmp}/prefix" -DCMAKE_BUILD_TYPE=Release >"${tmp}/triad_example.log" 2>&1 &&
+  cmake --build "${tmp}/triad_example/build" >>"${tmp}/triad_example.log" 2>&1 || {
+  cat "${tmp}/triad_example.log"
+  echo "cmake_consumer: examples/cpp/triad_count_update.cpp does not build against the" \
+    "installed package" >&2
+  exit 1
+}
+data="${repo_root}/examples/data"
+backends="sequential"
+grep -q '^DYNG_ENABLE_OPENMP:BOOL=ON' "${build}/CMakeCache.txt" && backends="${backends} openmp"
+grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt" && backends="${backends} cuda"
+for b in ${backends}; do
+  rc=0
+  cmake "-DEXE=${tmp}/triad_example/build/triad_count_update" \
+    "-DARGS=${data}/triad_count.hg|${data}/triad_count.dgt|${b}" \
+    "-DEXPECTED=${data}/triad_count_update.expected.txt" \
+    -P "${repo_root}/examples/cpp/compare_output.cmake" >"${tmp}/triad_example.${b}.log" 2>&1 || rc=$?
+  if [ "${rc}" -eq 77 ] || grep -q 'skipped (exit code 77)' "${tmp}/triad_example.${b}.log"; then
+    echo "cmake_consumer: triad_count_update ${b}: skipped (no CUDA device visible)"
+  elif [ "${rc}" -ne 0 ]; then
+    cat "${tmp}/triad_example.${b}.log"
+    echo "cmake_consumer: the installed triad_count example differs from its expected output" \
+      "on ${b}" >&2
+    exit 1
+  fi
+done
+echo "cmake_consumer: OK (examples/cpp/triad_count_update.cpp, built against the installed" \
+  "package, prints its expected output on: ${backends})"
+
+# The nvcc consumer: a user Op against the installed package (CUDA builds only).
+if ! grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt"; then
+  echo "cmake_consumer: ${build} has no CUDA; the nvcc consumer of count_local_patterns is skipped"
+  exit 0
+fi
+nvcc="$(sed -n 's/^CMAKE_CUDA_COMPILER:[A-Z]*=//p' "${build}/CMakeCache.txt")"
+mkdir -p "${tmp}/op"
+# The tutorial's CMakeLists.txt, unchanged (it quotes ci/consumer/op.CMakeLists.txt).
+if ! grep -qx "find_package(dyng ${major_minor} REQUIRED)" "${src}/op.CMakeLists.txt"; then
+  echo "cmake_consumer: ci/consumer/op.CMakeLists.txt does not ask for dyng ${major_minor}" \
+    "(update it and the tutorial's quote pin: ci/tutorial_quotes.py --update)" >&2
+  exit 1
+fi
+cp "${src}/op.CMakeLists.txt" "${tmp}/op/CMakeLists.txt"
+cp "${src}/op.cu" "${tmp}/op/my_patterns.cu"
+cmake -S "${tmp}/op" -B "${tmp}/op/build" -G Ninja -DCMAKE_CUDA_COMPILER="${nvcc}" \
+  -DCMAKE_PREFIX_PATH="${tmp}/prefix" -DCMAKE_BUILD_TYPE=Release >"${tmp}/op.log" 2>&1 &&
+  cmake --build "${tmp}/op/build" >>"${tmp}/op.log" 2>&1 || {
+  cat "${tmp}/op.log"
+  echo "cmake_consumer: a user Op does not build with nvcc against the installed package" >&2
+  exit 1
+}
+"${tmp}/op/build/my_patterns" || {
+  echo "cmake_consumer: the user Op's program failed" >&2
+  exit 1
+}
+echo "cmake_consumer: OK (a user Op compiled by nvcc against the installed package counts on" \
+  "every backend)"

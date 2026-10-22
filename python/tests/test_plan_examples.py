@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
-"""The Python examples of PLAN Section 5.5 (the 0.1 parts), on the small fixture files."""
+"""The Python examples of PLAN Section 5.5 (the 0.1 parts and, from 0.3, triad_count), on small
+fixture files."""
 
 from __future__ import annotations
 
@@ -64,3 +65,29 @@ def test_several_results_example(data: Path) -> None:
     assert hist.counts.tolist() == dyng.cycle_count.compute(g, max_length=3).counts.tolist()
     assert tree.distances.tolist() == dyng.sssp.compute(g, 0).distances.tolist()
     print(dyng.citation("sssp")[:10])
+
+
+def test_triad_count_example(tmp_path: Path) -> None:
+    # PLAN 5.5's triad_count lines, adapted as ADR 0041 (section 1) and ADR 0046 (item 2) record:
+    # HyperApplySummary.inserted_ids is already an int64 NumPy array, so the plan's
+    # `.to_numpy()` is dropped. A 60-hyperedge stand-in for coauth-DBLP.hg (ids 1-based, as
+    # ESCHER-GPU's files; the batch deletes ids 17 and 42 and inserts over vertices up to 41).
+    lines = [f"{1 + i % 45} {1 + (3 * i) % 47} {1 + (7 * i) % 43}" for i in range(60)]
+    lines += lines[:5]  # repeated hyperedges, which dedupe_hyperedges=True drops
+    (tmp_path / "coauth-DBLP.hg").write_text("\n".join(lines) + "\n")
+    hg = dyng.io.read_hypergraph(
+        tmp_path / "coauth-DBLP.hg", dedupe_hyperedges=True, line_graph="sorted_merge"
+    )
+    assert hg.num_hyperedges == 60
+    tri = dyng.triad_count.compute(hg)  # kind="h_motif": 30 bins
+    hb = dyng.HyperedgeBatch(
+        delete_hyperedges=[17, 42], insert_hyperedges=[[3, 9, 12], [9, 12, 40, 41]]
+    )
+    st = dyng.triad_count.update(hg, hb, tri)
+    print(st.batch.inserted_ids, st.delta)
+    print(dyng.citation("triad_count"))
+    # the store's best-fit choice (read the ids there, never predict them)
+    assert st.batch.inserted_ids.dtype == np.int64 and st.batch.inserted_ids.size == 2
+    assert st.delta.size == 30 and tri.num_bins == 30
+    assert tri.counts.tolist() == dyng.triad_count.compute(hg).counts.tolist()
+    assert "escher2026" in dyng.citation("triad_count")

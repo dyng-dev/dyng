@@ -1,0 +1,14 @@
+
+{
+  "format": "dyng.triad_bins",
+  "version": 1,
+  "kind": "stathyper_type1",
+  "num_bins": 1,
+  "graph_version": 3,
+  "counts": [46896],
+  "deltas": [
+    [-60],
+    [-164],
+    [27]
+  ]
+}

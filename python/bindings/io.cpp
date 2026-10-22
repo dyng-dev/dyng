@@ -578,6 +578,59 @@ void bind_io(nb::module_& m) {
       },
       nb::arg("counts").noconvert(), nb::arg("include_total"),
       "The cycle histogram as CycleEnumeration-GPU's CSV text.");
+
+  // Triad bins (JSON): the deltas travel as one flat int64 array of rows * num_bins values.
+  const auto make_bins = [](const std::string& kind, std::uint64_t graph_version,
+                            const in_array<std::uint64_t>& counts,
+                            const in_array<std::int64_t>& deltas) {
+    io::triad_bins b;
+    b.kind = kind;
+    b.graph_version = graph_version;
+    b.counts.assign(counts.data(), counts.data() + counts.shape(0));
+    const auto n = static_cast<std::size_t>(io::triad_bins_size(kind));
+    DYNG_EXPECTS(deltas.shape(0) % n == 0, "write_triad_bins: ", deltas.shape(0),
+                 " delta values are not rows of ", n, " bins");
+    for (std::size_t r = 0; r < deltas.shape(0) / n; ++r) {
+      b.deltas.emplace_back(deltas.data() + r * n, deltas.data() + (r + 1) * n);
+    }
+    return b;
+  };
+  m.def(
+      "triad_bins_json",
+      [make_bins](const std::string& kind, std::uint64_t graph_version,
+                  const in_array<std::uint64_t>& counts, const in_array<std::int64_t>& deltas) {
+        const io::triad_bins b = make_bins(kind, graph_version, counts, deltas);
+        return without_gil([&] {
+          std::ostringstream out;
+          io::write_triad_bins_json(out, b);
+          return out.str();
+        });
+      },
+      nb::arg("kind"), nb::arg("graph_version"), nb::arg("counts").noconvert(),
+      nb::arg("deltas").noconvert(), "The triad-bins JSON text.");
+  m.def(
+      "write_triad_bins",
+      [make_bins](const std::string& path, const std::string& kind, std::uint64_t graph_version,
+                  const in_array<std::uint64_t>& counts, const in_array<std::int64_t>& deltas) {
+        const io::triad_bins b = make_bins(kind, graph_version, counts, deltas);
+        without_gil([&] { io::write_triad_bins_json(path, b); });
+      },
+      nb::arg("path"), nb::arg("kind"), nb::arg("graph_version"), nb::arg("counts").noconvert(),
+      nb::arg("deltas").noconvert());
+  m.def(
+      "read_triad_bins",
+      [](const std::string& path) {
+        io::triad_bins b = without_gil([&] { return io::read_triad_bins_json(path); });
+        std::vector<std::int64_t> flat;
+        for (const auto& row : b.deltas) {
+          flat.insert(flat.end(), row.begin(), row.end());
+        }
+        const std::size_t rows = b.deltas.size();
+        const std::size_t n = b.counts.size();
+        return nb::make_tuple(b.kind, b.graph_version, to_numpy(std::move(b.counts)),
+                              to_numpy_2d(std::move(flat), rows, n));
+      },
+      nb::arg("path"), "(kind, graph_version, counts uint64, deltas int64 of shape (rows, bins)).");
 }
 
 }  // namespace dyng::python

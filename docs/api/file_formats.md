@@ -229,6 +229,47 @@ are written as `INF`), and one line `v p` per vertex (`p = -1` for none). Every 
 exactly once, in any order. The writers produce the same bytes as MOSP's `writeDistances()` and
 `writeParents()`.
 
+## Triad bins (JSON: `read_triad_bins_json` / `write_triad_bins_json`)
+
+The counts of a `triad_count` result (and, optionally, the deltas of its updates) as one JSON
+document (RFC 8259) of dynG's own, format `"dyng.triad_bins"` version 1 (0.3). Python:
+`dyng.io.write_triad_bins()`, `read_triad_bins()`, `triad_bins_json()` and `dyng.io.TriadBins`;
+the command line's `dyng triad_count ... --format json` writes it.
+
+```json
+{
+  "format": "dyng.triad_bins",
+  "version": 1,
+  "kind": "stathyper_type1",
+  "num_bins": 1,
+  "graph_version": 3,
+  "counts": [46896],
+  "deltas": [
+    [-60],
+    [-164],
+    [27]
+  ]
+}
+```
+
+| Key | Value | Required |
+|---|---|---|
+| `format` | the string `"dyng.triad_bins"` | yes |
+| `version` | the integer `1` (a reader of version 1 rejects any other) | yes |
+| `kind` | the pattern: `"h_motif"`, `"stathyper_type1"`, `"stathyper_type2"` or `"stathyper_type3"` (`triad_count::to_string()`) | yes |
+| `num_bins` | the kind's bins: 30 for `"h_motif"`, 1 for the others | yes |
+| `graph_version` | the hypergraph version the counts match, an integer in [0, 2^64 - 1] | no (0) |
+| `counts` | `num_bins` integers in [0, 2^64 - 1]: bin k of `"h_motif"` is ESCHER-GPU's h-motif k + 1 (bins 20-25, its open triads 21-26, are always 0); the one bin of a StatHyper type its sum | yes |
+| `deltas` | an array of rows, one per applied batch in batch order, each `num_bins` integers in the signed 64-bit range (`triad_count::stats::delta`); the counts are the baseline plus the sum of the rows | no (no rows) |
+
+Integers are written without a fraction or an exponent and must be read the same way (`1.0` or
+`1e3` where an integer is expected is an error). Other keys are ignored (any JSON value); a
+repeated key, an invalid string escape or surrogate, nesting deeper than 64 levels or anything
+after the object is an error with its line and column. The writer emits the keys in the order of
+the table, two-space indentation, each array on one line (each row of `deltas` on its own line),
+and no `deltas` key when there are none, followed by a newline; it checks the kind and the
+lengths first and writes nothing on an error.
+
 ## Matrix Market (`read_matrix_market` / `write_matrix_market`)
 
 `%%MatrixMarket matrix coordinate <field> <symmetry>` with field `real`, `double`, `integer`,

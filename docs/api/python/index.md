@@ -4,7 +4,7 @@
 and from 0.3 the hypergraph: `dyng.Hypergraph`, `dyng.HyperedgeBatch`,
 `dyng.HypergraphProperties`, `dyng.CapacityPolicy`, `dyng.HyperApplySummary`;
 {doc}`../../how_to/use_hypergraphs_from_python`) and the modules `dyng.sssp`,
-`dyng.cycle_count`, `dyng.mosp` (0.2), the tutorial algorithms `dyng.dynamic_bfs` and
+`dyng.cycle_count`, `dyng.mosp` (0.2), `dyng.triad_count` (0.3), the tutorial algorithms `dyng.dynamic_bfs` and
 `dyng.triangle_delta` (0.2), `dyng.io`, `dyng.generators` and `dyng.testing`. The
 names mirror the C++ API ({doc}`../cpp/index`): `dyng::sssp::compute` is `dyng.sssp.compute`,
 `dyng::sssp::options` is `dyng.sssp.Options`, and option keywords are the C++ field names
@@ -86,7 +86,8 @@ inputs:
 
 ## Result arrays
 
-Result arrays (`tree.distances`, `tree.parents`, `hist.counts`, `paths.path_costs`) are
+Result arrays (`tree.distances`, `tree.parents`, `hist.counts`, `paths.path_costs`; not
+`dyng.triad_count`'s `counts`, a read-only NumPy copy of at most 30 host values) are
 {py:class}`dyng.Array` objects (1-D, except the (n, K) path costs of `dyng.mosp`): read-only, zero-copy views with `__dlpack__`, `__dlpack_device__` and
 `__array_interface__`, so `np.asarray(a)`, `np.from_dlpack(a)` and `torch.from_dlpack(a)` see the
 library's memory without a copy, and every view keeps that memory alive. An Array belongs to one
@@ -123,7 +124,8 @@ tree)` applies the batch to `g` and brings `tree` up to date; another result on 
 then stale, and using it raises {py:class}`dyng.StaleResultError`. To keep several results
 current, update them together: `dyng.update(g, batch, tree, hist)` applies the batch once and
 returns one `Stats` per result (any mix of `dyng.sssp`, `dyng.cycle_count` and `dyng.mosp`
-results).
+results; over a hypergraph, from 0.3, any number of `dyng.triad_count` results:
+`dyng.update(hg, hb, motifs, type1)`).
 
 ## Exceptions
 

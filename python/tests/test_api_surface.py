@@ -34,6 +34,7 @@ PUBLIC = [
     "sssp",
     "cycle_count",
     "mosp",
+    "triad_count",
     "io",
     "generators",
     "testing",
@@ -100,7 +101,10 @@ def test_uniform_contract(name: str) -> None:
     for attr in ("Options", "Result", "Stats", "compute", "update"):
         assert hasattr(module, attr), f"dyng.{name}.{attr}"
     update = inspect.signature(module.update)
-    assert list(update.parameters)[:3] == ["graph", "batch", "result"]
+    # The first parameter names the container (ADR 0059): graph, or hypergraph for triad_count.
+    container = ALGORITHMS[name]["container"]
+    assert list(update.parameters)[:3] == [container, "batch", "result"]
+    assert list(inspect.signature(module.compute).parameters)[0] == container
     assert update.parameters["resources"].kind is inspect.Parameter.KEYWORD_ONLY
     compute = inspect.signature(module.compute)
     assert compute.parameters["resources"].kind is inspect.Parameter.KEYWORD_ONLY
@@ -165,6 +169,7 @@ def test_stubs_are_committed() -> None:
     text = stub.read_text(encoding="utf-8")
     assert "def sssp_compute" in text and "class GraphI32I32I32" in text
     assert "class HypergraphI32U" in text and "class HypergraphI32I32" in text
+    assert "def triad_count_compute" in text and "class TriadCountResult" in text
     assert (importlib.resources.files(pkg) / "py.typed").is_file()
 
 
@@ -174,6 +179,7 @@ def test_stubs_are_committed() -> None:
         (dyng.sssp.Options, "SsspOptions"),
         (dyng.cycle_count.Options, "CycleCountOptions"),
         (dyng.mosp.Options, "MospOptions"),
+        (dyng.triad_count.Options, "TriadCountOptions"),
         (dyng.dynamic_bfs.Options, "DynamicBfsOptions"),
         (dyng.triangle_delta.Options, "TriangleDeltaOptions"),
         (dyng.GraphProperties, "GraphProperties"),

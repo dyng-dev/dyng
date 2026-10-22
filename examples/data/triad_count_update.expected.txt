@@ -1,0 +1,8 @@
+11 hyperedges: 45 triads, type1 20
+  bins 3:2 9:9 14:19 15:6 28:1 29:8
+batch 0: 2 deleted, inserted ids 1 6
+  h_motif -27 +35 = 53, type1 -5 +5 = 20
+  delta 3:1 9:7 14:-6 15:-1 27:2 29:5
+batch 1: 1 deleted, inserted ids 3
+  h_motif -16 +21 = 58, type1 -1 +1 = 20
+  delta 3:2 6:7 9:-5 14:-3 29:4

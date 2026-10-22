@@ -23,11 +23,16 @@ install(
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+# The public headers: *.hpp (host-compilable) and the extension headers *.cuh, which need nvcc
+# (PLAN Section 4.1: dyng/experimental/*.cuh and their detail headers; M9b, ADR 0058). A CPU-only
+# install carries them too: a program compiled by nvcc against a CPU-only libdyng runs its Ops on
+# the host backends.
 install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/cpp/include/dyng"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   FILES_MATCHING
   PATTERN "*.hpp"
+  PATTERN "*.cuh"
 )
 install(
   FILES "${DYNG_GENERATED_INCLUDE_DIR}/dyng/version.hpp" "${DYNG_GENERATED_INCLUDE_DIR}/dyng/config.hpp"

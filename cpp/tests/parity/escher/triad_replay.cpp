@@ -7,6 +7,7 @@
 #include "parity/escher/triad_replay.hpp"
 
 #include "parity/escher/escher_dump.hpp"
+#include "parity/escher/triad_replay_counter.hpp"
 
 #include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
@@ -35,32 +36,7 @@ namespace dyng::test::triad_replay {
 namespace {
 
 namespace ed = dyng::test::escher_dump;
-using hgraph = dyng::hypergraph<std::int32_t, dyng::unweighted>;
 using host_batch = dyng::hyperedge_batch<std::int32_t, dyng::unweighted>;
-using batch_view = dyng::hyperedge_batch_view<std::int32_t, dyng::unweighted>;
-
-/**
- * The counter evaluated after the build and after every batch. apply() applies the batch (a
- * counter that maintains counts applies it through dyng::update) and returns the summary; counts()
- * gives the counts of the current state.
- */
-class counter {
- public:
-  counter() = default;
-  counter(const counter&) = delete;
-  counter& operator=(const counter&) = delete;
-  counter(counter&&) = delete;
-  counter& operator=(counter&&) = delete;
-  virtual ~counter() = default;
-  virtual void build(const resources& res, hgraph& h) = 0;
-  virtual hyper_apply_summary apply(const resources& res, hgraph& h, const batch_view& b) = 0;
-  virtual pattern_counts counts(const resources& res, const hgraph& h) = 0;
-  /// The launch counters per (mode, shape) recorded so far (the hook of M9a steps 3-4).
-  virtual void launches(std::map<std::string, std::int64_t>& out) const {
-    (void)out;
-  }
-  std::int64_t evaluations = 0;
-};
 
 /// The last list the oracle counted and its counts, shared by the modes' counters.
 struct oracle_cache {
@@ -237,6 +213,15 @@ class algorithm_counter final : public counter {
 std::unique_ptr<counter> make_counter(const options& opt,
                                       const std::shared_ptr<oracle_cache>& cache) {
   if (opt.counter == "oracle") return std::make_unique<oracle_counter>(opt, cache);
+  if (opt.counter == "local_patterns") {
+#if DYNG_TRIAD_REPLAY_LOCAL_PATTERNS
+    return make_local_patterns_counter(opt);
+#else
+    throw not_available(
+        "--counter local_patterns: experimental::count_local_patterns needs nvcc and triad_count "
+        "(a CUDA build with triad_count in DYNG_ALGORITHMS)");
+#endif
+  }
   if (opt.counter == "algorithm") {
 #if DYNG_TRIAD_REPLAY_ALGORITHM
     return std::make_unique<algorithm_counter>(opt);

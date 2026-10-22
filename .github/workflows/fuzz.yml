@@ -33,7 +33,7 @@ on:
   workflow_dispatch:
     inputs:
       seconds:
-        description: "Seconds per target (at most 750: eight targets and the build fit the job's 120 minutes)"
+        description: "Seconds per target (at most 660: nine targets and the build fit the job's 120 minutes)"
         required: false
         default: "60"
 
@@ -89,10 +89,10 @@ jobs:
           case "${seconds}" in
             '' | *[!0-9]*) echo "seconds must be a whole number, got '${seconds}'" >&2; exit 1 ;;
           esac
-          # Eight targets run one after another; with the build, 750 s each stays inside
+          # Nine targets run one after another; with the build, 660 s each stays inside
           # timeout-minutes (a cancelled job would skip the upload of the reproducers).
-          if [ "${seconds}" -gt 750 ]; then
-            echo "seconds must be at most 750 (eight targets in the job's 120 minutes), got ${seconds}" >&2
+          if [ "${seconds}" -gt 660 ]; then
+            echo "seconds must be at most 660 (nine targets in the job's 120 minutes), got ${seconds}" >&2
             exit 1
           fi
           echo "seconds=${seconds}" >> "${GITHUB_OUTPUT}"

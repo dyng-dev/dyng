@@ -18,6 +18,10 @@
 #include "algorithms/triad_count/engine/exact.hpp"
 #include "algorithms/triad_count/engine/sets.hpp"
 
+#include <dyng/experimental/detail/local_patterns_engine.hpp>
+
+#include <type_traits>
+
 namespace dyng::detail::triad {
 
 // ---------------------------------------------------------------------------
@@ -29,6 +33,8 @@ namespace dyng::detail::triad {
 // overflows past 2^63 - 1, its sum wraps); flush() reports a count past 2^64 - 1.
 struct type2_op {
   static constexpr int num_bins = 1;
+  /// dynG (M9b, ADR 0058): the Op's shape (experimental::count_local_patterns).
+  static constexpr experimental::shape shape = experimental::shape::pairs;
   static constexpr bool unit_counts = false;  // dynG: adds products, not 1 (wedge.cuh)
   unsigned long long sum;
   bool over;  // dynG: a product or the sum passed 2^64 - 1
@@ -37,9 +43,9 @@ struct type2_op {
   DYNG_TRIAD_HD void pair(const rows_t& rows, int i, int j, bins_t&) {
     const row_ref ri = rows.row(i);
     const row_ref rj = rows.row(j);
-    const int* row_i = ri.data;
-    const int* row_j = rj.data;
-    int deg_i = ri.size, deg_j = rj.size;
+    const int* row_i = ri.begin();
+    const int* row_j = rj.begin();
+    int deg_i = ri.size(), deg_j = rj.size();
     long long a = intersect_size(row_i, deg_i, row_j, deg_j);
     long long b = deg_i - a, c = deg_j - a;
     if (a >= 2 && b > 0 && c > 0) {
@@ -71,6 +77,8 @@ struct type2_op {
 // dynG (ADR 0057): as type2_op, the product and the sum checked.
 struct type3_op {
   static constexpr int num_bins = 1;
+  /// dynG (M9b, ADR 0058): the Op's shape (experimental::count_local_patterns).
+  static constexpr experimental::shape shape = experimental::shape::triangles;
   static constexpr bool unit_counts = false;  // dynG: adds products, not 1 (wedge.cuh)
   unsigned long long sum;
   bool over;  // dynG: a product or the sum passed 2^64 - 1
@@ -81,17 +89,17 @@ struct type3_op {
   DYNG_TRIAD_HD void begin_wedge(const rows_t& rows, int a, int b) {
     const row_ref ra = rows.row(a);
     const row_ref rb = rows.row(b);
-    row_a = ra.data;
-    row_b = rb.data;
-    da = ra.size;
-    db = rb.size;
+    row_a = ra.begin();
+    row_b = rb.begin();
+    da = ra.size();
+    db = rb.size();
     cab = intersect_size(row_a, da, row_b, db);
   }
   template <class rows_t, class bins_t>
   DYNG_TRIAD_HD void triangle(const rows_t& rows, int c, bins_t&) {
     const row_ref rc = rows.row(c);
     int cbc, cca, g;
-    venn3(row_a, da, row_b, db, rc.data, rc.size, cbc, cca, g);
+    venn3(row_a, da, row_b, db, rc.begin(), rc.size(), cbc, cca, g);
     long long x = cab - g, y = cbc - g, z = cca - g;
     if (x > 0 && y > 0 && z > 0) {
       // x * y < 2^62 (each below 2^31); then the checked product and the checked sum.
@@ -113,3 +121,14 @@ struct type3_op {
 };
 
 }  // namespace dyng::detail::triad
+
+namespace dyng::detail::local_patterns {
+
+/// type2_op is one of triad_count's built-in patterns (local_patterns_kernels.cuh's bins handle).
+template <>
+struct builtin_op<triad::type2_op> : std::true_type {};
+/// type3_op is one of triad_count's built-in patterns (local_patterns_kernels.cuh's bins handle).
+template <>
+struct builtin_op<triad::type3_op> : std::true_type {};
+
+}  // namespace dyng::detail::local_patterns

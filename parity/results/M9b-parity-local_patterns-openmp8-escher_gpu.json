@@ -1,0 +1,3532 @@
+{
+ "backend": "openmp",
+ "cases": {
+  "syn100k_b100k_s1/main": {
+   "ambiguous": 4011,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.502
+  },
+  "syn100k_b100k_s1/type1": {
+   "ambiguous": 4011,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.502
+  },
+  "syn100k_b100k_s1/type2": {
+   "ambiguous": 4011,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.502
+  },
+  "syn100k_b100k_s1/type3": {
+   "ambiguous": 4011,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.502
+  },
+  "syn100k_b100k_s2/main": {
+   "ambiguous": 3951,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.9666
+  },
+  "syn100k_b100k_s2/type1": {
+   "ambiguous": 3951,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.9666
+  },
+  "syn100k_b100k_s2/type2": {
+   "ambiguous": 3951,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.9666
+  },
+  "syn100k_b100k_s2/type3": {
+   "ambiguous": 3951,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 53.9666
+  },
+  "syn100k_b100k_s3/main": {
+   "ambiguous": 4016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 54.4861
+  },
+  "syn100k_b100k_s3/type1": {
+   "ambiguous": 4016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 54.4861
+  },
+  "syn100k_b100k_s3/type2": {
+   "ambiguous": 4016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 54.4861
+  },
+  "syn100k_b100k_s3/type3": {
+   "ambiguous": 4016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 54.4861
+  },
+  "syn100k_b200k_s1/main": {
+   "ambiguous": 7882,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 65.8062
+  },
+  "syn100k_b200k_s1/type1": {
+   "ambiguous": 7882,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 65.8062
+  },
+  "syn100k_b200k_s1/type2": {
+   "ambiguous": 7882,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 65.8062
+  },
+  "syn100k_b200k_s1/type3": {
+   "ambiguous": 7882,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 65.8062
+  },
+  "syn100k_b200k_s2/main": {
+   "ambiguous": 7821,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 67.2972
+  },
+  "syn100k_b200k_s2/type1": {
+   "ambiguous": 7821,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 67.2972
+  },
+  "syn100k_b200k_s2/type2": {
+   "ambiguous": 7821,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 67.2972
+  },
+  "syn100k_b200k_s2/type3": {
+   "ambiguous": 7821,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 67.2972
+  },
+  "syn100k_b200k_s3/main": {
+   "ambiguous": 7971,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 66.6425
+  },
+  "syn100k_b200k_s3/type1": {
+   "ambiguous": 7971,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 66.6425
+  },
+  "syn100k_b200k_s3/type2": {
+   "ambiguous": 7971,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 66.6425
+  },
+  "syn100k_b200k_s3/type3": {
+   "ambiguous": 7971,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 66.6425
+  },
+  "syn100k_b20_s1/main": {
+   "ambiguous": 2,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.1472
+  },
+  "syn100k_b20_s1/type1": {
+   "ambiguous": 2,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.1472
+  },
+  "syn100k_b20_s1/type2": {
+   "ambiguous": 2,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.1472
+  },
+  "syn100k_b20_s1/type3": {
+   "ambiguous": 2,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.1472
+  },
+  "syn100k_b20_s2/main": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.4461
+  },
+  "syn100k_b20_s2/type1": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.4461
+  },
+  "syn100k_b20_s2/type2": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.4461
+  },
+  "syn100k_b20_s2/type3": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.4461
+  },
+  "syn100k_b20_s3/main": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.0874
+  },
+  "syn100k_b20_s3/type1": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.0874
+  },
+  "syn100k_b20_s3/type2": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.0874
+  },
+  "syn100k_b20_s3/type3": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 16.0874
+  },
+  "syn100k_b50k_s1/main": {
+   "ambiguous": 2004,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.3582
+  },
+  "syn100k_b50k_s1/type1": {
+   "ambiguous": 2004,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.3582
+  },
+  "syn100k_b50k_s1/type2": {
+   "ambiguous": 2004,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.3582
+  },
+  "syn100k_b50k_s1/type3": {
+   "ambiguous": 2004,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.3582
+  },
+  "syn100k_b50k_s2/main": {
+   "ambiguous": 2016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.5881
+  },
+  "syn100k_b50k_s2/type1": {
+   "ambiguous": 2016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.5881
+  },
+  "syn100k_b50k_s2/type2": {
+   "ambiguous": 2016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.5881
+  },
+  "syn100k_b50k_s2/type3": {
+   "ambiguous": 2016,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 40.5881
+  },
+  "syn100k_b50k_s3/main": {
+   "ambiguous": 2009,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 39.8843
+  },
+  "syn100k_b50k_s3/type1": {
+   "ambiguous": 2009,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 39.8843
+  },
+  "syn100k_b50k_s3/type2": {
+   "ambiguous": 2009,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 39.8843
+  },
+  "syn100k_b50k_s3/type3": {
+   "ambiguous": 2009,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 39.8843
+  },
+  "syn100k_b5k_s1/main": {
+   "ambiguous": 217,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.8137
+  },
+  "syn100k_b5k_s1/type1": {
+   "ambiguous": 217,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.8137
+  },
+  "syn100k_b5k_s1/type2": {
+   "ambiguous": 217,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.8137
+  },
+  "syn100k_b5k_s1/type3": {
+   "ambiguous": 217,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.8137
+  },
+  "syn100k_b5k_s2/main": {
+   "ambiguous": 197,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.302
+  },
+  "syn100k_b5k_s2/type1": {
+   "ambiguous": 197,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.302
+  },
+  "syn100k_b5k_s2/type2": {
+   "ambiguous": 197,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.302
+  },
+  "syn100k_b5k_s2/type3": {
+   "ambiguous": 197,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.302
+  },
+  "syn100k_b5k_s3/main": {
+   "ambiguous": 185,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.1789
+  },
+  "syn100k_b5k_s3/type1": {
+   "ambiguous": 185,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.1789
+  },
+  "syn100k_b5k_s3/type2": {
+   "ambiguous": 185,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.1789
+  },
+  "syn100k_b5k_s3/type3": {
+   "ambiguous": 185,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 20.1789
+  },
+  "test/01-smoke/main": {
+   "ambiguous": 0,
+   "batches": 1,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 2,
+    "by_key": 2
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     1,
+     0,
+     0
+    ],
+    "reuse": [
+     1,
+     0,
+     0
+    ],
+    "unfill": [
+     1,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.00179346
+  },
+  "test/01-smoke/type1": {
+   "ambiguous": 0,
+   "batches": 1,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 2,
+    "by_key": 2
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     1,
+     0,
+     0
+    ],
+    "reuse": [
+     1,
+     0,
+     0
+    ],
+    "unfill": [
+     1,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.00179346
+  },
+  "test/01-smoke/type2": {
+   "ambiguous": 0,
+   "batches": 1,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 2,
+    "by_key": 2
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     1,
+     0,
+     0
+    ],
+    "reuse": [
+     1,
+     0,
+     0
+    ],
+    "unfill": [
+     1,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.00179346
+  },
+  "test/01-smoke/type3": {
+   "ambiguous": 0,
+   "batches": 1,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 2,
+    "by_key": 2
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     1,
+     0,
+     0
+    ],
+    "reuse": [
+     1,
+     0,
+     0
+    ],
+    "unfill": [
+     1,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.00179346
+  },
+  "test/02-reference_small/main": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.0508191
+  },
+  "test/02-reference_small/type1": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.0508191
+  },
+  "test/02-reference_small/type2": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.0508191
+  },
+  "test/02-reference_small/type3": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.0508191
+  },
+  "test/03-reference_syn100k/main": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 6.76176
+  },
+  "test/03-reference_syn100k/type1": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 6.76176
+  },
+  "test/03-reference_syn100k/type2": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 6.76176
+  },
+  "test/03-reference_syn100k/type3": {
+   "ambiguous": 0,
+   "batches": 0,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 1,
+    "by_key": 1
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 6.76176
+  },
+  "test/04-small_b20/main": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.111112
+  },
+  "test/04-small_b20/type1": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.111112
+  },
+  "test/04-small_b20/type2": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.111112
+  },
+  "test/04-small_b20/type3": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.111112
+  },
+  "test/05-small_b200/main": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.169271
+  },
+  "test/05-small_b200/type1": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.169271
+  },
+  "test/05-small_b200/type2": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.169271
+  },
+  "test/05-small_b200/type3": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.169271
+  },
+  "test/06-small_b1000/main": {
+   "ambiguous": 387,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.195455
+  },
+  "test/06-small_b1000/type1": {
+   "ambiguous": 387,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.195455
+  },
+  "test/06-small_b1000/type2": {
+   "ambiguous": 387,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.195455
+  },
+  "test/06-small_b1000/type3": {
+   "ambiguous": 387,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.195455
+  },
+  "test/07-syn100k_b5000/main": {
+   "ambiguous": 195,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.5284
+  },
+  "test/07-syn100k_b5000/type1": {
+   "ambiguous": 195,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.5284
+  },
+  "test/07-syn100k_b5000/type2": {
+   "ambiguous": 195,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.5284
+  },
+  "test/07-syn100k_b5000/type3": {
+   "ambiguous": 195,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 19.5284
+  },
+  "test/08-deletions_only/main": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.110572
+  },
+  "test/08-deletions_only/type1": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.110572
+  },
+  "test/08-deletions_only/type2": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.110572
+  },
+  "test/08-deletions_only/type3": {
+   "ambiguous": 19,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     0,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.110572
+  },
+  "test/09-insertions_only/main": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.255397
+  },
+  "test/09-insertions_only/type1": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.255397
+  },
+  "test/09-insertions_only/type2": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.255397
+  },
+  "test/09-insertions_only/type3": {
+   "ambiguous": 0,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     0,
+     0,
+     0
+    ],
+    "unfill": [
+     0,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.255397
+  },
+  "test/10-more_deletions/main": {
+   "ambiguous": 123,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.132881
+  },
+  "test/10-more_deletions/type1": {
+   "ambiguous": 123,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.132881
+  },
+  "test/10-more_deletions/type2": {
+   "ambiguous": 123,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.132881
+  },
+  "test/10-more_deletions/type3": {
+   "ambiguous": 123,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.132881
+  },
+  "test/11-random_inserts_file/main": {
+   "ambiguous": 11,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.177722
+  },
+  "test/11-random_inserts_file/type1": {
+   "ambiguous": 11,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.177722
+  },
+  "test/11-random_inserts_file/type2": {
+   "ambiguous": 11,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.177722
+  },
+  "test/11-random_inserts_file/type3": {
+   "ambiguous": 11,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.177722
+  },
+  "test/12-sampled_inserts_synthetic/main": {
+   "ambiguous": 82,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.186908
+  },
+  "test/12-sampled_inserts_synthetic/type1": {
+   "ambiguous": 82,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.186908
+  },
+  "test/12-sampled_inserts_synthetic/type2": {
+   "ambiguous": 82,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.186908
+  },
+  "test/12-sampled_inserts_synthetic/type3": {
+   "ambiguous": 82,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.186908
+  },
+  "test/13-batch_larger_than_graph/main": {
+   "ambiguous": 3692,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.351686
+  },
+  "test/13-batch_larger_than_graph/type1": {
+   "ambiguous": 3692,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.351686
+  },
+  "test/13-batch_larger_than_graph/type2": {
+   "ambiguous": 3692,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.351686
+  },
+  "test/13-batch_larger_than_graph/type3": {
+   "ambiguous": 3692,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     0,
+     0
+    ],
+    "reuse": [
+     3,
+     0,
+     0
+    ],
+    "unfill": [
+     3,
+     0,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 0.351686
+  },
+  "test/14-skewed/main": {
+   "ambiguous": 2286,
+   "batches": 2,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 3,
+    "by_key": 3
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     2,
+     0,
+     2
+    ],
+    "reuse": [
+     2,
+     0,
+     2
+    ],
+    "unfill": [
+     2,
+     0,
+     2
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 76.7469
+  },
+  "test/14-skewed/type1": {
+   "ambiguous": 2286,
+   "batches": 2,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 3,
+    "by_key": 3
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     2,
+     0,
+     2
+    ],
+    "reuse": [
+     2,
+     0,
+     2
+    ],
+    "unfill": [
+     2,
+     0,
+     2
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 76.7469
+  },
+  "test/14-skewed/type2": {
+   "ambiguous": 2286,
+   "batches": 2,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 3,
+    "by_key": 3
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     2,
+     0,
+     2
+    ],
+    "reuse": [
+     2,
+     0,
+     2
+    ],
+    "unfill": [
+     2,
+     0,
+     2
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 76.7469
+  },
+  "test/14-skewed/type3": {
+   "ambiguous": 2286,
+   "batches": 2,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 3,
+    "by_key": 3
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     2,
+     0,
+     2
+    ],
+    "reuse": [
+     2,
+     0,
+     2
+    ],
+    "unfill": [
+     2,
+     0,
+     2
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 76.7469
+  },
+  "test/15-medium/main": {
+   "ambiguous": 460,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     3,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 7.18981
+  },
+  "test/15-medium/type1": {
+   "ambiguous": 460,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     3,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 7.18981
+  },
+  "test/15-medium/type2": {
+   "ambiguous": 460,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     3,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 7.18981
+  },
+  "test/15-medium/type3": {
+   "ambiguous": 460,
+   "batches": 3,
+   "launches": {},
+   "oracle_evaluations": {
+    "by_content": 4,
+    "by_key": 4
+   },
+   "passed": true,
+   "paths": {
+    "fill": [
+     3,
+     3,
+     0
+    ],
+    "reuse": [
+     3,
+     3,
+     0
+    ],
+    "unfill": [
+     3,
+     3,
+     0
+    ]
+   },
+   "problems": [],
+   "tool_seconds": 7.18981
+  }
+ },
+ "commit": "888fe07ca643862430ca684ab5cb6b3a618a1670",
+ "counter": "local_patterns",
+ "coverage": true,
+ "date": "2026-10-21T08:24:51Z",
+ "gpu": null,
+ "group_seconds": {
+  "syn100k_b100k_s1": 53.7,
+  "syn100k_b100k_s2": 54.2,
+  "syn100k_b100k_s3": 54.7,
+  "syn100k_b200k_s1": 66.0,
+  "syn100k_b200k_s2": 67.5,
+  "syn100k_b200k_s3": 66.9,
+  "syn100k_b20_s1": 16.3,
+  "syn100k_b20_s2": 16.6,
+  "syn100k_b20_s3": 16.3,
+  "syn100k_b50k_s1": 40.6,
+  "syn100k_b50k_s2": 40.8,
+  "syn100k_b50k_s3": 40.1,
+  "syn100k_b5k_s1": 20.0,
+  "syn100k_b5k_s2": 20.5,
+  "syn100k_b5k_s3": 20.4,
+  "test/01-smoke": 0.1,
+  "test/02-reference_small": 0.1,
+  "test/03-reference_syn100k": 6.9,
+  "test/04-small_b20": 0.2,
+  "test/05-small_b200": 0.2,
+  "test/06-small_b1000": 0.3,
+  "test/07-syn100k_b5000": 19.7,
+  "test/08-deletions_only": 0.2,
+  "test/09-insertions_only": 0.3,
+  "test/10-more_deletions": 0.2,
+  "test/11-random_inserts_file": 0.2,
+  "test/12-sampled_inserts_synthetic": 0.2,
+  "test/13-batch_larger_than_graph": 0.4,
+  "test/14-skewed": 76.8,
+  "test/15-medium": 7.6
+ },
+ "manifest_sha256": "4fb7dbcf63286cfe549ed1c5fa1ea5c195e420f17d904233d64ccbac3a4ea28f",
+ "mode": "both",
+ "num_cases": 120,
+ "num_passed": 120,
+ "passed": true,
+ "plant": null,
+ "schema": 1,
+ "set": "triad_count_escher_gpu",
+ "threads": 8,
+ "tool": "build/parity-cuda/cpp/tests/dyng_triad_replay"
+}

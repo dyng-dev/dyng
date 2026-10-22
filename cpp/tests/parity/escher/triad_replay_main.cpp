@@ -9,7 +9,7 @@
  *
  *     dyng_triad_replay --hg FILE [--vertices N] [--capacity C]
  *                       [--backend sequential|openmp|cuda] [--threads N]
- *                       [--mode by_content|by_key|both] [--counter oracle|algorithm]
+ *                       [--mode by_content|by_key|both] [--counter oracle|algorithm|local_patterns]
  *                       [--patterns h_motif,stathyper_type1,...] [--oracle-threads N]
  *                       [--no-integrity] [--json OUT] [batch.dgb ...]
  *
@@ -17,7 +17,8 @@
  * (group.json `payload_capacity`; 0 = A's formula). With no batch file it reports the full count
  * only (the single-triad check of the oracle against A, M9a criterion 4). Exit status: 0 the
  * replay ran (the comparison is the caller's), 2 a usage or input error, or the counter is not
- * available (`--counter algorithm` before triad_count exists).
+ * available (`--counter algorithm` before triad_count exists; `--counter local_patterns`
+ *        without CUDA).
  */
 #include "parity/escher/triad_replay.hpp"
 
@@ -38,7 +39,7 @@ int usage() {
       stderr,
       "usage: dyng_triad_replay --hg FILE [--vertices N] [--capacity C] "
       "[--backend sequential|openmp|cuda] [--threads N] "
-      "[--mode by_content|by_key|both] [--counter oracle|algorithm] "
+      "[--mode by_content|by_key|both] [--counter oracle|algorithm|local_patterns] "
       "[--patterns P,...] [--oracle-threads N] [--no-integrity] [--no-recount] [--json OUT] "
       "[batch.dgb ...]\n");
   return 2;

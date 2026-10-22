@@ -15,7 +15,7 @@ since       = "0.3"
 family      = "aggregate_delta"
 container   = "hypergraph"
 tier        = "custom_engine"
-maturity    = "experimental"            # until M9b's review and freeze (0.3.0)
+maturity    = "stable"                  # from 0.3.0: the review and freeze of ADR 0060 (M9b); pending the author's confirmation at the 0.3.0 release (D4, GOVERNANCE.md)
 backends    = ["sequential", "openmp", "cuda"]
 determinism = "exact_value"
 oracle      = "compute"
@@ -24,7 +24,6 @@ oracle      = "compute"
 graph_requirements = { line_graph = "required", store_v2h = "required", reuse = "any", storage = "escher" }
 cite        = ["escher2026", "escherplus2026"]
 maintainers = ["SMShovan"]
-python      = false                     # dyng.triad_count arrives with M9b's bindings
 origin      = [ { repo = "ESCHER-GPU", commit = "abcf9b2", paths = ["kernel/wedge.cuh", "kernel/count_ops.cuh", "kernel/motif_utils.cuh", "include/motif_table.hpp", "include/motif_update.hpp", "include/device_bins.hpp", "include/frontier.hpp",
                                                        "src/HMotifCount.cu", "src/HMotifCountUpdate.cu", "src/main.cu", "src/type1.cu", "src/type2.cu", "src/type3.cu", "src/driver.cu"] } ]
 

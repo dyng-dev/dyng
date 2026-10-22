@@ -7,9 +7,10 @@ coordinate files, and MOSP's text CSR (``<prefix>{RowPtr,ColInd,Values}.txt``). 
 ``.hg`` files (one hyperedge per line), with the preprocessing of ESCHER-GPU and of H-SOSP as
 option sets. Batches: the text format ``.dgt`` (graph and hypergraph batches), the binary format
 ``.dgb`` (with a streaming :class:`BatchReader`), and MOSP's ``insert.txt`` / ``delete.txt``.
-Results: MOSP's distance, tree and path-cost files and CycleEnumeration-GPU's histogram CSV.
-The writers produce the originals' bytes. Every reader validates its input and raises
-:class:`~dyng.FileFormatError` with ``.path`` and ``.line`` (and ``.column`` where known).
+Results: MOSP's distance, tree and path-cost files, CycleEnumeration-GPU's histogram CSV and
+(0.3) triad bins as JSON (:class:`TriadBins`). The writers produce the originals' bytes. Every
+reader validates its input and raises :class:`~dyng.FileFormatError` with ``.path`` and
+``.line`` (and ``.column`` where known).
 The formats are specified in the documentation, "File formats".
 
 Readers of graphs return a :class:`dyng.Graph` (the ``*_arrays`` variants return the arrays);
@@ -81,6 +82,11 @@ __all__ = [
     "BatchReader",
     "read_binary_batches",
     "write_binary_batches",
+    # triad bins (JSON, 0.3)
+    "TriadBins",
+    "triad_bins_json",
+    "write_triad_bins",
+    "read_triad_bins",
 ]
 
 PathLike = str | os.PathLike[str]
@@ -1345,3 +1351,130 @@ def _write_binary_hyperedge_batches(
         else native.write_binary_hyperedge_batches_i32_u
     )
     writer(_path(path), natives, flags, offsets_list, members_list, ids_list)
+
+
+# -------------------------------------------------------------------------------------------------
+# Triad bins (JSON, 0.3)
+# -------------------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TriadBins:
+    """The bins of a triad count as a triad-bins JSON file holds them (C++ ``io::triad_bins``;
+    the format ``"dyng.triad_bins"`` version 1 of the documentation's "File formats").
+
+    Attributes:
+        kind: The pattern's name (``"h_motif"``, ``"stathyper_type1"``, ...; see
+            :class:`dyng.triad_count.Pattern`).
+        counts: One count per bin (uint64; 30 for ``"h_motif"``, 1 otherwise).
+        graph_version: The hypergraph version the counts match.
+        deltas: The net change of every bin per applied batch, in batch order (int64, shape
+            ``(batches, num_bins)``; no rows when the file has none).
+    """
+
+    kind: str
+    counts: np.ndarray
+    graph_version: int = 0
+    deltas: np.ndarray = dataclasses.field(default_factory=lambda: np.zeros((0, 0), dtype=np.int64))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TriadBins):
+            return NotImplemented
+        return (
+            self.kind == other.kind
+            and self.graph_version == other.graph_version
+            and np.array_equal(self.counts, other.counts)
+            and np.array_equal(self.deltas, other.deltas)
+        )
+
+    __hash__ = None  # type: ignore[assignment]  # it holds arrays
+
+    @classmethod
+    def of(cls, result: Any, deltas: Any = None) -> TriadBins:
+        """The bins of a :class:`dyng.triad_count.Result` (its kind, counts and version), with
+        optional ``deltas`` (rows of ``num_bins`` values, e.g. the ``delta`` of every
+        :class:`dyng.triad_count.Stats`)."""
+        from . import triad_count
+
+        if not isinstance(result, triad_count.Result):
+            raise TypeError("TriadBins.of: result must be a dyng.triad_count.Result")
+        counts = result.counts
+        return cls(
+            str(result.kind),
+            counts,
+            result.graph_version,
+            _delta_rows(deltas, counts.size, "TriadBins.of"),
+        )
+
+
+def _delta_rows(deltas: Any, num_bins: int, what: str) -> np.ndarray:
+    """Rows of ``num_bins`` int64 deltas (an (r, n) array or any sequence of rows)."""
+    rows = [] if deltas is None else list(deltas)
+    out = np.zeros((len(rows), num_bins), dtype=np.int64)
+    for i, r in enumerate(rows):
+        a = np.asarray(r).reshape(-1)
+        if a.size != num_bins:
+            raise InvalidArgumentError(
+                f"{what}: delta row {i} has {a.size} values; the kind has {num_bins} bins"
+            )
+        out[i] = _dtypes.checked_cast(a, _dtypes.INT64, what)
+    return out
+
+
+def _native_bins(bins: Any, deltas: Any, what: str) -> tuple[str, int, np.ndarray, np.ndarray]:
+    from . import triad_count
+
+    if isinstance(bins, triad_count.Result):
+        bins = TriadBins.of(bins, deltas)
+    elif not isinstance(bins, TriadBins):
+        raise TypeError(f"{what}: bins must be a dyng.io.TriadBins or a dyng.triad_count.Result")
+    elif deltas is not None:
+        raise TypeError(f"{what}: deltas= is for a result; a TriadBins carries its own")
+    if not isinstance(bins.kind, str):
+        raise InvalidArgumentError(f"{what}: kind must be a string")
+    counts = _dtypes.checked_cast(
+        np.ascontiguousarray(np.asarray(bins.counts)).reshape(-1), np.dtype(np.uint64), what
+    )
+    n = int(counts.size)
+    d = _delta_rows(bins.deltas, n, what)
+    version = as_int(bins.graph_version, f"{what}: graph_version", lo=0, hi=2**64 - 1)
+    return str(bins.kind), version, counts, np.ascontiguousarray(d.reshape(-1))
+
+
+def triad_bins_json(bins: TriadBins | Any, *, deltas: Any = None) -> str:
+    """The triad-bins JSON text of ``bins`` (a :class:`TriadBins`, or a
+    :class:`dyng.triad_count.Result` with optional ``deltas``).
+
+    Raises:
+        InvalidArgumentError: an unknown kind, or counts or a delta row of another length than
+            the kind's bins.
+    """
+    return str(native.triad_bins_json(*_native_bins(bins, deltas, "triad_bins_json")))
+
+
+def write_triad_bins(path: PathLike, bins: TriadBins | Any, *, deltas: Any = None) -> None:
+    """Write :func:`triad_bins_json` to a file (parent directories are created).
+
+    Example:
+        >>> import dyng, tempfile, os
+        >>> hg = dyng.Hypergraph.from_lists([[0, 1, 2], [1, 2, 3], [0, 2, 3]])
+        >>> path = os.path.join(tempfile.mkdtemp(), "bins.json")
+        >>> dyng.io.write_triad_bins(path, dyng.triad_count.compute(hg, kind="stathyper_type1"))
+        >>> b = dyng.io.read_triad_bins(path)
+        >>> b.kind, b.counts.tolist(), b.graph_version
+        ('stathyper_type1', [3], 0)
+    """
+    native.write_triad_bins(_path(path), *_native_bins(bins, deltas, "write_triad_bins"))
+
+
+def read_triad_bins(path: PathLike) -> TriadBins:
+    """Read a triad-bins JSON file (:func:`write_triad_bins`'s format).
+
+    Raises:
+        FileFormatError: the file is missing, is not valid JSON, or is not a triad-bins document
+            of version 1 (with ``.path``, ``.line`` and ``.column``).
+    """
+    kind, version, counts, deltas = native.read_triad_bins(_path(path))
+    counts.flags.writeable = False
+    deltas.flags.writeable = False
+    return TriadBins(str(kind), counts, int(version), deltas)

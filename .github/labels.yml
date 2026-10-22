@@ -80,7 +80,7 @@
   description: "Suitable for a first contribution; see CONTRIBUTING.md"
 - name: "good-first-issue:op"
   color: "#9f8fff"
-  description: "Good first issue: a new hypergraph pattern Op (from 0.3)"
+  description: "Good first issue: a new hypergraph pattern Op for count_local_patterns (from 0.3)"
 - name: "good-first-issue:reader"
   color: "#9f8fff"
   description: "Good first issue: a reader or writer for a file format"

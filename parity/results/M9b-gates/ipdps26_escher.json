@@ -1,0 +1,3435 @@
+{
+ "schema": 1,
+ "suite": "ipdps26_escher",
+ "algorithm": "triad_count",
+ "title": "ESCHER: dynamic h-motif counts under hyperedge batches (dynG triad_count)",
+ "suite_file": "benchmarks/paper/ipdps26_escher.yaml",
+ "suite_sha256": "148a18d5daab3e68d15b918aa5005f4d369b892d45009c198be17cf2b1e3ce26",
+ "version": "m9b-review",
+ "date": "2026-10-21T18:34:49Z",
+ "port_commits": [
+  "c83cebfc95894b12dd4bd034b0b1528000583243"
+ ],
+ "baselines": {
+  "ESCHER-GPU": {
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "variant": "unpatched",
+   "backend": "cuda"
+  }
+ },
+ "tolerance": {
+  "compute": 1.05,
+  "compute_short": 1.1,
+  "short_region_ms": 10.0,
+  "end_to_end": 1.1,
+  "memory": 1.05
+ },
+ "partial": null,
+ "execution_started": "2026-10-21T17:46:24Z",
+ "inputs": {
+  "verified": true,
+  "run_check": "not run by this summary (bench_suite.py run checks every input first)",
+  "by_record": {
+   "ipdps26_escher-cuda-coauth.json": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   },
+   "ipdps26_escher-cuda.json": {
+    "datasets": [
+     "syn1m",
+     "syn2m"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   },
+   "ipdps26_escher-cuda-default-clocks.json": {
+    "datasets": [
+     "coauth",
+     "syn1m",
+     "syn2m"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   },
+   "ipdps26_escher-cuda-batch-sizes.json": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   }
+  }
+ },
+ "drivers": [
+  {
+   "cuda_driver_api": "13.1",
+   "nvidia": "590.48.01"
+  }
+ ],
+ "readings": [
+  {
+   "reading": "cuda-coauth",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "base",
+   "gated": true,
+   "record": "ipdps26_escher-cuda-coauth.json",
+   "date": "2026-10-21T17:46:24Z",
+   "port_commit": "c83cebfc95894b12dd4bd034b0b1528000583243",
+   "reference": {
+    "name": "ESCHER-GPU",
+    "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "order": "A/B alternation (A first in every round)",
+    "lock": "perf.lock: held exclusively by this process",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "statistic": "median"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 511.146,
+     "port_ms": 486.042,
+     "ratio": 0.9508868307685083,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 549.554,
+     "port_ms": 533.545,
+     "ratio": 0.9708691047649548,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 550.034,
+     "port_ms": 533.521,
+     "ratio": 0.9699782195282473,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 5293.05,
+     "port_ms": 5285.482,
+     "ratio": 0.998570200545999,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 9398.404,
+     "port_ms": 8840.237,
+     "ratio": 0.9406104483271839,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 204.485,
+     "port_ms": 204.352,
+     "ratio": 0.9993495855441719
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 233.594,
+     "port_ms": 233.83,
+     "ratio": 1.0010102999220871
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 231.398,
+     "port_ms": 232.58599999999998,
+     "ratio": 1.005134011529918
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 70.58,
+     "port_ms": 54.338,
+     "ratio": 0.7698781524511193
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 68.203,
+     "port_ms": 60.287,
+     "ratio": 0.8839347242789906
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 68.957,
+     "port_ms": 59.21,
+     "ratio": 0.8586510434038604
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 235.723,
+     "port_ms": 227.595,
+     "ratio": 0.9655188505152233
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 247.748,
+     "port_ms": 239.053,
+     "ratio": 0.964903853916076
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 249.118,
+     "port_ms": 242.03300000000002,
+     "ratio": 0.9715596624892622
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1410.1799999999998,
+     "port_ms": 758.7710000000001,
+     "ratio": 0.5380667716178078
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 180.359,
+     "port_ms": 476.557,
+     "ratio": 2.642269030101076
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 356.176,
+     "port_ms": 363.133,
+     "ratio": 1.0195324783253223
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 177.468,
+     "port_ms": 16.076,
+     "ratio": 0.09058534496359907
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 16.474,
+     "port_ms": 14.094,
+     "ratio": 0.8555299259439115
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 16.021,
+     "port_ms": 16.261,
+     "ratio": 1.0149803383059732
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 511.146,
+     "port_ms": 504.635,
+     "ratio": 0.9872619564664499
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 1.8269999999999982,
+     "port_ms": 18.123,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 549.554,
+     "port_ms": 539.973,
+     "ratio": 0.9825658624994086
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.6970000000000027,
+     "port_ms": 5.818,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 550.034,
+     "port_ms": 539.207,
+     "ratio": 0.9803157622983306
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.5089999999999861,
+     "port_ms": 5.703,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 540.813,
+     "port_ms": 518.243,
+     "ratio": 0.958266535752654,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 540.936,
+     "port_ms": 525.371,
+     "ratio": 0.9712258012038392,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 547.428,
+     "port_ms": 520.597,
+     "ratio": 0.950987161782006,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 5293.607,
+     "port_ms": 5286.01,
+     "ratio": 0.9985648726851087,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 9413.013,
+     "port_ms": 8845.961,
+     "ratio": 0.9397587148769473,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 232.788,
+     "port_ms": 232.141,
+     "ratio": 0.997220647112394
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 230.381,
+     "port_ms": 229.98,
+     "ratio": 0.9982594050724669
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 235.068,
+     "port_ms": 233.84599999999998,
+     "ratio": 0.9948015042455799
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 70.813,
+     "port_ms": 54.694,
+     "ratio": 0.7723723045203564
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 67.949,
+     "port_ms": 60.223,
+     "ratio": 0.8862970757479874
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 67.863,
+     "port_ms": 57.86,
+     "ratio": 0.8526000913605352
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 237.146,
+     "port_ms": 231.4,
+     "ratio": 0.9757702006358953
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 242.483,
+     "port_ms": 234.309,
+     "ratio": 0.9662904203593654
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 242.746,
+     "port_ms": 228.53099999999998,
+     "ratio": 0.9414408476349764
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1409.916,
+     "port_ms": 761.765,
+     "ratio": 0.5402910528003086
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 182.72,
+     "port_ms": 471.874,
+     "ratio": 2.582497810858144
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 356.423,
+     "port_ms": 364.255,
+     "ratio": 1.0219738905738407
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 177.824,
+     "port_ms": 15.987,
+     "ratio": 0.0899035000899766
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 16.449,
+     "port_ms": 14.035,
+     "ratio": 0.8532433582588607
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 15.97,
+     "port_ms": 15.909,
+     "ratio": 0.9961803381340013
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 540.813,
+     "port_ms": 536.118,
+     "ratio": 0.9913186258466421
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 1.8389999999999986,
+     "port_ms": 18.062,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 540.936,
+     "port_ms": 530.936,
+     "ratio": 0.9815135247053256
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.5330000000000013,
+     "port_ms": 5.734,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 547.428,
+     "port_ms": 526.413,
+     "ratio": 0.9616113899910126
+    },
+    {
+     "case": "coauth_b50k_s2/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.5670000000000073,
+     "port_ms": 5.695,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 523.724,
+     "port_ms": 499.958,
+     "ratio": 0.9546211363237125,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 537.822,
+     "port_ms": 520.372,
+     "ratio": 0.9675543209463353,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 534.276,
+     "port_ms": 516.551,
+     "ratio": 0.9668242631149445,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 5292.573,
+     "port_ms": 5286.193,
+     "ratio": 0.9987945371750186,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 9370.777,
+     "port_ms": 8827.65,
+     "ratio": 0.9420403452136359,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 216.748,
+     "port_ms": 215.405,
+     "ratio": 0.9938038643955193
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 233.642,
+     "port_ms": 233.893,
+     "ratio": 1.0010742931493481
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 226.314,
+     "port_ms": 225.263,
+     "ratio": 0.9953560097917054
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 70.476,
+     "port_ms": 54.58,
+     "ratio": 0.7744480390487541
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 67.908,
+     "port_ms": 59.472,
+     "ratio": 0.875773104788832
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 67.569,
+     "port_ms": 57.726,
+     "ratio": 0.8543266882742085
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 236.573,
+     "port_ms": 229.943,
+     "ratio": 0.9719748238387306
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 235.981,
+     "port_ms": 226.74599999999998,
+     "ratio": 0.9608654934083676
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 240.006,
+     "port_ms": 233.523,
+     "ratio": 0.9729881752956175
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1399.444,
+     "port_ms": 764.046,
+     "ratio": 0.545963968547509
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 180.592,
+     "port_ms": 471.348,
+     "ratio": 2.610015947550279
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 356.705,
+     "port_ms": 362.787,
+     "ratio": 1.0170505039178033
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 175.97,
+     "port_ms": 16.019,
+     "ratio": 0.09103256236858555
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 16.475,
+     "port_ms": 14.008,
+     "ratio": 0.8502579666160849
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 16.108,
+     "port_ms": 16.233,
+     "ratio": 1.0077601191954308
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 523.724,
+     "port_ms": 518.333,
+     "ratio": 0.9897064102466183
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 1.8359999999999985,
+     "port_ms": 18.006,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 537.822,
+     "port_ms": 526.3829999999999,
+     "ratio": 0.9787308812209242
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.7579999999999956,
+     "port_ms": 6.081,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 534.276,
+     "port_ms": 522.11,
+     "ratio": 0.9772289977464832
+    },
+    {
+     "case": "coauth_b50k_s3/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.4680000000000035,
+     "port_ms": 5.596,
+     "ratio": null
+    }
+   ]
+  },
+  {
+   "reading": "cuda",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "base",
+   "gated": true,
+   "record": "ipdps26_escher-cuda.json",
+   "date": "2026-10-21T17:58:25Z",
+   "port_commit": "c83cebfc95894b12dd4bd034b0b1528000583243",
+   "reference": {
+    "name": "ESCHER-GPU",
+    "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "order": "A/B alternation (A first in every round)",
+    "lock": "perf.lock: held exclusively by this process",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "statistic": "median"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "syn1m",
+     "syn2m"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 164.174,
+     "port_ms": 143.747,
+     "ratio": 0.8755771315799091,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 144.349,
+     "port_ms": 145.603,
+     "ratio": 1.0086872787480343,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 155.099,
+     "port_ms": 147.391,
+     "ratio": 0.9503027098820753,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 635.239,
+     "port_ms": 636.791,
+     "ratio": 1.0024431749310103,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 2483.347,
+     "port_ms": 2462.444,
+     "ratio": 0.9915827308869842,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 48.049,
+     "port_ms": 48.89,
+     "ratio": 1.0175029657224917
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 48.394,
+     "port_ms": 49.661,
+     "ratio": 1.0261809315204364
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 48.162,
+     "port_ms": 49.433,
+     "ratio": 1.0263901000789004
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 64.617,
+     "port_ms": 46.51,
+     "ratio": 0.7197796245570051
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 45.211,
+     "port_ms": 48.204,
+     "ratio": 1.0662007033686494
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 55.682,
+     "port_ms": 49.841,
+     "ratio": 0.8951007506914263
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 51.454,
+     "port_ms": 48.173,
+     "ratio": 0.9362343063707389
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 50.724,
+     "port_ms": 47.736000000000004,
+     "ratio": 0.9410929737402415
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 51.341,
+     "port_ms": 47.941,
+     "ratio": 0.9337761243450654
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 672.29,
+     "port_ms": 463.724,
+     "ratio": 0.6897678085350072
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 67.883,
+     "port_ms": 177.382,
+     "ratio": 2.613054814902111
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 360.175,
+     "port_ms": 426.39,
+     "ratio": 1.1838411883112374
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 16.267,
+     "port_ms": 16.669,
+     "ratio": 1.0247126083481897
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 15.318,
+     "port_ms": 15.399,
+     "ratio": 1.0052878965922445
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 15.367,
+     "port_ms": 16.258,
+     "ratio": 1.05798138869005
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 164.174,
+     "port_ms": 155.021,
+     "ratio": 0.9442481757160085
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 7.5930000000000035,
+     "port_ms": 11.369,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 144.349,
+     "port_ms": 151.553,
+     "ratio": 1.049906823046921
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.6010000000000062,
+     "port_ms": 5.946,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 155.099,
+     "port_ms": 153.188,
+     "ratio": 0.987678837387733
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.5499999999999972,
+     "port_ms": 5.737,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 164.182,
+     "port_ms": 143.891,
+     "ratio": 0.8764115432873275,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 155.355,
+     "port_ms": 147.825,
+     "ratio": 0.9515303659360819,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 144.858,
+     "port_ms": 146.225,
+     "ratio": 1.0094368277899735,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 640.133,
+     "port_ms": 641.689,
+     "ratio": 1.0024307448608334,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 2498.22,
+     "port_ms": 2465.473,
+     "ratio": 0.9868918670093106,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 48.456,
+     "port_ms": 49.288,
+     "ratio": 1.0171702162786858
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 48.254,
+     "port_ms": 49.61,
+     "ratio": 1.028101297301778
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 48.583,
+     "port_ms": 49.867999999999995,
+     "ratio": 1.0264495811292016
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 64.51,
+     "port_ms": 46.54,
+     "ratio": 0.7214385366609827
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 55.676,
+     "port_ms": 50.14,
+     "ratio": 0.9005675695093038
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 45.134,
+     "port_ms": 48.003,
+     "ratio": 1.0635662693313246
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 51.18,
+     "port_ms": 47.757999999999996,
+     "ratio": 0.933137944509574
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 51.432,
+     "port_ms": 48.059999999999995,
+     "ratio": 0.9344377041530564
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 51.069,
+     "port_ms": 48.242000000000004,
+     "ratio": 0.9446435215101138
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 685.611,
+     "port_ms": 463.82,
+     "ratio": 0.6765060653927665
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 68.15,
+     "port_ms": 178.367,
+     "ratio": 2.617270726338958
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 360.968,
+     "port_ms": 425.688,
+     "ratio": 1.179295671638483
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 16.2,
+     "port_ms": 16.527,
+     "ratio": 1.0201851851851853
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 15.2,
+     "port_ms": 15.411,
+     "ratio": 1.0138815789473685
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 15.398,
+     "port_ms": 16.549,
+     "ratio": 1.0747499675282504
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 164.182,
+     "port_ms": 155.24,
+     "ratio": 0.9455360514550927
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 7.567999999999998,
+     "port_ms": 11.366,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 155.355,
+     "port_ms": 153.98399999999998,
+     "ratio": 0.9911750506903543
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.5929999999999964,
+     "port_ms": 6.018,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 144.858,
+     "port_ms": 151.99099999999999,
+     "ratio": 1.049241325988209
+    },
+    {
+     "case": "syn1m_b50k_s2/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.5150000000000006,
+     "port_ms": 5.776,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 148.458,
+     "port_ms": 142.576,
+     "ratio": 0.9603793665548505,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 161.14,
+     "port_ms": 147.122,
+     "ratio": 0.913007322824873,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 155.984,
+     "port_ms": 148.132,
+     "ratio": 0.9496615037439737,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 639.51,
+     "port_ms": 640.979,
+     "ratio": 1.0022970711951338,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 2488.773,
+     "port_ms": 2466.532,
+     "ratio": 0.9910634678212918,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 48.741,
+     "port_ms": 49.623,
+     "ratio": 1.018095648427402
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 48.181,
+     "port_ms": 49.467000000000006,
+     "ratio": 1.0266910192814598
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 48.567,
+     "port_ms": 49.976,
+     "ratio": 1.0290114686927336
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 48.459,
+     "port_ms": 44.423,
+     "ratio": 0.9167130976701954
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 61.54,
+     "port_ms": 49.361,
+     "ratio": 0.8020961975950601
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 55.686,
+     "port_ms": 49.867,
+     "ratio": 0.8955033581151456
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 51.18,
+     "port_ms": 48.287,
+     "ratio": 0.94347401328644
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 51.4,
+     "port_ms": 48.159,
+     "ratio": 0.9369455252918288
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 51.677,
+     "port_ms": 48.344,
+     "ratio": 0.9355032219362579
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 681.038,
+     "port_ms": 461.18600000000004,
+     "ratio": 0.6771810089892194
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 67.291,
+     "port_ms": 177.857,
+     "ratio": 2.6431023465247954
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 362.164,
+     "port_ms": 427.049,
+     "ratio": 1.1791591654609515
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 16.18,
+     "port_ms": 16.548,
+     "ratio": 1.02274412855377
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 15.752,
+     "port_ms": 16.457,
+     "ratio": 1.044756221432199
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 15.169,
+     "port_ms": 16.24,
+     "ratio": 1.070604522381172
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 148.458,
+     "port_ms": 148.738,
+     "ratio": 1.001886055315308
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 1.9029999999999987,
+     "port_ms": 6.228,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 161.14,
+     "port_ms": 158.656,
+     "ratio": 0.9845848330644161
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 7.235999999999997,
+     "port_ms": 11.514,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 155.984,
+     "port_ms": 154.049,
+     "ratio": 0.9875948815263104
+    },
+    {
+     "case": "syn1m_b50k_s3/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.5749999999999957,
+     "port_ms": 5.952,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 184.001,
+     "port_ms": 158.55,
+     "ratio": 0.8616800995646763,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 154.835,
+     "port_ms": 158.66,
+     "ratio": 1.024703716859883,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 169.021,
+     "port_ms": 161.165,
+     "ratio": 0.9535205684500743,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 1273.541,
+     "port_ms": 1276.661,
+     "ratio": 1.00244986223451,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 4422.39,
+     "port_ms": 4241.857,
+     "ratio": 0.9591775035670757,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 49.413,
+     "port_ms": 50.184,
+     "ratio": 1.0156031813490378
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 49.075,
+     "port_ms": 50.323,
+     "ratio": 1.0254304635761589
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 48.98,
+     "port_ms": 50.135999999999996,
+     "ratio": 1.02360146998775
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 82.184,
+     "port_ms": 59.519,
+     "ratio": 0.7242163924851552
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 53.614,
+     "port_ms": 59.879,
+     "ratio": 1.1168538068414966
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 67.665,
+     "port_ms": 62.179,
+     "ratio": 0.918924111431316
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 52.454,
+     "port_ms": 48.786,
+     "ratio": 0.9300720631410379
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 52.091,
+     "port_ms": 48.352000000000004,
+     "ratio": 0.9282217657560807
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 52.423,
+     "port_ms": 48.601,
+     "ratio": 0.927093069835759
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1391.5049999999999,
+     "port_ms": 899.4449999999999,
+     "ratio": 0.6463828732200028
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 132.52200000000002,
+     "port_ms": 348.679,
+     "ratio": 2.631102760296403
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 722.893,
+     "port_ms": 854.121,
+     "ratio": 1.1815317066287818
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 18.889,
+     "port_ms": 17.595,
+     "ratio": 0.9314945206204669
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 18.116,
+     "port_ms": 18.169,
+     "ratio": 1.00292559063811
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 18.207,
+     "port_ms": 19.201,
+     "ratio": 1.0545943867743175
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 184.001,
+     "port_ms": 175.085,
+     "ratio": 0.9515437416100999
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 13.030000000000001,
+     "port_ms": 16.687,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 154.835,
+     "port_ms": 165.092,
+     "ratio": 1.0662447121128944
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.9699999999999989,
+     "port_ms": 6.406,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 169.021,
+     "port_ms": 167.475,
+     "ratio": 0.9908532075895895
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.8520000000000039,
+     "port_ms": 6.401,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 157.161,
+     "port_ms": 153.355,
+     "ratio": 0.9757827959862815,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 181.422,
+     "port_ms": 162.533,
+     "ratio": 0.8958836304307085,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 155.558,
+     "port_ms": 159.85,
+     "ratio": 1.0275909949986501,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 1279.119,
+     "port_ms": 1282.221,
+     "ratio": 1.0024251066554402,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 4415.205,
+     "port_ms": 4241.976,
+     "ratio": 0.9607653551760337,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 48.952,
+     "port_ms": 49.684000000000005,
+     "ratio": 1.0149534237620528
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 49.282,
+     "port_ms": 50.369,
+     "ratio": 1.0220567347104421
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 49.3,
+     "port_ms": 50.559,
+     "ratio": 1.0255375253549697
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 56.465,
+     "port_ms": 55.615,
+     "ratio": 0.9849464269901709
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 79.938,
+     "port_ms": 63.407,
+     "ratio": 0.7932022317295904
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 53.746,
+     "port_ms": 60.407,
+     "ratio": 1.1239348044505637
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 51.803,
+     "port_ms": 48.001999999999995,
+     "ratio": 0.926625871088547
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 52.398,
+     "port_ms": 48.695,
+     "ratio": 0.9293293637161724
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 52.351,
+     "port_ms": 48.581999999999994,
+     "ratio": 0.9280051956982673
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1404.164,
+     "port_ms": 897.3520000000001,
+     "ratio": 0.6390649525269129
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 134.03900000000002,
+     "port_ms": 350.984,
+     "ratio": 2.6185214750930697
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 722.946,
+     "port_ms": 848.459,
+     "ratio": 1.1736132435894242
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 18.824,
+     "port_ms": 17.248,
+     "ratio": 0.9162770930726731
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 18.549,
+     "port_ms": 18.832,
+     "ratio": 1.0152568871637286
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 18.003,
+     "port_ms": 18.746,
+     "ratio": 1.0412708992945618
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 157.161,
+     "port_ms": 160.564,
+     "ratio": 1.0216529546134219
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 2.0379999999999967,
+     "port_ms": 7.232,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 181.422,
+     "port_ms": 179.84,
+     "ratio": 0.9912799991180783
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 12.884,
+     "port_ms": 17.24,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 155.558,
+     "port_ms": 166.144,
+     "ratio": 1.068051787757621
+    },
+    {
+     "case": "syn2m_b50k_s2/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.9259999999999948,
+     "port_ms": 6.433,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 157.622,
+     "port_ms": 154.406,
+     "ratio": 0.9795967567979089,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 181.065,
+     "port_ms": 163.191,
+     "ratio": 0.9012840692568967,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 154.283,
+     "port_ms": 159.344,
+     "ratio": 1.0328033548738358,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 1280.16,
+     "port_ms": 1283.465,
+     "ratio": 1.0025817085364328,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 4428.351,
+     "port_ms": 4247.486,
+     "ratio": 0.9591574832256974,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 49.288,
+     "port_ms": 50.178,
+     "ratio": 1.0180571335822106
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 49.408,
+     "port_ms": 50.574,
+     "ratio": 1.0235994170984455
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 49.194,
+     "port_ms": 50.517,
+     "ratio": 1.026893523600439
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 56.313,
+     "port_ms": 55.88,
+     "ratio": 0.9923108340880437
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 78.977,
+     "port_ms": 63.847,
+     "ratio": 0.8084252377274396
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 53.512,
+     "port_ms": 60.355,
+     "ratio": 1.1278778591717744
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 52.043,
+     "port_ms": 48.363,
+     "ratio": 0.9292892415886863
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 52.669,
+     "port_ms": 48.778,
+     "ratio": 0.9261235261728911
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 51.578,
+     "port_ms": 48.455999999999996,
+     "ratio": 0.9394703168017371
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1417.127,
+     "port_ms": 901.2360000000001,
+     "ratio": 0.6359599386646364
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 132.728,
+     "port_ms": 350.127,
+     "ratio": 2.6379286962811164
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 725.333,
+     "port_ms": 853.893,
+     "ratio": 1.1772427285122835
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 18.874,
+     "port_ms": 17.312,
+     "ratio": 0.9172406485111795
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 18.511,
+     "port_ms": 19.572,
+     "ratio": 1.0573172708119496
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 18.107,
+     "port_ms": 18.81,
+     "ratio": 1.0388247639034627
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 157.622,
+     "port_ms": 161.669,
+     "ratio": 1.025675349887706
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 2.075000000000003,
+     "port_ms": 7.25,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 181.065,
+     "port_ms": 180.256,
+     "ratio": 0.995531991273852
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 12.784999999999997,
+     "port_ms": 17.0,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 154.283,
+     "port_ms": 165.753,
+     "ratio": 1.0743439004945456
+    },
+    {
+     "case": "syn2m_b50k_s3/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.9200000000000017,
+     "port_ms": 6.386,
+     "ratio": null
+    }
+   ]
+  },
+  {
+   "reading": "cuda-default-clocks",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "record": "ipdps26_escher-cuda-default-clocks.json",
+   "date": "2026-10-21T18:15:09Z",
+   "port_commit": "c83cebfc95894b12dd4bd034b0b1528000583243",
+   "reference": {
+    "name": "ESCHER-GPU",
+    "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "order": "A/B alternation (A first in every round)",
+    "lock": "perf.lock: held exclusively by this process",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "statistic": "median"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "coauth",
+     "syn1m",
+     "syn2m"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 514.298,
+     "port_ms": 493.164,
+     "ratio": 0.9589070927750059,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 552.714,
+     "port_ms": 539.213,
+     "ratio": 0.9755732621210969,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 567.145,
+     "port_ms": 544.934,
+     "ratio": 0.9608371756781775,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 5021.36,
+     "port_ms": 5044.427,
+     "ratio": 1.0045937753915275,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 9086.905,
+     "port_ms": 8583.954,
+     "ratio": 0.9446510115380319,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 212.297,
+     "port_ms": 208.597,
+     "ratio": 0.982571586032775
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 240.457,
+     "port_ms": 239.721,
+     "ratio": 0.996939161679635
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 242.041,
+     "port_ms": 237.715,
+     "ratio": 0.9821269950132416
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 61.725,
+     "port_ms": 48.719,
+     "ratio": 0.7892912110166059
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 59.283,
+     "port_ms": 53.662,
+     "ratio": 0.9051836108159168
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 59.875,
+     "port_ms": 53.034,
+     "ratio": 0.8857453027139874
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 239.952,
+     "port_ms": 236.235,
+     "ratio": 0.9845094018803762
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 253.12,
+     "port_ms": 244.524,
+     "ratio": 0.9660398230088495
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 264.239,
+     "port_ms": 252.576,
+     "ratio": 0.9558619280272784
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1358.6200000000001,
+     "port_ms": 733.89,
+     "ratio": 0.5401731168391456
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 174.824,
+     "port_ms": 469.183,
+     "ratio": 2.6837447947650204
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 351.977,
+     "port_ms": 355.376,
+     "ratio": 1.0096568809893829
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 175.136,
+     "port_ms": 15.742,
+     "ratio": 0.0898844326694683
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 15.757,
+     "port_ms": 13.793,
+     "ratio": 0.8753569841974995
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 15.71,
+     "port_ms": 15.81,
+     "ratio": 1.0063653723742838
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 514.298,
+     "port_ms": 511.804,
+     "ratio": 0.9951506714006276
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 1.7930000000000064,
+     "port_ms": 18.232,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 552.714,
+     "port_ms": 544.828,
+     "ratio": 0.9857322231750958
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.5570000000000022,
+     "port_ms": 5.77,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 567.145,
+     "port_ms": 551.208,
+     "ratio": 0.9718996023944494
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.4939999999999998,
+     "port_ms": 6.29,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 132.554,
+     "port_ms": 118.331,
+     "ratio": 0.8927003334490095,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 117.827,
+     "port_ms": 119.381,
+     "ratio": 1.0131888276880512,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 122.502,
+     "port_ms": 121.89,
+     "ratio": 0.9950041631973356,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 478.731,
+     "port_ms": 479.961,
+     "ratio": 1.0025692925672247,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 2184.996,
+     "port_ms": 2187.88,
+     "ratio": 1.001319910883132,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 36.843,
+     "port_ms": 37.711,
+     "ratio": 1.0235594278424665
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 36.691,
+     "port_ms": 37.735,
+     "ratio": 1.0284538442669864
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 36.505,
+     "port_ms": 37.751000000000005,
+     "ratio": 1.0341323106423779
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 59.176,
+     "port_ms": 43.739,
+     "ratio": 0.7391341084223333
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 42.378,
+     "port_ms": 45.804,
+     "ratio": 1.080843834064845
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 50.097,
+     "port_ms": 47.11,
+     "ratio": 0.9403756711978761
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 36.669,
+     "port_ms": 36.673,
+     "ratio": 1.000109083967384
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 38.831,
+     "port_ms": 35.843,
+     "ratio": 0.923051170456594
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 36.121,
+     "port_ms": 36.984,
+     "ratio": 1.0238919188283824
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 636.788,
+     "port_ms": 439.959,
+     "ratio": 0.6909034089838376
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 64.617,
+     "port_ms": 175.12,
+     "ratio": 2.710122723122398
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 348.924,
+     "port_ms": 416.778,
+     "ratio": 1.1944664167555115
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 15.7,
+     "port_ms": 16.312,
+     "ratio": 1.0389808917197454
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 15.049,
+     "port_ms": 15.132,
+     "ratio": 1.0055153166323343
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 14.863,
+     "port_ms": 15.926,
+     "ratio": 1.0715198815851443
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 132.554,
+     "port_ms": 129.296,
+     "ratio": 0.9754213377189673
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 7.452000000000005,
+     "port_ms": 11.362,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 117.827,
+     "port_ms": 125.306,
+     "ratio": 1.0634744158809102
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.5259999999999962,
+     "port_ms": 5.859,
+     "ratio": null
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 122.502,
+     "port_ms": 127.458,
+     "ratio": 1.0404564823431455
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.453000000000003,
+     "port_ms": 5.648,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 158.831,
+     "port_ms": 134.453,
+     "ratio": 0.8465161083163867,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 131.42,
+     "port_ms": 135.733,
+     "ratio": 1.032818444681175,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 143.993,
+     "port_ms": 137.265,
+     "ratio": 0.9532755064482301,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 967.021,
+     "port_ms": 967.199,
+     "ratio": 1.00018407045969,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 3972.464,
+     "port_ms": 3822.514,
+     "ratio": 0.9622526472234866,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 39.366,
+     "port_ms": 39.882000000000005,
+     "ratio": 1.013107757963725
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 39.14,
+     "port_ms": 40.496,
+     "ratio": 1.0346448645886561
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 39.047,
+     "port_ms": 40.247,
+     "ratio": 1.0307321945347916
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 76.953,
+     "port_ms": 55.805,
+     "ratio": 0.7251829038504022
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 50.139,
+     "port_ms": 56.767,
+     "ratio": 1.1321925048365544
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 62.374,
+     "port_ms": 58.389,
+     "ratio": 0.936111200179562
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 42.654,
+     "port_ms": 38.648,
+     "ratio": 0.9060814929432175
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 42.272,
+     "port_ms": 38.440000000000005,
+     "ratio": 0.9093489780469343
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 42.521,
+     "port_ms": 38.585,
+     "ratio": 0.9074339738011806
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1347.012,
+     "port_ms": 877.797,
+     "ratio": 0.6516623459924633
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 132.29,
+     "port_ms": 349.47,
+     "ratio": 2.641696273338877
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 703.802,
+     "port_ms": 831.65,
+     "ratio": 1.1816533627355421
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 18.696,
+     "port_ms": 19.486,
+     "ratio": 1.042255027813436
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 17.759,
+     "port_ms": 18.014,
+     "ratio": 1.0143589166056646
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 17.847,
+     "port_ms": 18.929,
+     "ratio": 1.060626435815543
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 158.831,
+     "port_ms": 151.495,
+     "ratio": 0.9538125428915011
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 13.069000000000003,
+     "port_ms": 16.836,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 131.42,
+     "port_ms": 142.40599999999998,
+     "ratio": 1.0835945822553643
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 1.889000000000003,
+     "port_ms": 6.557,
+     "ratio": null
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 143.993,
+     "port_ms": 143.76899999999998,
+     "ratio": 0.9984443688234843
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 1.8729999999999976,
+     "port_ms": 6.403,
+     "ratio": null
+    }
+   ]
+  },
+  {
+   "reading": "cuda-batch-sizes",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "base",
+   "gated": false,
+   "record": "ipdps26_escher-cuda-batch-sizes.json",
+   "date": "2026-10-21T18:21:47Z",
+   "port_commit": "c83cebfc95894b12dd4bd034b0b1528000583243",
+   "reference": {
+    "name": "ESCHER-GPU",
+    "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "order": "A/B alternation (A first in every round)",
+    "lock": "perf.lock: held exclusively by this process",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "statistic": "median"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters), with the guard requiring the golden's counts from every measured process (each round of a timed reading; each plain and profiled run of a memory reading)"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 943.222,
+     "port_ms": 931.86,
+     "ratio": 0.987954055354943,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 978.228,
+     "port_ms": 969.458,
+     "ratio": 0.9910348098807231,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 991.948,
+     "port_ms": 966.94,
+     "ratio": 0.9747890010363447,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 5292.682,
+     "port_ms": 5286.504,
+     "ratio": 0.998832727906192,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 10724.502,
+     "port_ms": 10205.169,
+     "ratio": 0.9515750941162582,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 412.17,
+     "port_ms": 409.974,
+     "ratio": 0.9946721013174175
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 431.409,
+     "port_ms": 432.933,
+     "ratio": 1.0035326105853146
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 438.805,
+     "port_ms": 433.57500000000005,
+     "ratio": 0.9880812661660647
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 87.333,
+     "port_ms": 80.67,
+     "ratio": 0.9237058156710523
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 84.13,
+     "port_ms": 89.521,
+     "ratio": 1.0640794009271366
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 84.264,
+     "port_ms": 87.368,
+     "ratio": 1.0368366087534415
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 444.189,
+     "port_ms": 440.467,
+     "ratio": 0.9916206839881221
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 461.297,
+     "port_ms": 447.17900000000003,
+     "ratio": 0.9693949884781389
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 469.297,
+     "port_ms": 444.809,
+     "ratio": 0.9478198241199071
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1403.646,
+     "port_ms": 767.394,
+     "ratio": 0.5467147699633669
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 185.047,
+     "port_ms": 469.945,
+     "ratio": 2.539598048063465
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 357.426,
+     "port_ms": 363.309,
+     "ratio": 1.0164593510265063
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 189.899,
+     "port_ms": 25.533,
+     "ratio": 0.1344556843374636
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 26.587,
+     "port_ms": 23.592,
+     "ratio": 0.8873509609959754
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 26.546,
+     "port_ms": 25.592,
+     "ratio": 0.9640623822798161
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 943.222,
+     "port_ms": 955.289,
+     "ratio": 1.0127933826819138
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 3.807000000000002,
+     "port_ms": 23.587,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 978.228,
+     "port_ms": 982.083,
+     "ratio": 1.0039407990775158
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 3.5150000000000006,
+     "port_ms": 13.016,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 991.948,
+     "port_ms": 980.2320000000001,
+     "ratio": 0.9881888969986331
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 3.526999999999987,
+     "port_ms": 13.001,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 1835.209,
+     "port_ms": 1818.016,
+     "ratio": 0.9906315847404846,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 1837.798,
+     "port_ms": 1869.482,
+     "ratio": 1.01724019723604,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 1846.823,
+     "port_ms": 1882.117,
+     "ratio": 1.0191106565166232,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 5294.195,
+     "port_ms": 5285.82,
+     "ratio": 0.9984180786691839,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 13408.533,
+     "port_ms": 13007.876,
+     "ratio": 0.9701192516735425,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 826.042,
+     "port_ms": 823.838,
+     "ratio": 0.9973318547967294
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 812.655,
+     "port_ms": 816.578,
+     "ratio": 1.0048273867754458
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 852.718,
+     "port_ms": 855.317,
+     "ratio": 1.0030479009473239
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 126.91,
+     "port_ms": 133.719,
+     "ratio": 1.0536521944685209
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 126.888,
+     "port_ms": 159.228,
+     "ratio": 1.254870436920749
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 126.767,
+     "port_ms": 157.336,
+     "ratio": 1.2411431997286362
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 882.563,
+     "port_ms": 860.448,
+     "ratio": 0.9749422987367474
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 895.898,
+     "port_ms": 892.703,
+     "ratio": 0.9964337458058841
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 867.431,
+     "port_ms": 868.897,
+     "ratio": 1.0016900479692332
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1417.2060000000001,
+     "port_ms": 765.5029999999999,
+     "ratio": 0.5401494207616958
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 182.69199999999998,
+     "port_ms": 481.844,
+     "ratio": 2.6374663367854096
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 358.089,
+     "port_ms": 361.507,
+     "ratio": 1.0095451130864115
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 206.561,
+     "port_ms": 43.93,
+     "ratio": 0.21267325390562594
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 45.81,
+     "port_ms": 44.722,
+     "ratio": 0.9762497271338135
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 46.316,
+     "port_ms": 45.05,
+     "ratio": 0.972666033336212
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update_with_host_model[b1]",
+     "gate_kind": "none",
+     "original_ms": 1835.209,
+     "port_ms": 1853.208,
+     "ratio": 1.0098076022948885
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.maintain_untimed[b1]",
+     "gate_kind": "none",
+     "original_ms": 7.915999999999983,
+     "port_ms": 34.906,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update_with_host_model[b2]",
+     "gate_kind": "none",
+     "original_ms": 1837.798,
+     "port_ms": 1897.174,
+     "ratio": 1.0323082297401565
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.maintain_untimed[b2]",
+     "gate_kind": "none",
+     "original_ms": 7.751999999999995,
+     "port_ms": 26.948,
+     "ratio": null
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update_with_host_model[b3]",
+     "gate_kind": "none",
+     "original_ms": 1846.823,
+     "port_ms": 1908.8319999999999,
+     "ratio": 1.033576038418408
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "update.maintain_untimed[b3]",
+     "gate_kind": "none",
+     "original_ms": 7.595999999999989,
+     "port_ms": 26.755,
+     "ratio": null
+    }
+   ]
+  }
+ ],
+ "verdict": {
+  "gated_regions": 45,
+  "within_gate": 45,
+  "ratio_range": [
+   0.8616800995646763,
+   1.0328033548738358
+  ],
+  "exceeded": [],
+  "provisional": [],
+  "contaminated": [],
+  "missing_or_incomplete": [],
+  "problems": [],
+  "passed": true
+ }
+}

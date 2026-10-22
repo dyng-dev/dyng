@@ -50,7 +50,7 @@ dyng_add_test(
 dyng_add_test(
   NAME dyng_io_tests
   SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp io/hypergraph_io_test.cpp
-          io/batch_binary_test.cpp
+          io/batch_binary_test.cpp io/triad_bins_test.cpp
   LABELS cpu io
 )
 if(DYNG_ENABLE_CUDA)
@@ -403,6 +403,15 @@ if(TARGET dyng_triad_count)
   target_include_directories(dyng_triad_replay_lib PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 else()
   target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
+endif()
+# --counter local_patterns (M9b criterion 3, ADR 0058): the built-in Ops through
+# experimental::count_local_patterns, which needs nvcc (a CUDA source in CUDA builds).
+if(TARGET dyng_triad_count AND DYNG_ENABLE_CUDA)
+  target_sources(dyng_triad_replay_lib PRIVATE parity/escher/triad_replay_local_patterns.cu)
+  target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_LOCAL_PATTERNS=1)
+  target_compile_features(dyng_triad_replay_lib PRIVATE cuda_std_17)
+else()
+  target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_LOCAL_PATTERNS=0)
 endif()
 add_executable(dyng_triad_replay parity/escher/triad_replay_main.cpp)
 target_link_libraries(dyng_triad_replay PRIVATE dyng_triad_replay_lib)
@@ -1417,5 +1426,10 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
 endforeach()
 
 add_subdirectory(api)
+
+# experimental::count_local_patterns (M9b, ADR 0058): its driver is triad_count's.
+if("triad_count" IN_LIST _dyng_algorithms)
+  add_subdirectory(experimental)
+endif()
 
 dyng_write_gpu_test_list()

@@ -168,6 +168,14 @@ def _add_typed_flag(
 ) -> None:
     flag = flag_of(name)
     origin = typing.get_origin(hint)
+    if origin in (typing.Union, types.UnionType):
+        # X | None is X (an unset flag keeps the default); a union with a Literal takes the
+        # Literal's choices (Options.kind: a name or its enumeration member, PatternName |
+        # Pattern); any other union is a string.
+        inner = [a for a in typing.get_args(hint) if a is not type(None)]
+        literals = [a for a in inner if typing.get_origin(a) is Literal]
+        hint = inner[0] if len(inner) == 1 else literals[0] if len(literals) == 1 else str
+        origin = typing.get_origin(hint)
     if origin is list:
         g.add_argument(
             flag,
@@ -186,9 +194,6 @@ def _add_typed_flag(
     if origin is Literal:
         g.add_argument(flag, dest=dest, choices=typing.get_args(hint), default=None, help=help_text)
         return
-    if origin in (typing.Union, types.UnionType):
-        inner = [a for a in typing.get_args(hint) if a is not type(None)]
-        hint = inner[0] if len(inner) == 1 else str
     kind: Callable[[str], Any] = int if hint is int else float if hint is float else str
     metavar = "N" if kind is int else "X" if kind is float else None
     if re.match(r"--[\w-]+", help_text):  # a generator argument documented by its original flag
@@ -238,18 +243,34 @@ def options_from[T](args: argparse.Namespace, options_cls: type[T], names: Itera
 
 
 def add_function_flags(
-    p: argparse.ArgumentParser, fn: Callable[..., Any], title: str, *, skip: Iterable[str] = ()
+    p: argparse.ArgumentParser,
+    fn: Callable[..., Any],
+    title: str,
+    *,
+    skip: Iterable[str] = (),
+    see: type | None = None,
+    defaults: dict[str, str] | None = None,
 ) -> list[str]:
-    """One flag per keyword-only argument of ``fn`` (a generator); returns the names."""
+    """One flag per keyword-only argument of ``fn`` (a generator, a reader); returns the names.
+
+    ``see``: a dataclass whose ``Attributes:`` give the help of the arguments documented as
+    "See <that class>"; ``defaults`` replaces the "(default: ...)" text of an argument (a reader's
+    ``None``, which keeps its option set's value).
+    """
     sig = inspect.signature(fn)
     hints = typing.get_type_hints(fn)
     helps = doc_section(fn, "Args")
+    if see is not None:
+        fields = doc_section(see, "Attributes")
+        helps = {k: fields.get(k, v) if v.startswith("See ") else v for k, v in helps.items()}
     g = p.add_argument_group(title, f"the arguments of {fn.__module__}.{fn.__name__}()")
     names = []
     for name, param in sig.parameters.items():
         if param.kind is not inspect.Parameter.KEYWORD_ONLY or name in skip:
             continue
         default = None if param.default is inspect.Parameter.empty else param.default
+        if defaults and name in defaults:
+            default = defaults[name]
         _add_typed_flag(g, name, hints[name], default, helps.get(name, ""), "arg_" + name)
         names.append(name)
     return names

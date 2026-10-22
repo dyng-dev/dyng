@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 """The Python half of the API check (ci/api_check.sh: griffe) covers dyng.mosp, frozen in 0.2
-(ADR 0035): a deliberate change of a mosp signature, default or public name is a breaking change.
+(ADR 0035), and dyng.triad_count, frozen in 0.3 (ADR 0060): a deliberate change of a signature,
+default or public name of either is a breaking change.
 
 griffe compares two static copies of the typed layer python/dyng here (ci/api_check.sh compares
 the working tree with a base revision of the history); nothing is built or imported.
@@ -35,18 +36,18 @@ def _load(root: Path):
     )
 
 
-def _breakages(tmp_path: Path, edit) -> list:
+def _breakages(tmp_path: Path, edit, module: str = "mosp") -> list:
     old = tmp_path / "old"
     new = tmp_path / "new"
     for root in (old, new):
         shutil.copytree(
             PACKAGE, root / "dyng", ignore=shutil.ignore_patterns("*.so", "__pycache__")
         )
-    mosp = new / "dyng" / "mosp.py"
-    text = mosp.read_text(encoding="utf-8")
+    path = new / "dyng" / f"{module}.py"
+    text = path.read_text(encoding="utf-8")
     changed = edit(text)
     assert changed != text, "the edit did not apply"
-    mosp.write_text(changed, encoding="utf-8")
+    path.write_text(changed, encoding="utf-8")
     return list(griffe.find_breaking_changes(_load(old), _load(new)))
 
 
@@ -84,3 +85,39 @@ def test_a_removed_mosp_result_accessor_is_breaking(tmp_path: Path) -> None:
         )
 
     assert _in_mosp(_breakages(tmp_path, edit))
+
+
+# --- dyng.triad_count (frozen at the end of M9b, ADR 0060) ----------------------------------------
+
+
+def _in_triad_count(breakages: list) -> list[str]:
+    return [b.explain() for b in breakages if b.obj.path.startswith("dyng.triad_count")]
+
+
+def test_a_renamed_parameter_of_triad_count_update_is_breaking(tmp_path: Path) -> None:
+    # (A renamed keyword-only parameter of compute() is absorbed by its **kwargs for griffe; the
+    # positional parameters of update() are not.)
+    def edit(text: str) -> str:
+        return text.replace(
+            "def update(\n    hypergraph: Hypergraph,\n    batch: HyperedgeBatch,",
+            "def update(\n    hg: Hypergraph,\n    batch: HyperedgeBatch,",
+        )
+
+    assert _in_triad_count(_breakages(tmp_path, edit, "triad_count"))
+
+
+def test_a_changed_default_of_triad_count_options_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace(
+            '    kind: PatternName | Pattern = "h_motif"\n',
+            '    kind: PatternName | Pattern = "stathyper_type1"\n',
+        )
+
+    assert _in_triad_count(_breakages(tmp_path, edit, "triad_count"))
+
+
+def test_a_removed_triad_count_result_accessor_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace("    def total(self) -> int:", "    def _total(self) -> int:")
+
+    assert _in_triad_count(_breakages(tmp_path, edit, "triad_count"))

@@ -75,7 +75,8 @@ Every reader of `dyng::io` has a libFuzzer target in `cpp/fuzz` (its README list
 Market, edge lists (and their Matrix Market path), the MOSP CSR triplet, MOSP batches
 (`insert.txt` / `delete.txt`), `.dgt` batch files (graph and hypergraph batches), the result files
 (distances, parents), and since M8b the hypergraph files (`fuzz_hg`, `.hg`) and the binary batch
-files (`fuzz_batch_binary`, `.dgb`). Each reader added later gets a target in the same pull
+files (`fuzz_batch_binary`, `.dgb`), and since M9b the triad bins (`fuzz_triad_bins`, the JSON
+of `io::read_triad_bins_json()`). Each reader added later gets a target in the same pull
 request.
 
 A target splits its input into reader options (the first line: byte i selects option i) and the

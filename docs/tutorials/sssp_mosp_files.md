@@ -27,6 +27,7 @@ edge 0 -> 2 with weight 2, or change its weight if it exists) and `delete.txt` h
 The example picks the backend from its last argument and reads the CSR files into a graph with
 MOSP's batch semantics (parallel edges and self-loops kept, append row order; ADR 0010):
 
+% quote: examples/cpp/sssp_update.cpp#at-f64aa4a8 0492a6ac72bf
 ```{literalinclude} ../../examples/cpp/sssp_update.cpp
 :language: cpp
 :start-at: const std::string backend
@@ -38,6 +39,7 @@ on a shortest path, on every backend.
 
 ## 4. Apply the batch
 
+% quote: examples/cpp/sssp_update.cpp#at-584faeba b7b276f72ac3
 ```{literalinclude} ../../examples/cpp/sssp_update.cpp
 :language: cpp
 :start-at: dyng::io::legacy_batch_options options
@@ -52,6 +54,7 @@ template (`sssp.prepare`, `sssp.commit`, `sssp.identify_affected`, `sssp.seed`, 
 
 ## 5. Write the result and compare
 
+% quote: examples/cpp/sssp_update.cpp#at-d802591b e62ead7d0071
 ```{literalinclude} ../../examples/cpp/sssp_update.cpp
 :language: cpp
 :start-at: const std::string out = argv[4]

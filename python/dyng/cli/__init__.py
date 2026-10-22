@@ -12,13 +12,16 @@ the utility commands ``prep`` (MOSP's ``mospPrep`` subcommands), ``convert`` and
     dyng cycle_count compute --graph DD_A.txt --max-length 6      # = cycle-enum --task count
     dyng cycle_count update --graph DD_A.txt --max-length 4 --num-deletions 40 \\
         --num-insertions 40 --seed 1                              # = cycle-enum --task update
+    dyng triad_count compute --input coauth-DBLP.hg --kind h_motif --format escher
+    dyng triad_count update --input small.hg --batches b1.dgb b2.dgb --format escher
     dyng prep mtx2csr roadNet-CA.mtx roadNet-CA_ 1 1 100 12345    # = mospPrep mtx2csr
     dyng convert g.mtx g.txt
     dyng generate cycle_enum_batch --graph DD_A.txt --num-deletions 5 --num-insertions 5
 
 Every option flag is the kebab-case name of a field of the algorithm's ``Options``
 (``max_length`` -> ``--max-length``); the outputs are the originals' formats (MOSP's distance,
-tree and path-cost files, CycleEnumeration-GPU's histogram CSV, MOSP's batch files), so they
+tree and path-cost files, CycleEnumeration-GPU's histogram CSV, ESCHER-GPU's count lines, MOSP's
+batch files), so they
 can be compared byte for byte with the originals and the goldens. The console script ``dyng`` and
 ``python -m dyng`` call :func:`main`.
 
@@ -40,6 +43,7 @@ from ._algorithms import add_cycle_count, add_mosp, add_sssp
 from ._common import CliError, UsageError
 from ._prep import add_prep, run_prep
 from ._tools import add_convert, add_generate
+from ._triad_count import add_triad_count
 
 __all__ = ["build_parser", "main"]
 
@@ -53,9 +57,10 @@ def build_parser() -> argparse.ArgumentParser:
     """The argument parser of the ``dyng`` command (for documentation and tests)."""
     p = argparse.ArgumentParser(
         prog="dyng",
-        description="dynG: dynamic graph algorithms that update their results under batches of "
-        "changes. Commands: the algorithms (sssp, mosp, cycle_count) with the verbs compute and "
-        "update, and the utilities prep, convert and generate.",
+        description="dynG: dynamic graph and hypergraph algorithms that update their results "
+        "under batches of changes. Commands: the algorithms (sssp, mosp, cycle_count, "
+        "triad_count) with the verbs compute and update, and the utilities prep, convert and "
+        "generate.",
         epilog="Run 'dyng <command> --help' for the flags of a command.",
     )
     p.add_argument("--version", action="version", version=f"dyng {dyng.__version__}")
@@ -69,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_sssp(sub)
     add_mosp(sub)
     add_cycle_count(sub)
+    add_triad_count(sub)
     add_prep(sub)
     add_convert(sub)
     add_generate(sub)

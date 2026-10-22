@@ -1,0 +1,632 @@
+{
+ "schema": 2,
+ "algorithm": "triad_count",
+ "what": "triad_count against ESCHER-GPU@abcf9b2: the Nsight Systems peak of live device allocations of both whole processes (D1) and the store accounting",
+ "date": "2026-10-21T18:29:08Z",
+ "date_end": "2026-10-21T18:31:12Z",
+ "patterns": [
+  "main"
+ ],
+ "reference": {
+  "name": "ESCHER-GPU",
+  "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/unpatched/build",
+  "build": "its own Makefile (parity/references.toml: make all-types build/cbst_test ARCH=sm_86)"
+ },
+ "protocol": {
+  "nsys": "nsys profile -t cuda,nvtx --cuda-memory-usage=true (CUDA 13.1), memKind Device (cudaMalloc + cudaMallocAsync)",
+  "gpu": 1,
+  "lock": "shared (flock -s by the caller); no foreign process on the GPU (checked before and after each case)",
+  "original": "the UNPATCHED build/<pattern>, no --check",
+  "port": "dyng-compat-escher run --backend cuda --nvtx",
+  "guard": "every measured process (the two plain runs and the two profiled ones): the counts and batch lines it prints equal the golden case's; a failure stops the reading"
+ },
+ "port": {
+  "commit": "c83cebfc95894b12dd4bd034b0b1528000583243",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-escher",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "datasets_sha256": {
+  "coauth": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+ },
+ "results": {
+  "coauth_b100k_s1/main": {
+   "case": "coauth_b100k_s1",
+   "pattern": "main",
+   "dataset": "coauth",
+   "seed": 1,
+   "batches": 3,
+   "input": {
+    "input": "coauth",
+    "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6",
+    "how": "the dataset file $DYNG_SCRATCH/datasets/hyper/coauth.hg, hashed by the measuring process"
+   },
+   "original": {
+    "peak_live_mib": 3079.7,
+    "peak_live_bytes": 3229273118,
+    "peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ]
+   },
+   "port": {
+    "peak_live_mib": 3085.1,
+    "peak_live_bytes": 3234952577,
+    "peak_in": [
+     "triad_count.update",
+     "triad_count.commit",
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "ratio": 1.0017587422285041
+   },
+   "ratio": 1.0017587422285041,
+   "store_accounting": [
+    {
+     "point": "build",
+     "row": "store_memory[build]",
+     "dyng_device_bytes": 1922784204,
+     "escher_gpu_device_bytes": 1922784204,
+     "ratio": 1.0,
+     "print_point": true,
+     "gated": true
+    },
+    {
+     "point": "batch 1",
+     "row": "store_memory[b1]",
+     "dyng_device_bytes": 1923581020,
+     "escher_gpu_device_bytes": 1923581020,
+     "ratio": 1.0,
+     "print_point": false,
+     "gated": true
+    },
+    {
+     "point": "batch 2",
+     "row": "store_memory[b2]",
+     "dyng_device_bytes": 1924052588,
+     "escher_gpu_device_bytes": 1924052588,
+     "ratio": 1.0,
+     "print_point": false,
+     "gated": true
+    },
+    {
+     "point": "batch 3",
+     "row": "store_memory[b3]",
+     "dyng_device_bytes": 1925031324,
+     "escher_gpu_device_bytes": 1925031324,
+     "ratio": 1.0,
+     "print_point": true,
+     "gated": true
+    }
+   ],
+   "store_gated_points": "every point",
+   "store_worst_ratio": 1.0,
+   "a_print_points": "[memory] ESCHER device allocations: 1833.7 MB after init, 1835.9 MB",
+   "a_print_points_agree_with_the_golden": true,
+   "nsys": {
+    "original": {
+     "peak_live_mib": 3079.7,
+     "peak_live_bytes": 3229273118,
+     "footprint_peak_mib": 3111.7,
+     "footprint_at_live_peak_mib": 3111.7,
+     "footprint_peak_in": [
+      "update",
+      "update.maintain",
+      "maintain.h2h_merge"
+     ],
+     "pool_mib": 288.0,
+     "peak_in": [
+      "update",
+      "update.maintain",
+      "maintain.h2h_merge"
+     ],
+     "range_peaks_mib": {
+      "init.construct": 1777.2,
+      "init.full_count": 1852.6,
+      "init.row_views": 1833.7,
+      "maintain.h2h_merge": 3079.7,
+      "maintain.h2v_delete": 1835.3,
+      "maintain.h2v_insert": 2108.0,
+      "maintain.row_views": 1835.9,
+      "maintain.v2h_fill": 1835.9,
+      "maintain.v2h_unfill": 1835.4,
+      "thrust::copy_if": 2108.0,
+      "thrust::count_if": 1836.7,
+      "thrust::exclusive_scan": 2084.7,
+      "thrust::inclusive_scan": 1836.6,
+      "thrust::sort": 2009.3,
+      "thrust::sort_by_key": 1837.0,
+      "unique": 1892.0,
+      "update": 3079.7,
+      "update.add": 1838.8,
+      "update.maintain": 3079.7,
+      "update.subtract": 1837.8
+     },
+     "batch_range": "update",
+     "batches": [
+      {
+       "live_mib_start": 1833.7,
+       "live_mib_end": 1834.5,
+       "pool_mib_end": 32.0,
+       "slack_mib_end": 32.0,
+       "held_mib_end": 1866.5
+      },
+      {
+       "live_mib_start": 1834.5,
+       "live_mib_end": 1834.9,
+       "pool_mib_end": 32.0,
+       "slack_mib_end": 32.0,
+       "held_mib_end": 1866.9
+      },
+      {
+       "live_mib_start": 1834.9,
+       "live_mib_end": 1835.9,
+       "pool_mib_end": 32.0,
+       "slack_mib_end": 32.0,
+       "held_mib_end": 1867.9
+      }
+     ]
+    },
+    "port": {
+     "peak_live_mib": 3085.1,
+     "peak_live_bytes": 3234952577,
+     "footprint_peak_mib": 3232.0,
+     "footprint_at_live_peak_mib": 3232.0,
+     "footprint_peak_in": [
+      "triad_count.update",
+      "triad_count.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 3232.0,
+     "peak_in": [
+      "triad_count.update",
+      "triad_count.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "range_peaks_mib": {
+      "hypergraph.apply": 3085.1,
+      "hypergraph.apply.delete": 1840.8,
+      "hypergraph.apply.insert": 2113.4,
+      "hypergraph.apply.line_graph": 3085.1,
+      "hypergraph.apply.views": 1841.7,
+      "hypergraph.cbst.append": 1841.3,
+      "hypergraph.cbst.construct": 1786.6,
+      "hypergraph.cbst.erase": 1840.7,
+      "hypergraph.cbst.insert": 2113.4,
+      "hypergraph.cbst.rebuild": 2953.3,
+      "hypergraph.cbst.remove_values": 1840.8,
+      "hypergraph.upload": 1833.7,
+      "thrust::copy_if": 2113.4,
+      "thrust::count_if": 1842.1,
+      "thrust::exclusive_scan": 2090.1,
+      "thrust::inclusive_scan": 1842.1,
+      "thrust::sort": 2014.8,
+      "thrust::stable_sort_by_key": 1842.5,
+      "triad_count.commit": 3085.1,
+      "triad_count.compute": 1852.6,
+      "triad_count.count": 1852.6,
+      "triad_count.count_minus": 1838.7,
+      "triad_count.enact_fused": 1852.6,
+      "triad_count.finalize": 1833.8,
+      "triad_count.reset": 1833.7,
+      "triad_count.update": 3085.1,
+      "unique": 1897.4
+     },
+     "batch_range": "triad_count.update",
+     "batches": [
+      {
+       "live_mib_start": 1833.7,
+       "live_mib_end": 1839.9,
+       "pool_mib_end": 3104.0,
+       "slack_mib_end": 1264.1,
+       "held_mib_end": 3104.0
+      },
+      {
+       "live_mib_start": 1839.9,
+       "live_mib_end": 1840.3,
+       "pool_mib_end": 3168.0,
+       "slack_mib_end": 1327.7,
+       "held_mib_end": 3168.0
+      },
+      {
+       "live_mib_start": 1840.3,
+       "live_mib_end": 1841.3,
+       "pool_mib_end": 3232.0,
+       "slack_mib_end": 1390.7,
+       "held_mib_end": 3232.0
+      }
+     ]
+    },
+    "port_without_counting": {
+     "peak_live_mib": 3080.1,
+     "peak_live_bytes": 3229672926,
+     "footprint_peak_mib": 3232.0,
+     "footprint_at_live_peak_mib": 3232.0,
+     "footprint_peak_in": [
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 3232.0,
+     "peak_in": [
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "range_peaks_mib": {
+      "hypergraph.apply": 3080.1,
+      "hypergraph.apply.delete": 1835.8,
+      "hypergraph.apply.insert": 2108.4,
+      "hypergraph.apply.line_graph": 3080.1,
+      "hypergraph.apply.views": 1836.6,
+      "hypergraph.cbst.append": 1836.3,
+      "hypergraph.cbst.construct": 1786.6,
+      "hypergraph.cbst.erase": 1835.7,
+      "hypergraph.cbst.insert": 2108.4,
+      "hypergraph.cbst.rebuild": 2948.3,
+      "hypergraph.cbst.remove_values": 1835.8,
+      "hypergraph.upload": 1833.7,
+      "thrust::copy_if": 2108.4,
+      "thrust::count_if": 1837.0,
+      "thrust::exclusive_scan": 2085.1,
+      "thrust::inclusive_scan": 1837.0,
+      "thrust::sort": 2009.7,
+      "thrust::stable_sort_by_key": 1837.4,
+      "unique": 1892.4
+     },
+     "batch_range": "hypergraph.apply",
+     "batches": [
+      {
+       "live_mib_start": 1833.7,
+       "live_mib_end": 1834.9,
+       "pool_mib_end": 3104.0,
+       "slack_mib_end": 1269.1,
+       "held_mib_end": 3104.0
+      },
+      {
+       "live_mib_start": 1834.9,
+       "live_mib_end": 1835.3,
+       "pool_mib_end": 3168.0,
+       "slack_mib_end": 1332.7,
+       "held_mib_end": 3168.0
+      },
+      {
+       "live_mib_start": 1835.3,
+       "live_mib_end": 1836.2,
+       "pool_mib_end": 3232.0,
+       "slack_mib_end": 1395.8,
+       "held_mib_end": 3232.0
+      }
+     ]
+    }
+   },
+   "triad_mib_during_apply": 5.0,
+   "footprint_ratio_at_peak": 1.0386605392550696,
+   "footprint_ratio_max": 1.0386605392550696,
+   "footprint_ratio_between_batches": [
+    1.663005625502277,
+    1.696930740800257,
+    1.7302853471813266
+   ],
+   "foreign_gpu_processes": {
+    "before": [],
+    "after": []
+   },
+   "guard": {
+    "runs_checked": 4,
+    "passed": true
+   },
+   "footprint_flagged": true
+  },
+  "coauth_b200k_s1/main": {
+   "case": "coauth_b200k_s1",
+   "pattern": "main",
+   "dataset": "coauth",
+   "seed": 1,
+   "batches": 3,
+   "input": {
+    "input": "coauth",
+    "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6",
+    "how": "the dataset file $DYNG_SCRATCH/datasets/hyper/coauth.hg, hashed by the measuring process"
+   },
+   "original": {
+    "peak_live_mib": 3203.9,
+    "peak_live_bytes": 3359517505,
+    "peak_in": [
+     "update",
+     "update.maintain",
+     "maintain.h2h_merge"
+    ]
+   },
+   "port": {
+    "peak_live_mib": 3211.2,
+    "peak_live_bytes": 3367173116,
+    "peak_in": [
+     "triad_count.update",
+     "triad_count.commit",
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "ratio": 1.0022787828873063
+   },
+   "ratio": 1.0022787828873063,
+   "store_accounting": [
+    {
+     "point": "build",
+     "row": "store_memory[build]",
+     "dyng_device_bytes": 1922784204,
+     "escher_gpu_device_bytes": 1922784204,
+     "ratio": 1.0,
+     "print_point": true,
+     "gated": true
+    },
+    {
+     "point": "batch 1",
+     "row": "store_memory[b1]",
+     "dyng_device_bytes": 1923804124,
+     "escher_gpu_device_bytes": 1923804124,
+     "ratio": 1.0,
+     "print_point": false,
+     "gated": true
+    },
+    {
+     "point": "batch 2",
+     "row": "store_memory[b2]",
+     "dyng_device_bytes": 1926066572,
+     "escher_gpu_device_bytes": 1926066572,
+     "ratio": 1.0,
+     "print_point": false,
+     "gated": true
+    },
+    {
+     "point": "batch 3",
+     "row": "store_memory[b3]",
+     "dyng_device_bytes": 1925885148,
+     "escher_gpu_device_bytes": 1925885148,
+     "ratio": 1.0,
+     "print_point": true,
+     "gated": true
+    }
+   ],
+   "store_gated_points": "every point",
+   "store_worst_ratio": 1.0,
+   "a_print_points": "[memory] ESCHER device allocations: 1833.7 MB after init, 1836.7 MB",
+   "a_print_points_agree_with_the_golden": true,
+   "nsys": {
+    "original": {
+     "peak_live_mib": 3203.9,
+     "peak_live_bytes": 3359517505,
+     "footprint_peak_mib": 3235.9,
+     "footprint_at_live_peak_mib": 3235.9,
+     "footprint_peak_in": [
+      "update",
+      "update.maintain",
+      "maintain.h2h_merge"
+     ],
+     "pool_mib": 288.0,
+     "peak_in": [
+      "update",
+      "update.maintain",
+      "maintain.h2h_merge"
+     ],
+     "range_peaks_mib": {
+      "init.construct": 1777.2,
+      "init.full_count": 1852.6,
+      "init.row_views": 1833.7,
+      "maintain.h2h_merge": 3203.9,
+      "maintain.h2v_delete": 1837.6,
+      "maintain.h2v_insert": 2109.9,
+      "maintain.row_views": 1836.8,
+      "maintain.v2h_fill": 1838.5,
+      "maintain.v2h_unfill": 1837.7,
+      "thrust::copy_if": 2109.9,
+      "thrust::count_if": 1840.3,
+      "thrust::exclusive_scan": 2207.9,
+      "thrust::inclusive_scan": 1840.3,
+      "thrust::sort": 2170.4,
+      "thrust::sort_by_key": 1841.1,
+      "unique": 1938.6,
+      "update": 3203.9,
+      "update.add": 1840.3,
+      "update.maintain": 3203.9,
+      "update.subtract": 1840.3
+     },
+     "batch_range": "update",
+     "batches": [
+      {
+       "live_mib_start": 1833.7,
+       "live_mib_end": 1834.7,
+       "pool_mib_end": 32.0,
+       "slack_mib_end": 32.0,
+       "held_mib_end": 1866.7
+      },
+      {
+       "live_mib_start": 1834.7,
+       "live_mib_end": 1836.8,
+       "pool_mib_end": 32.0,
+       "slack_mib_end": 32.0,
+       "held_mib_end": 1868.8
+      },
+      {
+       "live_mib_start": 1836.8,
+       "live_mib_end": 1836.7,
+       "pool_mib_end": 32.0,
+       "slack_mib_end": 32.0,
+       "held_mib_end": 1868.7
+      }
+     ]
+    },
+    "port": {
+     "peak_live_mib": 3211.2,
+     "peak_live_bytes": 3367173116,
+     "footprint_peak_mib": 3360.0,
+     "footprint_at_live_peak_mib": 3360.0,
+     "footprint_peak_in": [
+      "triad_count.update",
+      "triad_count.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 3360.0,
+     "peak_in": [
+      "triad_count.update",
+      "triad_count.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "range_peaks_mib": {
+      "hypergraph.apply": 3211.2,
+      "hypergraph.apply.delete": 1845.0,
+      "hypergraph.apply.insert": 2117.2,
+      "hypergraph.apply.line_graph": 3211.2,
+      "hypergraph.apply.views": 1844.9,
+      "hypergraph.cbst.append": 1845.8,
+      "hypergraph.cbst.construct": 1786.6,
+      "hypergraph.cbst.erase": 1844.9,
+      "hypergraph.cbst.insert": 2117.2,
+      "hypergraph.cbst.rebuild": 3079.4,
+      "hypergraph.cbst.remove_values": 1845.0,
+      "hypergraph.upload": 1833.7,
+      "thrust::copy_if": 2117.2,
+      "thrust::count_if": 1847.6,
+      "thrust::exclusive_scan": 2215.2,
+      "thrust::inclusive_scan": 1847.6,
+      "thrust::sort": 2177.7,
+      "thrust::stable_sort_by_key": 1848.4,
+      "triad_count.commit": 3211.2,
+      "triad_count.compute": 1852.6,
+      "triad_count.count": 1852.6,
+      "triad_count.count_minus": 1840.2,
+      "triad_count.enact_fused": 1852.6,
+      "triad_count.finalize": 1833.8,
+      "triad_count.reset": 1833.7,
+      "triad_count.update": 3211.2,
+      "unique": 1945.9
+     },
+     "batch_range": "triad_count.update",
+     "batches": [
+      {
+       "live_mib_start": 1833.7,
+       "live_mib_end": 1842.0,
+       "pool_mib_end": 3264.0,
+       "slack_mib_end": 1422.0,
+       "held_mib_end": 3264.0
+      },
+      {
+       "live_mib_start": 1842.0,
+       "live_mib_end": 1844.1,
+       "pool_mib_end": 3360.0,
+       "slack_mib_end": 1515.9,
+       "held_mib_end": 3360.0
+      },
+      {
+       "live_mib_start": 1844.1,
+       "live_mib_end": 1844.0,
+       "pool_mib_end": 3360.0,
+       "slack_mib_end": 1516.0,
+       "held_mib_end": 3360.0
+      }
+     ]
+    },
+    "port_without_counting": {
+     "peak_live_mib": 3204.6,
+     "peak_live_bytes": 3360317313,
+     "footprint_peak_mib": 3328.0,
+     "footprint_at_live_peak_mib": 3328.0,
+     "footprint_peak_in": [
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 3328.0,
+     "peak_in": [
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "range_peaks_mib": {
+      "hypergraph.apply": 3204.6,
+      "hypergraph.apply.delete": 1838.5,
+      "hypergraph.apply.insert": 2110.7,
+      "hypergraph.apply.line_graph": 3204.6,
+      "hypergraph.apply.views": 1838.4,
+      "hypergraph.cbst.append": 1839.3,
+      "hypergraph.cbst.construct": 1786.6,
+      "hypergraph.cbst.erase": 1838.4,
+      "hypergraph.cbst.insert": 2110.7,
+      "hypergraph.cbst.rebuild": 3072.8,
+      "hypergraph.cbst.remove_values": 1838.5,
+      "hypergraph.upload": 1833.7,
+      "thrust::copy_if": 2110.7,
+      "thrust::count_if": 1841.1,
+      "thrust::exclusive_scan": 2208.6,
+      "thrust::inclusive_scan": 1841.0,
+      "thrust::sort": 2171.1,
+      "thrust::stable_sort_by_key": 1841.8,
+      "unique": 1939.4
+     },
+     "batch_range": "hypergraph.apply",
+     "batches": [
+      {
+       "live_mib_start": 1833.7,
+       "live_mib_end": 1835.4,
+       "pool_mib_end": 3232.0,
+       "slack_mib_end": 1396.6,
+       "held_mib_end": 3232.0
+      },
+      {
+       "live_mib_start": 1835.4,
+       "live_mib_end": 1837.6,
+       "pool_mib_end": 3328.0,
+       "slack_mib_end": 1490.4,
+       "held_mib_end": 3328.0
+      },
+      {
+       "live_mib_start": 1837.6,
+       "live_mib_end": 1837.4,
+       "pool_mib_end": 3328.0,
+       "slack_mib_end": 1490.6,
+       "held_mib_end": 3328.0
+      }
+     ]
+    }
+   },
+   "triad_mib_during_apply": 6.6,
+   "footprint_ratio_at_peak": 1.0383509997218703,
+   "footprint_ratio_max": 1.0383509997218703,
+   "footprint_ratio_between_batches": [
+    1.748540204639203,
+    1.797945205479452,
+    1.7980414191684058
+   ],
+   "foreign_gpu_processes": {
+    "before": [],
+    "after": []
+   },
+   "guard": {
+    "runs_checked": 4,
+    "passed": true
+   },
+   "footprint_flagged": true
+  }
+ }
+}

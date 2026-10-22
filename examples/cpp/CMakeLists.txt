@@ -157,6 +157,47 @@ if(TARGET dyng_mosp)
   endif()
 endif()
 
+# triad_count (0.3): left out of a subset build without it (DYNG_ALGORITHMS). The program the
+# "Hypergraph triads" tutorial quotes; its output on examples/data/triad_count.{hg,dgt} is
+# examples/data/triad_count_update.expected.txt (equal to a brute force over every triple of
+# hyperedges, and to examples/python/triad_count.py's output) on every backend.
+if(TARGET dyng_triad_count)
+  add_executable(dyng_example_triad_count_update triad_count_update.cpp)
+  target_link_libraries(dyng_example_triad_count_update PRIVATE dyng::dyng)
+  target_compile_features(dyng_example_triad_count_update PRIVATE cxx_std_17)
+  set_target_properties(dyng_example_triad_count_update PROPERTIES OUTPUT_NAME triad_count_update)
+  dyng_set_warnings(dyng_example_triad_count_update)
+  dyng_enable_sanitizers(dyng_example_triad_count_update)
+  if(DYNG_BUILD_TESTS)
+    set(_data "${PROJECT_SOURCE_DIR}/examples/data")
+    set(_backends sequential)
+    if(DYNG_ENABLE_OPENMP)
+      list(APPEND _backends openmp)
+    endif()
+    if(DYNG_ENABLE_CUDA)
+      list(APPEND _backends cuda)
+    endif()
+    foreach(_backend IN LISTS _backends)
+      add_test(
+        NAME example.triad_count_update.${_backend}
+        COMMAND
+          ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:dyng_example_triad_count_update>"
+          "-DARGS=${_data}/triad_count.hg|${_data}/triad_count.dgt|${_backend}"
+          "-DEXPECTED=${_data}/triad_count_update.expected.txt" -P
+          "${CMAKE_CURRENT_SOURCE_DIR}/compare_output.cmake"
+      )
+      if(_backend STREQUAL "cuda")
+        set(_labels "gpu;triad_count;examples")
+      else()
+        set(_labels "cpu;triad_count;examples")
+      endif()
+      set_tests_properties(example.triad_count_update.${_backend} PROPERTIES
+                           LABELS "${_labels}" SKIP_RETURN_CODE 77
+                           ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
+    endforeach()
+  endif()
+endif()
+
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_doc_snippet.cmake")
 dyng_extract_doc_snippet(
   "${PROJECT_SOURCE_DIR}/README.md" quickstart-cpp

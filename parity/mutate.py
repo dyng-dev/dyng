@@ -41,7 +41,9 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                dyng_triad_count_tests (the host backends: hand cases, property tests against the
                oracle, the stats) and dyng_triad_count_cuda_tests (the same on cuda and the device
                tests of the engine); the hooks DYNG_MUTATION_TRIAD_* are in the code both engines
-               share (engine/phases.hpp, engine/ownership.hpp, triad_count.cpp), and the CBST's
+               share (engine/phases.hpp, triad_count.cpp, and since M9b the predicates of
+               engine/ownership.hpp in dyng/experimental/detail/local_patterns_engine.hpp, the
+               engine the Ops of count_local_patterns share; ADR 0058), and the CBST's
                unfill that drops its last value (DYNG_MUTATION_CBST_UNFILL_DROPS_LAST) must make
                the CUDA suite fail too; also the CTests `triad_count.mutation.<name>` (label cpu)
                and `triad_count.mutation.cuda.<name>` (label gpu) of every build

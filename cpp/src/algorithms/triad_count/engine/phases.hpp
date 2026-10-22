@@ -11,15 +11,16 @@
  *
  * The recorded triad mutations of M9a (PLAN Section 8.4; parity/mutate.py, suite triad_count)
  * that act here act on both engines at once: DYNG_MUTATION_TRIAD_WRONG_BIN_SIGN (the subtract
- * phase adds) and DYNG_MUTATION_TRIAD_TYPE1_UNBOUNDED_KEYS (type 1's full count runs over the
- * largest id bound the hypergraph has had, the line graph's keys, instead of the h2v view's).
+ * phase adds) and DYNG_MUTATION_TRIAD_TYPE1_UNBOUNDED_KEYS (the full count of the keys shape,
+ * type 1's, runs over the largest id bound the hypergraph has had, the line graph's keys, instead
+ * of the h2v view's).
  */
 #pragma once
 
 #include "framework/policies.hpp"
 #include "hypergraph/row_views.hpp"
 
-#include <dyng/triad_count.hpp>
+#include <dyng/experimental/local_patterns.hpp>
 
 namespace dyng::detail::triad {
 
@@ -48,15 +49,16 @@ inline framework::sign phase_sign(framework::sign s) noexcept {
 }
 
 /**
- * @brief The source keys of a full count: 1..views.h2v.max_key for type 1 (every hyperedge; the
- *        h2v view covers the keys up to the id bound, which can go down), 1..views.h2h.max_key
- *        for the line-graph patterns (ESCHER-GPU's numHyperedgeKeys, the largest bound so far).
- * @param[in] kind  The pattern.
+ * @brief The source keys of a full count: 1..views.h2v.max_key for the keys shape (every hyperedge
+ *        id below the bound: type 1, and the Ops of shape keys; the h2v view covers the keys up to
+ *        the id bound, which can go down), 1..views.h2h.max_key for the wedge shapes (ESCHER-GPU's
+ *        numHyperedgeKeys, the largest bound so far).
+ * @param[in] s     The pattern's shape.
  * @param[in] views The row views.
  * @return The number of source keys.
  */
-inline int full_count_keys(triad_count::pattern kind, const hyper::row_views& views) noexcept {
-  if (kind == triad_count::pattern::stathyper_type1) {
+inline int full_count_keys(experimental::shape s, const hyper::row_views& views) noexcept {
+  if (s == experimental::shape::keys) {
 #if defined(DYNG_MUTATION_TRIAD_TYPE1_UNBOUNDED_KEYS)
     // MUTATION (M9a criterion 11, triad_type1_unbounded_keys): the largest bound so far.
     return views.has_h2h && views.h2h.max_key > views.h2v.max_key ? views.h2h.max_key

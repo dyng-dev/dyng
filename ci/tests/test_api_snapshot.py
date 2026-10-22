@@ -355,6 +355,33 @@ def test_the_hypergraph_headers_are_frozen_and_a_change_is_breaking() -> None:
     assert all(b.startswith("[dyng/hypergraph/hypergraph_properties.hpp]") for b in breaking)
 
 
+def test_the_triad_count_header_is_frozen_and_a_change_is_breaking() -> None:
+    # The M9b freeze (ADR 0060): triad_count's manifest says stable, so dyng/triad_count.hpp is
+    # frozen with its detail contract; the oracle and the triad-bins JSON stay tracked, and the
+    # experimental extension headers stay in their own tier. A changed default of the frozen
+    # options, a removed stats field and a changed limit are breaking changes.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    assert secs["dyng/triad_count.hpp"][0] == "frozen"
+    assert api_snapshot.status("dyng/triad_count.hpp") == "frozen"
+    for tracked in ("dyng/testing/triad_reference.hpp", "dyng/io/result_io.hpp"):
+        assert secs[tracked][0] == "tracked", tracked
+    assert secs["dyng/experimental/local_patterns.cuh"][0] == "experimental"
+    assert any(
+        "update_traits<triad_count::result>" in line for line in secs["dyng/triad_count.hpp"][1]
+    )
+    for old, new in (
+        ("pattern kind = pattern::h_motif", "pattern kind = pattern::stathyper_type1"),
+        ("      std::uint64_t triads_added = 0\n", ""),
+        (
+            "constexpr int dyng::triad_count::max_bins = 30",
+            "constexpr int dyng::triad_count::max_bins = 31",
+        ),
+    ):
+        breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new))
+        assert breaking, old
+        assert all(b.startswith("[dyng/triad_count.hpp]") for b in breaking), breaking
+
+
 def test_appended_lines_and_tracked_sections_are_not_breaking() -> None:
     lines = BASELINE_TEXT.splitlines(keepends=True)
     at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/mosp.hpp]"))
@@ -419,3 +446,46 @@ def test_against_fails_without_the_label(tmp_path, monkeypatch, capsys) -> None:
     unchanged.write_text(head)
     monkeypatch.delenv("DYNG_API_CHANGE")
     assert api_snapshot.check_against("HEAD", unchanged) == 0
+
+
+def test_the_experimental_headers_are_their_own_tier() -> None:
+    # PLAN 5.9's experimental tier (ADR 0058): dyng/experimental/*, .hpp and .cuh.
+    assert api_snapshot.status("dyng/experimental/local_patterns.hpp") == "experimental"
+    assert api_snapshot.status("dyng/experimental/local_patterns.cuh") == "experimental"
+    assert api_snapshot.status("dyng/experimental/detail/local_patterns_kernels.cuh") == (
+        "experimental"
+    )
+    assert api_snapshot.status("dyng/triad_count.hpp") in ("tracked", "frozen")
+    text = api_snapshot.BASELINE.read_text()
+    for header in ("dyng/experimental/local_patterns.hpp", "dyng/experimental/local_patterns.cuh"):
+        assert f"[{header}] experimental\n" in text
+    assert "struct dyng::experimental::count_local_patterns" in text
+
+
+def test_an_experimental_change_is_reported_not_failed(tmp_path, monkeypatch, capsys) -> None:
+    base = (
+        api_snapshot.HEADER
+        + "\n[dyng/core/types.hpp] frozen\n  int a\n"
+        + "\n[dyng/experimental/local_patterns.cuh] experimental\n  int b\n"
+        + "\n[dyng/io/io.hpp] tracked\n  int e\n"
+    )
+    baseline = tmp_path / "public_api.txt"
+    baseline.write_text(base)
+    xml = tmp_path / "xml"
+    xml.mkdir()
+    (xml / "index.xml").write_text("<doxygenindex/>")
+    changed = base.replace("  int b\n", "  int c\n")
+    monkeypatch.setattr(api_snapshot, "listing", lambda *a, **k: changed)
+    assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 0
+    out = capsys.readouterr().out
+    assert "EXPERIMENTAL API differs" in out
+    assert "+  int c" in out
+    # A new experimental header is reported too; a change outside the tier still fails.
+    added = base + "\n[dyng/experimental/more.cuh] experimental\n  int f\n"
+    monkeypatch.setattr(api_snapshot, "listing", lambda *a, **k: added)
+    assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 0
+    broken = changed.replace("  int e\n", "  int g\n")
+    monkeypatch.setattr(api_snapshot, "listing", lambda *a, **k: broken)
+    assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 1
+    # Never a frozen change.
+    assert api_snapshot.frozen_changes(base, changed) == ([], [])

@@ -3,8 +3,8 @@
 """dyng.testing: oracles to check results (C++ ``dyng::testing``) and Hypothesis strategies.
 
 The native oracles (:func:`dijkstra`, :func:`check_sssp_tree`, :func:`simple_cycles`,
-:func:`combined_graph`, :func:`mosp_path_costs`, :func:`rebuild_line_graph`) share no code with
-the algorithms and containers they check.
+:func:`combined_graph`, :func:`mosp_path_costs`, :func:`rebuild_line_graph`,
+:func:`triad_reference`) share no code with the algorithms and containers they check.
 :mod:`dyng.testing.oracles` holds small pure-Python oracles (Dijkstra with lowest-id ties, a
 brute-force cycle count and a model of batch semantics), and
 :mod:`dyng.testing.strategies` Hypothesis strategies for random graphs and batches (it needs the
@@ -41,6 +41,7 @@ __all__ = [
     "combined_graph",
     "mosp_path_costs",
     "rebuild_line_graph",
+    "triad_reference",
 ]
 
 
@@ -193,3 +194,38 @@ def rebuild_line_graph(hypergraph: Hypergraph) -> LineGraph:
         lo, hi = int(offsets[r]), int(offsets[r + 1])
         out[r] = lo + int(np.searchsorted(neighbours[lo:hi], r, side="right"))
     return LineGraph(offsets, neighbours, out, h2v.version)
+
+
+def triad_reference(
+    hypergraph: Hypergraph, kind: str = "h_motif", *, threads: int = 0
+) -> np.ndarray:
+    """The triad counts of a hypergraph's live hyperedges by ESCHER-GPU@abcf9b2's CPU reference
+    algorithm (C++ ``testing::triad_reference``): the oracle of :mod:`dyng.triad_count`. It
+    rebuilds the line graph from the hyperedges and classifies every triad by its Venn regions
+    with its own class map; it shares no code with the algorithm.
+
+    Args:
+        hypergraph: The hypergraph (read through a host copy of its live hyperedges).
+        kind: The pattern (a name or a :class:`dyng.triad_count.Pattern`).
+        threads: 1 runs sequentially, 0 uses OpenMP's default; every count is the same.
+
+    Returns:
+        The bins (uint64; 30 for ``"h_motif"``, 1 otherwise), as ``Result.counts``.
+
+    Example:
+        >>> import dyng
+        >>> hg = dyng.Hypergraph.from_lists([[0, 1, 2], [1, 2, 3], [0, 2, 3]])
+        >>> dyng.testing.triad_reference(hg, "stathyper_type1").tolist()
+        [3]
+    """
+    if not isinstance(hypergraph, Hypergraph):
+        raise TypeError("triad_reference: hypergraph must be a dyng.Hypergraph")
+    lst = hypergraph.to_hyperedge_list()
+    out: np.ndarray = native.testing_triad_reference(
+        np.ascontiguousarray(lst.offsets, dtype=np.int64),
+        np.ascontiguousarray(lst.members, dtype=np.int32),
+        hypergraph.num_vertices,
+        str(kind),
+        as_int(threads, "triad_reference: threads", lo=0, hi=2**31 - 1),
+    )
+    return out

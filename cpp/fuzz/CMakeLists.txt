@@ -28,6 +28,7 @@ set(DYNG_FUZZ_TARGETS
     result_io
     hg
     batch_binary
+    triad_bins
 )
 # The targets whose reader has a writer (the write -> read round trip).
 set(DYNG_FUZZ_ROUND_TRIP_TARGETS
@@ -38,6 +39,7 @@ set(DYNG_FUZZ_ROUND_TRIP_TARGETS
     result_io
     hg
     batch_binary
+    triad_bins
 )
 
 if(DYNG_BUILD_FUZZERS AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")

@@ -5,7 +5,8 @@
 ADR 0050).
 
     parity/compare.py triad_count --backend sequential|openmp|cuda [--threads N]
-                                  [--mode by_content|by_key|both] [--counter oracle|algorithm]
+                                  [--mode by_content|by_key|both]
+                                  [--counter oracle|algorithm|local_patterns]
                                   [--cases LIST] [--jobs N] [--gpu G] [--oracle-threads N]
                                   [--record FILE] [--certificate DIR] [--build DIR] [--keep]
                                   [--plant DEFECT]
@@ -405,7 +406,7 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--backend", required=True, choices=sorted(tg.COVERAGE))
     p.add_argument("--threads", type=int, default=8, help="openmp threads")
     p.add_argument("--mode", default="both", choices=sorted(MODES))
-    p.add_argument("--counter", default="oracle", choices=["oracle", "algorithm"])
+    p.add_argument("--counter", default="oracle", choices=["oracle", "algorithm", "local_patterns"])
     p.add_argument("--cases", type=lambda s: [x for x in s.split(",") if x])
     p.add_argument("--jobs", type=int, default=2)
     p.add_argument("--gpu", default=os.environ.get("DYNG_TEST_GPU", "1"))
@@ -567,7 +568,7 @@ def certificate_record(doc: dict) -> dict:
             "modes": list(MODES[doc["mode"]]),
             "coverage": doc.get("coverage", True),
             "integrity_after_every_batch": True,
-            "recount_after_every_batch": doc.get("counter") == "algorithm",
+            "recount_after_every_batch": doc.get("counter") in ("algorithm", "local_patterns"),
         },
         "passed": bool(doc.get("passed")) and all(r.get("passed") for r in doc["cases"].values()),
     }

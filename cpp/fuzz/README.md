@@ -14,6 +14,7 @@ the CI jobs and what to do with a finding are on the developer page
 | `fuzz_result_io` | `io::read_distances()`, `io::read_parents()` | reader, vertex count | 1 |
 | `fuzz_hg` | `io::read_hypergraph()` (`.hg`) | relabelling, index base, dedupe, max_cardinality, weights (none, file, random, H-SOSP's option set), vertex count | 1 |
 | `fuzz_batch_binary` | `io::batch_reader` (`.dgb`; the types its header names) | vertex count | 1 (binary) |
+| `fuzz_triad_bins` | `io::read_triad_bins_json()` (the triad-bins JSON, 0.3) | none | 1 |
 
 An input is `<option line>\n<file 1>[\n@@\n<file 2>...]`: byte i of the first line selects
 option i (a digit counts as its value), and lines that are exactly `@@` separate the files of a

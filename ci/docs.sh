@@ -18,7 +18,8 @@
 #    match the committed API baseline cpp/tests/api/api_snapshot/public_api.txt (the 0.1 freeze,
 #    ADR 0023; after a reviewed API change: ci/docs.sh --update-api). Then ci/doc_snippets.py
 #    --check: the README quickstarts of PLAN 9.6 exist and keep their size (pytest runs every
-#    Python snippet, CTest compiles and runs the C++ quickstart).
+#    Python snippet, CTest compiles and runs the C++ quickstart), and ci/tutorial_quotes.py --check:
+#    every quote of a tutorial page matches the pin of the code it quotes (the drift check).
 # 2. The Sphinx site (with the Python API reference from sphinx-autoapi) (MyST pages + Breathe over the Doxygen XML) with warnings as errors and
 #    nitpicky references: every page in a toctree, every cross-reference and C++ name resolved.
 #    This is also the check of the site's own links: a Markdown link or {doc} to a missing page,
@@ -76,6 +77,9 @@ python3 ci/doxygen_coverage.py "${DYNG_DOXYGEN_OUTPUT}/xml"
 # The executable snippets of the READMEs and the pages (PLAN 9.6): the quickstarts exist and keep
 # their size; pytest runs the Python ones, CTest builds and runs the C++ quickstart.
 python3 ci/doc_snippets.py --check
+# The tutorials' quotes of tested code (PLAN 9.2-9.3, ADR 0058): a quoted line that moves or
+# changes without its page fails here.
+python3 ci/tutorial_quotes.py --check
 if [ "${api_mode}" = "update" ]; then
   python3 ci/api_snapshot.py --update --xml "${DYNG_DOXYGEN_OUTPUT}/xml"
 else

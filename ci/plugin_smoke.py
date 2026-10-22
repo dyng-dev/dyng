@@ -8,7 +8,8 @@ their wheels), from a directory outside the source tree. Two expectations:
 
 ``--expect cuda`` (a machine with a driver and a visible GPU: ``ci/plugin_wheels.sh``)
     The plugin's module is the active native module (``dyng_cu<N>._core``), built with the static
-    CUDA runtime; ``sssp`` (both engines), ``cycle_count`` and ``mosp`` run on
+    CUDA runtime; ``sssp`` (both engines), ``cycle_count``, ``mosp`` and (0.3) ``triad_count``
+    (compute, then ``dyng.update`` of two results over a hypergraph batch) run on
     ``Resources.cuda(0)`` and their arrays, read from device memory, equal the sequential
     backend's element by element.
 
@@ -18,7 +19,7 @@ their wheels), from a directory outside the source tree. Two expectations:
     ``--reason`` (``"no CUDA driver"`` on a runner without the NVIDIA driver); the plugin's own
     extension module still imports without a driver (it needs neither ``libcuda`` nor
     ``libcudart``) and reports its build (plugin, toolkit, static runtime, architectures); and
-    ``sssp`` / ``cycle_count`` / ``mosp`` run on the CPU backends.
+    ``sssp`` / ``cycle_count`` / ``mosp`` / ``triad_count`` run on the CPU backends.
 
 Both check the installed versions (``dyng`` and the plugin equal ``--version`` when given), that
 the module was built for exactly the release list of CUDA architectures of its toolkit (PLAN
@@ -60,13 +61,35 @@ def _graphs(dyng, np, res):  # type: ignore[no-untyped-def]
         resources=res,
     )
     mo = dyng.mosp.compute(gm, 0)
-    return t, t_ops, h, mo
+    return t, t_ops, h, mo, _triads(dyng, np, res)
+
+
+def _triads(dyng, np, res):  # type: ignore[no-untyped-def]
+    """triad_count (h-motifs and type 1) of a small random hypergraph on ``res``: the counts
+    after compute and after one dyng.update() of both results, and the update's deltas."""
+    rng = np.random.default_rng(11)
+    rows = [
+        rng.choice(60, size=int(rng.integers(2, 6)), replace=False).tolist() for _ in range(300)
+    ]
+    hg = dyng.Hypergraph.from_lists(rows, num_vertices=60, resources=res)
+    motifs = dyng.triad_count.compute(hg)
+    type1 = dyng.triad_count.compute(hg, kind="stathyper_type1")
+    before = (motifs.counts, type1.counts)
+    batch = dyng.HyperedgeBatch(
+        delete_hyperedges=list(range(0, 300, 7)), insert_hyperedges=rows[:40:3]
+    )
+    st_m, st_1 = dyng.update(hg, batch, motifs, type1)
+    assert motifs.counts.tolist() == dyng.triad_count.compute(hg).counts.tolist()
+    return before, (motifs.counts, type1.counts), (st_m.delta, st_1.delta)
 
 
 def _same(np, a, b) -> None:  # type: ignore[no-untyped-def]
-    t, t_ops, h, mo = a
-    ts, ts_ops, hs, ms = b
+    t, t_ops, h, mo, tri = a
+    ts, ts_ops, hs, ms, tris = b
     eq = np.array_equal
+    for x, y in zip(tri, tris, strict=True):
+        assert all(eq(u, v) for u, v in zip(x, y, strict=True)), "triad_count"
+    assert int(tri[0][0].sum()) > 0, "triad_count found no triad"
     assert eq(t.distances.to_numpy(), ts.distances.to_numpy()), "sssp distances"
     assert eq(t.parents.to_numpy(), ts.parents.to_numpy()), "sssp parents"
     assert eq(t_ops.distances.to_numpy(), ts_ops.distances.to_numpy()), "sssp (operators)"
@@ -133,13 +156,13 @@ def main(argv: list[str] | None = None) -> int:
         assert dyng.config()["backends"]["cuda"], dyng.config()["backends"]
         cuda = dyng.Resources.cuda(0)
         on_gpu = _graphs(dyng, np, cuda)
-        t, _, _, mo = on_gpu
+        t, _, _, mo, _ = on_gpu
         assert t.distances.device == "cuda:0" and mo.distances(0).device == "cuda:0"
         assert t.distances.__cuda_array_interface__["shape"] == (t.distances.shape[0],)
         _same(np, on_gpu, _graphs(dyng, np, seq))
         print(
-            f"plugin_smoke: sssp, cycle_count and mosp ran on cuda ({backend.active_module_name});"
-            " their arrays equal the sequential backend's"
+            "plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda "
+            f"({backend.active_module_name}); their arrays equal the sequential backend's"
         )
         return 0
 
@@ -174,7 +197,10 @@ def main(argv: list[str] | None = None) -> int:
         raise AssertionError("Resources.cuda() worked on the CPU module")
     omp = dyng.Resources.openmp(2)
     _same(np, _graphs(dyng, np, omp), _graphs(dyng, np, seq))
-    print("plugin_smoke: dyng._core is active; sssp, cycle_count and mosp run on the CPU backends")
+    print(
+        "plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the "
+        "CPU backends"
+    )
     return 0
 
 
