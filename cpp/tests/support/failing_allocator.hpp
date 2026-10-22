@@ -110,8 +110,10 @@ int fail_each_allocation(
 }  // namespace dyng::test::alloc
 
 #if !DYNG_TEST_SANITIZED
-// NOLINTBEGIN(cppcoreguidelines-no-malloc): the replaceable global allocation functions
-void* operator new(std::size_t size) {
+// NOLINTBEGIN(cppcoreguidelines-no-malloc): the replaceable global allocation functions. Not
+// inlined: GCC at -O2 and above would otherwise see free() paired with operator new's pointers
+// in the callers and report -Wmismatched-new-delete.
+[[gnu::noinline]] void* operator new(std::size_t size) {
   if (dyng::test::alloc::fail_now()) {
     throw std::bad_alloc();
   }
@@ -121,10 +123,10 @@ void* operator new(std::size_t size) {
   }
   return p;
 }
-void operator delete(void* p) noexcept {
+[[gnu::noinline]] void operator delete(void* p) noexcept {
   std::free(p);
 }
-void operator delete(void* p, std::size_t /*size*/) noexcept {
+[[gnu::noinline]] void operator delete(void* p, std::size_t /*size*/) noexcept {
   std::free(p);
 }
 // NOLINTEND(cppcoreguidelines-no-malloc)
