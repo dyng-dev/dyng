@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import re
 import threading
 import warnings
 from collections.abc import Callable, Iterable
@@ -150,6 +151,43 @@ def _dyng_version() -> str | None:
         return None
 
 
+TESTPYPI = "https://test.pypi.org/simple/"
+_PRE_RELEASE = re.compile(r"^\d+(?:\.\d+)*(?:a|b|rc)\d+$")
+_DEV = re.compile(r"\.dev\d+|\+")
+
+
+def plugin_install_hint(version: str | None, plugin: str | None = None) -> str:
+    """The pip command that installs the CUDA plugin of ``dyng`` ``version`` (R030 review).
+
+    A release's plugins are on PyPI: ``pip install "dyng[cu13]"`` (with ``plugin``, the one plugin
+    pinned to the version). A pre-release (``0.3.0rc1``: its files are on TestPyPI only) gets the
+    documented TestPyPI form, because the bare extra resolves to the latest *release* on PyPI and
+    replaces this ``dyng`` with it, silently; a development version (``.devN``, a local version)
+    has no plugin on an index. ``version`` None (a source tree without metadata) is a release.
+    """
+    names = [plugin] if plugin else ["cu13", "cu12"]
+    if version and _DEV.search(version):
+        return (
+            f"dyng {version} is a development version, whose CUDA plugins are on no index "
+            f'(pip install "dyng[{names[0]}]" would install the latest release instead): build '
+            "dynG with CUDA from the source tree (the install page, 'Build with CUDA'), or the "
+            "plugin wheel with ci/plugin_wheels.sh (docs/developer/wheels.md)"
+        )
+    if version and _PRE_RELEASE.match(version):
+        other = f' (or "dyng-{names[1]}=={version}")' if len(names) > 1 else ""
+        return (
+            f"the plugins of the pre-release {version} are on TestPyPI only "
+            f'(pip install "dyng[{names[0]}]" would replace it with the latest release from '
+            f'PyPI): pip install -i {TESTPYPI} --no-deps "dyng=={version}" '
+            f'"dyng-{names[0]}=={version}"{other}, NumPy first from PyPI (the install page, '
+            "'Python')"
+        )
+    if plugin:
+        pinned = f"=={version}" if version else ""
+        return f'pip install "dyng[{plugin}]{pinned}"'
+    return 'pip install "dyng[cu13]" or "dyng[cu12]"'
+
+
 def _core() -> ModuleType:
     return importlib.import_module("._core", __package__)
 
@@ -170,7 +208,7 @@ def _probe(ep: Any, dyng_version: str | None) -> tuple[Any, PluginReport]:
     if dyng_version is not None and version is not None and str(version) != dyng_version:
         reason = (
             f"version {version} does not match dyng {dyng_version}; install the plugin of the "
-            f'same version: pip install "dyng[{name}]=={dyng_version}"'
+            f"same version: {plugin_install_hint(dyng_version, name)}"
         )
         return None, PluginReport(name, value, version, major, None, "version mismatch", reason)
     try:
