@@ -11,6 +11,7 @@
 #include "core/resources_access.hpp"
 #include "hypergraph/capacity.hpp"
 #include "hypergraph/line_graph/host_line_graph.hpp"
+#include "util/region_exceptions.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
@@ -234,17 +235,23 @@ void incidence_model::v2h_append(const grouped_incidences& g) {
   const bool parallel = threads > 1 && groups > 1024;
   (void)threads;
   (void)parallel;
+  // A row's insert allocates: its std::bad_alloc must not leave the region (D13, ADR 0061). It is
+  // rethrown after the region; the container then poisons the hypergraph (the store phase).
+  region_exceptions errors;
 #if DYNG_HAS_OPENMP
 #pragma omp parallel for num_threads(threads) if (parallel) schedule(dynamic, 64)
 #endif
   for (std::int64_t k = 0; k < groups; ++k) {
-    auto& row = v2h_[static_cast<std::size_t>(g.vertices[static_cast<std::size_t>(k)])];
-    const std::int32_t begin = k == 0 ? 0 : g.prefix[static_cast<std::size_t>(k) - 1];
-    for (std::int32_t i = begin; i < g.prefix[static_cast<std::size_t>(k)]; ++i) {
-      const std::int64_t id = g.ids[static_cast<std::size_t>(i)];
-      row.insert(std::lower_bound(row.begin(), row.end(), id), id);
-    }
+    errors.run([&] {
+      auto& row = v2h_[static_cast<std::size_t>(g.vertices[static_cast<std::size_t>(k)])];
+      const std::int32_t begin = k == 0 ? 0 : g.prefix[static_cast<std::size_t>(k) - 1];
+      for (std::int32_t i = begin; i < g.prefix[static_cast<std::size_t>(k)]; ++i) {
+        const std::int64_t id = g.ids[static_cast<std::size_t>(i)];
+        row.insert(std::lower_bound(row.begin(), row.end(), id), id);
+      }
+    });
   }
+  errors.rethrow();
 }
 
 void incidence_model::drop_views() noexcept {
