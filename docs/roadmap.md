@@ -71,10 +71,11 @@ counts exact up to 2^64 - 1, every paper gate within its bar (update per batch, 
 to end, the store accounting and the device-memory peak). M9b is done too (pending the hosted CI
 and the author's merge): the experimental `count_local_patterns` (count your own pattern, an Op,
 with the same engine), `dyng.triad_count` and `dyng triad_count`, the docs, the examples and the
-tutorials, and `triad_count` frozen and `stable` (pending the author's confirmation at the
-release), its gates read again on M9b's library. **M9 is done.** Next: the alignment-flag ADR (a
-0.3 performance option, the decision of 2026-10-08; it re-measures the ESCHER suites if the flags
-change) and the 0.3.0 release candidate.
+tutorials, and `triad_count` frozen and `stable`, its gates read again on M9b's library. **M9 is
+done.** The release preparation of 0.3.0 (R030) makes the hypergraph surface, `triad_count`
+(C++, Python and the command line) and the formats `.hg`, `.dgb` and the triad bins at version 1
+stable (the author's decision of 2026-10-22), fixes the container's OpenMP allocation-failure
+defect (D13, ADR 0061) and certifies 0.3.0rc1.
 
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
   views, hypergraph generators, and binary batch files (`.dgb`), from C++ and Python (done in
@@ -82,6 +83,21 @@ change) and the 0.3.0 release candidate.
 - `triad_count` (hypergraph h-motif triads, ESCHER / ESCHER+), incremental on the sequential,
   OpenMP and CUDA backends.
 - Experimental: counting your own local hypergraph patterns (`count_local_patterns`).
+
+Deferred beyond 0.3.0:
+
+- **The alignment flags** (`-falign-functions=64`, `-falign-loops=32`,
+  `-Wa,-mbranches-within-32B-boundaries`; about 20 % faster end to end on the development
+  machine, R020): the author's decision of 2026-10-08 makes them a performance option with their
+  own ADR, a parity run of the release builds, a check with the wheels' toolchain and **a reading
+  on a CPU without the jump-conditional-code (JCC) erratum**. The only reference machine, a Xeon
+  Gold 6258R (Cascade Lake), has the erratum, and the third flag is its mitigation, so the reading
+  that decides the option cannot be taken there: 0.3.0 is built and measured without the flags
+  (every gate of its certificate), and the option waits for a machine without the erratum.
+- **The micro-benchmark suites** (nvbench, Google Benchmark) and `dyng-bench` (PLAN 8.5, item 1):
+  planned for a later release, not yet assigned; the paper suites of `benchmarks/paper/` and
+  their certificates are the performance record until then (`DYNG_BUILD_BENCHMARKS` has no effect
+  yet).
 
 ## 0.4.0
 
