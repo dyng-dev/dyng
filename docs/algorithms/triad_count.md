@@ -354,8 +354,8 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
 
 ## 8. Paper vs fixed code
 
-*This wording is the plan's default (D10) and is marked for the author's review at the 0.3.0
-release.* The papers' results were produced by ESCHER-GPU's code as published (tag
+*This wording, the plan's default (D10), was accepted by the author on 2026-10-22 for 0.3.0.*
+The papers' results were produced by ESCHER-GPU's code as published (tag
 `baseline-2026-09` = `6a44c1c`). dynG ports the fixed code `abcf9b2` (the `fix/correctness-perf`
 branch), whose `README.md`, `CHANGES.md` and `results/README.md` record what changed. In their
 words:

@@ -13,8 +13,20 @@ release checklist is {doc}`developer/release`). Everything listed for 0.2.0 belo
 original MOSP-OpenMP and MOSP-CUDA codes and within its own release gates against them, and the
 CUDA backend comes from PyPI as the plugin wheels `dyng-cu12` and `dyng-cu13`. The parity
 certificate of the release is `benchmarks/results/0.2.0/`, carried over from the release
-candidate 0.2.0rc1, which was published on TestPyPI only. The hypergraph and `triad_count`
-follow as 0.3.0, `label_propagation` and `hyper_sssp` as 0.4.0.
+candidate 0.2.0rc1, which was published on TestPyPI only.
+
+The hypergraph and `triad_count` make **0.3.0**, whose release candidate **0.3.0rc1** is
+prepared on the branch `release-0.3.0` (TestPyPI only: `pip install -i
+https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.3.0rc1`; with
+the CUDA plugin, `pip install "numpy>=1.26"`, then `pip install -i https://test.pypi.org/simple/
+--no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1"`, {doc}`getting_started/install`). Everything
+listed for 0.3.0 below is in it; the hypergraph, `triad_count` (C++, Python and the command
+line) and the file formats `.hg`, `.dgb` and the triad bins at version 1 are stable from 0.3.0
+(the author's decision of 2026-10-22), with `triad_count`'s release gates against ESCHER-GPU in
+the certificate `benchmarks/results/0.3.0rc1/`. As for 0.2.0, the AI assistant pushes the tags
+and creates the GitHub Release on the author's behalf, and the author merges the release pull
+requests and approves the three PyPI uploads (`dyng-cu12` and `dyng-cu13`, then `dyng`;
+{doc}`developer/release`). `label_propagation` and `hyper_sssp` follow as 0.4.0.
 
 Before it, **0.1.0** (2026-10-02) made `sssp` and `cycle_count` work on all three backends,
 byte-identical to the original codes on their golden corpora and within the performance gates
@@ -68,14 +80,13 @@ M9a is done (merged as #16, with its review fix for the builds without OpenMP): 
 ESCHER-GPU on all three backends by key and by content, incremental host engines (an untuned
 transliteration of the wedge engine, the author's decision of 2026-10-15) beside the CUDA port,
 counts exact up to 2^64 - 1, every paper gate within its bar (update per batch, full count, end
-to end, the store accounting and the device-memory peak). M9b is done too (pending the hosted CI
-and the author's merge): the experimental `count_local_patterns` (count your own pattern, an Op,
+to end, the store accounting and the device-memory peak). M9b is done too (merged as #17): the experimental `count_local_patterns` (count your own pattern, an Op,
 with the same engine), `dyng.triad_count` and `dyng triad_count`, the docs, the examples and the
 tutorials, and `triad_count` frozen and `stable`, its gates read again on M9b's library. **M9 is
 done.** The release preparation of 0.3.0 (R030) makes the hypergraph surface, `triad_count`
 (C++, Python and the command line) and the formats `.hg`, `.dgb` and the triad bins at version 1
 stable (the author's decision of 2026-10-22), fixes the container's OpenMP allocation-failure
-defect (D13, ADR 0061) and certifies 0.3.0rc1.
+defect (D13, ADR 0061), certifies 0.3.0rc1 and makes its release changes.
 
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
   views, hypergraph generators, and binary batch files (`.dgb`), from C++ and Python (done in

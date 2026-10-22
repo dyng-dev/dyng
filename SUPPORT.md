@@ -1,6 +1,6 @@
 # Getting help
 
-dynG is alpha software (0.2.0, the latest release; 0.1.0 was the first) and maintained by a small team in its spare research time. Help is given in
+dynG is alpha software (0.2.0, the latest release; 0.3.0rc1, the release candidate of 0.3.0; 0.1.0 was the first) and maintained by a small team in its spare research time. Help is given in
 public, so that answers are found by the next person with the same question.
 
 | You want to | Go to |
