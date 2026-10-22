@@ -80,6 +80,25 @@ are untuned (their performance is not gated); on CUDA the memory pool keeps, bet
 what the line graph's merge reached (recorded beside the memory gates, not gated); ESCHER-GPU's coarse
 triangles are not ported; `label_propagation` and `hyper_sssp` with 0.4.0; no DOI (Zenodo is not connected).
 
+### R030: the release certificate (0.3, branch `release-0.3.0`)
+
+- Added: the release certificate of 0.3.0rc1, `benchmarks/results/0.3.0rc1/` (`parity.json` and
+  its `README.md`), measured on the release's final library (the D13 fix included): the golden
+  replays of sssp, cycle_count and mosp on every backend; the CBST trace replays of both ESCHER
+  originals under their presets and dynG's default; the hypergraph id, row and line-graph
+  replays; the triad replays of every backend of the coverage table by key and by content; the
+  five performance suites against the unpatched originals (`ipdps26_escher` and
+  `tkde26_escher_plus` new); the sanitizer presets and compute-sanitizer; every golden mutation
+  and the mutation CTests; the distributions as `release.yml` builds them for `v0.3.0rc1`; and
+  `ci/check.sh --parity`, `ci/api_check.sh` and `ci/gpu_local.sh` on the release tree. The
+  summary is in `docs/developer/retrospectives/R030.md`.
+- Changed: the test subset that cibuildwheel runs in the installed wheel includes the
+  hypergraph and `triad_count` tests (`test_hypergraph.py`, `test_triad_count.py`,
+  `test_triad_count_cli.py`), the surfaces that are stable from 0.3.0.
+- Docs: the ADRs that kept a reservation for the author (0045, 0047-0049, 0051, 0052, 0056,
+  0058-0060) record the author's decisions of 2026-10-22, and the coverage table of the triad
+  goldens (`parity/goldens.toml`) is the accepted D6.
+
 ### R030: the release changes (0.3, branch `release-0.3.0`)
 
 - Changed: `VERSION` 0.3.0rc1 (it was 0.3.0.dev0, the development version after 0.2.0);
