@@ -26,7 +26,7 @@
 # Machine-readable: parity/bench_suite.py validates this file and runs every reading through
 # parity/perf_ab.py triad_count memory|run; from 0.3.0 on parity/certify.py requires its summary,
 # with the store_memory rows rechecked point by point (decision D8 of 2026-10-15, taken on the
-# plan's default pending the author).
+# plan's default; accepted by the author as implemented on 2026-10-22, GOVERNANCE.md).
 schema: 1
 suite: tkde26_escher_plus
 title: "ESCHER+: device memory of the dynamic hypergraph and its triad counts; StatHyper types (dynG triad_count)"
