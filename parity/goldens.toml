@@ -1467,8 +1467,8 @@ num_bytes = 367649747
 manifest_sha256 = "4fb7dbcf63286cfe549ed1c5fa1ea5c195e420f17d904233d64ccbac3a4ea28f"
 
 [sets.triad_count_escher_gpu.coverage]
-# Which backend replays which cases (PLAN 6.4.6, 8.3): the plan's default, pending the author's decision D6 (2026-10-15).
-status = "pending the author (D6): the plan's default"
+# Which backend replays which cases (PLAN 6.4.6, 8.3): the plan's default, accepted by the author (D6, 2026-10-22).
+status = "accepted by the author (D6, 2026-10-22): the plan's default"
 cuda = ["make-test", "grid"]
 sequential = ["make-test", "syn100k"]
 openmp = ["make-test", "syn100k", "syn1m_s1", "coauth_b50k_s1/type1", "coauth_b50k_s1/type2"]

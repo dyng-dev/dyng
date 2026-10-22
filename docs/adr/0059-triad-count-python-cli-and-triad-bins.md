@@ -8,9 +8,12 @@
   strings, no silent narrowing, the GIL released), every CLI option flag is still the kebab-case
   name of a field, the outputs are the original's bytes, and no frozen header is edited. The
   freeze of `dyng.triad_count` and `dyng triad_count` is M9b step 3's API review (D4).
+- **Decided:** the author accepted the new public names (D9) on 2026-10-22 (GOVERNANCE.md,
+  approvals log, 2026-10-22); `dyng.triad_count` and `dyng triad_count` are `stable` from 0.3.0 and
+  `"dyng.triad_bins"` is a stable-tier format at version 1 (the same day's stability decision).
 - **Date:** 2026-10-21
 - **Deciders:** the AI assistant, on the author's behalf for the technical parts (M9b, step
-  python-cli-wheels); the names: S M Shovan (pending)
+  python-cli-wheels); the names: S M Shovan (2026-10-22)
 - **Builds on:** ADR 0011 (the Python layer), ADR 0023 (the uniform contract), ADR 0025 (the
   command line), ADR 0041 section 1 and ADR 0046 (the hypergraph in Python; its item 10, the
   `dyng.update()` gap), ADR 0049 (the triad oracle), ADR 0052 (the triad_count API).

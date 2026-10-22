@@ -12,9 +12,12 @@
   a CHANGELOG entry. It changes no rule the author approved: the stability policy of PLAN 5.9,
   the gates and their protocol, the parity rules and the frozen headers (`core/*`, `graph/*`,
   `hypergraph/*`, `update.hpp`) are untouched.
+- **Decided:** the author confirmed on 2026-10-22 (GOVERNANCE.md, approvals log, 2026-10-22) the
+  maturity `stable` from 0.3.0 (D4) and accepted every new public name of M9 (D9); the reservation
+  above is closed.
 - **Date:** 2026-10-21
 - **Deciders:** the AI assistant, on the author's behalf (M9b, step docs-freeze-release); the
-  maturity and the names: S M Shovan (pending)
+  maturity and the names: S M Shovan (2026-10-22)
 - **Builds on:** ADR 0023 (the method, the snapshot), ADR 0035 (the freeze enforced against the
   base branch, the maturity decides the freeze), ADR 0047 (the freeze's Doxygen rules), ADRs
   0048-0059 (triad_count, its engine, its gates, the experimental extension point, Python and the

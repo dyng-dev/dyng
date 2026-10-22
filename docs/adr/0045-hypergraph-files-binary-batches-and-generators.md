@@ -11,6 +11,9 @@
   here at version 1, `.hg` has no version field (amended by the M8b review: section 1), and
   that both are stable from 0.3.0 awaits the author's confirmation at the release (the plan's
   default applies until then).
+- **Decided:** the author confirmed on 2026-10-22 (GOVERNANCE.md, approvals log, 2026-10-22) that
+  `.hg` and `.dgb` (`DYNGBAT1`) are stable-tier formats from 0.3.0, at format version 1 (PLAN 5.9);
+  the reservation above is closed.
 - **Date:** 2026-10-14
 - **Deciders:** the AI assistant, on the author's behalf (M8b, step io-generators)
 - **Builds on:** ADR 0034 (reader fuzzers), ADR 0036 (the CBST traces, whose batch records are the
