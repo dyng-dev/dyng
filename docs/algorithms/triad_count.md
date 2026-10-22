@@ -143,12 +143,15 @@ b.delete_hyperedge(42);
 b.insert_hyperedge({3, 9, 12});
 b.insert_hyperedge({9, 12, 40, 41});
 auto st = dyng::triad_count::update(res, hg, b.view(), triads);
-const auto& ids = st.batch.inserted_ids;  // best-fit reuse: likely {17, 42}
+const auto& ids = st.batch.inserted_ids;  // the store's choice: read them here
 // st.delta[k]: the change of bin k; st.triads_removed / st.triads_added; triads.counts()
 ```
 
 (PLAN 5.3's example as ADR 0041 section 1 rewrites it against the frozen hypergraph API. The ids of
-the inserted hyperedges are the store's choice: read them from `inserted_ids`, never predict them.)
+the inserted hyperedges are the store's choice: read them from `inserted_ids`, never predict them.
+On coauth-DBLP they are 17 and 2,467,389: `{3, 9, 12}` fits the slot of hyperedge 17, but
+`{9, 12, 40, 41}` does not fit 42's (a slot keeps the size of the row it was made for, here one
+member), so it goes after the last live id.)
 Several patterns are several results; `dyng::update(res, hg, b.view(), triads, type1, ...)`
 updates them all through **one** commit (`examples/cpp/triad_count_update.cpp`; the tutorial
 {doc}`../tutorials/hypergraph_triads`).

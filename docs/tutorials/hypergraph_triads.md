@@ -5,8 +5,11 @@ vertex) by their h-motif, keep the counts exact while hyperedges are deleted and
 read what changed. You do it twice, in C++ and in Python, with the same input and the same
 output. It takes about 15 minutes.
 
-You need dynG installed ({doc}`../getting_started/install`); for C++ a compiler and CMake, for
-Python `pip install dyng`. You should know what a hypergraph is ({doc}`../concepts/hypergraphs`).
+You need dynG 0.3 or newer installed ({doc}`../getting_started/install`): for C++ a compiler and
+CMake, for Python `pip install "dyng>=0.3"` (the hypergraph and `triad_count` are new in 0.3;
+until 0.3.0 is on PyPI, take the release candidate's lines of the install page's "Python"
+section, since a plain `pip install dyng` gives 0.2.0, which has neither). You should know what a
+hypergraph is ({doc}`../concepts/hypergraphs`).
 The algorithm is {doc}`../algorithms/triad_count`; this page shows how to use it.
 
 The code is two example programs, `examples/cpp/triad_count_update.cpp` and
@@ -19,6 +22,15 @@ that file by a brute force over every triple of hyperedges after every batch
 output with this page (`python/tests/test_triad_count_cli.py`). The snippets below are quoted from
 those files, and the documentation check fails when a quoted line changes without this page
 (`ci/tutorial_quotes.py`).
+
+The programs and their input are in the repository, not in the installed package: clone it and
+run every command of this page from its root (the tag of your version keeps the files as this
+page quotes them):
+
+```bash
+git clone --branch v0.3.0rc1 https://github.com/dyng-dev/dyng.git
+cd dyng
+```
 
 ## 1. The input: a `.hg` file and a batch file
 
@@ -129,7 +141,8 @@ $ ./triad_count_update examples/data/triad_count.hg examples/data/triad_count.dg
 
 The last argument is the backend: `sequential` (the default), `openmp` or `cuda` (the GPU of
 `CUDA_VISIBLE_DEVICES`; the program exits with 77 if there is none). The output is the same on
-all three.
+all three. Another name is refused with the list; a file that cannot be read ends the program with
+the library's message (the file, line and column) and exit status 1.
 
 ## 5. The same in Python
 

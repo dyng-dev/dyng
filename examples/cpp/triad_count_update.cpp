@@ -3,6 +3,10 @@
 // triad_count_update: count the triads of a .hg hypergraph by h-motif (30 bins) and StatHyper's
 // type 1, then apply the batches of a .dgt file to both results with one dyng::update() each.
 //   triad_count_update <hypergraph.hg> <batches.dgt> [sequential|openmp|cuda]
+//
+// With `cuda` the hypergraph and the counts live on the GPU (device 0); the program exits with 77
+// when the library has no CUDA backend or no device is visible, and with 1 and the library's
+// message when a file cannot be read or a call fails.
 #include <dyng/dyng.hpp>
 
 #include <cstdint>
@@ -21,10 +25,21 @@ void print_bins(const char* label, const values_t& values, int num_bins) {
   std::cout << '\n';
 }
 
-int main(int argc, char** argv) {
-  if (argc < 3) return 2;  // usage: see above
+int main(int argc, char** argv) try {
+  if (argc < 3 || argc > 4) {
+    std::cerr << "usage: triad_count_update <hypergraph.hg> <batches.dgt> [backend]\n";
+    return 2;
+  }
   const std::string backend = argc > 3 ? argv[3] : "sequential";
-  if (backend == "cuda" && !dyng::backend_available(dyng::backend::cuda)) return 77;  // skipped
+  if (backend != "sequential" && backend != "openmp" && backend != "cuda") {
+    std::cerr << "triad_count_update: unknown backend '" << backend
+              << "' (sequential, openmp, cuda)\n";
+    return 2;
+  }
+  if (backend == "cuda" && !dyng::backend_available(dyng::backend::cuda)) {
+    std::cerr << "triad_count_update: no CUDA backend or no visible device\n";
+    return 77;
+  }
   dyng::resources res = backend == "openmp" ? dyng::resources::openmp()
                         : backend == "cuda" ? dyng::resources::cuda()
                                             : dyng::resources::sequential();
@@ -57,4 +72,8 @@ int main(int argc, char** argv) {
     print_bins("  delta", st.delta, motifs.num_bins());
     // [tutorial: update end]
   }
+  return 0;
+} catch (const dyng::error& e) {  // the library's message: the file, line and column of a reader
+  std::cerr << "triad_count_update: " << e.what() << '\n';
+  return 1;
 }
