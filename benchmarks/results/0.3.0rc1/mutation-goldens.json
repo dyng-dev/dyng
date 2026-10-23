@@ -1,8 +1,8 @@
 {
  "schema": 2,
  "what": "mutation checks of the golden parity (PLAN 8.4): cbst, cycle_count, hypergraph, kit, mosp, sssp, triad_count, triad_reference",
- "date": "2026-10-22T14:20:39Z",
- "commit": "8a7a43aa31f76611299a7ff5bcb0f7b013d8e55b",
+ "date": "2026-10-23T13:14:30Z",
+ "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
  "goldens": {
   "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
   "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml",

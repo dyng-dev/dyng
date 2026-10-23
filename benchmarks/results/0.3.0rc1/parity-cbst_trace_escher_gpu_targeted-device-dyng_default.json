@@ -1,11 +1,11 @@
 {
  "set": "cbst_trace_escher_gpu_targeted",
- "date": "2026-10-22T12:33:51+00:00",
+ "date": "2026-10-23T11:25:34+00:00",
  "goldens": {
   "manifest_sha256": "6f4c9428ac5e93b9182a11c6934937832cacf1b590eb5fd2e98363f071a9c260"
  },
  "port": {
-  "commit": "8a7a43aa31f76611299a7ff5bcb0f7b013d8e55b"
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
  },
  "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
  "reference": "ESCHER-GPU",

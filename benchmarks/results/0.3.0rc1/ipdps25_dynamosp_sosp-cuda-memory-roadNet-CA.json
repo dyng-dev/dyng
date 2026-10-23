@@ -3,7 +3,7 @@
  "algorithm": "sssp",
  "backend": "cuda",
  "what": "device memory (PLAN 8.6): the peak of live device allocations per process (nsys --cuda-memory-usage, memory kind Device: cudaMalloc and cudaMallocAsync), and the largest stream-ordered pool size nsys reported for the port",
- "date": "2026-10-22T09:34:21Z",
+ "date": "2026-10-23T07:24:05Z",
  "graph": "roadNet-CA",
  "objectives": 3,
  "reference": {
@@ -11,7 +11,7 @@
   "binary": "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/unpatched/bin/mosp"
  },
  "port": {
-  "commit": "8a7a43aa31f76611299a7ff5bcb0f7b013d8e55b",
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
   "binary": "build/parity-cuda/tools/compat/dyng-compat-mosp",
   "build": {
    "CMAKE_BUILD_TYPE": "Release",

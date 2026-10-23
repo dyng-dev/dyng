@@ -3,7 +3,7 @@
  "algorithm": "mosp",
  "set": "mosp_scale",
  "label": "",
- "date": "2026-10-22T12:23:52Z",
+ "date": "2026-10-23T11:14:30Z",
  "reference": {
   "name": "MOSP-OpenMP",
   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
@@ -11,7 +11,7 @@
  },
  "port": {
   "repository": "dyng",
-  "commit": "8a7a43aa31f76611299a7ff5bcb0f7b013d8e55b"
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
  },
  "executable": "build/parity/tools/compat/dyng-compat-mosp",
  "build": {

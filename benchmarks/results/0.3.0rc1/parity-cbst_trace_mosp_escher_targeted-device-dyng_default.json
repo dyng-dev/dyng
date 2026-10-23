@@ -1,11 +1,11 @@
 {
  "set": "cbst_trace_mosp_escher_targeted",
- "date": "2026-10-22T12:34:15+00:00",
+ "date": "2026-10-23T11:25:59+00:00",
  "goldens": {
   "manifest_sha256": "280d185aaa4f4321c96810cb41bf336e67a5a82fff0c340565b222a80072e353"
  },
  "port": {
-  "commit": "8a7a43aa31f76611299a7ff5bcb0f7b013d8e55b"
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
  },
  "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
  "reference": "MOSP_ESCHER",

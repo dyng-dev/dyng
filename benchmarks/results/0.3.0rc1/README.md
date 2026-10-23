@@ -6,21 +6,24 @@ hypergraph and `triad_count`, stable from 0.3.0), with the release checks of PLA
 steps 1-4. `parity.json` is the machine-readable certificate; the tables at the end of this page
 are generated from it by `parity/certify.py write`. `benchmarks/README.md` (the developer guide's
 "Benchmark suites" page) describes the tools and the file formats;
-`docs/developer/retrospectives/R030.md` (step 3) tells how this certificate was made, on the
-release's final library (the D13 fix of R030 step 1, ADR 0061, included).
+`docs/developer/retrospectives/R030.md` (step 4) tells how this certificate was made, on the
+release's final library (the D13 fix of R030 step 1, ADR 0061, and the `.hg` reader's refusals of
+the review fixes, ADR 0062, included). It replaces the first certificate of 0.3.0rc1 (`75d6940`,
+R030 step 3), measured before the review's library change.
 
 ## What was run, and how
 
 - **Code.** The release branch `release-0.3.0` (from `main` at `e6f87ed`, the merge of M9b).
   Every measured build comes from a clean `git clone` of the branch (the commit each record
   names), with the presets `parity` and `parity-cuda`. The gates, the golden replays and the
-  golden mutations ran at `8a7a43a` (2026-10-22, 06:35-14:21 UTC); the mutation CTests and the
-  distributions at `c77fa94`; the sanitizer presets at `4ca456b`; `ci/check.sh --parity`,
-  `ci/api_check.sh e6f87ed` (against `main` as pushed) and `ci/gpu_local.sh` at `8738d45`, the
-  last commit outside this directory. (A first run of the three at `4ca456b` passed except one
-  step of `ci/gpu_local.sh`, the racecheck of triad_count's kit, which ended without a hazard or
-  a failed test and passed four times alone; the three were run again at `8738d45`, R030.md step
-  3, deviation 7.) `parity.json` checks every measured commit against the release commit in the paths
+  golden mutations ran at `d803284` (2026-10-23, 04:32-13:56 UTC; its library is the release's
+  final one, `c9de41d`); the sanitizer presets, the mutation CTests, the portability pre-checks
+  and the distributions at `a0f7177`; `ci/check.sh --parity`, `ci/api_check.sh e6f87ed` (against
+  `main` as pushed) and `ci/gpu_local.sh` at `c4e361e`, the last commit outside this directory.
+  Three readings were taken again alone at the end (R030.md step 4, deviation 1): the coauth
+  reading of `ipdps26_escher`, whose contamination audit flagged a round, and the two memory
+  readings of `tkde26_escher_plus`, which refused to run beside another process on GPU 1; the
+  flagged record is kept under `superseded/` of the full records. `parity.json` checks every measured commit against the release commit in the paths
   of its scope (`library` for the gates, the replays and the golden mutations, plus `cpp/tests`
   for the golden mutations of the GoogleTest suites, ADR 0061; `tests` for the C++ test suites;
   `packaging` for the distributions; `repo`, the whole tree but this directory, for
@@ -61,28 +64,34 @@ release's final library (the D13 fix of R030 step 1, ADR 0061, included).
   readings recorded and not gated (ADR 0018); device memory on GPU 1 (sssp, mosp and cycle_count
   under Nsight Systems; triad_count's store accounting against A's `deviceBytes()` and the Nsight
   Systems peak of live allocations of both whole processes, decision D1). **326 / 326** gated
-  regions within their gates. 53 rounds were rejected by the monitors and repeated (foreign CPU
-  load above 2 cores, at most 3.67; or a GPU clock below the lock in a cycle_count CUDA update);
-  no reading was stopped, none kept or flagged a contaminated round, and the triad contamination
-  audit flagged nothing. The records here are compacted; each names its full copy under
+  regions within their gates. 47 rounds were rejected by the monitors and repeated (foreign CPU
+  load above 2 cores, at most 2.74; or a GPU clock below the lock in a cycle_count CUDA update);
+  no accepted reading kept or flagged a contaminated round, and the triad contamination audit
+  flags nothing in the records here. Against the first certificate of 0.3.0rc1 (the same suites
+  and protocol, the library before the review's change), dynG's median gated rows moved -2.4 %
+  to +2.8 % per suite, backend and gate kind (one row -11.2 %: cycle_count's OpenMP COLLAB count),
+  the originals' -0.8 % to +2.0 %. The records here are compacted; each names its full copy under
   `$DYNG_SCRATCH/runs/bench/0.3.0rc1/`. Every record names the NVIDIA driver and carries the
   digests of its inputs taken by the measuring harness, all equal to the suites' digests.
 - **rgg's unsafe50k batch** is byte-identical to its safe50k batch (`benchmarks/README.md`): its
   rows of the sssp and mosp suites are a second reading of the same input.
-- **dynG against dynG since 0.2.0** (informational). Against 0.2.0's certificate, dynG's median
+- **dynG against dynG since 0.2.0** (informational; the first certificate's comparison, which the
+  medians above leave as it was). Against 0.2.0's certificate, dynG's median
   end-to-end rows moved +1.4 % to +4.8 % per suite and backend, the originals' -0.3 % to +2.4 %,
   the compute rows not (median -0.4 % to +2.2 %); road_usa read slower for both sides in this
-  session. A stage A/B of `dyng-compat-mosp` (v0.2.0 against `8a7a43a`, sssp OpenMP, 11
+  session. A stage A/B of
+  `dyng-compat-mosp` (v0.2.0 against `8a7a43a`, sssp OpenMP, 11
   alternated processes per side) puts all of it in reading the graph (rgg 499.8 -> 555.9 ms,
   roadNet-PA 115.0 -> 128.4, roadNet-CA 202.8 -> 225.2), whose sources are 0.2.0's; with the
   JCC-erratum mitigation flags on both sides the difference is gone (rgg 455.1 / 454.1 ms,
   roadNet-CA 184.9 / 185.2). It is code placement on this CPU, the sensitivity of R020 (finding 12,
   investigation (b)), and a reading for the deferred layout option (`docs/roadmap.md`), not a
-  library change. The worst gated end-to-end ratio of sssp and mosp is 0.909 (gate 1.10).
-- **The D13 fix inside the triad_count gates.** Against M9b's records, dynG's construction
-  (`build`) is 0.7-1.2 % faster on syn1M and syn2M; on coauth-DBLP both sides' `build` read 14-16 %
-  slower in this session (the ratio 0.496-0.498, M9b 0.488-0.494); the end-to-end ratios are
-  0.919-0.991 (M9b 0.920-0.992).
+  library change. The worst gated end-to-end ratio of sssp and mosp is 1.024 here (sssp OpenMP,
+  the apply of roadNet-PA safe50k; gate 1.10; 0.909 in the first certificate).
+- **The D13 fix inside the triad_count gates.** In the first certificate, against M9b's records,
+  dynG's construction (`build`) was 0.7-1.2 % faster on syn1M and syn2M, and the end-to-end ratios
+  0.919-0.991 (M9b 0.920-0.992); here the end-to-end ratios are 0.935-0.990. The dynG-against-dynG
+  reading of the fix on this library is `parity/results/R030.md` section 4 (ADR 0062).
 - **Committed fixtures** (`cpp/tests/data`, `parity/fixtures/fixtures.toml`): each set with the
   SHA-256 of its files and the results of the CTests that compare it, taken from the per-test
   lines of the checks' ctest logs.
@@ -100,13 +109,15 @@ release's final library (the D13 fix of R030 step 1, ADR 0061, included).
   the documented release-candidate forms, the wheel's test subset, the README quickstart and every
   Python snippet of the docs, the GPU tests on GPU 1), `ci/check.sh --parity`, `ci/api_check.sh
   e6f87ed` (the frozen C++ API and the Python API against `main` as pushed) and `ci/gpu_local.sh`
-  (every step: the CUDA tests and goldens, compute-sanitizer memcheck, synccheck and racecheck, the
-  CBST store, the hypergraph and triad_count steps, count_local_patterns, the plugin wheel,
-  clang-tidy). Every check names its logs with their SHA-256; an excerpt of each is in `checks/`.
+  (every step, each of the series' steps passed as `certify.py` now requires, ADR 0062: the CUDA
+  tests and goldens, compute-sanitizer memcheck, synccheck and racecheck, the CBST store, the
+  hypergraph and triad_count steps, count_local_patterns, the plugin wheel, clang-tidy). Every check names its logs with their SHA-256; an excerpt of each is in `checks/`.
 
 <!-- certify:begin (generated by parity/certify.py write; do not edit by hand) -->
 
-**Certificate:** `parity.json` (dynG 0.3.0rc1, commit `8738d45c919e`): **all parts passed**.
+<!-- certify:begin (generated by parity/certify.py write; do not edit by hand) -->
+
+**Certificate:** `parity.json` (dynG 0.3.0rc1, commit `c4e361e0df9c`): **all parts passed**.
 
 Machine: Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz (56 threads), 2x NVIDIA RTX A5000; driver 590.48.01 (CUDA driver API 13.1; named by 45 records); Build cuda_13.1.r13.1/compiler.37061995_0; c++ (Debian 12.2.0-14+deb12u1) 12.2.0.
 
@@ -144,27 +155,27 @@ Machine: Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz (56 threads), 2x NVIDIA RTX A
 
 | Suite | Reading | Backend (clocks) | Gated regions | Ratio range (port / original) | Result |
 |---|---|---|---:|---|---|
-| `ieee_tc_dyntrucy` | openmp | openmp | 15 / 15 | 0.443-0.934 | passed |
-| `ieee_tc_dyntrucy` | openmp-collab | openmp | 1 / 1 | 0.334-0.334 | passed |
-| `ieee_tc_dyntrucy` | cuda | cuda (boost) | 37 / 37 | 0.220-0.996 | passed |
-| `ieee_tc_dyntrucy` | cuda-collab-update | cuda (base) | 5 / 5 | 0.944-0.995 | passed |
+| `ieee_tc_dyntrucy` | openmp | openmp | 15 / 15 | 0.423-0.944 | passed |
+| `ieee_tc_dyntrucy` | openmp-collab | openmp | 1 / 1 | 0.296-0.296 | passed |
+| `ieee_tc_dyntrucy` | cuda | cuda (boost) | 37 / 37 | 0.220-1.002 | passed |
+| `ieee_tc_dyntrucy` | cuda-collab-update | cuda (base) | 5 / 5 | 0.945-0.996 | passed |
 | `ieee_tc_dyntrucy` | cuda-memory | cuda | 20 / 20 | 1.000-1.001 | passed |
-| `ieee_tc_dyntrucy` | cuda-default-clocks | cuda (none) | recorded, not gated (42) | 0.224-1.004 | - |
-| `ipdps25_dynamosp_mosp` | openmp | openmp | 24 / 24 | 0.601-0.926 | passed |
-| `ipdps25_dynamosp_mosp` | cuda | cuda (boost) | 24 / 24 | 0.668-1.006 | passed |
+| `ieee_tc_dyntrucy` | cuda-default-clocks | cuda (none) | recorded, not gated (42) | 0.223-1.001 | - |
+| `ipdps25_dynamosp_mosp` | openmp | openmp | 24 / 24 | 0.652-0.924 | passed |
+| `ipdps25_dynamosp_mosp` | cuda | cuda (boost) | 24 / 24 | 0.681-1.006 | passed |
 | `ipdps25_dynamosp_mosp` | cuda-memory | cuda | 12 / 12 | 0.931-1.019 | passed |
-| `ipdps25_dynamosp_mosp` | cuda-default-clocks | cuda (none) | recorded, not gated (24) | 0.682-1.033 | - |
-| `ipdps25_dynamosp_sosp` | openmp | openmp | 60 / 60 | 0.691-1.010 | passed |
-| `ipdps25_dynamosp_sosp` | cuda | cuda (boost) | 60 / 60 | 0.658-1.002 | passed |
+| `ipdps25_dynamosp_mosp` | cuda-default-clocks | cuda (none) | recorded, not gated (24) | 0.672-1.033 | - |
+| `ipdps25_dynamosp_sosp` | openmp | openmp | 60 / 60 | 0.679-1.024 | passed |
+| `ipdps25_dynamosp_sosp` | cuda | cuda (boost) | 60 / 60 | 0.673-1.001 | passed |
 | `ipdps25_dynamosp_sosp` | cuda-memory | cuda | 12 / 12 | 0.812-0.858 | passed |
-| `ipdps25_dynamosp_sosp` | cuda-default-clocks | cuda (none) | recorded, not gated (60) | 0.682-1.062 | - |
-| `ipdps26_escher` | cuda-coauth | cuda (base) | 15 / 15 | 0.919-0.999 | passed |
-| `ipdps26_escher` | cuda | cuda (base) | 30 / 30 | 0.857-1.029 | passed |
-| `ipdps26_escher` | cuda-default-clocks | cuda (none) | recorded, not gated (15) | 0.851-1.033 | - |
-| `ipdps26_escher` | cuda-batch-sizes | cuda (base) | recorded, not gated (10) | 0.929-1.018 | - |
+| `ipdps25_dynamosp_sosp` | cuda-default-clocks | cuda (none) | recorded, not gated (60) | 0.658-1.059 | - |
+| `ipdps26_escher` | cuda-coauth | cuda (base) | 15 / 15 | 0.935-0.999 | passed |
+| `ipdps26_escher` | cuda | cuda (base) | 30 / 30 | 0.852-1.015 | passed |
+| `ipdps26_escher` | cuda-default-clocks | cuda (none) | recorded, not gated (15) | 0.839-1.021 | - |
+| `ipdps26_escher` | cuda-batch-sizes | cuda (base) | recorded, not gated (10) | 0.944-1.016 | - |
 | `tkde26_escher_plus` | cuda-memory | cuda | 11 / 11 | 1.000-1.002 | passed |
 | `tkde26_escher_plus` | cuda-memory-batch-sizes | cuda | recorded, not gated (10) | 1.000-1.002 | - |
-| `tkde26_escher_plus` | cuda-types | cuda (base) | recorded, not gated (15) | 0.146-0.992 | - |
+| `tkde26_escher_plus` | cuda-types | cuda (base) | recorded, not gated (15) | 0.117-0.993 | - |
 
 Inputs of the readings:
 
@@ -178,12 +189,12 @@ Inputs of the readings:
 
 | Check | Command | Scope | Result |
 |---|---|---|---|
+| asan | `ci/sanitizers.sh asan (ctest -L cpu of the asan preset), from a clean clone` | tests | passed (1179 / 1179 tests, 65 skipped) |
+| tsan | `ci/sanitizers.sh tsan (ctest -L cpu of the tsan preset), from a clean clone` | tests | passed (1024 / 1024 tests, 103 skipped) |
+| tsan-openmp | `ci/sanitizers.sh tsan-openmp (Clang 18.1.8 of the conda env dyng-clang through a local wrapper: --gcc-install-dir GCC 12, --sysroot=/, -Wno-deprecated-declarations; Archer DYNG_ARCHER_LIBRARY = the env's libarcher.so.bak; ctest -L cpu), from a clean clone` | tests | passed (1179 / 1179 tests, 65 skipped) |
 | mutation-ctests | `ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone` | tests | passed (34 / 34 tests) |
-| distributions | `release.yml's select step for GITHUB_REF_NAME=v0.3.0rc1 (v0.3.0, v0.3.0-rc.1, v0.3.0rc2 and v0.2.0 refused); ci/wheel_check.py --release-metadata (and --release-date 2026-10-22); ci/wheels.sh; ci/plugin_wheels.sh with DYNG_PLUGINS='cu12 cu13' and the CI toolkits of ci/cuda_toolkits.toml (CUDA 12.9 and 13.4, still the newest 12.x and 13.x of NVIDIA's RHEL 8 repository on 2026-10-22, unpacked by ci/cuda_toolkit.py extract; verify --signatures passed); twine check --strict; ci/wheel_check.py on each file and --release-set --split; fresh Python 3.12 and 3.13 venvs: the core wheel alone, core + dyng-cu12, core + dyng-cu13, dyng[cu13]==0.3.0rc1 and dyng[cu12]==0.3.0rc1 from a local simple index laid out like TestPyPI (--extra-index-url PyPI), and the documented release-candidate forms (the CPU package with PyPI as the extra index; NumPy from PyPI, then --no-deps dyng and the plugin from the index): the wheel's test subset (cibuildwheel's test-command), the README quickstart, every Python snippet of the docs (the hypergraph and triad_count quickstarts), dyng --version, ci/plugin_smoke.py --expect cuda and pytest -m gpu on GPU 1; from a clean clone, the whole run under the shared lock` | packaging | passed |
+| distributions | `release.yml's select step for GITHUB_REF_NAME=v0.3.0rc1 (v0.3.0, v0.3.0-rc.1, v0.3.0rc2 and v0.2.0 refused); ci/wheel_check.py --release-metadata (and --release-date 2026-10-22); ci/wheels.sh; ci/plugin_wheels.sh with DYNG_PLUGINS='cu12 cu13' and the CI toolkits of ci/cuda_toolkits.toml (CUDA 12.9 and 13.4, still the newest 12.x and 13.x of NVIDIA's RHEL 8 repository on 2026-10-23, unpacked by ci/cuda_toolkit.py extract; verify --signatures passed); twine check --strict; ci/wheel_check.py on each file and --release-set --split; fresh Python 3.12 and 3.13 venvs: the core wheel alone, core + dyng-cu12, core + dyng-cu13, dyng[cu13]==0.3.0rc1 and dyng[cu12]==0.3.0rc1 from a local simple index laid out like TestPyPI (--extra-index-url PyPI), and the documented release-candidate forms (the CPU package with PyPI as the extra index; NumPy from PyPI, then --no-deps dyng and the plugin from the index): the wheel's test subset (cibuildwheel's test-command), the README quickstart, every Python snippet of the docs (the hypergraph and triad_count quickstarts), dyng --version, ci/plugin_smoke.py --expect cuda and pytest -m gpu on GPU 1; from a clean clone, the whole run under the shared lock` | packaging | passed |
 | mutation-goldens | `parity/mutate.py run (every mutation of sssp, cycle_count, mosp, cbst, hypergraph, kit, triad_count and triad_reference; parity-cuda copies, CUDA on GPU 1), from a clean clone` | library | passed |
-| asan | `ci/sanitizers.sh asan (ctest -L cpu of the asan preset), from a clean clone` | tests | passed (1178 / 1178 tests, 65 skipped) |
-| tsan | `ci/sanitizers.sh tsan (ctest -L cpu of the tsan preset), from a clean clone` | tests | passed (1023 / 1023 tests, 103 skipped) |
-| tsan-openmp | `ci/sanitizers.sh tsan-openmp (Clang 18.1.8 of the conda env dyng-clang through a local wrapper: --gcc-install-dir GCC 12, --sysroot=/, -Wno-deprecated-declarations; Archer DYNG_ARCHER_LIBRARY = the env's libarcher.so.bak; ctest -L cpu), from a clean clone` | tests | passed (1178 / 1178 tests, 65 skipped) |
 | check-parity | `ci/check.sh --parity, from a clean clone (origin/main = e6f87ed, main as pushed)` | repo | passed |
 | api-check | `ci/api_check.sh e6f87ed (the frozen C++ API with ci/api_snapshot.py --against and the Python API with griffe, against main as pushed), from a clean clone` | repo | passed |
 | gpu_local | `ci/gpu_local.sh (dev-cuda, GPU 1, every step), from a clean clone` | repo | passed (build passed, ctest -L gpu passed, ctest -L cpu passed, parity (cuda goldens) passed, parity (cycle_count cuda goldens) passed, memcheck passed, synccheck passed, synccheck (mosp) passed, synccheck (cycle_count) passed, racecheck passed, cbst sanitizers (racecheck, synccheck, initcheck) passed, cbst replays (device, small sets) passed, cbst replays (device, default preset) passed, cbst bin/main recorded and replayed once passed, cbst lockstep with the host model (compact after every op; every preset) passed, hypergraph sanitizers (racecheck, synccheck, initcheck) passed, hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator) passed, triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck) passed, count_local_patterns (sanitizers on the tutorial and API tests; nvcc consumer) passed, plugin wheel (pytest -m gpu) passed, clang-tidy passed) |
