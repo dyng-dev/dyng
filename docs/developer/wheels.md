@@ -44,7 +44,7 @@ by auditwheel; GPL-3.0-or-later WITH GCC-exception-3.1). The expression is the a
 `[project]` table of `pyproject.toml` (`license`), so the sdist, whose own files are all
 Apache-2.0, carries the same expression as the wheel: for the sdist it is broader than its
 files need (it names the licences of the wheels built from it), never narrower; a repackager
-of the sources alone (for example the conda-forge recipe from 0.3) can declare `Apache-2.0` for
+of the sources alone (for example the conda-forge recipe from 0.4) can declare `Apache-2.0` for
 them (`THIRD_PARTY_LICENSES.txt` says the same). `ci/wheel_check.py` fails when
 `pyproject.toml`'s `license` differs from its `LICENSE_EXPRESSION`, when a wheel's `METADATA` or
 an sdist's `PKG-INFO` has another `License-Expression`, a legacy `License:` field, or no

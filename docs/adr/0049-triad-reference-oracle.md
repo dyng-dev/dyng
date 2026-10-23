@@ -12,6 +12,8 @@
   author** (naming is not delegated; D9 takes them on the plan's defaults until the 0.3.0
   release; GOVERNANCE.md, Open decisions). Recorded in the M9a review: the approvals log listed
   this ADR as accepted without that reservation.
+- **Decided:** the author accepted the oracle's names (D9) on 2026-10-22 (GOVERNANCE.md, approvals
+  log, 2026-10-22); the reservation above is closed.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step
   oracle-harness-driver-prereads)

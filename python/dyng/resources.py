@@ -25,13 +25,20 @@ __all__ = ["Resources", "get_default_resources", "set_default_resources"]
 BackendName = Literal["sequential", "openmp", "cuda"]
 CopyPolicyName = Literal["allow", "warn", "error"]
 
-_CUDA_PLUGIN_MESSAGE = (
-    "the active native module is dyng._core, the CPU module (sequential and OpenMP backends); "
-    "the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: "
-    'pip install "dyng[cu13]" (an NVIDIA driver for CUDA 13) or "dyng[cu12]" (CUDA 12). '
-    "With a plugin installed, dyng.show_config() says why it is not used (docs: getting "
-    "started, 'Install', section 'Python')"
-)
+
+def _cuda_plugin_message() -> str:
+    """Where the CUDA backends come from, with the install line of this dyng's version."""
+    from ._backend import _dyng_version, plugin_install_hint
+
+    hint = plugin_install_hint(_dyng_version())
+    if hint.startswith("pip install"):
+        hint = 'pip install "dyng[cu13]" (an NVIDIA driver for CUDA 13) or "dyng[cu12]" (CUDA 12)'
+    return (
+        "the active native module is dyng._core, the CPU module (sequential and OpenMP "
+        "backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: "
+        f"{hint}. With a plugin installed, dyng.show_config() says why it is not used (docs: "
+        "getting started, 'Install', section 'Python')"
+    )
 
 
 def _cpu_module_message() -> str:
@@ -39,13 +46,14 @@ def _cpu_module_message() -> str:
     from ._backend import selection
 
     chosen = selection()
+    message = _cuda_plugin_message()
     if not chosen.plugins:
-        return _CUDA_PLUGIN_MESSAGE
+        return message
     found = "; ".join(
         f"{p.module}{' ' + p.version if p.version else ''} ({p.state}: {p.reason})"
         for p in chosen.plugins
     )
-    return f"{_CUDA_PLUGIN_MESSAGE}. Installed CUDA plugins: {found}"
+    return f"{message}. Installed CUDA plugins: {found}"
 
 
 def _stream_handle(stream: Any) -> int | None:

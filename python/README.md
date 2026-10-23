@@ -1,11 +1,12 @@
 # dynG
 
-**dynG** keeps the results of graph algorithms up to date while the graph changes in batches of
-edge insertions and deletions, without recomputing from scratch. It unifies the research codes of
-DynaMOSP (dynamic single- and multi-objective shortest paths) and TruCy / DynTruCy (cycle
-counting): `dyng.sssp`, `dyng.mosp` and `dyng.cycle_count` are stable, with more algorithms
-(hypergraph motifs, label propagation) to follow; `dyng.dynamic_bfs` and `dyng.triangle_delta`
-are small tutorial algorithms.
+**dynG** keeps the results of graph and hypergraph algorithms up to date while the structure
+changes in batches of insertions and deletions, without recomputing from scratch. It unifies the
+research codes of DynaMOSP (dynamic single- and multi-objective shortest paths), TruCy /
+DynTruCy (cycle counting) and ESCHER / ESCHER+ (hypergraph triads): `dyng.sssp`, `dyng.mosp`,
+`dyng.cycle_count`, the hypergraph `dyng.Hypergraph` and `dyng.triad_count` are stable, with more
+algorithms (label propagation, shortest hyperpaths) to follow; `dyng.dynamic_bfs` and
+`dyng.triangle_delta` are small tutorial algorithms.
 
 <!-- snippet: pypi-readme -->
 ```python
@@ -25,6 +26,11 @@ g2 = dyng.Graph.from_edges([0, 0, 1, 2], [1, 2, 2, 3], w2)
 paths = dyng.mosp.compute(g2, source=0)                              # multi-objective (MOSP)
 dyng.mosp.update(g2, dyng.EdgeBatch(delete=([0], [2])), paths)
 print(paths.path_costs.to_numpy().tolist())                          # the K costs per vertex
+
+h = dyng.Hypergraph.from_lists([[0, 1, 2], [1, 2, 3], [0, 2, 3]])    # three hyperedges
+triads = dyng.triad_count.compute(h)                                 # the 30 h-motif bins
+dyng.triad_count.update(h, dyng.HyperedgeBatch(insert_hyperedges=[[0, 1, 3]]), triads)
+print(triads.total, triads.counts.nonzero()[0].tolist())             # triads, non-zero bins
 ```
 
 The package also installs the `dyng` command line, which reads and writes the formats of the
@@ -35,6 +41,7 @@ $ dyng cycle_count compute --graph DD_A.txt --max-length 6       # histogram CSV
 $ dyng sssp compute --graph roadNet-CA_ --out init                # MOSP's distance and tree files
 $ dyng sssp update --graph roadNet-CA_ --changes batch --init init --out updated
 $ dyng mosp update --graph roadNet-CA_ --changes batch --init init --preferences 4,1,4 --out out
+$ dyng triad_count update --input coauth.hg --batches batches.dgb --format json   # triad bins JSON
 ```
 
 This wheel contains the sequential and OpenMP backends (`dyng.Resources("openmp")`). The CUDA

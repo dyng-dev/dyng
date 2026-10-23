@@ -17,6 +17,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -223,22 +224,33 @@ rows_t line_graph(const rows_t& rows, int threads) {
   }
   rows_t adj(rows.size());
   const auto n = static_cast<std::int64_t>(rows.size());
+  // A row allocates: its std::bad_alloc must not leave the OpenMP region (that would end the
+  // process); the first one is kept and rethrown after it (ADR 0061).
+  std::exception_ptr failure;
 #ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic, 256) num_threads(threads) if (threads > 1)
 #endif
   for (std::int64_t e = 0; e < n; ++e) {
-    const auto x = static_cast<std::size_t>(e);
-    row_t row;
-    for (std::size_t q = row_start[x]; q < row_start[x + 1]; ++q) {
-      const std::size_t k = where[q];
-      row.insert(row.end(), ids.begin() + static_cast<std::ptrdiff_t>(group_begin[k]),
-                 ids.begin() + static_cast<std::ptrdiff_t>(group_end[k]));
+    try {
+      const auto x = static_cast<std::size_t>(e);
+      row_t row;
+      for (std::size_t q = row_start[x]; q < row_start[x + 1]; ++q) {
+        const std::size_t k = where[q];
+        row.insert(row.end(), ids.begin() + static_cast<std::ptrdiff_t>(group_begin[k]),
+                   ids.begin() + static_cast<std::ptrdiff_t>(group_end[k]));
+      }
+      std::sort(row.begin(), row.end());
+      row.erase(std::unique(row.begin(), row.end()), row.end());
+      row.erase(std::remove(row.begin(), row.end(), static_cast<std::int32_t>(e)), row.end());
+      adj[x] = std::move(row);
+    } catch (...) {
+#ifdef _OPENMP
+#pragma omp critical(dyng_triad_reference_failure)
+#endif
+      if (!failure) failure = std::current_exception();
     }
-    std::sort(row.begin(), row.end());
-    row.erase(std::unique(row.begin(), row.end()), row.end());
-    row.erase(std::remove(row.begin(), row.end(), static_cast<std::int32_t>(e)), row.end());
-    adj[x] = std::move(row);
   }
+  if (failure) std::rethrow_exception(failure);
   (void)threads;
   return adj;
 }
@@ -252,9 +264,12 @@ struct triangle_acc {
 
 // Calls f(acc, i, j, k) for every triangle i < j < k of `adj` (forEachTriangle), each thread with
 // its own accumulator; the accumulators are returned.
+// The visit and the accumulators do not allocate inside the region (`parts` is reserved for every
+// thread first), so nothing can throw out of it (ADR 0061).
 template <typename visit_t>
 std::vector<triangle_acc> for_each_triangle(const rows_t& adj, int threads, visit_t f) {
   std::vector<triangle_acc> parts;
+  parts.reserve(static_cast<std::size_t>(threads > 1 ? threads : 1));
   const auto n = static_cast<std::int64_t>(adj.size());
 #ifdef _OPENMP
 #pragma omp parallel num_threads(threads) if (threads > 1)

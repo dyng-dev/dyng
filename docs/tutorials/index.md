@@ -11,8 +11,9 @@ hypergraph_triads
 count_a_new_hypergraph_pattern
 ```
 
-Until the Python tutorials exist, {doc}`../getting_started/first_update_python` and the Python
-sections of {doc}`../algorithms/sssp` and {doc}`../algorithms/cycle_count` show the same steps.
+{doc}`hypergraph_triads` (0.3) does its task in C++ and in Python. For the graph algorithms,
+until their Python tutorials exist, {doc}`../getting_started/first_update_python` and the Python
+sections of {doc}`../algorithms/sssp` and {doc}`../algorithms/cycle_count` show the steps.
 
 Planned, each written when its code exists:
 

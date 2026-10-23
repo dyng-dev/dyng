@@ -25,7 +25,7 @@ Columns:
   delta* (a global count, updated by one signed recount); see {doc}`../concepts/update_model`.
 - **Maturity**: `experimental` (may change in any release), `stable` (SemVer applies from the
   release that made it stable: 0.1.0 for `sssp` and `cycle_count`, 0.2.0 for `mosp`, 0.3.0 for
-  `triad_count`, pending the author's confirmation at that release), `tutorial` (teaching material for contributors, covered like `experimental`; not a
+  `triad_count`), `tutorial` (teaching material for contributors, covered like `experimental`; not a
   research algorithm: {doc}`dynamic_bfs` and {doc}`triangle_delta`, the subjects of
   {doc}`../tutorials/your_first_dynamic_algorithm`), `planned` (not written yet). A planned
   algorithm gets its page when its port starts.

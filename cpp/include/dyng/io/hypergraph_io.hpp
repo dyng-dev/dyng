@@ -160,7 +160,8 @@ struct hypergraph_file_info {
  * @throws io_error               if the file is missing or malformed (path, line and column): a
  *                                token that is not a decimal integer, an id out of range, a
  *                                weight missing, misplaced or out of range, more vertices than
- *                                vertex_t holds.
+ *                                vertex_t holds; or if it is a file of another format (a `.dgb`
+ *                                or `.dgt` batch file, a Matrix Market file: its first line).
  * @throws invalid_argument_error if the options are invalid (index_base < 0, max_cardinality
  *                                < -1, a weight range outside [1, max(weight_t)], random_weights
  *                                for an unweighted type).

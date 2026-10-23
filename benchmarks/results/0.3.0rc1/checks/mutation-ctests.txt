@@ -1,0 +1,85 @@
+# Copy of $DYNG_SCRATCH/runs/r030-fix/final/mutation-ctests.log (sha256 3655694b3fd2c43102acee269849cb46d8a0ddc4c4c142c8686bd55874b32b99, 5601 bytes), written by parity/certify.py check.
+Test project /home/sskg8/Projects/dyng-work/r030/fix/clone-mutation/build/dev-cuda
+      Start 1841: cycle_count.mutation.control
+ 1/34 Test #1841: cycle_count.mutation.control .......................   Passed   21.88 sec
+      Start 1842: cycle_count.mutation.cuda.control
+ 2/34 Test #1842: cycle_count.mutation.cuda.control ..................   Passed   27.54 sec
+      Start 1843: cycle_count.mutation.double_count_5
+ 3/34 Test #1843: cycle_count.mutation.double_count_5 ................   Passed   21.91 sec
+      Start 1844: cycle_count.mutation.weak_ownership
+ 4/34 Test #1844: cycle_count.mutation.weak_ownership ................   Passed   16.44 sec
+      Start 1845: cycle_count.mutation.skip_workspace_resize
+ 5/34 Test #1845: cycle_count.mutation.skip_workspace_resize .........   Passed   15.88 sec
+      Start 1846: cycle_count.mutation.cuda.cuda_double_count_5
+ 6/34 Test #1846: cycle_count.mutation.cuda.cuda_double_count_5 ......   Passed   27.44 sec
+      Start 1847: cycle_count.mutation.cuda.cuda_weak_ownership
+ 7/34 Test #1847: cycle_count.mutation.cuda.cuda_weak_ownership ......   Passed   22.51 sec
+      Start 1848: cbst.mutation.control
+ 8/34 Test #1848: cbst.mutation.control ..............................   Passed    4.78 sec
+      Start 1849: cbst.mutation.unfill_drops_last
+ 9/34 Test #1849: cbst.mutation.unfill_drops_last ....................   Passed    1.33 sec
+      Start 1850: cbst.mutation.graph_own_ids
+10/34 Test #1850: cbst.mutation.graph_own_ids ........................   Passed    4.57 sec
+      Start 1851: cbst.mutation.reversed_ties
+11/34 Test #1851: cbst.mutation.reversed_ties ........................   Passed    3.44 sec
+      Start 1852: cbst.mutation.surplus_rule1
+12/34 Test #1852: cbst.mutation.surplus_rule1 ........................   Passed    1.69 sec
+      Start 1853: cbst.mutation.keep_dead_slots
+13/34 Test #1853: cbst.mutation.keep_dead_slots ......................   Passed    3.04 sec
+      Start 1854: cbst.mutation.compaction_padding
+14/34 Test #1854: cbst.mutation.compaction_padding ...................   Passed    1.78 sec
+      Start 1855: cbst.mutation.requested_keys
+15/34 Test #1855: cbst.mutation.requested_keys .......................   Passed    2.56 sec
+      Start 1856: hypergraph.mutation.control
+16/34 Test #1856: hypergraph.mutation.control ........................   Passed   37.01 sec
+      Start 1857: hypergraph.mutation.h2v_not_deduplicated
+17/34 Test #1857: hypergraph.mutation.h2v_not_deduplicated ...........   Passed   17.69 sec
+      Start 1858: hypergraph.mutation.allocator_ties_reversed
+18/34 Test #1858: hypergraph.mutation.allocator_ties_reversed ........   Passed   13.12 sec
+      Start 1859: hypergraph.mutation.mirror_additions_dropped
+19/34 Test #1859: hypergraph.mutation.mirror_additions_dropped .......   Passed    6.93 sec
+      Start 1860: triad_count.mutation.control
+20/34 Test #1860: triad_count.mutation.control .......................   Passed    2.33 sec
+      Start 1861: triad_count.mutation.cuda.control
+21/34 Test #1861: triad_count.mutation.cuda.control ..................   Passed    5.45 sec
+      Start 1862: triad_count.mutation.wrong_bin_sign
+22/34 Test #1862: triad_count.mutation.wrong_bin_sign ................   Passed    0.24 sec
+      Start 1863: triad_count.mutation.cuda.wrong_bin_sign
+23/34 Test #1863: triad_count.mutation.cuda.wrong_bin_sign ...........   Passed    0.57 sec
+      Start 1864: triad_count.mutation.skip_frontier_filter_b
+24/34 Test #1864: triad_count.mutation.skip_frontier_filter_b ........   Passed    1.10 sec
+      Start 1865: triad_count.mutation.cuda.skip_frontier_filter_b
+25/34 Test #1865: triad_count.mutation.cuda.skip_frontier_filter_b ...   Passed    3.54 sec
+      Start 1866: triad_count.mutation.skip_frontier_filter_k
+26/34 Test #1866: triad_count.mutation.skip_frontier_filter_k ........   Passed    1.28 sec
+      Start 1867: triad_count.mutation.cuda.skip_frontier_filter_k
+27/34 Test #1867: triad_count.mutation.cuda.skip_frontier_filter_k ...   Passed    3.52 sec
+      Start 1868: triad_count.mutation.inserted_requested_ids
+28/34 Test #1868: triad_count.mutation.inserted_requested_ids ........   Passed    0.37 sec
+      Start 1869: triad_count.mutation.cuda.inserted_requested_ids
+29/34 Test #1869: triad_count.mutation.cuda.inserted_requested_ids ...   Passed    0.64 sec
+      Start 1870: triad_count.mutation.type1_unbounded_keys
+30/34 Test #1870: triad_count.mutation.type1_unbounded_keys ..........   Passed    2.33 sec
+      Start 1871: triad_count.mutation.cuda.type1_unbounded_keys
+31/34 Test #1871: triad_count.mutation.cuda.type1_unbounded_keys .....   Passed    5.25 sec
+      Start 1872: triad_count.mutation.cuda.cbst_unfill_drops_last
+32/34 Test #1872: triad_count.mutation.cuda.cbst_unfill_drops_last ...   Passed    1.35 sec
+      Start 1873: testing.mutation.triad_reference_class_map
+33/34 Test #1873: testing.mutation.triad_reference_class_map .........   Passed    0.80 sec
+      Start 1874: conformance.mutation.frontier_requested_ids
+34/34 Test #1874: conformance.mutation.frontier_requested_ids ........   Passed   20.84 sec
+
+100% tests passed out of 34
+
+Label Time Summary:
+cbst           =  23.19 sec*proc (8 tests)
+conformance    =  20.84 sec*proc (1 test)
+cpu            = 180.14 sec*proc (16 tests)
+cycle_count    = 153.59 sec*proc (7 tests)
+gpu            = 121.00 sec*proc (18 tests)
+hypergraph     =  95.59 sec*proc (5 tests)
+mutation       = 301.14 sec*proc (34 tests)
+testing        =   0.80 sec*proc (1 test)
+triad_count    =  28.76 sec*proc (14 tests)
+
+Total Test time (real) = 306.48 sec

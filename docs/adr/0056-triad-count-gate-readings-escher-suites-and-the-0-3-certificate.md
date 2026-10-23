@@ -8,6 +8,8 @@
   D1 reading of 2026-10-15 (the gated Nsight Systems peak). **Pending the author** (taken on the
   plan's defaults until the 0.3.0 release, decisions of 2026-10-15): the suites and their split
   (D8), the gate rows, cases and rounds (D7), the coverage table the certificate requires (D6).
+- **Decided:** the author accepted D6, D7 and D8 as implemented on 2026-10-22 (GOVERNANCE.md,
+  approvals log, 2026-10-22); the reservation above is closed.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step gates-suites-certificate)
 - **Builds on:** ADR 0018 and ADR 0021 (clocks), ADR 0024 (dynG against dynG), ADR 0048 (the

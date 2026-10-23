@@ -1,0 +1,244 @@
+{
+ "set": "cbst_trace_escher_gpu_test",
+ "date": "2026-10-23T11:18:06+00:00",
+ "goldens": {
+  "manifest_sha256": "3b978a38514b6e2586894b15dd2a711b5baf4faaa1c61198f802649eaa22bc42"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "reference": "ESCHER-GPU",
+ "configs": [
+  "device:escher_gpu/exact"
+ ],
+ "judged_against_host_model": false,
+ "matrix": {
+  "001-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "002-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "003-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "004-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "005-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "006-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "007-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "008-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "009-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "010-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "011-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "012-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "013-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "014-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "015-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "016-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "017-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "018-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "019-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "020-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "021-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "022-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "023-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "024-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "025-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "026-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "027-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "028-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "029-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "030-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "031-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "032-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "033-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "034-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "035-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "036-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "037-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "038-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "039-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "040-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "041-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "042-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "043-main": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "044-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "045-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "046-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "047-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "048-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "049-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "050-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "051-type1": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "052-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "053-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "054-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "055-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "056-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "057-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "058-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "059-type2": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "060-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "061-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "062-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "063-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "064-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "065-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "066-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "067-type3": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "068-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "069-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "070-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "071-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "072-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "073-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "074-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  },
+  "075-coarseTriangle": {
+   "device:escher_gpu/exact": "equal"
+  }
+ },
+ "passed": true
+}

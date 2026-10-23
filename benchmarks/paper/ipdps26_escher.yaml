@@ -15,7 +15,8 @@
 # (parity/perf_ab.py triad_count run) under the exclusive perf lock; the results JSON goes to
 # benchmarks/results/<version>/. docs/developer/benchmarks.md describes the format. From 0.3.0 on
 # parity/certify.py requires this suite's summary, with every gated row below, in a release
-# certificate (decision D8 of 2026-10-15, taken on the plan's default pending the author).
+# certificate (decision D8 of 2026-10-15, taken on the plan's default; accepted by the author as
+# implemented on 2026-10-22, GOVERNANCE.md).
 schema: 1
 suite: ipdps26_escher
 title: "ESCHER: dynamic h-motif counts under hyperedge batches (dynG triad_count)"

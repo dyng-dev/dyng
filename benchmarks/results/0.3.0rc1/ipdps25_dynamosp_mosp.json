@@ -1,0 +1,3539 @@
+{
+ "schema": 1,
+ "suite": "ipdps25_dynamosp_mosp",
+ "algorithm": "mosp",
+ "title": "DynaMOSP: the MOSP update, K = 3 objectives and the combined graph (dynG mosp)",
+ "suite_file": "benchmarks/paper/ipdps25_dynamosp_mosp.yaml",
+ "suite_sha256": "9572cf019666745d8fd3bc7e729f4e8e58d30b95ca3b8186d52d951aac266c6c",
+ "version": "0.3.0rc1",
+ "date": "2026-10-23T06:18:34Z",
+ "port_commits": [
+  "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ ],
+ "baselines": {
+  "MOSP-OpenMP": {
+   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+   "variant": "unpatched",
+   "backend": "openmp"
+  },
+  "MOSP-CUDA": {
+   "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+   "variant": "unpatched",
+   "backend": "cuda"
+  }
+ },
+ "tolerance": {
+  "compute": 1.05,
+  "compute_short": 1.1,
+  "short_region_ms": 10.0,
+  "end_to_end": 1.1,
+  "memory": 1.05
+ },
+ "partial": null,
+ "execution_started": "2026-10-23T04:32:08Z",
+ "inputs": {
+  "verified": true,
+  "run_check": {
+   "roadNet-PA": "all digests equal",
+   "roadNet-CA": "all digests equal",
+   "rgg": "all digests equal",
+   "road_usa_g": "all digests equal"
+  },
+  "by_record": {
+   "ipdps25_dynamosp_mosp-openmp-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-openmp-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-openmp-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-openmp-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-default-clocks-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-default-clocks-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-memory-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-memory-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-memory-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "ipdps25_dynamosp_mosp-cuda-memory-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   }
+  }
+ },
+ "drivers": [
+  {
+   "cuda_driver_api": "13.1",
+   "nvidia": "590.48.01"
+  }
+ ],
+ "readings": [
+  {
+   "reading": "openmp",
+   "dataset": "roadNet-PA",
+   "kind": "run",
+   "backend": "openmp",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-openmp-roadNet-PA.json",
+   "date": "2026-10-23T04:33:35Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 57.317,
+     "port_ms": 44.909546999999996,
+     "ratio": 0.7835292670586387,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 16.918,
+     "port_ms": 13.833726,
+     "ratio": 0.8176927532805297,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 12.845,
+     "port_ms": 10.914539999999999,
+     "ratio": 0.8497111716621252,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 12.621,
+     "port_ms": 10.997688,
+     "ratio": 0.8713800808176848,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 15.137,
+     "port_ms": 9.387019,
+     "ratio": 0.6201373455770628,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 564.54,
+     "port_ms": 460.594,
+     "ratio": 0.8158748715768591,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 14.833822,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 57.098,
+     "port_ms": 43.775244,
+     "ratio": 0.766668604854811,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 17.219,
+     "port_ms": 13.514095,
+     "ratio": 0.7848362274231953,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 12.743,
+     "port_ms": 10.577113,
+     "ratio": 0.8300331946951268,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 12.541,
+     "port_ms": 10.734799,
+     "ratio": 0.8559763176780162,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 14.663,
+     "port_ms": 8.937606,
+     "ratio": 0.6095346109254587,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 548.762,
+     "port_ms": 455.008,
+     "ratio": 0.8291536221531375,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 14.265372,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 105.691,
+     "port_ms": 71.422488,
+     "ratio": 0.6757669811052975,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 27.999,
+     "port_ms": 18.819712,
+     "ratio": 0.6721565770206078,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 25.13,
+     "port_ms": 17.775185,
+     "ratio": 0.7073292877039395,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 24.644,
+     "port_ms": 17.475344,
+     "ratio": 0.7091115078720988,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 27.805,
+     "port_ms": 17.142121000000003,
+     "ratio": 0.6165121740694121,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 578.214,
+     "port_ms": 480.556,
+     "ratio": 0.8311040549000888,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 14.681329,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "openmp",
+   "dataset": "roadNet-CA",
+   "kind": "run",
+   "backend": "openmp",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-openmp-roadNet-CA.json",
+   "date": "2026-10-23T04:36:30Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 96.403,
+     "port_ms": 77.11469600000001,
+     "ratio": 0.7999200854745184,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 30.842,
+     "port_ms": 23.412178,
+     "ratio": 0.7591005122884379,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 20.861,
+     "port_ms": 18.992312,
+     "ratio": 0.9104219356694309,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 20.318,
+     "port_ms": 18.637059999999998,
+     "ratio": 0.9172684319322767,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 23.696,
+     "port_ms": 15.989615,
+     "ratio": 0.6747811866981769,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 995.926,
+     "port_ms": 754.04,
+     "ratio": 0.7571245253161378,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 25.656041,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 96.988,
+     "port_ms": 79.143832,
+     "ratio": 0.816016744339506,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 30.265,
+     "port_ms": 24.37793,
+     "ratio": 0.8054825706261357,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 20.946,
+     "port_ms": 19.390838,
+     "ratio": 0.9257537477322638,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 20.24,
+     "port_ms": 19.066346,
+     "ratio": 0.9420131422924901,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 23.853,
+     "port_ms": 16.262915,
+     "ratio": 0.6817974678237537,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 981.484,
+     "port_ms": 766.991,
+     "ratio": 0.7814605230446955,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 27.917922,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 66.839,
+     "port_ms": 45.966969999999996,
+     "ratio": 0.6877267762833076,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 12.933,
+     "port_ms": 9.214318,
+     "ratio": 0.7124656305574887,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 9.952,
+     "port_ms": 6.9478089999999995,
+     "ratio": 0.6981319332797428,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 9.237,
+     "port_ms": 7.045374,
+     "ratio": 0.7627340045469307,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 34.658,
+     "port_ms": 22.698300000000003,
+     "ratio": 0.6549223844422645,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 933.099,
+     "port_ms": 712.824,
+     "ratio": 0.7639318014487207,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 21.87113,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "openmp",
+   "dataset": "rgg",
+   "kind": "run",
+   "backend": "openmp",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-openmp-rgg.json",
+   "date": "2026-10-23T04:39:30Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "rgg/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 153.654,
+     "port_ms": 141.37510600000002,
+     "ratio": 0.9200873781352911,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 51.661,
+     "port_ms": 50.534475,
+     "ratio": 0.9781938986856623,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 40.028,
+     "port_ms": 37.969115,
+     "ratio": 0.9485638802838015,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 44.394,
+     "port_ms": 42.196592,
+     "ratio": 0.9505021399288193,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 17.394,
+     "port_ms": 10.552139,
+     "ratio": 0.606653961136024,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1470.835,
+     "port_ms": 1134.43,
+     "ratio": 0.7712829787161715,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 34.12143,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 153.206,
+     "port_ms": 141.63218,
+     "ratio": 0.924455830711591,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 51.736,
+     "port_ms": 50.379476000000004,
+     "ratio": 0.9737798824802847,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 40.014,
+     "port_ms": 38.099935,
+     "ratio": 0.9521651172089769,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 44.315,
+     "port_ms": 42.245513,
+     "ratio": 0.9533005302944828,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 17.31,
+     "port_ms": 10.532067,
+     "ratio": 0.6084383015597921,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1458.502,
+     "port_ms": 1138.41,
+     "ratio": 0.7805337256993821,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 36.774019,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 266.501,
+     "port_ms": 194.89351299999998,
+     "ratio": 0.7313049969793735,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 77.444,
+     "port_ms": 58.557818,
+     "ratio": 0.7561311140953463,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 68.174,
+     "port_ms": 50.666017000000004,
+     "ratio": 0.7431868014198961,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 76.192,
+     "port_ms": 58.548332,
+     "ratio": 0.7684314888702227,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 43.461,
+     "port_ms": 26.800195000000002,
+     "ratio": 0.6166492947700237,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1548.045,
+     "port_ms": 1150.94,
+     "ratio": 0.7434796792082917,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 38.502201,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "openmp",
+   "dataset": "road_usa_g",
+   "kind": "run",
+   "backend": "openmp",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-openmp-road_usa_g.json",
+   "date": "2026-10-23T04:55:14Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 11,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 1340.468,
+     "port_ms": 1126.829403,
+     "ratio": 0.840623873900757,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 332.286,
+     "port_ms": 298.692231,
+     "ratio": 0.8989010400678933,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 294.519,
+     "port_ms": 277.60981400000003,
+     "ratio": 0.9425871132252929,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 293.669,
+     "port_ms": 276.857936,
+     "ratio": 0.9427550609700037,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 426.923,
+     "port_ms": 274.502169,
+     "ratio": 0.6429781693654358,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 12730.456,
+     "port_ms": 9199.54,
+     "ratio": 0.722640257348205,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 392.78673,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 1361.34,
+     "port_ms": 1130.849047,
+     "ratio": 0.8306881800285013,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 336.768,
+     "port_ms": 299.462135,
+     "ratio": 0.8892238425266059,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 299.32,
+     "port_ms": 279.024342,
+     "ratio": 0.9321941133235333,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 299.379,
+     "port_ms": 278.825282,
+     "ratio": 0.9313454918347647,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 426.186,
+     "port_ms": 273.534913,
+     "ratio": 0.6418205032544476,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 13190.372,
+     "port_ms": 9239.73,
+     "ratio": 0.7004904789645053,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 393.842778,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 707.545,
+     "port_ms": 461.527091,
+     "ratio": 0.6522936223137751,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 74.415,
+     "port_ms": 55.274615000000004,
+     "ratio": 0.7427886178861789,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 62.324,
+     "port_ms": 51.049224,
+     "ratio": 0.8190941531352288,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 62.656,
+     "port_ms": 50.994234000000006,
+     "ratio": 0.8138763087334016,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 509.369,
+     "port_ms": 304.849505,
+     "ratio": 0.5984846054628373,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 11338.472,
+     "port_ms": 8471.8,
+     "ratio": 0.7471729876829963,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 240.927708,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda",
+   "dataset": "roadNet-PA",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-roadNet-PA.json",
+   "date": "2026-10-23T05:08:47Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 16.81,
+     "port_ms": 16.581773,
+     "ratio": 0.9864231409875074,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 4.761,
+     "port_ms": 4.580776,
+     "ratio": 0.9621457676958622,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 4.737,
+     "port_ms": 4.690082,
+     "ratio": 0.9900954190415876,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 4.824,
+     "port_ms": 4.771603,
+     "ratio": 0.9891382669983416,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 2.486,
+     "port_ms": 2.536101,
+     "ratio": 1.0201532582461785,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 692.336,
+     "port_ms": 604.546,
+     "ratio": 0.8731974070393567,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 18.764392,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 16.778,
+     "port_ms": 16.545948000000003,
+     "ratio": 0.9861692692812019,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 4.733,
+     "port_ms": 4.566261,
+     "ratio": 0.9647709697866047,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 4.738,
+     "port_ms": 4.671268,
+     "ratio": 0.9859155761924863,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 4.825,
+     "port_ms": 4.779279,
+     "ratio": 0.9905241450777201,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 2.48,
+     "port_ms": 2.5309559999999998,
+     "ratio": 1.0205467741935483,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 680.937,
+     "port_ms": 607.747,
+     "ratio": 0.8925157540271713,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 21.584058,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 35.001,
+     "port_ms": 34.78177099999999,
+     "ratio": 0.99373649324305,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 9.361,
+     "port_ms": 9.215341,
+     "ratio": 0.9844398034398034,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 9.44,
+     "port_ms": 9.389491,
+     "ratio": 0.9946494703389831,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 9.201,
+     "port_ms": 9.160844,
+     "ratio": 0.9956356917726334,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 6.997,
+     "port_ms": 7.015295,
+     "ratio": 1.0026146920108618,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 673.079,
+     "port_ms": 617.615,
+     "ratio": 0.9175965971305003,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 21.474417,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda",
+   "dataset": "roadNet-CA",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-roadNet-CA.json",
+   "date": "2026-10-23T05:12:00Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 31.241,
+     "port_ms": 31.01413,
+     "ratio": 0.9927380685637465,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 8.752,
+     "port_ms": 8.598922,
+     "ratio": 0.98250936928702,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 8.852,
+     "port_ms": 8.810194,
+     "ratio": 0.9952772254857658,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 8.727,
+     "port_ms": 8.698554,
+     "ratio": 0.9967404606393949,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 4.924,
+     "port_ms": 4.903364,
+     "ratio": 0.9958090982940697,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1045.035,
+     "port_ms": 898.26,
+     "ratio": 0.8595501586071279,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 37.620708,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 31.203,
+     "port_ms": 30.910867999999997,
+     "ratio": 0.9906376950934205,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 8.747,
+     "port_ms": 8.584986,
+     "ratio": 0.9814777638047332,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 8.818,
+     "port_ms": 8.789491,
+     "ratio": 0.9967669539578136,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 8.739,
+     "port_ms": 8.653062,
+     "ratio": 0.9901661517336079,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 4.914,
+     "port_ms": 4.89423,
+     "ratio": 0.9959768009768011,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1086.467,
+     "port_ms": 899.482,
+     "ratio": 0.827896291373783,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 37.990098,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 18.5,
+     "port_ms": 18.453698999999997,
+     "ratio": 0.9974972432432431,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 3.499,
+     "port_ms": 3.388,
+     "ratio": 0.9682766504715632,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 3.081,
+     "port_ms": 3.084083,
+     "ratio": 1.0010006491398897,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 3.432,
+     "port_ms": 3.44187,
+     "ratio": 1.0028758741258743,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 8.486,
+     "port_ms": 8.540254999999998,
+     "ratio": 1.0063934716002825,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 995.794,
+     "port_ms": 871.266,
+     "ratio": 0.8749460229726228,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 33.282404,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda",
+   "dataset": "rgg",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-rgg.json",
+   "date": "2026-10-23T05:15:52Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "rgg/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 81.431,
+     "port_ms": 80.325904,
+     "ratio": 0.9864290503616558,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 25.873,
+     "port_ms": 25.471492,
+     "ratio": 0.9844815831175356,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 25.477,
+     "port_ms": 25.143056,
+     "ratio": 0.9868923342622758,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 26.152,
+     "port_ms": 25.819112,
+     "ratio": 0.9872710308962985,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 3.927,
+     "port_ms": 3.886623,
+     "ratio": 0.9897181054239879,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1550.407,
+     "port_ms": 1300.92,
+     "ratio": 0.8390828988775206,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 46.844073,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 81.449,
+     "port_ms": 80.333374,
+     "ratio": 0.9863027661481418,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 25.885,
+     "port_ms": 25.48048,
+     "ratio": 0.9843724164574077,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 25.473,
+     "port_ms": 25.156553,
+     "ratio": 0.987577160130334,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 26.161,
+     "port_ms": 25.800859,
+     "ratio": 0.9862336684377507,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 3.931,
+     "port_ms": 3.882139,
+     "ratio": 0.9875703383363011,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1542.341,
+     "port_ms": 1290.01,
+     "ratio": 0.8363973985000723,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 41.68495,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 205.428,
+     "port_ms": 205.332451,
+     "ratio": 0.999534878400218,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 61.52,
+     "port_ms": 61.391499,
+     "ratio": 0.9979112321196358,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 63.89,
+     "port_ms": 63.84689,
+     "ratio": 0.9993252465174519,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 61.596,
+     "port_ms": 61.5958,
+     "ratio": 0.9999967530359114,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 18.438,
+     "port_ms": 18.481299,
+     "ratio": 1.0023483566547349,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1522.1,
+     "port_ms": 1382.32,
+     "ratio": 0.9081663491229223,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 51.840126,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda",
+   "dataset": "road_usa_g",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-road_usa_g.json",
+   "date": "2026-10-23T05:30:47Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 11,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 364.238,
+     "port_ms": 365.97586900000005,
+     "ratio": 1.00477124572395,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 102.822,
+     "port_ms": 102.688989,
+     "ratio": 0.9987063955184688,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 101.783,
+     "port_ms": 101.818144,
+     "ratio": 1.0003452835935274,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 102.071,
+     "port_ms": 102.052648,
+     "ratio": 0.99982020358378,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 57.541,
+     "port_ms": 59.519738000000004,
+     "ratio": 1.0343883144192838,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 12542.415,
+     "port_ms": 8545.75,
+     "ratio": 0.6813480497974274,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 425.328332,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 364.05,
+     "port_ms": 366.144457,
+     "ratio": 1.0057532124708144,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 102.719,
+     "port_ms": 102.670243,
+     "ratio": 0.9995253361111383,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 101.736,
+     "port_ms": 101.851579,
+     "ratio": 1.001136067861917,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 102.039,
+     "port_ms": 102.083995,
+     "ratio": 1.0004409588490675,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 57.545,
+     "port_ms": 59.519524000000004,
+     "ratio": 1.034312694413068,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 12180.037,
+     "port_ms": 8532.89,
+     "ratio": 0.7005635532962666,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 422.874708,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 170.683,
+     "port_ms": 170.223458,
+     "ratio": 0.9973076287620911,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 22.722,
+     "port_ms": 22.530539,
+     "ratio": 0.9915737611125781,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 22.045,
+     "port_ms": 21.903996,
+     "ratio": 0.993603810387843,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 22.202,
+     "port_ms": 22.092259,
+     "ratio": 0.9950571570128816,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 103.715,
+     "port_ms": 103.710811,
+     "ratio": 0.9999596104710023,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 10883.377,
+     "port_ms": 8303.68,
+     "ratio": 0.7629690674135426,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 292.285606,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda-default-clocks",
+   "dataset": "roadNet-PA",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "record": "ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-PA.json",
+   "date": "2026-10-23T05:33:14Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 16.77,
+     "port_ms": 16.867843999999998,
+     "ratio": 1.0058344663088847,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 4.738,
+     "port_ms": 4.668975,
+     "ratio": 0.9854316167159137,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 4.722,
+     "port_ms": 4.767678,
+     "ratio": 1.0096734434561625,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 4.81,
+     "port_ms": 4.852239,
+     "ratio": 1.008781496881497,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 2.5,
+     "port_ms": 2.568168,
+     "ratio": 1.0272672,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 737.353,
+     "port_ms": 635.962,
+     "ratio": 0.8624932698449725,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 20.766504,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 16.751,
+     "port_ms": 16.832016999999997,
+     "ratio": 1.0048365470718164,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 4.723,
+     "port_ms": 4.670908,
+     "ratio": 0.98897056955325,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 4.705,
+     "port_ms": 4.754562,
+     "ratio": 1.0105339001062699,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 4.826,
+     "port_ms": 4.842942,
+     "ratio": 1.0035105677579776,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 2.495,
+     "port_ms": 2.5619249999999996,
+     "ratio": 1.0268236472945889,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 746.227,
+     "port_ms": 640.584,
+     "ratio": 0.858430477589259,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 21.742189,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 34.994,
+     "port_ms": 34.991791,
+     "ratio": 0.9999368748928388,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 9.355,
+     "port_ms": 9.266975,
+     "ratio": 0.9905905932656334,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 9.429,
+     "port_ms": 9.455602,
+     "ratio": 1.002821296001697,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 9.201,
+     "port_ms": 9.224671,
+     "ratio": 1.0025726551461798,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 7.009,
+     "port_ms": 7.053967,
+     "ratio": 1.0064156085033529,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 730.797,
+     "port_ms": 648.996,
+     "ratio": 0.8880660429640516,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 21.529362,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda-default-clocks",
+   "dataset": "roadNet-CA",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "record": "ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-CA.json",
+   "date": "2026-10-23T05:36:10Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 30.745,
+     "port_ms": 31.752504,
+     "ratio": 1.0327696861278255,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 8.644,
+     "port_ms": 8.838822,
+     "ratio": 1.0225384081443776,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 8.717,
+     "port_ms": 9.028129,
+     "ratio": 1.0356922106229207,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 8.607,
+     "port_ms": 8.925638,
+     "ratio": 1.0370207970256768,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 4.764,
+     "port_ms": 4.951201,
+     "ratio": 1.0392949202350965,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1152.43,
+     "port_ms": 922.798,
+     "ratio": 0.8007410428399121,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 37.783123,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 30.729,
+     "port_ms": 31.721594000000003,
+     "ratio": 1.032301539262586,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 8.652,
+     "port_ms": 8.821271,
+     "ratio": 1.0195643781784558,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 8.726,
+     "port_ms": 9.04109,
+     "ratio": 1.0361093284437313,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 8.57,
+     "port_ms": 8.910639,
+     "ratio": 1.0397478413068844,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 4.757,
+     "port_ms": 4.943639,
+     "ratio": 1.039234601639689,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1132.371,
+     "port_ms": 927.278,
+     "ratio": 0.8188817975734101,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 38.289762,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 18.582,
+     "port_ms": 18.531925,
+     "ratio": 0.9973051878161662,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 3.499,
+     "port_ms": 3.403085,
+     "ratio": 0.9725878822520719,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 3.081,
+     "port_ms": 3.097096,
+     "ratio": 1.0052242778318727,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 3.433,
+     "port_ms": 3.446745,
+     "ratio": 1.004003786775415,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 8.567,
+     "port_ms": 8.584268,
+     "ratio": 1.002015641414731,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1020.836,
+     "port_ms": 905.83,
+     "ratio": 0.8873413555164591,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 32.71193,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda-default-clocks",
+   "dataset": "rgg",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "record": "ipdps25_dynamosp_mosp-cuda-default-clocks-rgg.json",
+   "date": "2026-10-23T05:55:50Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "rgg/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 78.971,
+     "port_ms": 78.2166,
+     "ratio": 0.990447126160236,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 25.103,
+     "port_ms": 24.862353,
+     "ratio": 0.9904136159024817,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 24.732,
+     "port_ms": 24.539283,
+     "ratio": 0.992207787481805,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 25.403,
+     "port_ms": 25.144439,
+     "ratio": 0.9898216352399323,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 3.729,
+     "port_ms": 3.685654,
+     "ratio": 0.9883759721104853,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1577.468,
+     "port_ms": 1314.03,
+     "ratio": 0.8329994649653748,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 44.606055,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 79.056,
+     "port_ms": 78.37184400000001,
+     "ratio": 0.9913459319975715,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 25.154,
+     "port_ms": 24.90598,
+     "ratio": 0.9901399379820307,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 24.764,
+     "port_ms": 24.580575,
+     "ratio": 0.9925930786625747,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 25.441,
+     "port_ms": 25.19312,
+     "ratio": 0.9902566723006172,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 3.747,
+     "port_ms": 3.691947,
+     "ratio": 0.9853074459567654,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1475.612,
+     "port_ms": 1298.85,
+     "ratio": 0.8802110581914486,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 43.724771,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 187.713,
+     "port_ms": 187.818036,
+     "ratio": 1.0005595563439933,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 56.174,
+     "port_ms": 56.110435,
+     "ratio": 0.9988684266742621,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 58.35,
+     "port_ms": 58.39045,
+     "ratio": 1.0006932305055698,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 56.235,
+     "port_ms": 56.293156,
+     "ratio": 1.0010341602205033,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 16.96,
+     "port_ms": 17.006572,
+     "ratio": 1.0027459905660376,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1515.704,
+     "port_ms": 1388.37,
+     "ratio": 0.9159901933359019,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 49.490123,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda-default-clocks",
+   "dataset": "road_usa_g",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "record": "ipdps25_dynamosp_mosp-cuda-default-clocks-road_usa_g.json",
+   "date": "2026-10-23T06:11:53Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 11,
+    "order": "A/B/A/B (side A first: the original)",
+    "threads": 28,
+    "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+    "lock": "perf.lock: held exclusively by this process",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 358.81,
+     "port_ms": 361.46194399999996,
+     "ratio": 1.0073909422814302,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 101.083,
+     "port_ms": 102.005793,
+     "ratio": 1.00912906225577,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 100.175,
+     "port_ms": 100.989838,
+     "ratio": 1.00813414524582,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 100.715,
+     "port_ms": 101.243545,
+     "ratio": 1.0052479273196644,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 56.903,
+     "port_ms": 57.24443000000001,
+     "ratio": 1.0060002108851906,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 12434.559,
+     "port_ms": 8361.28,
+     "ratio": 0.6724227212239695,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 394.753403,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 359.23,
+     "port_ms": 361.889425,
+     "ratio": 1.0074031261308911,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 101.205,
+     "port_ms": 102.229433,
+     "ratio": 1.010122355614841,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 100.321,
+     "port_ms": 100.972469,
+     "ratio": 1.0064938447583258,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 100.758,
+     "port_ms": 101.421983,
+     "ratio": 1.0065898787193077,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 56.95,
+     "port_ms": 57.345856,
+     "ratio": 1.0069509394205443,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 11960.304,
+     "port_ms": 8381.92,
+     "ratio": 0.7008116181662272,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 390.650903,
+     "ratio": null,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "compute",
+     "gate_kind": "compute",
+     "original_ms": 158.737,
+     "port_ms": 157.588863,
+     "ratio": 0.9927670486402037,
+     "clock_reading": "as measured",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj0",
+     "gate_kind": "none",
+     "original_ms": 21.275,
+     "port_ms": 21.339218,
+     "ratio": 1.003018472385429,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj1",
+     "gate_kind": "none",
+     "original_ms": 20.681,
+     "port_ms": 20.719161,
+     "ratio": 1.0018452202504713,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "sosp_update obj2",
+     "gate_kind": "none",
+     "original_ms": 20.818,
+     "port_ms": 20.804408,
+     "ratio": 0.9993471034681525,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "combined",
+     "gate_kind": "none",
+     "original_ms": 95.938,
+     "port_ms": 94.58076899999999,
+     "ratio": 0.9858530405053262,
+     "clock_reading": "as measured"
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 10582.013,
+     "port_ms": 8121.41,
+     "ratio": 0.7674730696324035,
+     "clock_reading": "as measured",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "path_costs",
+     "gate_kind": "none",
+     "original_ms": 0.0,
+     "port_ms": 285.060457,
+     "ratio": null,
+     "clock_reading": "as measured"
+    }
+   ]
+  },
+  {
+   "reading": "cuda-memory",
+   "dataset": "roadNet-PA",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-memory-roadNet-PA.json",
+   "date": "2026-10-23T06:12:22Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {},
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-PA/safe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 236.3,
+     "port_mib": 239.8,
+     "ratio": 1.0148116800677105,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/unsafe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 236.3,
+     "port_mib": 239.8,
+     "ratio": 1.0148116800677105,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-PA/local10k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 235.7,
+     "port_mib": 239.8,
+     "ratio": 1.017394993635978,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-memory",
+   "dataset": "roadNet-CA",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-memory-roadNet-CA.json",
+   "date": "2026-10-23T06:16:25Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {},
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "roadNet-CA/safe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 425.2,
+     "port_mib": 432.1,
+     "ratio": 1.016227657572907,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/unsafe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 425.2,
+     "port_mib": 432.1,
+     "ratio": 1.016227657572907,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "roadNet-CA/local10k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 424.7,
+     "port_mib": 432.1,
+     "ratio": 1.0174240640452084,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-memory",
+   "dataset": "rgg",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-memory-rgg.json",
+   "date": "2026-10-23T06:17:23Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {},
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "rgg/safe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 602.4,
+     "port_mib": 560.6,
+     "ratio": 0.9306108897742364,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/unsafe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 602.4,
+     "port_mib": 560.6,
+     "ratio": 0.9306108897742364,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "rgg/local10k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 602.4,
+     "port_mib": 560.6,
+     "ratio": 0.9306108897742364,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-memory",
+   "dataset": "road_usa_g",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "record": "ipdps25_dynamosp_mosp-cuda-memory-road_usa_g.json",
+   "date": "2026-10-23T06:18:34Z",
+   "port_commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46",
+   "reference": {
+    "name": "MOSP-CUDA",
+    "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+    "variant": "unpatched"
+   },
+   "protocol": {},
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "verified": true,
+    "how": "hashed by the harness when the measurement started"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "road_usa_g/safe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 4867.9,
+     "port_mib": 4958.7,
+     "ratio": 1.0186528071653074,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/unsafe50k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 4867.9,
+     "port_mib": 4958.6,
+     "ratio": 1.0186322644261387,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "road_usa_g/local10k",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 4867.3,
+     "port_mib": 4958.7,
+     "ratio": 1.0187783781562672,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  }
+ ],
+ "verdict": {
+  "gated_regions": 60,
+  "within_gate": 60,
+  "ratio_range": [
+   0.6522936223137751,
+   1.0187783781562672
+  ],
+  "exceeded": [],
+  "provisional": [],
+  "contaminated": [],
+  "missing_or_incomplete": [],
+  "problems": [],
+  "passed": true
+ }
+}

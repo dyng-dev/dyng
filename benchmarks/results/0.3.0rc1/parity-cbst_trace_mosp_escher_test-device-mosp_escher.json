@@ -1,0 +1,91 @@
+{
+ "set": "cbst_trace_mosp_escher_test",
+ "date": "2026-10-23T11:18:31+00:00",
+ "goldens": {
+  "manifest_sha256": "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "device:mosp_escher/exact"
+ ],
+ "judged_against_host_model": false,
+ "matrix": {
+  "001-test_cbst_smoke": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "002-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "003-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "004-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "005-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "006-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "007-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "008-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "009-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "010-test_cbst_ops": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "011-test_dynamicgraph_roundtrip": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "012-test_snapshot_matches_updateCSR": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "013-test_h2h_construction": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "014-test_h2h_delta": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "015-test_hsosp_matches_dijkstra": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "016-test_hsosp_scale": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "017-hsospStress": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "018-hsospStress": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "019-hsospBench": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "020-hsospBench": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "021-hsospBench": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "023-stressTest": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "024-parallelStressTest": {
+   "device:mosp_escher/exact": "equal"
+  },
+  "025-parallelStressTest": {
+   "device:mosp_escher/exact": "equal"
+  }
+ },
+ "passed": true
+}

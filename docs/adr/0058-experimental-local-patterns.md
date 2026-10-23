@@ -9,9 +9,12 @@
   exact, no gate or protocol is touched, no frozen header (`hypergraph/*`, `update.hpp`,
   `core/*`, `graph/*`) is edited, and the four built-in counting kernels are SASS- and
   resource-identical to M9a's build.
+- **Decided:** the author accepted the new public names (D9) on 2026-10-22 (GOVERNANCE.md,
+  approvals log, 2026-10-22); `count_local_patterns` stays `experimental` (the same day's stability
+  decision).
 - **Date:** 2026-10-21
 - **Deciders:** the AI assistant, on the author's behalf for the technical parts (M9b, step
-  local-patterns-experimental); the names: S M Shovan (pending)
+  local-patterns-experimental); the names: S M Shovan (2026-10-22)
 - **Builds on:** ADR 0052 (the triad_count API), ADR 0053 (the wedge engine's port and its Op form,
   c6: GO), ADR 0054 (the incremental host engine), ADR 0055 (`operators::count_delta`), ADR 0057
   (the 64-bit limits), ADR 0033 (the tutorial algorithms and the quoted tutorials), ADR 0023 / 0047

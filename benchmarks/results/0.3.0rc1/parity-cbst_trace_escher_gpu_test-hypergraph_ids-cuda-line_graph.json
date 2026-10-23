@@ -1,0 +1,256 @@
+{
+ "set": "cbst_trace_escher_gpu_test",
+ "kind": "hypergraph_ids",
+ "date": "2026-10-23T11:40:03+00:00",
+ "goldens": {
+  "manifest_sha256": "3b978a38514b6e2586894b15dd2a711b5baf4faaa1c61198f802649eaa22bc42"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+ "reference": "ESCHER-GPU",
+ "configs": [
+  "cuda:hypergraph_ids/line_graph"
+ ],
+ "checks": {
+  "model": true,
+  "verified": true,
+  "line_graph_oracle": true
+ },
+ "totals": {
+  "sessions": 75,
+  "batches": 180,
+  "ids_compared": 114965,
+  "rows_compared": 3095365,
+  "mismatch_count": 0
+ },
+ "matrix": {
+  "001-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "002-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "003-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "004-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "005-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "006-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "007-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "008-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "009-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "010-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "011-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "012-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "013-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "014-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "015-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "016-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "017-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "018-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "019-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "020-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "021-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "022-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "023-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "024-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "025-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "026-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "027-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "028-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "029-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "030-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "031-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "032-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "033-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "034-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "035-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "036-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "037-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "038-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "039-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "040-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "041-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "042-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "043-main": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "044-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "045-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "046-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "047-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "048-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "049-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "050-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "051-type1": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "052-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "053-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "054-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "055-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "056-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "057-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "058-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "059-type2": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "060-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "061-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "062-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "063-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "064-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "065-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "066-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "067-type3": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "068-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "069-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "070-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "071-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "072-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "073-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "074-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  },
+  "075-coarseTriangle": {
+   "cuda:hypergraph_ids/line_graph": "equal"
+  }
+ },
+ "passed": true
+}

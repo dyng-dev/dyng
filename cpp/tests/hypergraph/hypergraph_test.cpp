@@ -267,7 +267,17 @@ TEST_P(HypergraphBackends, ValidationErrorsLeaveTheHypergraphUnchanged) {
     dyng::hyperedge_batch<std::int32_t, std::int32_t> b;
     b.delete_hyperedge(0);
     b.insert_hyperedge({1, 6}, 3);
-    EXPECT_THROW((void)h.apply(res(), b.view()), dyng::invalid_argument_error);
+    try {
+      (void)h.apply(res(), b.view());
+      ADD_FAILURE() << "expected invalid_argument_error";
+    } catch (const dyng::invalid_argument_error& e) {
+      // The batch's first insertion, not the hyperedge with id 0, and where the vertex count is
+      // fixed (R030 review).
+      const std::string what = e.what();
+      EXPECT_NE(what.find("inserted hyperedge 0 of the batch has the vertex 6"), std::string::npos)
+          << what;
+      EXPECT_NE(what.find("fixed when the hypergraph is built"), std::string::npos) << what;
+    }
     expect_unchanged();
   }
   {  // an empty hyperedge
