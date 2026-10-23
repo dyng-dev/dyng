@@ -331,9 +331,9 @@ def update(
         OutOfMemoryError: host or device memory cannot be allocated (also a ``MemoryError``),
             with one of three outcomes: before the commit, ``hypergraph`` and ``result`` are
             unchanged; inside the commit, ``hypergraph`` is unusable (as for
-            :meth:`Hypergraph.apply`) and ``result`` keeps the counts before the batch (recompute
-            it once the hypergraph is built again); after the commit, ``hypergraph`` holds the
-            new version and ``result`` is left unusable (recompute it).
+            :meth:`dyng.Hypergraph.apply`) and ``result`` keeps the counts before the batch
+            (recompute it once the hypergraph is built again); after the commit, ``hypergraph``
+            holds the new version and ``result`` is left unusable (recompute it).
         InternalError: a bin would become negative (a library bug; ``result`` is left unusable).
     """
     _check_hypergraph(hypergraph)
