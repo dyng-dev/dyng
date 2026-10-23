@@ -9,6 +9,8 @@
 - **Date:** 2026-10-22
 - **Deciders:** the AI assistant, on the author's behalf (R030, step d13-and-records; the fix
   itself was classified as technical by the orchestrator's note of 2026-10-22)
+- **Amended by:** ADR 0062 (the R030 review: the longer reading of rule 3 for the two
+  sub-regions above the bar, and the corrected reading of the restructured guard below)
 - **Builds on:** ADR 0024 (reading a refactor against an earlier dynG build), ADR 0041 and 0047
   (the container and its guarantees), ADR 0055 (`count_owned` carries an exception out of its
   region), ADR 0060 finding 8 (the defect, found by its allocation-failure test), the M9b review
@@ -177,8 +179,12 @@ on both cases and both backends.
   rounds over 17 layouts) confirms it: `hypergraph.build` 1.007 on sequential and on 8 threads,
   `hypergraph.apply` 1.004 and 0.999. A restructured guard (`parallel_chunks`: chunks claimed by
   hand, one try block per thread) did not help in the release build (+2 to +7 %) and was slower
-  with the mitigation (+1.8 to +2.6 %), so the simple per-row form stays. The Xeon Gold 6258R has
-  the erratum (docs/roadmap.md, the deferred alignment option); the release builds keep the
+  with the mitigation (+1.8 to +2.6 %), so the simple per-row form stays. *(Corrected by ADR
+  0062: in the release build the restructured guard is faster than the per-row form on
+  sequential, 6,076.7 against 6,513.0 ms in the one session with both, 2.3 % above base, and
+  +8.1 % over base on 8 threads, where the per-row form was not in the session; the per-row form
+  stays because it is within 0.3 % of base on both backends once both sides carry the
+  mitigation flags.)* The Xeon Gold 6258R has the erratum (docs/roadmap.md, the deferred alignment option); the release builds keep the
   one-layout protocol of the author's decision of 2026-10-08.
 
 What it means for the gates: the host construction is not a gated region of the host backends

@@ -5412,6 +5412,6 @@
     "v6_fb": 1188.5
    }
   ],
-  "reading": "the try block per row costs 6-10 % in the release build and 0.3 % with the JCC-erratum mitigation flags: a code-placement effect on this CPU, not the cost of the code; v6 is not faster in the release build and is slower with the mitigation, so the per-row form (fix) is kept"
+  "reading": "the try block per row costs 6-10 % in the release build and 0.3 % with the JCC-erratum mitigation flags: a code-placement effect on this CPU, not the cost of the code. In the release build v6 is faster than the per-row form on sequential (6076.7 against 6513.0 ms in the one session with both, 2.3 % above base) and slower than base on 8 threads (+8.1 %, padded +4.7 %; the per-row form was not in those sessions); with the mitigation flags on both sides the per-row form is within 0.3 % of base on both backends and v6 is 1.8 % (sequential) and 2.6 % (8 threads) above base. The per-row form is kept: it is the form that costs nothing once code placement is controlled, and v6's sequential gain in the release build does not hold on 8 threads (corrected on 2026-10-22 by the R030 review: this sentence said that v6 is not faster in the release build; ADR 0062)"
  }
 }
