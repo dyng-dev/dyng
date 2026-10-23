@@ -80,6 +80,49 @@ are untuned (their performance is not gated); on CUDA the memory pool keeps, bet
 what the line graph's merge reached (recorded beside the memory gates, not gated); ESCHER-GPU's coarse
 triangles are not ported; `label_propagation` and `hyper_sssp` with 0.4.0; no DOI (Zenodo is not connected).
 
+### R030: review fixes (0.3, branch `release-0.3.0`)
+
+- Fixed: `io::read_hypergraph` (`dyng.io.read_hypergraph`, `dyng triad_count --input`) read a
+  Matrix Market file as a hypergraph without an error (its `%%MatrixMarket` banner is a comment
+  line under the `.hg` rules, its size line a hyperedge). A `.hg` file whose first line is a
+  Matrix Market banner or a `.dgt` header (`%dgt ...`), or that starts with the `.dgb` magic
+  `DYNGBAT1`, is now refused with an `io_error` that names the format and its reader (ESCHER-GPU's
+  loader skips the two lines as comments; no file of either original starts with them).
+- Changed: the reader's messages of the common mistakes name the remedy in C++, Python and the
+  command line (a weighted file read unweighted; a 0-based file read with `index_base` 1; a `.dgt`
+  line); a quoted token is cut after 32 bytes and every reader's message writes its control bytes
+  as `\xHH` (a binary token put raw bytes, and a NUL that ended `what()`, into it); a hyperedge
+  `.dgt` member outside the vertex set, and `hypergraph::apply()`'s member check ("inserted
+  hyperedge 0 of the batch", no longer "hyperedge 0"), say that the vertex count is fixed when the
+  hypergraph is built.
+- Fixed: on a release candidate, the CUDA install hints of the Python package (`show_config()`,
+  `Resources.cuda()`, the command line's `--backend cuda`, the device-array error, the
+  version-mismatch reason) said `pip install "dyng[cu13]"`, which replaced 0.3.0rc1 by 0.2.0 from
+  PyPI; they now give the release candidate's TestPyPI line (and for a development version, the
+  source build).
+- Docs: the Python hypergraph how-to's examples run as snippets (the "Apply batches" block applied
+  a batch twice; the Hypothesis example sets `deadline=None`, which a CUDA plugin's first device
+  use needs), and it shows `dyng.update()` over hypergraphs; the hypergraph tutorial asks for dynG
+  0.3 and clones the repository for its files; `docs/how_to/read_and_write_files.md` covers the
+  hypergraph files, the hyperedge batches and the triad-bins JSON; `OutOfMemoryError` with its
+  guarantee in the docstrings of `Hypergraph.apply()`, `from_hyperedges()`, `h2h()`,
+  `dyng.triad_count.update()` and `dyng.update()`; coarse triangles are planned for 0.5 (the
+  roadmap lists them); the ADR index records the author's decisions of 2026-10-22; the example
+  `triad_count_update` prints its usage, refuses an unknown backend and reports a failed read.
+- Changed: the plugins' licence notice names the Thrust algorithms compiled into them from 0.3;
+  the distributions' keywords name the hypergraph and triad counting, and the plugins' PyPI
+  description the hypergraph and `triad_count`.
+- Docs (records): ADR 0024's longer reading of the D13 fix (170 rounds over 85 layouts) on the
+  final library: the apply and update regions read 0.942-0.971; the insert step and the
+  construction on sequential stay above the 1.02 bar, located (the guard's small cost; code
+  placement) and listed for the author (open decision D14); ADR 0061's reading of the
+  restructured guard corrected (ADR 0062).
+- Changed (the release process): `parity/certify.py` requires every step of `ci/gpu_local.sh`
+  that the release's series added (from 0.3 the CBST, hypergraph, triad_count and
+  count_local_patterns steps), and the script records a step whose part was skipped for missing
+  inputs as `partial`; `parity/experiments/hypergraph_host_ab.py` takes the exclusive lock itself
+  and records it, with each side's commit and build.
+
 ### R030: the release certificate (0.3, branch `release-0.3.0`)
 
 - Added: the release certificate of 0.3.0rc1, `benchmarks/results/0.3.0rc1/` (`parity.json` and
