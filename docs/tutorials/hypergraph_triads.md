@@ -141,8 +141,8 @@ $ ./triad_count_update examples/data/triad_count.hg examples/data/triad_count.dg
 
 The last argument is the backend: `sequential` (the default), `openmp` or `cuda` (the GPU of
 `CUDA_VISIBLE_DEVICES`; the program exits with 77 if there is none). The output is the same on
-all three. Another name is refused with the list; a file that cannot be read ends the program with
-the library's message (the file, line and column) and exit status 1.
+all three. A wrong number of arguments or another backend name prints the usage, and a file that
+cannot be read the library's message (the file, line and column); both exit with status 1.
 
 ## 5. The same in Python
 
