@@ -1958,14 +1958,20 @@ def test_the_gtest_mutation_rows_need_the_release_tests(
     gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
     assert "cbst" in gtest and cert.GTEST_MUTATION_PATHS == ["cpp/tests"]
     # The real diff: the last commit that changed cpp/tests differs from its parent there only.
+    # A shallow clone (the hosted harness job checks out one commit) has no parent to diff with,
+    # so this part needs the history; the rest of the test does not.
     last = subprocess.check_output(
         ["git", "-C", REPO, "log", "-1", "--format=%H", "--", "cpp/tests"], text=True
     ).strip()
-    parent = subprocess.check_output(
-        ["git", "-C", REPO, "rev-parse", f"{last}~1"], text=True
-    ).strip()
-    changed = cert.paths_diff(parent, last, cert.GTEST_MUTATION_PATHS)
-    assert changed and all(f.startswith("cpp/tests/") for f in changed)
+    probe = subprocess.run(
+        ["git", "-C", REPO, "rev-parse", "--verify", "--quiet", f"{last}~1^{{commit}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode == 0:
+        changed = cert.paths_diff(probe.stdout.strip(), last, cert.GTEST_MUTATION_PATHS)
+        assert changed and all(f.startswith("cpp/tests/") for f in changed)
     assert cert.paths_diff(commit, commit, cert.GTEST_MUTATION_PATHS) == []
     real = cert.paths_diff
 
