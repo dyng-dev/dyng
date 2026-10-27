@@ -8,7 +8,7 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.3.0rc1] - 2026-10-22
+## [0.3.0rc1] - 2026-10-28
 
 ### Summary
 
@@ -145,7 +145,8 @@ triangles are not ported; `label_propagation` and `hyper_sssp` with 0.4.0; no DO
 ### R030: the release changes (0.3, branch `release-0.3.0`)
 
 - Changed: `VERSION` 0.3.0rc1 (it was 0.3.0.dev0, the development version after 0.2.0);
-  `CITATION.cff` `version: 0.3.0rc1`, `date-released: 2026-10-22`; this section `[0.3.0rc1]`
+  `CITATION.cff` `version: 0.3.0rc1`, `date-released: 2026-10-28` (written 2026-10-22, then
+  set to the tag day); this section `[0.3.0rc1]`
   with the summary above: everything that was under `Unreleased` (M8a, M8b, M9a, M9b and R030)
   moved here, an empty `Unreleased` above it, and the link references.
 - Docs: the status texts for the release candidate: the status blocks of `README.md` and the
