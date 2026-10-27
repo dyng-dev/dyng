@@ -462,8 +462,8 @@ def _release_checks(cert, results: Path, tmp_path: Path, commit: str, skip=()) -
     log.write_text(_ctest_log(_fixture_test_names(cert)))
     gpu = tmp_path / "gpu_local_summary.md"
     gpu.write_text(
-        "| step | result |\n|---|---|\n| memcheck | passed |\n| synccheck | passed |\n"
-        "| racecheck | passed |\n"
+        "| step | result |\n|---|---|\n"
+        + "".join(f"| {step} | passed |\n" for step in cert.gpu_local_steps(""))
     )
     (results / "mutation-goldens.json").write_text(json.dumps(_golden_mutation_record(commit)))
     base = ["check", "--results", str(results), "--commit", commit, "--command", "x"]
@@ -1874,6 +1874,50 @@ def test_a_certificate_needs_every_release_check(cert, certified) -> None:
     assert write() == 0, problems()
 
 
+def test_gpu_local_needs_the_steps_of_its_series(cert, certified) -> None:
+    """R030 review: a 0.3 gpu_local record with a 0.3 step skipped (DYNG_GPU_SKIP), partial
+    (a part skipped without its inputs) or missing fails; a 0.2 certificate does not need the
+    0.3 steps; the names are the ones ci/gpu_local.sh records."""
+    results, write, problems = certified
+    assert write("0.3.0rc1") == 0, problems()
+    assert cert.gpu_local_steps("0.1.0")[-1] == "racecheck"
+    assert "clang-tidy" in cert.gpu_local_steps("0.2.0")
+    assert not set(cert.GPU_LOCAL_STEPS[(0, 3)]) & set(cert.gpu_local_steps("0.2.0"))
+    assert set(cert.GPU_LOCAL_STEPS[(0, 3)]) <= set(cert.gpu_local_steps("0.3.0"))
+    triad = "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)"
+    hyper = "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)"
+    for step, result in ((triad, "skipped"), (triad, "partial"), (hyper, None)):
+
+        def edit(cs: list[dict], step: str = step, result: str | None = result) -> None:
+            steps = next(c for c in cs if c["name"] == "gpu_local")["steps"]
+            if result is None:
+                del steps[step]
+            else:
+                steps[step] = result
+
+        full = _edit_checks(results, edit)
+        assert write("0.3.0rc1") == 1, step
+        assert f"check gpu_local: the step {step} did not pass or was not run" in problems()
+        assert "required from 0.3" in problems()
+        assert write("0.2.0rc1") == 0, problems()
+        (results / "checks.json").write_text(full)
+    # Every required name is one ci/gpu_local.sh records.
+    script = (REPO / "ci" / "gpu_local.sh").read_text()
+    for step in cert.gpu_local_steps(""):
+        assert f'record "{step}" passed' in script or f"record {step} passed" in script, step
+
+
+def test_a_partial_gpu_step_is_recorded_but_not_a_failure(cert, tmp_path: Path) -> None:
+    results = tmp_path / "r"
+    summary = tmp_path / "gpu.md"
+    summary.write_text("| step | result |\n|---|---|\n| memcheck | passed |\n| triad | partial |\n")
+    gpu = ["check", "--results", str(results), "--name", "gpu", "--command", "ci/gpu_local.sh"]
+    assert cert.main([*gpu, "--gpu-summary", str(summary)]) == 0
+    assert cert.main([*gpu, "--gpu-summary", str(summary), "--require-steps", "triad"]) == 1
+    entry = json.loads((results / "checks.json").read_text())["checks"][-1]
+    assert entry["steps"]["triad"] == "partial" and entry["missing_steps"] == ["triad"]
+
+
 def test_the_golden_mutation_record_is_read(cert, certified) -> None:
     results, write, problems = certified
     path = results / "mutation-goldens.json"
@@ -1897,6 +1941,59 @@ def test_the_golden_mutation_record_is_read(cert, certified) -> None:
         assert write() == 1, message
         assert "check mutation-goldens: " in problems() and message in problems(), problems()
     path.write_text(full)
+    assert write() == 0, problems()
+
+
+def test_the_gtest_mutation_rows_need_the_release_tests(
+    cert, certified, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR 0061 section 4: the rows of a GoogleTest suite of mutate.py (cbst and the suites after
+    it) are detected by the C++ tests, so a golden-mutation record with such rows needs the
+    release's cpp/tests as well as its library; a record without them is bound to the library
+    only, and a difference outside cpp/tests (README.md, the examples) does not matter."""
+    results, write, problems = certified
+    path = results / "mutation-goldens.json"
+    commit = head()
+    mutate = load("parity/mutate.py")
+    gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
+    assert "cbst" in gtest and cert.GTEST_MUTATION_PATHS == ["cpp/tests"]
+    # The real diff: the last commit that changed cpp/tests differs from its parent there only.
+    # A shallow clone (the hosted harness job checks out one commit) has no parent to diff with,
+    # so this part needs the history; the rest of the test does not.
+    last = subprocess.check_output(
+        ["git", "-C", REPO, "log", "-1", "--format=%H", "--", "cpp/tests"], text=True
+    ).strip()
+    probe = subprocess.run(
+        ["git", "-C", REPO, "rev-parse", "--verify", "--quiet", f"{last}~1^{{commit}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode == 0:
+        changed = cert.paths_diff(probe.stdout.strip(), last, cert.GTEST_MUTATION_PATHS)
+        assert changed and all(f.startswith("cpp/tests/") for f in changed)
+    assert cert.paths_diff(commit, commit, cert.GTEST_MUTATION_PATHS) == []
+    real = cert.paths_diff
+
+    def other_tests(c: str, h: str, paths: list[str]) -> list[str] | None:
+        if paths == cert.GTEST_MUTATION_PATHS:
+            return ["cpp/tests/hypergraph/escher/cbst_host_test.cpp"]
+        return real(c, h, paths)
+
+    monkeypatch.setattr(cert, "paths_diff", other_tests)
+    message = "does not have the release's C++ test suites (cpp/tests)"
+    assert write() == 1 and message in problems() and "cbst" in problems(), problems()
+    doc = json.loads(path.read_text())
+    doc["results"] = [r for r in doc["results"] if r.get("suite") not in gtest]
+    doc["results"][0]["replays"] = [
+        r for r in doc["results"][0]["replays"] if r.get("suite") not in gtest
+    ]
+    stripped = results / "mutation-goldens-no-gtest.json"
+    stripped.write_text(json.dumps(doc))
+    found = cert.golden_mutations(stripped, commit, results)
+    assert found and not any(message in p for p in found), found  # missing rows, not the tests
+    monkeypatch.setattr(cert, "paths_diff", real)
+    stripped.unlink()
     assert write() == 0, problems()
 
 

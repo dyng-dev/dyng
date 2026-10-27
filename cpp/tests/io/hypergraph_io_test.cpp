@@ -247,6 +247,55 @@ TEST_F(HypergraphFile, RejectsMalformedFilesWithTheirLocation) {
   EXPECT_THROW((void)read<std::int32_t>("1\n", bad), dyng::invalid_argument_error);
 }
 
+// The common mistakes of a user name their remedy (R030 review): the weighted read in each
+// interface, the index base of a 0-based file, and the files of the other formats, which are
+// refused at their first line (a Matrix Market file was read as a hypergraph without an error).
+TEST_F(HypergraphFile, NamesTheRemedyOfCommonMistakes) {
+  const auto has = [](const dyng::io_error& e, const char* text) {
+    return std::string(e.what()).find(text) != std::string::npos;
+  };
+  const auto weighted = expect_io_error([&] { (void)read("1 2 3 ; 5\n"); });
+  EXPECT_TRUE(has(weighted, "weighted=True") && has(weighted, "--weighted")) << weighted.what();
+  const auto zero = expect_io_error(
+      [&] { (void)read("0 1 2\n", dyng::io::hypergraph_read_options::escher_gpu()); });
+  EXPECT_TRUE(has(zero, "index_base=0") && has(zero, "--index-base 0")) << zero.what();
+  // An id above the range has no such hint.
+  dyng::io::hypergraph_read_options few;
+  few.num_vertices = 3;
+  const auto above = expect_io_error([&] { (void)read("1 9\n", few); });
+  EXPECT_FALSE(has(above, "index_base")) << above.what();
+  struct other_format {
+    std::string text;
+    const char* names;
+  };
+  const other_format others[] = {
+      {std::string("DYNGBAT1\x01\n\0\0\x07rest", 16), ".dgb batch file"},
+      {"%dgt 1 hypergraph\n%batch 0\n+h 0 1\n", ".dgt batch file"},
+      {"%DGT\n", ".dgt batch file"},
+      {"%%MatrixMarket matrix coordinate pattern general\n4 4 3\n1 2\n2 3\n3 4\n",
+       "Matrix Market file"},
+      {"%%matrixmarket matrix coordinate real symmetric\n", "Matrix Market file"},
+  };
+  for (const other_format& f : others) {
+    SCOPED_TRACE(f.names);
+    const auto e = expect_io_error([&] { (void)read(f.text); });
+    EXPECT_TRUE(has(e, f.names)) << e.what();
+    EXPECT_EQ(e.line(), 1);
+  }
+  // A comment that only resembles them is still a comment.
+  EXPECT_EQ(read("%dgtx\n% MatrixMarket\n#DYNGBAT1\n1 2\n").num_hyperedges(), 1);
+  // A .dgt line without the header: the first token names the batch reader.
+  const auto op = expect_io_error([&] { (void)read("+h 0 1\n"); });
+  EXPECT_TRUE(has(op, "read_hyperedge_batches")) << op.what();
+  // A binary token is quoted with its control bytes escaped and cut after 32 bytes: the
+  // message does not end at a NUL.
+  const auto binary = expect_io_error(
+      [&] { (void)read(std::string("1 x\x01\0y", 6) + std::string(40, 'z') + "\n"); });
+  const std::string what = binary.what();
+  EXPECT_NE(what.find("'x\\x01\\x00y"), std::string::npos) << what;
+  EXPECT_NE(what.find("...' (expected a decimal integer)"), std::string::npos) << what;
+}
+
 TEST_F(HypergraphFile, RoundTripsThroughTheWriter) {
   dyng::hyperedge_list<std::int32_t, std::int32_t> l;
   l.num_vertices = 9;
@@ -361,6 +410,13 @@ TEST_F(HyperedgeBatchText, RejectsMalformedFiles) {
   }
   const auto e = expect_io_error([&] { (void)read_batches("+i 0 1\n"); });
   EXPECT_NE(std::string(e.what()).find("0.4"), std::string::npos) << e.what();
+  // A member outside the hypergraph's vertex set says that the count is fixed (R030 review).
+  const auto outside = expect_io_error([&] { (void)read_batches("+h 0 99\n", 4); });
+  EXPECT_NE(std::string(outside.what())
+                .find("vertex id 99 out of range [0, 3]: the hypergraph "
+                      "has 4 vertices, fixed when it is built"),
+            std::string::npos)
+      << outside.what();
   // An edge reader names the hypergraph reader.
   const auto g = expect_io_error([&] {
     (void)dyng::io::read_batches<std::int32_t, std::int32_t>(file("%dgt 1 hypergraph\n"));

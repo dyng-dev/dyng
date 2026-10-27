@@ -23,12 +23,14 @@ dyng_add_test(
 target_compile_definitions(
   dyng_triad_count_bins_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
 )
-# Host allocation failures in compute(), update() and clone() are out_of_memory_error (the API
-# review, ADR 0060): its own operator new, so its own executable.
+# Host allocation failures in compute(), update() and clone() are out_of_memory_error with the
+# documented guarantee (the API review, ADR 0060; update() and the oracle's regions since ADR
+# 0061, D13): its own operator new, so its own executable.
 dyng_add_test(
   NAME dyng_triad_count_allocation_failure_tests
   SOURCES triad_count_allocation_failure_test.cpp
   LABELS cpu triad_count
+  LIBRARIES dyng::testing
 )
 # The 30-bin table of docs/algorithms/triad_count.md against the engine's and the oracle's tables
 # (M9b): a documentation change that disagrees with the code fails here.

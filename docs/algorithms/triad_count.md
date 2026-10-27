@@ -1,8 +1,8 @@
 # triad_count: hypergraph h-motif triad counts
 
 Maturity: **stable** from 0.3.0 (SemVer applies, as for `sssp`, `cycle_count` and `mosp`; the
-API review and freeze of {doc}`ADR 0060 <../adr/0060-triad-count-api-review-and-freeze-0-3>`, on
-the plan's default D4, **pending the author's confirmation at the 0.3.0 release**). The
+API review and freeze of {doc}`ADR 0060 <../adr/0060-triad-count-api-review-and-freeze-0-3>`; the
+author's decision of 2026-10-22, GOVERNANCE.md). The
 sequential, OpenMP and CUDA backends, the Python module `dyng.triad_count`, the command line
 `dyng triad_count` and the benchmark suites `benchmarks/paper/ipdps26_escher.yaml` and
 `tkde26_escher_plus.yaml` are new in 0.3.0. Header: `<dyng/triad_count.hpp>`. Container:
@@ -143,12 +143,15 @@ b.delete_hyperedge(42);
 b.insert_hyperedge({3, 9, 12});
 b.insert_hyperedge({9, 12, 40, 41});
 auto st = dyng::triad_count::update(res, hg, b.view(), triads);
-const auto& ids = st.batch.inserted_ids;  // best-fit reuse: likely {17, 42}
+const auto& ids = st.batch.inserted_ids;  // the store's choice: read them here
 // st.delta[k]: the change of bin k; st.triads_removed / st.triads_added; triads.counts()
 ```
 
 (PLAN 5.3's example as ADR 0041 section 1 rewrites it against the frozen hypergraph API. The ids of
-the inserted hyperedges are the store's choice: read them from `inserted_ids`, never predict them.)
+the inserted hyperedges are the store's choice: read them from `inserted_ids`, never predict them.
+On coauth-DBLP they are 17 and 2,467,389: `{3, 9, 12}` fits the slot of hyperedge 17, but
+`{9, 12, 40, 41}` does not fit 42's (a slot keeps the size of the row it was made for, here one
+member), so it goes after the last live id.)
 Several patterns are several results; `dyng::update(res, hg, b.view(), triads, type1, ...)`
 updates them all through **one** commit (`examples/cpp/triad_count_update.cpp`; the tutorial
 {doc}`../tutorials/hypergraph_triads`).
@@ -328,15 +331,13 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
 - **The host backends are not tuned** (no performance gate; D3): the OpenMP backend partitions
   the sources statically, and divergent rows (hubs) are not balanced.
 - **No coarse triangles** (ESCHER-GPU's `coarseTriangle`: inner, outer, hybrid and hyperedge
-  triangles, which need the vertex-to-vertex graph): planned for 0.4.
-- **Known issue, host memory exhaustion in an update** (D13, the author's decision at 0.3.0): in
-  a build with OpenMP (the default builds and the wheels), a host allocation failure inside the
-  hypergraph container's OpenMP loops (the vertex-to-hyperedge rows that `hypergraph::apply()`
-  changes, the line graph's build) ends the process with `std::terminate` instead of throwing
-  `out_of_memory_error`, on the sequential and openmp backends with any thread count. So
-  `update()` on a host backend can end the process when host memory runs out; `compute()` and
-  `clone()` on a hypergraph whose line graph is built throw `out_of_memory_error` as documented,
-  and the cuda backend's device allocations are not affected (CHANGELOG, "Known issues").
+  triangles, which need the vertex-to-vertex graph): planned for a later release (0.5 in the
+  {doc}`roadmap <../roadmap>`).
+- **Host memory exhaustion** is `out_of_memory_error` on every backend, with the guarantee of
+  `update()`'s documentation (the hypergraph poisoned when the failure is inside the commit, the
+  result then unchanged): since 0.3.0rc1 also inside the hypergraph container's OpenMP loops,
+  which ended the process with `std::terminate` before (D13; {doc}`ADR 0061
+  <../adr/0061-exceptions-out-of-openmp-regions>`).
 
 ## 7. Differences from the paper
 
@@ -347,7 +348,8 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
   Chapters 6-7; THyMe+) are in no code of the originals; they are on the roadmap as future
   patterns ("good first issue" material: an Op of `count_local_patterns`).
 - **No coarse triangles.** ESCHER-GPU's `coarseTriangle` executable (inner, outer, hybrid and
-  hyperedge triangles over the vertex graph) is not ported in 0.3 (PLAN 6.1, C6; planned for 0.4).
+  hyperedge triangles over the vertex graph) is not ported in 0.3 (PLAN 6.1, C6; planned for a
+  later release, 0.5 in the {doc}`roadmap <../roadmap>`).
 - **The exact frontier-incident delta.** dynG's update is the fixed code's exact delta (each
   changed triad counted once at its smallest changed member), not the papers' anchored delta,
   which was inexact (section 8, E-C3).
@@ -357,8 +359,8 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
 
 ## 8. Paper vs fixed code
 
-*This wording is the plan's default (D10) and is marked for the author's review at the 0.3.0
-release.* The papers' results were produced by ESCHER-GPU's code as published (tag
+*This wording, the plan's default (D10), was accepted by the author on 2026-10-22 for 0.3.0.*
+The papers' results were produced by ESCHER-GPU's code as published (tag
 `baseline-2026-09` = `6a44c1c`). dynG ports the fixed code `abcf9b2` (the `fix/correctness-perf`
 branch), whose `README.md`, `CHANGES.md` and `results/README.md` record what changed. In their
 words:

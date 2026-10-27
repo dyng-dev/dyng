@@ -1,0 +1,22 @@
+{
+ "set": "cbst_trace_mosp_escher_dblp50k_hyperedge",
+ "date": "2026-10-23T11:30:29+00:00",
+ "goldens": {
+  "manifest_sha256": "3b26a7697d1875373b1577ca3731e8ccbbbd888b29c31b4787f5fd5224f13e80"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "device:dyng_default/policy"
+ ],
+ "judged_against_host_model": false,
+ "matrix": {
+  "dblp_hyperedge_50000": {
+   "device:dyng_default/policy": "equal"
+  }
+ },
+ "passed": true
+}

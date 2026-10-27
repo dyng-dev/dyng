@@ -88,9 +88,9 @@ def show_config(file: IO[str] | None = None) -> None:
         f"  platform          : {c['platform']}",
     ]
     if not c["build"]["cuda"] and not c["plugins"]:
+        hint = _backend.plugin_install_hint(_backend._dyng_version())
         lines.append(
-            "  CUDA              : not in this module (the CPU wheel); the CUDA plugins: "
-            'pip install "dyng[cu13]" or "dyng[cu12]"'
+            f"  CUDA              : not in this module (the CPU wheel); the CUDA plugins: {hint}"
         )
     elif not c["build"]["cuda"]:
         # A plugin is installed but not used: reinstalling it would not help; its line says why.

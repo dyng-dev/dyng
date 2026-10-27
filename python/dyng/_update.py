@@ -113,6 +113,9 @@ def update(
         StaleResultError: a result does not match the graph.
         InvalidArgumentError: no result, a result passed twice, or an invalid batch (nothing is
             changed).
+        OutOfMemoryError: memory cannot be allocated (also a ``MemoryError``); on a hypergraph
+            with the outcomes of :func:`dyng.triad_count.update` (nothing changed before the
+            commit; the hypergraph unusable inside it; the results unusable after it).
 
     Example:
         >>> import dyng

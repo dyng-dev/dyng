@@ -8,6 +8,7 @@
  *        the locator arrays of a line graph on the host (ADR 0042).
  */
 #include "hypergraph/line_graph/host_line_graph.hpp"
+#include "util/region_exceptions.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
@@ -31,7 +32,9 @@ namespace {
 // zeros and an INT_MIN terminator). Rows are independent: each thread
 // gathers the candidate neighbours of a row into a buffer, sorts and
 // de-duplicates it and appends the result to a per-thread arena; the rows
-// are then copied to their offsets.
+// are then copied to their offsets. The gather allocates (the buffer, the
+// arena): an exception of a row is kept and rethrown after the region (D13,
+// ADR 0061); the copy region does not allocate.
 template <class gather_t>
 line_graph_layout build_flat_rows(std::int64_t num_rows, gather_t gather, int threads,
                                   std::int64_t limit) {
@@ -41,6 +44,7 @@ line_graph_layout build_flat_rows(std::int64_t num_rows, gather_t gather, int th
   std::vector<std::int64_t> row_arena_pos(static_cast<std::size_t>(num_rows));
   line_graph_layout g;
   g.counts.assign(static_cast<std::size_t>(num_rows), 0);
+  region_exceptions errors;
 #if DYNG_HAS_OPENMP
 #pragma omp parallel num_threads(num_threads) if (num_threads > 1)
 #endif
@@ -56,16 +60,19 @@ line_graph_layout build_flat_rows(std::int64_t num_rows, gather_t gather, int th
 #pragma omp for schedule(dynamic, 256)
 #endif
     for (std::int64_t row = 0; row < num_rows; ++row) {
-      buffer.clear();
-      gather(row, buffer);
-      std::sort(buffer.begin(), buffer.end());
-      buffer.erase(std::unique(buffer.begin(), buffer.end()), buffer.end());
-      row_thread[static_cast<std::size_t>(row)] = tid;
-      row_arena_pos[static_cast<std::size_t>(row)] = static_cast<std::int64_t>(out.size());
-      g.counts[static_cast<std::size_t>(row)] = static_cast<std::int32_t>(buffer.size());
-      out.insert(out.end(), buffer.begin(), buffer.end());
+      errors.run([&] {
+        buffer.clear();
+        gather(row, buffer);
+        std::sort(buffer.begin(), buffer.end());
+        buffer.erase(std::unique(buffer.begin(), buffer.end()), buffer.end());
+        row_thread[static_cast<std::size_t>(row)] = tid;
+        row_arena_pos[static_cast<std::size_t>(row)] = static_cast<std::int64_t>(out.size());
+        g.counts[static_cast<std::size_t>(row)] = static_cast<std::int32_t>(buffer.size());
+        out.insert(out.end(), buffer.begin(), buffer.end());
+      });
     }
   }
+  errors.rethrow();
   // The offsets in 64 bits; A ended the process at more than 2^31 - 1 entries, dynG throws
   // before it allocates the payload.
   g.starts.assign(static_cast<std::size_t>(num_rows), 0);

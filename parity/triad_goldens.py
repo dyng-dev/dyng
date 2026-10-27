@@ -200,7 +200,7 @@ TWIN_GROUPS = (
     "syn2m_b5k_s1",
     "coauth_b5k_s1",
 )
-# The coverage table (PLAN 6.4.6, 8.3; the author's decision D6 is pending: the plan's default).
+# The coverage table (PLAN 6.4.6, 8.3): the plan's default, accepted by the author (D6, 2026-10-22).
 COVERAGE = {
     "cuda": ["make-test", "grid"],
     "sequential": ["make-test", "syn100k"],
@@ -418,7 +418,7 @@ def case_names() -> list[str]:
 
 def coverage_cases(backend: str, items: list[str] | None = None) -> list[str]:
     """The cases a backend replays (COVERAGE, or the items of a coverage table such as
-    parity/goldens.toml's; D6 pending the author)."""
+    parity/goldens.toml's; D6, accepted 2026-10-22)."""
     out = []
     for item in COVERAGE[backend] if items is None else items:
         for g in all_groups():
@@ -1179,9 +1179,9 @@ def toml_section(out: Path, result: dict) -> str:
         f"num_bytes = {result['bytes']}\n"
         f'manifest_sha256 = "{result["manifest_sha256"]}"\n'
         f"\n[sets.{SET}.coverage]\n"
-        "# Which backend replays which cases (PLAN 6.4.6, 8.3): the plan's default, pending the "
-        "author's decision D6 (2026-10-15).\n"
-        'status = "pending the author (D6): the plan\'s default"\n'
+        "# Which backend replays which cases (PLAN 6.4.6, 8.3): the plan's default, accepted by "
+        "the author (D6, 2026-10-22).\n"
+        'status = "accepted by the author (D6, 2026-10-22): the plan\'s default"\n'
         + cov
         + f"\n[sets.{SET}.inputs]\n"
         + "".join(inputs)

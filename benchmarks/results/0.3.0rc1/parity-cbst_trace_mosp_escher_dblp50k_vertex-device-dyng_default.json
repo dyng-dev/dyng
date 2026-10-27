@@ -1,0 +1,22 @@
+{
+ "set": "cbst_trace_mosp_escher_dblp50k_vertex",
+ "date": "2026-10-23T11:32:41+00:00",
+ "goldens": {
+  "manifest_sha256": "1068e319acbc9f9199e712f9e39a09221554e6e1af616d9d03a915f028cf0cd4"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "device:dyng_default/policy"
+ ],
+ "judged_against_host_model": false,
+ "matrix": {
+  "dblp_vertex_50000": {
+   "device:dyng_default/policy": "equal"
+  }
+ },
+ "passed": true
+}

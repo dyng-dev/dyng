@@ -714,6 +714,8 @@ class Hypergraph:
             NotSupportedError: int64 members without ``vertex_dtype="int32"``, ``"slack_csr"``
                 (planned for 0.4), or a CUDA backend without a CUDA build.
             CapacityError: the storage exceeds the capacity policy.
+            OutOfMemoryError: host or device memory cannot be allocated (also a
+                ``MemoryError``); no hypergraph is made.
         """
         res = resolve(resources)
         o = _dtypes.checked_cast(
@@ -891,6 +893,9 @@ class Hypergraph:
         Raises:
             InvalidArgumentError: ``line_graph="none"`` or ``store_v2h=False``.
             CapacityError: the line graph exceeds the capacity policy.
+            OutOfMemoryError: host or device memory cannot be allocated (also a
+                ``MemoryError``); the hypergraph is unchanged, and under ``"automatic"`` the
+                next call builds the line graph again.
         """
         res = resolve_on(self, resources)
         return LineGraph(*self._native.h2h(res._native))
@@ -916,6 +921,10 @@ class Hypergraph:
                 outside [1, 2^31 - 1]; nothing is changed.
             NotSupportedError: incidence edits (planned for 0.4); nothing is changed.
             CapacityError: the storage exceeds its policy (the hypergraph is then unusable).
+            OutOfMemoryError: host or device memory cannot be allocated (also a
+                ``MemoryError``): before the store changes, nothing is changed; inside the
+                commit, the hypergraph is then unusable (every later call raises
+                ``InvalidArgumentError``; build it again), as for ``CapacityError``.
         """
         if not isinstance(batch, HyperedgeBatch):
             raise TypeError("Hypergraph.apply: batch must be a dyng.HyperedgeBatch")

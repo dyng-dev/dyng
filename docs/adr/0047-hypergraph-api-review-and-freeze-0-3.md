@@ -11,6 +11,9 @@
   (and `.hg` and `.dgb` stable, `.dgb` at format version 1, `.hg` unversioned: ADR 0045) is the
   plan's default and awaits the author's confirmation at the 0.3.0 release; O16 (the `id_reuse` default `erase_first`) is the
   author's decision of 2026-10-07, which is also the plan's default.
+- **Decided:** the author confirmed on 2026-10-22 (GOVERNANCE.md, approvals log, 2026-10-22) that
+  the frozen hypergraph headers and `dyng.Hypergraph` are `stable` from 0.3.0, and `.hg` and `.dgb`
+  stable-tier formats at version 1; the reservation above is closed.
 - **Date:** 2026-10-14
 - **Deciders:** the AI assistant, on the author's behalf (M8b, step python-freeze-records)
 - **Builds on:** ADR 0023 (the method, the snapshot), ADR 0035 (the freeze enforced against the

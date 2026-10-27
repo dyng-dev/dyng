@@ -45,7 +45,10 @@ option(DYNG_BUILD_TESTS "Build the GoogleTest suites" ${PROJECT_IS_TOP_LEVEL})
 option(DYNG_BUILD_EXAMPLES "Build the C++ examples" ${PROJECT_IS_TOP_LEVEL})
 option(DYNG_BUILD_TOOLS "Build the dyng CLI and tools" ${PROJECT_IS_TOP_LEVEL})
 option(DYNG_BUILD_TUTORIALS "Build and test the tutorial algorithms" ${PROJECT_IS_TOP_LEVEL})
-option(DYNG_BUILD_BENCHMARKS "Build nvbench / Google Benchmark / dyng-bench" OFF)
+option(DYNG_BUILD_BENCHMARKS
+       "Build the micro-benchmark suites and dyng-bench (planned for a later release; no effect yet)"
+       OFF
+)
 option(DYNG_BUILD_PARITY_TESTS "Build the golden parity tests (needs goldens)" OFF)
 option(DYNG_BUILD_COMPAT_TOOLS "Build drop-in clones of the originals' CLIs" OFF)
 option(DYNG_BUILD_PYTHON "Build the Python extension module" OFF)
@@ -161,9 +164,12 @@ if(DYNG_WITH_NVTX AND NOT _dyng_nvtx_found)
                       "with its headers (nvtx3/nvToolsExt.h)"
   )
 endif()
-# The benchmark suites (nvbench, Google Benchmark, dyng-bench) come in 0.2 (PLAN Section 11.2).
+# The micro-benchmark suites (nvbench, Google Benchmark) and dyng-bench (PLAN Section 8.5, item 1)
+# are planned for a later release (docs/roadmap.md); the paper suites are parity/bench_suite.py's.
 if(DYNG_BUILD_BENCHMARKS)
-  message(WARNING "DYNG_BUILD_BENCHMARKS=ON has no effect yet (the benchmark suites of 0.2)")
+  message(WARNING "DYNG_BUILD_BENCHMARKS=ON has no effect yet: the micro-benchmark suites and "
+                  "dyng-bench are planned for a later release (docs/roadmap.md)"
+  )
 endif()
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

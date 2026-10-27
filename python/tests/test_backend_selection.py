@@ -163,6 +163,64 @@ def test_a_version_mismatch_falls_back_with_a_warning() -> None:
     assert 'pip install "dyng[cu13]==9.8.7"' in chosen.warning
 
 
+def test_a_pre_releases_mismatch_names_testpypi() -> None:
+    """R030 review: on a release candidate, the bare extra would resolve to the latest release on
+    PyPI (a silent downgrade), and the pinned extra has no match there."""
+    cu13 = FakePlugin(13, version="0.2.0")
+    _, chosen = select(EntryPoint("cu13", cu13), version="0.3.0rc1")
+    assert chosen.warning is not None
+    assert "version 0.2.0 does not match dyng 0.3.0rc1" in chosen.warning
+    assert '"dyng[cu13]==0.3.0rc1"' not in chosen.warning
+    assert (
+        'pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" '
+        '"dyng-cu13==0.3.0rc1"' in chosen.warning
+    )
+
+
+@pytest.mark.parametrize(
+    ("version", "plugin", "expected"),
+    [
+        ("0.3.0", None, 'pip install "dyng[cu13]" or "dyng[cu12]"'),
+        (None, None, 'pip install "dyng[cu13]" or "dyng[cu12]"'),
+        ("0.3.0", "cu12", 'pip install "dyng[cu12]==0.3.0"'),
+        ("0.3.1.post1", "cu13", 'pip install "dyng[cu13]==0.3.1.post1"'),
+        (
+            "0.3.0rc1",
+            None,
+            '--no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1")',
+        ),
+        ("1.0.0b2", "cu12", '--no-deps "dyng==1.0.0b2" "dyng-cu12==1.0.0b2"'),
+        ("0.4.0a1", None, "test.pypi.org"),
+        ("0.3.0.dev0", None, "development version"),
+        ("0.3.0+local", "cu13", "development version"),
+    ],
+)
+def test_the_plugin_install_hint_follows_the_version(
+    version: str | None, plugin: str | None, expected: str
+) -> None:
+    hint = backend.plugin_install_hint(version, plugin)
+    assert expected in hint
+    if version and ("rc" in version or "a1" in version or "b2" in version):
+        assert "would replace it with the latest release" in hint
+    if version and ("dev" in version or "+" in version):
+        assert "test.pypi.org" not in hint and "ci/plugin_wheels.sh" in hint
+
+
+def test_the_cpu_modules_cuda_message_on_a_pre_release(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Resources.cuda() and show_config() on the CPU wheel of a release candidate: the TestPyPI
+    line, not the bare extra that downgrades (R030 review)."""
+    import dyng.resources as resources
+
+    monkeypatch.setattr(backend, "_dyng_version", lambda: "0.3.0rc1")
+    message = resources._cuda_plugin_message()
+    assert "the plugins of the pre-release 0.3.0rc1 are on TestPyPI only" in message
+    assert '"dyng-cu13==0.3.0rc1"' in message
+    monkeypatch.setattr(backend, "_dyng_version", lambda: "0.3.0")
+    message = resources._cuda_plugin_message()
+    assert 'pip install "dyng[cu13]" (an NVIDIA driver for CUDA 13)' in message
+    assert "TestPyPI" not in message
+
+
 def test_the_modules_version_is_checked_too() -> None:
     cu13 = FakePlugin(13, version=None, module_version="1.0")
     module, chosen = select(EntryPoint("cu13", cu13))

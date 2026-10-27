@@ -16,8 +16,9 @@ of this. The NVIDIA driver (libcuda.so) is never part of a wheel: it is the user
      applications. The module also contains device code compiled from the toolkit's headers
      (cooperative_groups, the CUDA runtime headers) under the same agreement.
   5. The CUDA C++ Core Libraries (CCCL: CUB, Thrust, libcu++), header-only libraries of the CUDA
-     Toolkit whose templates are compiled into the module (dynG uses CUB's device scan and
-     libcu++'s cuda/ headers):
+     Toolkit whose templates are compiled into the module (dynG uses CUB's device scan;
+     Thrust's sort, unique, scan, copy, count, reverse, sequence and transform algorithms in
+     the hypergraph's ESCHER store and line graph, from 0.3; and libcu++'s cuda/ headers):
        - CUB: BSD-3-Clause (the notice below);
        - Thrust: Apache-2.0 (LICENSES/Apache-2.0.txt), with utilities based on Boost under the
          Boost Software License 1.0, which does not apply to machine-executable object code;

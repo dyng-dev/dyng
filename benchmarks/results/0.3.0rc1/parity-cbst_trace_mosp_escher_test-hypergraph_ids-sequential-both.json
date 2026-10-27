@@ -1,0 +1,103 @@
+{
+ "set": "cbst_trace_mosp_escher_test",
+ "kind": "hypergraph_ids",
+ "date": "2026-10-23T11:33:57+00:00",
+ "goldens": {
+  "manifest_sha256": "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity/cpp/tests/dyng_hypergraph_ids",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "sequential:hypergraph_ids/both"
+ ],
+ "checks": {
+  "model": true,
+  "verified": true,
+  "line_graph_oracle": true
+ },
+ "totals": {
+  "sessions": 153,
+  "batches": 129,
+  "ids_compared": 34597,
+  "rows_compared": 1154269,
+  "mismatch_count": 0
+ },
+ "matrix": {
+  "001-test_cbst_smoke": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "002-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "003-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "004-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "005-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "006-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "007-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "008-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "009-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "010-test_cbst_ops": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "011-test_dynamicgraph_roundtrip": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "012-test_snapshot_matches_updateCSR": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "013-test_h2h_construction": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "014-test_h2h_delta": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "015-test_hsosp_matches_dijkstra": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "016-test_hsosp_scale": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "017-hsospStress": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "018-hsospStress": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "019-hsospBench": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "020-hsospBench": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "021-hsospBench": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "023-stressTest": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "024-parallelStressTest": {
+   "sequential:hypergraph_ids/both": "equal"
+  },
+  "025-parallelStressTest": {
+   "sequential:hypergraph_ids/both": "equal"
+  }
+ },
+ "passed": true
+}

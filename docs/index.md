@@ -10,12 +10,17 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Alpha: 0.2.0.** The latest release is **0.2.0** (`pip install dyng`; see the {doc}`roadmap`):
-`sssp`, `cycle_count` and `mosp` are stable (SemVer applies from 0.1.0; to `mosp` from 0.2.0),
-the teaching algorithms `dynamic_bfs` and `triangle_delta` have the maturity `tutorial` (written
-for {doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin wheels are on PyPI too
-(`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`). The other
-algorithms of the table are planned for later releases.
+**Alpha: 0.3 release candidate.** The latest release is **0.2.0** (`pip install dyng`; see
+the {doc}`roadmap`): `sssp`, `cycle_count` and `mosp` are stable (SemVer applies from 0.1.0; to
+`mosp` from 0.2.0), the teaching algorithms `dynamic_bfs` and `triangle_delta` have the maturity
+`tutorial` (written for {doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin
+wheels are on PyPI too (`pip install "dyng[cu13]"` / `"dyng[cu12]"`,
+{doc}`getting_started/install`). These pages are built from the main branch, which is
+**0.3.0rc1**, the release candidate of 0.3.0, on TestPyPI only: the table below also lists
+`triad_count` (stable from 0.3.0), and the dynamic hypergraph (`dyng::hypergraph`,
+`dyng.Hypergraph`, stable from 0.3.0) and the experimental `count_local_patterns` are part of it
+too; they reach PyPI with 0.3.0. The other algorithms of the table are planned for later
+releases.
 :::
 
 ## Algorithms
@@ -41,7 +46,7 @@ release will contain.
 ```bash
 pip install dyng                       # the Python package (CPU backends), from PyPI
 pip install "dyng[cu13]"               # with the CUDA plugin (cu12 for CUDA 12 drivers)
-pip install -U "dyng[cu13]"            # upgrading from 0.1.0 (without -U pip keeps 0.1.0)
+pip install -U "dyng[cu13]"            # upgrading from an earlier release (without -U pip keeps it)
 ```
 
 or build from source (the C++ library, the CUDA backend, the development tools):
@@ -56,7 +61,8 @@ pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build 
 ```
 
 {doc}`getting_started/install` has the requirements, the presets and how to use dynG from
-your own CMake project.
+your own CMake project. The release candidate 0.3.0rc1 is on TestPyPI only until 0.3.0 is
+released; that page has its install lines.
 
 ## A first update
 

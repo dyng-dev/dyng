@@ -8,13 +8,221 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+## [0.3.0rc1] - 2026-10-28
+
+### Summary
+
+The release candidate of dynG 0.3.0: the dynamic hypergraph, and on it a fourth stable
+algorithm, `triad_count`, exact against the original ESCHER-GPU code. Release candidates are
+published on TestPyPI only:
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.3.0rc1   # the CPU package
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1"   # with the CUDA plugin
+```
+
+(`dyng-cu12==0.3.0rc1` for an NVIDIA driver of CUDA 12; a release candidate's plugin comes from
+TestPyPI alone, after NumPy from PyPI, so that pip never mixes the two indexes for it); 0.3.0
+follows on PyPI, with `pip install -U "dyng[cu13]"`. Nothing of 0.2.0 changes incompatibly:
+`sssp`, `cycle_count` and `mosp` keep their API. The entries below the summary are the detailed
+record of milestones M8a, M8b, M9a and M9b and of the release preparation R030.
+
+- **The dynamic hypergraph** (stable from 0.3.0): `dyng::hypergraph` in C++
+  (`<dyng/hypergraph/hypergraph.hpp>`) and `dyng.Hypergraph` in Python, on the sequential, OpenMP
+  and CUDA backends, stored in the ESCHER store (ESCHER-GPU's CBST, with MOSP_ESCHER's behaviours
+  merged in). A batch deletes hyperedges by id and inserts new ones, whose ids come from the
+  store's best-fit reuse (`id_reuse::erase_first`, ESCHER's order, or `insert_first`); the
+  vertex-to-hyperedge and hyperedge-to-vertex views and the line graph (`h2h()`, kept by a sorted
+  delta merge under every batch) are available after each one. Every backend gives the ids that
+  ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 gave on their recorded batches, the line graph equals
+  ESCHER-GPU's after every batch of its recorded runs, and the device memory equals ESCHER-GPU's
+  own store accounting on coauth-DBLP. `dyng::update()` (and `dyng.update()`) keeps several results on one hypergraph with
+  one apply.
+- **`triad_count` is stable** (SemVer applies from 0.3.0): the 30 h-motif counts of a hypergraph
+  (ESCHER / ESCHER+) and StatHyper's triad types 1-3, kept exact under hyperedge batches, with the
+  per-bin change of each batch. The CUDA backend runs ESCHER-GPU's wedge engine; the sequential
+  and OpenMP backends run the same engine as loops (correct and exact, not yet tuned for speed).
+  It is exact against ESCHER-GPU@abcf9b2 on its 300-case golden set, within the paper's
+  performance gates against it (update per batch, full count, end to end, device memory), and
+  exact up to 2^64 - 1 (beyond, `capacity_error`). In C++ (`<dyng/triad_count.hpp>`), Python
+  (`dyng.triad_count`) and on the command line (`dyng triad_count compute|update`, whose
+  `--format escher` prints ESCHER-GPU's output byte for byte).
+- **Experimental: count your own pattern.** `dyng::experimental::count_local_patterns<op_t>`
+  (`<dyng/experimental/local_patterns.cuh>`, C++ with nvcc) counts a new local hypergraph pattern,
+  given as a small Op, with triad_count's engine on every backend, and keeps the count exact under
+  batches; it may change in any minor release.
+- **New files and generators:** `.hg` hypergraph files (with the originals' preprocessing as the
+  option sets `escher_gpu()` and `hsosp()`), hyperedge batches in `.dgt` files, the binary batch
+  format `.dgb` (`DYNGBAT1`, CRC-checked, read as a stream) for graph and hypergraph batches, and
+  the triad counts as JSON (`"dyng.triad_bins"`); all four are stable formats at version 1
+  (`docs/api/file_formats.md`). The hypergraph generators `uniform_hypergraph()` and
+  `random_hyperedge_batch()` (bit-exact per seed) and ESCHER-GPU's own generators
+  (`generators::legacy`).
+- **Python and the command line:** `dyng.Hypergraph`, `dyng.HyperedgeBatch`, the hypergraph
+  readers and writers of `dyng.io` (with the streaming `BatchReader`), `dyng.generators`,
+  `dyng.triad_count`, `dyng.update()` over hypergraphs, and `dyng triad_count`.
+- **Tutorials:** "Hypergraph triads" (C++ and Python) and "Count a new hypergraph pattern (an
+  Op)"; the algorithm page of `triad_count` with its "Paper vs fixed code" section; the scaffold
+  `scripts/new_algorithm.py --container hypergraph` for a new hypergraph algorithm.
+- **The release certificate** `benchmarks/results/0.3.0rc1/` (PLAN 8.3 and 8.6): as for 0.2.0
+  (sssp, cycle_count and mosp: golden parity on every backend and the release gates against the
+  unpatched originals), and new: the triad_count suites `ipdps26_escher` and `tkde26_escher_plus`
+  against ESCHER-GPU@abcf9b2 (CUDA at locked clocks, ADRs 0018 and 0021; the store accounting and
+  the device-memory peak), the CBST trace replays of both ESCHER originals, the hypergraph id,
+  row and line-graph replays, and the triad replays of every backend, by key and by content.
+
+Known limitations of 0.3.0: Linux x86-64 only (aarch64 wheels later); the plugins need a GPU of
+compute capability 7.5 or newer; a hypergraph batch deletes and inserts whole hyperedges (the
+incidence edits and vertex operations raise `not_supported_error` until 0.4); the store's
+offsets are 32-bit (a hypergraph of up to about 2^31 member slots); triad_count's host backends
+are untuned (their performance is not gated); on CUDA the memory pool keeps, between batches,
+what the line graph's merge reached (recorded beside the memory gates, not gated); ESCHER-GPU's coarse
+triangles are not ported; `label_propagation` and `hyper_sssp` with 0.4.0; no DOI (Zenodo is not connected).
+
+### R030: the tag day (0.3, branch `release-0.3.0`)
+
+- Changed: the release date is 2026-10-28, the UTC day the tag `v0.3.0rc1` is pushed: the
+  heading of this section and `CITATION.cff`'s `date-released` (written 2026-10-22;
+  `docs/developer/release.md`, "A tag day later than the final-release pull request"); the
+  certificate's checks of the `packaging` and `repo` scopes run again on that tree, and the hosted
+  `sanitizers.yml` jobs of the release pull request are recorded in it (`sanitizers-hosted`).
+- Governance: the author's acknowledgements of 2026-10-23 in the approvals log of
+  `GOVERNANCE.md`: D14 acknowledged, the two sub-regions above ADR 0024's bar kept for 0.3.0 (the
+  open decision closes; ADR 0062 and the ADR index say so), and the alignment-flags option
+  deferred beyond 0.3.0 until a CPU without the JCC erratum is available (the roadmap).
+- Fixed (tests): `parity/tests/test_release_cert.py`'s test of the GoogleTest mutation rows
+  diffs the last commit that changed `cpp/tests` against its parent only where the history has
+  that parent, so it passes in the hosted harness job's one-commit checkout.
+
+### R030: review fixes (0.3, branch `release-0.3.0`)
+
+- Fixed: `io::read_hypergraph` (`dyng.io.read_hypergraph`, `dyng triad_count --input`) read a
+  Matrix Market file as a hypergraph without an error (its `%%MatrixMarket` banner is a comment
+  line under the `.hg` rules, its size line a hyperedge). A `.hg` file whose first line is a
+  Matrix Market banner or a `.dgt` header (`%dgt ...`), or that starts with the `.dgb` magic
+  `DYNGBAT1`, is now refused with an `io_error` that names the format and its reader (ESCHER-GPU's
+  loader skips the two lines as comments; no file of either original starts with them).
+- Changed: the reader's messages of the common mistakes name the remedy in C++, Python and the
+  command line (a weighted file read unweighted; a 0-based file read with `index_base` 1; a `.dgt`
+  line); a quoted token is cut after 32 bytes and every reader's message writes its control bytes
+  as `\xHH` (a binary token put raw bytes, and a NUL that ended `what()`, into it); a hyperedge
+  `.dgt` member outside the vertex set, and `hypergraph::apply()`'s member check ("inserted
+  hyperedge 0 of the batch", no longer "hyperedge 0"), say that the vertex count is fixed when the
+  hypergraph is built.
+- Fixed: on a release candidate, the CUDA install hints of the Python package (`show_config()`,
+  `Resources.cuda()`, the command line's `--backend cuda`, the device-array error, the
+  version-mismatch reason) said `pip install "dyng[cu13]"`, which replaced 0.3.0rc1 by 0.2.0 from
+  PyPI; they now give the release candidate's TestPyPI line (and for a development version, the
+  source build).
+- Docs: the Python hypergraph how-to's examples run as snippets (the "Apply batches" block applied
+  a batch twice; the Hypothesis example sets `deadline=None`, which a CUDA plugin's first device
+  use needs), and it shows `dyng.update()` over hypergraphs; the hypergraph tutorial asks for dynG
+  0.3 and clones the repository for its files; `docs/how_to/read_and_write_files.md` covers the
+  hypergraph files, the hyperedge batches and the triad-bins JSON; `OutOfMemoryError` with its
+  guarantee in the docstrings of `Hypergraph.apply()`, `from_hyperedges()`, `h2h()`,
+  `dyng.triad_count.update()` and `dyng.update()`; coarse triangles are planned for 0.5 (the
+  roadmap lists them); the ADR index records the author's decisions of 2026-10-22; the example
+  `triad_count_update` prints its usage, refuses an unknown backend and reports a failed read.
+- Changed: the plugins' licence notice names the Thrust algorithms compiled into them from 0.3;
+  the distributions' keywords name the hypergraph and triad counting, and the plugins' PyPI
+  description the hypergraph and `triad_count`.
+- Docs (records): ADR 0024's longer reading of the D13 fix (170 rounds over 85 layouts) on the
+  final library: the apply and update regions read 0.942-0.971; the insert step and the
+  construction on sequential stay above the 1.02 bar, located (the guard's small cost; code
+  placement) and listed for the author (open decision D14); ADR 0061's reading of the
+  restructured guard corrected (ADR 0062).
+- Changed (the release process): `parity/certify.py` requires every step of `ci/gpu_local.sh`
+  that the release's series added (from 0.3 the CBST, hypergraph, triad_count and
+  count_local_patterns steps), and the script records a step whose part was skipped for missing
+  inputs as `partial`; `parity/experiments/hypergraph_host_ab.py` takes the exclusive lock itself
+  and records it, with each side's commit and build.
+
+### R030: the release certificate (0.3, branch `release-0.3.0`)
+
+- Added: the release certificate of 0.3.0rc1, `benchmarks/results/0.3.0rc1/` (`parity.json` and
+  its `README.md`), measured on the release's final library (the D13 fix included): the golden
+  replays of sssp, cycle_count and mosp on every backend; the CBST trace replays of both ESCHER
+  originals under their presets and dynG's default; the hypergraph id, row and line-graph
+  replays; the triad replays of every backend of the coverage table by key and by content; the
+  five performance suites against the unpatched originals (`ipdps26_escher` and
+  `tkde26_escher_plus` new); the sanitizer presets and compute-sanitizer; every golden mutation
+  and the mutation CTests; the distributions as `release.yml` builds them for `v0.3.0rc1`; and
+  `ci/check.sh --parity`, `ci/api_check.sh` and `ci/gpu_local.sh` on the release tree. The
+  summary is in `docs/developer/retrospectives/R030.md`.
+- Changed: the test subset that cibuildwheel runs in the installed wheel includes the
+  hypergraph and `triad_count` tests (`test_hypergraph.py`, `test_triad_count.py`,
+  `test_triad_count_cli.py`), the surfaces that are stable from 0.3.0.
+- Docs: the ADRs that kept a reservation for the author (0045, 0047-0049, 0051, 0052, 0056,
+  0058-0060) record the author's decisions of 2026-10-22, and the coverage table of the triad
+  goldens (`parity/goldens.toml`) is the accepted D6.
+
+### R030: the release changes (0.3, branch `release-0.3.0`)
+
+- Changed: `VERSION` 0.3.0rc1 (it was 0.3.0.dev0, the development version after 0.2.0);
+  `CITATION.cff` `version: 0.3.0rc1`, `date-released: 2026-10-28` (written 2026-10-22, then
+  set to the tag day); this section `[0.3.0rc1]`
+  with the summary above: everything that was under `Unreleased` (M8a, M8b, M9a, M9b and R030)
+  moved here, an empty `Unreleased` above it, and the link references.
+- Docs: the status texts for the release candidate: the status blocks of `README.md` and the
+  documentation's start page ("Alpha: 0.3 release candidate"), the install lines of the release
+  candidate from TestPyPI (`dyng==0.3.0rc1`; with a plugin, NumPy from PyPI first and
+  `dyng==0.3.0rc1` with `dyng-cu13==0.3.0rc1` or `dyng-cu12==0.3.0rc1` from TestPyPI alone)
+  in README and `docs/getting_started`, `SECURITY.md` (0.3.0rc1 supported until 0.3.0),
+  `SUPPORT.md`, `CONTRIBUTING.md`, the roadmap, the developer plan and `docs/citing.md`; the
+  "Paper vs fixed code" wording of `docs/algorithms/triad_count.md` is the author's accepted
+  wording (D10). The PyPI description (`python/README.md`) names the hypergraph and
+  `triad_count`, with a tested example and the command line. `docs/developer/release.md`: who
+  does what for 0.3.0 (the author merges the release pull requests and approves `pypi-cu12`,
+  `pypi-cu13`, then `pypi`; the AI assistant pushes the signed tags `v0.3.0rc1` / `v0.3.0` and
+  creates the GitHub Release on the author's behalf), and the release candidate's smoke test
+  covers `triad_count`.
+- Governance: the author's decisions of 2026-10-22 for 0.3.0 in the approvals log of
+  `GOVERNANCE.md` (the names of ADRs 0049-0052 and 0058-0060, D9; the parity coverage, the gate
+  rows and the suites, D6-D8; the "paper vs fixed code" wording, D10; the host model reported
+  beside the gated update, D12; the publishing of 0.3.0); the open decisions D6-D10 and D12 close.
+- The pinned CUDA toolkits of the plugins (12.9, nvcc 12.9.86; 13.4, nvcc 13.4.92) are still the
+  newest 12.x and 13.x of NVIDIA's RHEL 8 repository (2026-10-22): a fresh lock reproduces
+  `ci/cuda_toolkits.toml` byte for byte, and the cached RPMs pass `verify --signatures`, so
+  nothing is re-pinned.
+
+### R030: the 0.3 stability records and the D13 fix (0.3, branch `release-0.3.0`)
+
+- **Stable from 0.3.0** (the author's decision of 2026-10-22): the hypergraph surface
+  (`dyng/hypergraph/*.hpp`, `dyng.Hypergraph`; frozen at M8b, ADR 0047) and `triad_count`
+  (`<dyng/triad_count.hpp>`, `dyng.triad_count`, `dyng triad_count`; frozen at M9b, ADR 0060)
+  follow PLAN 5.9's stable tier (SemVer); so do the file formats `.hg`, `.dgb` (`DYNGBAT1`) and the
+  triad bins (`"dyng.triad_bins"`), each at version 1 (`docs/api/file_formats.md`).
+  `experimental::count_local_patterns` stays experimental (it may change in any minor release).
+- **Fixed (D13, ADR 0061):** a host allocation failure inside one of the hypergraph container's
+  OpenMP loops ended the process with `std::terminate` instead of throwing the documented
+  `out_of_memory_error`, in every build with OpenMP (the default builds and the wheels), on the
+  sequential backend as on openmp and with any thread count: the vertex-to-hyperedge rows that
+  `hypergraph::apply()` changes (so `dyng::update()`, `triad_count::update()` and
+  `count_local_patterns::update()` over a hypergraph) and the line graph's build
+  (`from_hyperedges()` with a line graph, the first `h2h()` or `compute()` under
+  `line_graph_policy::automatic`). The loops now keep the first exception, stop, and raise it after
+  the loop on the calling thread, so the documented error and guarantee hold (the hypergraph
+  poisoned when the failure is inside the store phase; unchanged before it). The same for the
+  oracle `testing::triad_reference` (its documented `std::bad_alloc`). Tests:
+  `dyng_hypergraph_allocation_failure_tests` and the `update()` sweep of
+  `dyng_triad_count_allocation_failure_tests`, each of which ended the process before the fix.
+- `parity/certify.py`: a golden-mutation record whose rows include a GoogleTest suite of
+  `parity/mutate.py` (cbst, hypergraph, triad_count, kit, the triad oracle) must also have the
+  release's `cpp/tests` (ADR 0061 section 4); `parity/experiments/hypergraph_host_ab.py`, the
+  dynG-against-dynG reading of the container's host apply and triad_count's host update (ADR 0024).
+- `CMakeLists.txt`: the help text and the warning of `DYNG_BUILD_BENCHMARKS` say that the
+  micro-benchmark suites and `dyng-bench` are planned for a later release (R021's deferred
+  finding). The alignment flags of the 2026-10-08 decision are deferred beyond 0.3.0
+  (`docs/roadmap.md`).
+
 ### Added
 
 - **M9b: the triad_count docs and examples**: `docs/algorithms/triad_count.md` with every section
   of PLAN 9.5 (the 30-bin table, tested against the code's tables by `TriadCountDocs.*`; the
   requirements per pattern; the template mapping; complexity and memory; "Differences from the
-  paper"; "Paper vs fixed code" with ESCHER-GPU's E-C1, E-C3 and E-C7, worded for the author's
-  review at 0.3.0, D10; the mapping from the original code; the gate record); the tutorial
+  paper"; "Paper vs fixed code" with ESCHER-GPU's E-C1, E-C3 and E-C7, the wording the author
+  accepted on 2026-10-22, D10; the mapping from the original code; the gate record); the tutorial
   "Hypergraph triads" (`docs/tutorials/hypergraph_triads.md`, C++ and Python, quoted from tested
   code); `examples/cpp/triad_count_update.cpp` and `examples/python/triad_count.py` (each at most 60
   lines, the same output on every backend, compared with `examples/data/triad_count_update.expected.txt`
@@ -24,7 +232,7 @@ Before 0.1.0 anything may change.
   arguments (`-DARGS=a|b|c`) and a skip code 77.
 
 - **`dyng.triad_count`** (M9b, ADRs 0059 and 0060; Python; stable from 0.3.0 with the C++ API,
-  pending the author's confirmation, D4: see Changed):
+  the author's decision of 2026-10-22: see Changed):
   `compute(hypergraph, kind="h_motif" | "stathyper_type1" | "stathyper_type2" |
   "stathyper_type3" | Pattern)`, `update(hypergraph, batch, result)`, `Options` (`kind`,
   `cuda_engine`), `Result` (`counts`, a read-only uint64 NumPy copy; `count()`, `total`,
@@ -76,7 +284,7 @@ Before 0.1.0 anything may change.
   synccheck over the tutorial's CUDA run); `parity/compare.py triad_count --counter
   local_patterns` (the built-in Ops through count_local_patterns, bit for bit against triad_count
   and against ESCHER-GPU's goldens).
-- `triad_count` (M9a; stable from 0.3.0, pending the author's confirmation, D4 and ADR 0060: see Changed; aggregate delta; `<dyng/triad_count.hpp>`): the 30 h-motif counts and StatHyper's triad types 1-3 of a hypergraph, kept exact under hyperedge batches (`options::kind`; `stats::delta`, `triads_removed` / `triads_added`; several patterns in one `dyng::update()`). The cuda backend runs ESCHER-GPU@abcf9b2's wedge engine (exact against ESCHER-GPU on every golden case); the sequential and OpenMP backends run the same engine as loops (an incremental host engine, untuned; the author's decision D3, ADR 0054), exact against ESCHER-GPU on the golden cases of the coverage table, with identical results on every OpenMP thread count. `dyng-compat-escher run` counts and prints ESCHER-GPU's output; `parity/compare.py triad_count --counter algorithm`.
+- `triad_count` (M9a; stable from 0.3.0, ADR 0060 and the author's decision of 2026-10-22: see Changed; aggregate delta; `<dyng/triad_count.hpp>`): the 30 h-motif counts and StatHyper's triad types 1-3 of a hypergraph, kept exact under hyperedge batches (`options::kind`; `stats::delta`, `triads_removed` / `triads_added`; several patterns in one `dyng::update()`). The cuda backend runs ESCHER-GPU@abcf9b2's wedge engine (exact against ESCHER-GPU on every golden case); the sequential and OpenMP backends run the same engine as loops (an incremental host engine, untuned; the author's decision D3, ADR 0054), exact against ESCHER-GPU on the golden cases of the coverage table, with identical results on every OpenMP thread count. `dyng-compat-escher run` counts and prints ESCHER-GPU's output; `parity/compare.py triad_count --counter algorithm`.
 - Internal (internal-stable, ADR 0055): `operators::count_delta` / `count_owned`, the signed count of one aggregate-delta phase with a required ownership rule (I2), on every executor (host: private bins per thread added in thread order; cuda: atomic bins read once); `triangle_delta` and `triad_count`'s host engine count with it (the rule of two). The executors gain `download()` and `threads()`.
 - Benchmarks (M9a, ADR 0056): the paper suites `benchmarks/paper/ipdps26_escher.yaml` (the timing gates of `triad_count` against ESCHER-GPU@abcf9b2: update per batch, full count, end to end on coauth-DBLP and syn1M / syn2M) and `tkde26_escher_plus.yaml` (the store accounting and the Nsight Systems peak; the StatHyper types and other batch sizes recorded); `parity/certify.py` requires both, and the triad golden replays of every backend of the coverage table by key and by content, from the 0.3 series (`compare.py triad_count --certificate`; `certify.py write --dry-run <algorithm>`); `perf_ab.py triad_count kernels` (the update's kernels under ncu at the base clocks) and the contamination audit of the triad readings.
 - Tests: ESCHER-GPU's `make test` replayed on the host backends in hosted CI (`dyng_triad_count_make_test_tests`), exact against 3.7 KB of committed counts (`parity/triad_goldens.py fixture`); the committed test-data budget is 1.25 MB (the author's decision D5, ADR 0013 amended), checked by `ci/test_data_budget.py` (`ci/check.sh` step `testdata`, a pre-commit hook). The recorded triad mutations of PLAN 8.4 (CTests `triad_count.mutation.*`, `parity/mutate.py run --suites triad_count`).
@@ -157,8 +365,8 @@ Before 0.1.0 anything may change.
   `api-change` label): every declaration of `dyng/hypergraph/*.hpp` is part of the frozen API
   baseline after the hypergraph API review (`io/hypergraph_io.hpp`, `io/batch_io.hpp`,
   `generators/*` and `testing/*` stay tracked); a removal or change now fails `ci/docs.sh` and
-  `ci/api_check.sh` without the label. Stable from 0.3.0 by the plan's default, which awaits the
-  author's confirmation at the release. The review added `hyperedge_batch::
+  `ci/api_check.sh` without the label. Stable from 0.3.0 (the author's decision of 2026-10-22).
+  The review added `hyperedge_batch::
   delete_incidence_hyperedge()`, `delete_incidence_vertex()`, `insert_incidence_hyperedge()` and
   `insert_incidence_vertex()` (the owning batch reports its incidence edits) and declared
   `hyperedge_batch`'s default constructor `noexcept`; `ci/doxygen_coverage.py` holds the frozen
@@ -272,8 +480,8 @@ Before 0.1.0 anything may change.
 
 ### Changed
 
-- **`triad_count` is `stable` and frozen** (M9b, ADR 0060; the plan's default D4, pending the
-  author's confirmation at the 0.3.0 release): `<dyng/triad_count.hpp>` (frozen in the API
+- **`triad_count` is `stable` and frozen** (M9b, ADR 0060; the plan's default D4, confirmed by
+  the author on 2026-10-22): `<dyng/triad_count.hpp>` (frozen in the API
   baseline; `ci/doxygen_coverage.py` holds it to the freeze's rules), `dyng.triad_count` and
   `dyng triad_count` follow PLAN 5.9's stable tier from 0.3.0. **api-change**: the header moves
   from tracked to frozen; no signature changed. Documentation amendments of the review: the stats'
@@ -284,7 +492,6 @@ Before 0.1.0 anything may change.
   `bool | None` keyword is a `--x` / `--no-x` pair), and a union with one `Literal` takes its
   choices; no existing flag changes. The fuzz workflow's dispatch limit is 660 s per target (nine
   targets; was 750 s for eight).
-- `VERSION` is 0.3.0.dev0, the development version after the 0.2.0 release.
 - The documented `find_package(dyng 0.3 REQUIRED)` (README.md, docs/getting_started/install.md)
   follows the development version, which `ci/cmake_consumer.sh` requires; a build of 0.2.0
   asks for 0.2.
@@ -338,18 +545,6 @@ Before 0.1.0 anything may change.
   documentation says; a `std::bad_alloc` of the host work left the library (ADR 0060 finding 7;
   `dyng_triad_count_allocation_failure_tests`).
 
-### Known issues
-
-- In a build with OpenMP (the default builds and the wheels), a host allocation failure inside
-  one of the hypergraph container's OpenMP loops ends the process with `std::terminate` instead
-  of throwing the documented `out_of_memory_error`, on the sequential backend as on openmp and
-  with any thread count (the loops are OpenMP regions even when they run on one thread): the
-  vertex-to-hyperedge rows that `hypergraph::apply()` changes (so `dyng::update()`,
-  `triad_count::update()` and `count_local_patterns::update()` over a hypergraph), and the line
-  graph's build (`from_hyperedges()` with a line graph, or the first `h2h()` or `compute()` under
-  `line_graph_policy::automatic`). The device allocations of the cuda backend are not affected.
-  Not fixed in 0.3.0 by default: whether the fix (catch inside each region, rethrow after it)
-  goes into 0.3.0 or a 0.3.x release is the author's (D13; ADR 0060 finding 8).
 
 ### Fixed (M9a review)
 
@@ -1856,7 +2051,8 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
   Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.2.0...main
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.3.0rc1...main
+[0.3.0rc1]: https://github.com/dyng-dev/dyng/compare/v0.2.0...v0.3.0rc1
 [0.2.0]: https://github.com/dyng-dev/dyng/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/dyng-dev/dyng/tree/v0.0.1

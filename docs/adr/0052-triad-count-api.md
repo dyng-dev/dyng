@@ -11,9 +11,12 @@
   false, so item 3's sentences on a recounting backend are historical) and ADR 0057
   (2026-10-20: the 64-bit limits, a net change of a bin outside `stats::delta`'s signed 64-bit
   range is a capacity_error).
+- **Decided:** the author accepted the new public names (D9) on 2026-10-22 (GOVERNANCE.md,
+  approvals log, 2026-10-22); `triad_count` is frozen and `stable` from 0.3.0 (ADR 0060, the same
+  day's stability decision).
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf for the technical parts (M9a, step
-  cuda-port-api-early-gate); the names: S M Shovan (pending)
+  cuda-port-api-early-gate); the names: S M Shovan (2026-10-22)
 - **Builds on:** ADR 0023 (the uniform contract, frozen 0.1), ADR 0041 / 0043 / 0047 (the
   hypergraph container, its update path, its freeze), ADR 0048 (the parity protocol), ADR 0053
   (the engine behind it).

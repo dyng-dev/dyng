@@ -9,6 +9,8 @@
   `escher_batch_generator::next(model)`, tracked; the driver command `dyng-compat-escher run`)
   **await the author** (naming is not delegated; D9 takes them on the plan's defaults until the
   0.3.0 release; GOVERNANCE.md, Open decisions). Recorded in the M9a review.
+- **Decided:** the author accepted these names (D9) on 2026-10-22 (GOVERNANCE.md, approvals log,
+  2026-10-22); the reservation above is closed.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step
   oracle-harness-driver-prereads)

@@ -12,6 +12,9 @@
   **Pending the author** (taken on the plan's defaults until the 0.3.0 release, decisions D6 and
   D7 of 2026-10-15): the coverage table of section 2.6 and the gate rows, cases and rounds of
   section 1.4.
+- **Decided:** the author accepted D6 (the coverage table of section 2.6) and D7 (the gate rows,
+  cases and rounds of section 1.4) as implemented on 2026-10-22 (GOVERNANCE.md, approvals log,
+  2026-10-22); the reservation above is closed.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step regions-goldens-crosscheck)
 - **Builds on:** ADR 0013 (parity and goldens), ADR 0018 and ADR 0021 (clocks), ADR 0024 (dynG

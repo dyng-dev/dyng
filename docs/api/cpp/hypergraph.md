@@ -7,8 +7,8 @@ come from the store's best-fit reuse (`hyper_apply_summary::inserted_ids`); its 
 `escher_gpu()` and `mosp_escher(extra)`), the hyperedge list, the batch, the incidence and
 line-graph views and the storage counters. **These headers are frozen** (the M8b API review,
 {doc}`../../adr/0047-hypergraph-api-review-and-freeze-0-3`): a change of a declaration fails the
-API checks unless the pull request is an api-change. By the plan's default they are stable from
-0.3.0, which awaits the author's confirmation at that release. The concepts (ids, `id_reuse` with
+API checks unless the pull request is an api-change. They are **stable from 0.3.0** (SemVer,
+PLAN 5.9; the author's decision of 2026-10-22, GOVERNANCE.md). The concepts (ids, `id_reuse` with
 a worked example, best-fit reuse and the surplus drop rule, the capacity presets, the index
 limits, the line graph) are explained in {doc}`../../concepts/hypergraphs`; the Python layer is
 `dyng.Hypergraph` ({doc}`../../how_to/use_hypergraphs_from_python`).
