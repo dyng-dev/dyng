@@ -80,6 +80,21 @@ are untuned (their performance is not gated); on CUDA the memory pool keeps, bet
 what the line graph's merge reached (recorded beside the memory gates, not gated); ESCHER-GPU's coarse
 triangles are not ported; `label_propagation` and `hyper_sssp` with 0.4.0; no DOI (Zenodo is not connected).
 
+### R030: the tag day (0.3, branch `release-0.3.0`)
+
+- Changed: the release date is 2026-10-28, the UTC day the tag `v0.3.0rc1` is pushed: the
+  heading of this section and `CITATION.cff`'s `date-released` (written 2026-10-22;
+  `docs/developer/release.md`, "A tag day later than the final-release pull request"); the
+  certificate's checks of the `packaging` and `repo` scopes run again on that tree, and the hosted
+  `sanitizers.yml` jobs of the release pull request are recorded in it (`sanitizers-hosted`).
+- Governance: the author's acknowledgements of 2026-10-23 in the approvals log of
+  `GOVERNANCE.md`: D14 acknowledged, the two sub-regions above ADR 0024's bar kept for 0.3.0 (the
+  open decision closes; ADR 0062 and the ADR index say so), and the alignment-flags option
+  deferred beyond 0.3.0 until a CPU without the JCC erratum is available (the roadmap).
+- Fixed (tests): `parity/tests/test_release_cert.py`'s test of the GoogleTest mutation rows
+  diffs the last commit that changed `cpp/tests` against its parent only where the history has
+  that parent, so it passes in the hosted harness job's one-commit checkout.
+
 ### R030: review fixes (0.3, branch `release-0.3.0`)
 
 - Fixed: `io::read_hypergraph` (`dyng.io.read_hypergraph`, `dyng triad_count --input`) read a

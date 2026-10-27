@@ -104,7 +104,8 @@ Deferred beyond 0.3.0:
   on a CPU without the jump-conditional-code (JCC) erratum**. The only reference machine, a Xeon
   Gold 6258R (Cascade Lake), has the erratum, and the third flag is its mitigation, so the reading
   that decides the option cannot be taken there: 0.3.0 is built and measured without the flags
-  (every gate of its certificate), and the option waits for a machine without the erratum.
+  (every gate of its certificate), and the option waits for a machine without the erratum (the
+  author agreed to this deferral on 2026-10-23, GOVERNANCE.md).
 - **The micro-benchmark suites** (nvbench, Google Benchmark) and `dyng-bench` (PLAN 8.5, item 1):
   planned for a later release, not yet assigned; the paper suites of `benchmarks/paper/` and
   their certificates are the performance record until then (`DYNG_BUILD_BENCHMARKS` has no effect

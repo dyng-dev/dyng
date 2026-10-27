@@ -8,6 +8,9 @@
   changes no rule the author approved: the gates, their protocol (ADRs 0018, 0021, 0024, the
   one-layout rule of 2026-10-08), the parity rules and the frozen signatures are untouched.
   What the reading leaves above the bar is listed for the author (section 2).
+- **Decided:** the author acknowledged D14 on 2026-10-23 (GOVERNANCE.md, approvals log,
+  2026-10-23): the two sub-regions of section 2 are kept for 0.3.0, and the serial-path remedy is
+  a later change with its own reading; the reservation above is closed.
 - **Date:** 2026-10-22
 - **Deciders:** the AI assistant, on the author's behalf (R030, the review fixes)
 - **Amends:** ADR 0061 (its reading; the restructured guard's numbers). **Builds on:** ADR 0024
@@ -103,7 +106,8 @@ this library). ADR 0024's rule 3 makes such a region "a regression to be located
 both are located and **not fixed**, which is a deviation from the measurement protocol, which is
 not delegated: it is listed for the author's acknowledgement (GOVERNANCE.md, open decision D14;
 docs/developer/retrospectives/R030.md, step 4; the release pull request), with the serial-path fix of the insert step as
-the remedy if the author asks for it (a later library change, with its own reading).
+the remedy if the author asks for it (a later library change, with its own reading). The author
+acknowledged it on 2026-10-23 and kept both for 0.3.0 (GOVERNANCE.md, approvals log).
 
 **The restructured guard (ADR 0061, corrected).** ADR 0061 said that the restructured guard
 (`parallel_chunks`, one `try` per thread) "did not help in the release build (+2 to +7 %)". Its
