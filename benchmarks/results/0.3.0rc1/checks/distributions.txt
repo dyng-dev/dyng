@@ -1,6 +1,6 @@
-# Excerpt of $DYNG_SCRATCH/runs/r030-fix/final/distributions.log (sha256 3400f80ee75ced522018c957bd66a6eacfb2235a433c2b53d25264490ecf3521, 56773 bytes): its step headers and result lines, written by parity/certify.py check.
-== commit a0f717784ba1cbb5e8c5292b12664231e632c734 VERSION 0.3.0rc1
-== select (release.yml) for GITHUB_REF_NAME=v0.3.0rc1 (2026-10-23T11:10:06Z)
+# Excerpt of $DYNG_SCRATCH/runs/r030-tagday/distributions.log (sha256 9ed093701ae1c592c004752680beea86d8baceda8c7fd12b6d4ad5485c5d2f33, 56941 bytes): its step headers and result lines, written by parity/certify.py check.
+== commit 7e918a244f0d1055fdfc2d4a2dafc3f9823bc6e0 VERSION 0.3.0rc1
+== select (release.yml) for GITHUB_REF_NAME=v0.3.0rc1 (2026-10-27T19:43:09Z)
 rc=0 select
 kind=package
 version=0.3.0rc1
@@ -10,27 +10,27 @@ select: v0.3.0 refused
 select: v0.3.0-rc.1 refused
 select: v0.3.0rc2 refused
 select: v0.2.0 refused
-== release metadata (2026-10-23T11:10:07Z)
+== release metadata (2026-10-27T19:43:10Z)
 rc=0 release-metadata
-rc=0 release-metadata --release-date 2026-10-22
-== ci/wheels.sh (2026-10-23T11:10:07Z)
+rc=0 release-metadata --release-date 2026-10-28
+== ci/wheels.sh (2026-10-27T19:43:10Z)
 ==> sdist
 ==> wheel from the sdist (GCC 12, glibc 2.28 sysroot, static and hidden libstdc++)
 ==> auditwheel repair --plat manylinux_2_28_x86_64
 ==> twine check, ci/wheel_check.py
 Checking
--cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
 Checking
-.tar.gz: PASSED
+rc1.tar.gz: PASSED
 ok     dyng-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (2.11 MB)
 ok     dyng-0.3.0rc1.tar.gz (1.61 MB)
-==> Python 3.12: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-core/venv-3.12)
-735 passed, 82 skipped in 69.10s (0:01:09)
-==> Python 3.13: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-core/venv-3.13)
-735 passed, 82 skipped in 70.04s (0:01:10)
-==> distributions in /home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-core/dist
+==> Python 3.12: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-core/venv-3.12)
+735 passed, 82 skipped in 72.51s (0:01:12)
+==> Python 3.13: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-core/venv-3.13)
+735 passed, 82 skipped in 76.86s (0:01:16)
+==> distributions in /home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-core/dist
 rc=0 ci/wheels.sh
-== ci/plugin_wheels.sh cu12 cu13 with the CI toolkits (2026-10-23T11:13:08Z)
+== ci/plugin_wheels.sh cu12 cu13 with the CI toolkits (2026-10-27T19:48:19Z)
 ==> cu12: the source tree from dyng-0.3.0rc1.tar.gz (CUDA 12.9, /home/sskg8/Projects/dyng-work/tools/ci-cuda/root-cu12/usr/local/cuda-12.9)
 ==> cu12: wheel (GCC 12.4.0 / glibc 2.28 host compiler, static cudart, release architectures)
 ==> cu12: auditwheel repair --plat manylinux_2_28_x86_64 (libcuda excluded)
@@ -41,35 +41,35 @@ rc=0 ci/wheels.sh
     ok     dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: SASS sm_75, sm_80, sm_86, sm_89, sm_90, sm_100, sm_120 and PTX sm_120 (the release list of CUDA 13.4)
 ==> twine check, ci/wheel_check.py
 Checking
-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
 Checking
-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
 ok     dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.67 MB)
 ok     dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (9.13 MB)
 ok     dyng-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (2.11 MB)
-==> cu12, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-plugins/venv-cu12-3.12)
-70 passed, 7 skipped, 740 deselected in 6.57s
-735 passed, 82 skipped in 67.31s (0:01:07)
-==> cu12, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-plugins/venv-cu12-3.13)
-70 passed, 7 skipped, 740 deselected in 5.66s
-735 passed, 82 skipped in 66.46s (0:01:06)
-==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-plugins/venv-cu13-3.12)
-70 passed, 7 skipped, 740 deselected in 5.64s
-735 passed, 82 skipped in 67.23s (0:01:07)
-==> cu13, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-plugins/venv-cu13-3.13)
-70 passed, 7 skipped, 740 deselected in 5.61s
-735 passed, 82 skipped in 66.31s (0:01:06)
-==> plugin wheels in /home/sskg8/Projects/dyng-work/r030/fix/dist-work/wheels-plugins/dist
+==> cu12, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-plugins/venv-cu12-3.12)
+70 passed, 7 skipped, 740 deselected in 5.92s
+735 passed, 82 skipped in 68.03s (0:01:08)
+==> cu12, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-plugins/venv-cu12-3.13)
+70 passed, 7 skipped, 740 deselected in 6.08s
+735 passed, 82 skipped in 69.61s (0:01:09)
+==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-plugins/venv-cu13-3.12)
+70 passed, 7 skipped, 740 deselected in 6.00s
+735 passed, 82 skipped in 70.31s (0:01:10)
+==> cu13, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-plugins/venv-cu13-3.13)
+70 passed, 7 skipped, 740 deselected in 5.93s
+735 passed, 82 skipped in 71.44s (0:01:11)
+==> plugin wheels in /home/sskg8/Projects/dyng-work/r030/tagday/dist-work/wheels-plugins/dist
 rc=0 ci/plugin_wheels.sh
-== collect: twine check --strict, wheel_check --release-set --split (2026-10-23T11:23:41Z)
+== collect: twine check --strict, wheel_check --release-set --split (2026-10-27T19:59:29Z)
 Checking
-manylinux_2_28_x86_64.whl: PASSED
+i3-manylinux_2_28_x86_64.whl: PASSED
 Checking
-abi3-manylinux_2_28_x86_64.whl: PASSED
+12-abi3-manylinux_2_28_x86_64.whl: PASSED
 Checking
-abi3-manylinux_2_28_x86_64.whl: PASSED
+12-abi3-manylinux_2_28_x86_64.whl: PASSED
 Checking
-/home/sskg8/Projects/dyng-work/r030/fix/dist-work/dist/dyng-0.3.0rc1.tar.gz: PASSED
+/home/sskg8/Projects/dyng-work/r030/tagday/dist-work/dist/dyng-0.3.0rc1.tar.gz: PASSED
 rc=0 twine check --strict
 ok     dyng-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (2.11 MB)
 rc=0 wheel_check dyng-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl
@@ -85,9 +85,9 @@ ok     dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.67 MB)
 ok     dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (9.13 MB)
 rc=0 wheel_check --release-set --split
 rc=0 release-metadata
-== venv core-312 (Python 3.12.14) (2026-10-23T11:23:43Z)
+== venv core-312 (Python 3.12.14) (2026-10-27T19:59:31Z)
 rc=0 install core-312
-419 passed, 4 skipped in 79.29s (0:01:19)
+419 passed, 4 skipped in 83.13s (0:01:23)
 rc=0 test subset core-312
 rc=0 README quickstart core-312 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -104,9 +104,9 @@ ok  docs/how_to/use_hypergraphs_from_python.md:131 hypergraph-python-hypothesis
 ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets core-312 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version core-312
-== venv core-cu12-312 (Python 3.12.14) (2026-10-23T11:25:17Z)
+== venv core-cu12-312 (Python 3.12.14) (2026-10-27T20:01:11Z)
 rc=0 install core-cu12-312
-418 passed, 5 skipped in 85.02s (0:01:25)
+418 passed, 5 skipped in 86.28s (0:01:26)
 rc=0 test subset core-cu12-312
 rc=0 README quickstart core-cu12-312 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -124,11 +124,11 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets core-cu12-312 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version core-cu12-312
 rc=0 plugin_smoke --expect cuda core-cu12-312
-68 passed, 10 skipped, 715 deselected in 5.00s
+68 passed, 10 skipped, 715 deselected in 5.17s
 rc=0 pytest -m gpu core-cu12-312
-== venv core-cu13-312 (Python 3.12.14) (2026-10-23T11:27:07Z)
+== venv core-cu13-312 (Python 3.12.14) (2026-10-27T20:03:02Z)
 rc=0 install core-cu13-312
-418 passed, 5 skipped in 80.55s (0:01:20)
+418 passed, 5 skipped in 84.63s (0:01:24)
 rc=0 test subset core-cu13-312
 rc=0 README quickstart core-cu13-312 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -146,11 +146,11 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets core-cu13-312 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version core-cu13-312
 rc=0 plugin_smoke --expect cuda core-cu13-312
-68 passed, 10 skipped, 715 deselected in 4.96s
+68 passed, 10 skipped, 715 deselected in 5.23s
 rc=0 pytest -m gpu core-cu13-312
-== venv core-313 (Python 3.13.15) (2026-10-23T11:28:52Z)
+== venv core-313 (Python 3.13.15) (2026-10-27T20:04:53Z)
 rc=0 install core-313
-419 passed, 4 skipped in 79.54s (0:01:19)
+419 passed, 4 skipped in 82.06s (0:01:22)
 rc=0 test subset core-313
 rc=0 README quickstart core-313 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -167,9 +167,9 @@ ok  docs/how_to/use_hypergraphs_from_python.md:131 hypergraph-python-hypothesis
 ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets core-313 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version core-313
-== venv core-cu12-313 (Python 3.13.15) (2026-10-23T11:30:27Z)
+== venv core-cu12-313 (Python 3.13.15) (2026-10-27T20:06:31Z)
 rc=0 install core-cu12-313
-418 passed, 5 skipped in 80.31s (0:01:20)
+418 passed, 5 skipped in 80.65s (0:01:20)
 rc=0 test subset core-cu12-313
 rc=0 README quickstart core-cu12-313 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -187,11 +187,11 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets core-cu12-313 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version core-cu12-313
 rc=0 plugin_smoke --expect cuda core-cu12-313
-68 passed, 10 skipped, 715 deselected in 4.88s
+68 passed, 10 skipped, 715 deselected in 4.85s
 rc=0 pytest -m gpu core-cu12-313
-== venv core-cu13-313 (Python 3.13.15) (2026-10-23T11:32:12Z)
+== venv core-cu13-313 (Python 3.13.15) (2026-10-27T20:08:17Z)
 rc=0 install core-cu13-313
-418 passed, 5 skipped in 80.75s (0:01:20)
+418 passed, 5 skipped in 80.46s (0:01:20)
 rc=0 test subset core-cu13-313
 rc=0 README quickstart core-cu13-313 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -209,12 +209,12 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets core-cu13-313 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version core-cu13-313
 rc=0 plugin_smoke --expect cuda core-cu13-313
-68 passed, 10 skipped, 715 deselected in 4.86s
+68 passed, 10 skipped, 715 deselected in 5.00s
 rc=0 pytest -m gpu core-cu13-313
-== a local simple index laid out like TestPyPI with the three distributions (2026-10-23T11:33:59Z)
-== venv index-cu13-312 (Python 3.12.14) (2026-10-23T11:34:02Z)
+== a local simple index laid out like TestPyPI with the three distributions (2026-10-27T20:10:02Z)
+== venv index-cu13-312 (Python 3.12.14) (2026-10-27T20:10:04Z)
 rc=0 install index-cu13-312
-418 passed, 5 skipped in 81.80s (0:01:21)
+418 passed, 5 skipped in 86.32s (0:01:26)
 rc=0 test subset index-cu13-312
 rc=0 README quickstart index-cu13-312 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -232,12 +232,12 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets index-cu13-312 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version index-cu13-312
 rc=0 plugin_smoke --expect cuda index-cu13-312
-68 passed, 10 skipped, 715 deselected in 5.01s
+68 passed, 10 skipped, 715 deselected in 6.36s
 rc=0 pytest -m gpu index-cu13-312
 rc=0 index-cu13-312 installed [dyng==0.3.0rc1 dyng-cu13==0.3.0rc1 ] want [dyng==0.3.0rc1 dyng-cu13==0.3.0rc1 ]
-== venv index-cu12-312 (Python 3.12.14) (2026-10-23T11:35:51Z)
+== venv index-cu12-312 (Python 3.12.14) (2026-10-27T20:12:01Z)
 rc=0 install index-cu12-312
-418 passed, 5 skipped in 81.00s (0:01:21)
+418 passed, 5 skipped in 95.11s (0:01:35)
 rc=0 test subset index-cu12-312
 rc=0 README quickstart index-cu12-312 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -255,12 +255,12 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets index-cu12-312 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version index-cu12-312
 rc=0 plugin_smoke --expect cuda index-cu12-312
-68 passed, 10 skipped, 715 deselected in 5.00s
+68 passed, 10 skipped, 715 deselected in 24.68s
 rc=0 pytest -m gpu index-cu12-312
 rc=0 index-cu12-312 installed [dyng==0.3.0rc1 dyng-cu12==0.3.0rc1 ] want [dyng==0.3.0rc1 dyng-cu12==0.3.0rc1 ]
-== venv index-cu13-313 (Python 3.13.15) (2026-10-23T11:37:37Z)
+== venv index-cu13-313 (Python 3.13.15) (2026-10-27T20:15:05Z)
 rc=0 install index-cu13-313
-418 passed, 5 skipped in 80.93s (0:01:20)
+418 passed, 5 skipped in 96.03s (0:01:36)
 rc=0 test subset index-cu13-313
 rc=0 README quickstart index-cu13-313 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -278,12 +278,12 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets index-cu13-313 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version index-cu13-313
 rc=0 plugin_smoke --expect cuda index-cu13-313
-68 passed, 10 skipped, 715 deselected in 4.97s
+68 passed, 10 skipped, 715 deselected in 16.82s
 rc=0 pytest -m gpu index-cu13-313
 rc=0 index-cu13-313 installed [dyng==0.3.0rc1 dyng-cu13==0.3.0rc1 ] want [dyng==0.3.0rc1 dyng-cu13==0.3.0rc1 ]
-== venv index-cu12-313 (Python 3.13.15) (2026-10-23T11:39:23Z)
+== venv index-cu12-313 (Python 3.13.15) (2026-10-27T20:17:43Z)
 rc=0 install index-cu12-313
-418 passed, 5 skipped in 83.53s (0:01:23)
+418 passed, 5 skipped in 90.50s (0:01:30)
 rc=0 test subset index-cu12-313
 rc=0 README quickstart index-cu12-313 (output equal to the README's)
 ok  README.md:48 quickstart-python
@@ -301,10 +301,10 @@ ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets index-cu12-313 (README, python/README.md, the hypergraph and triad_count pages)
 rc=0 dyng --version index-cu12-313
 rc=0 plugin_smoke --expect cuda index-cu12-313
-68 passed, 10 skipped, 715 deselected in 4.89s
+68 passed, 10 skipped, 715 deselected in 14.67s
 rc=0 pytest -m gpu index-cu12-313
 rc=0 index-cu12-313 installed [dyng==0.3.0rc1 dyng-cu12==0.3.0rc1 ] want [dyng==0.3.0rc1 dyng-cu12==0.3.0rc1 ]
-== venv docform-cpu-312: -i <index> --extra-index-url PyPI dyng==0.3.0rc1 (2026-10-23T11:41:12Z)
+== venv docform-cpu-312: -i <index> --extra-index-url PyPI dyng==0.3.0rc1 (2026-10-27T20:20:39Z)
 rc=0 docform-cpu install 312
 rc=0 hypothesis docform-cpu-312
 rc=0 README quickstart docform-cpu-312
@@ -321,7 +321,7 @@ ok  docs/how_to/use_hypergraphs_from_python.md:47 hypergraph-python-apply
 ok  docs/how_to/use_hypergraphs_from_python.md:131 hypergraph-python-hypothesis
 ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets docform-cpu-312
-== venv docform-cu13-312: numpy from PyPI, then --no-deps dyng dyng-cu13 from the index (2026-10-23T11:41:25Z)
+== venv docform-cu13-312: numpy from PyPI, then --no-deps dyng dyng-cu13 from the index (2026-10-27T20:20:56Z)
 rc=0 numpy 312
 rc=0 docform-cu13 install 312
 rc=0 hypothesis docform-cu13-312
@@ -339,7 +339,7 @@ ok  docs/how_to/use_hypergraphs_from_python.md:47 hypergraph-python-apply
 ok  docs/how_to/use_hypergraphs_from_python.md:131 hypergraph-python-hypothesis
 ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets docform-cu13-312
-== venv docform-cu12-312: numpy from PyPI, then --no-deps dyng dyng-cu12 from the index (2026-10-23T11:41:41Z)
+== venv docform-cu12-312: numpy from PyPI, then --no-deps dyng dyng-cu12 from the index (2026-10-27T20:21:15Z)
 rc=0 numpy 312
 rc=0 docform-cu12 install 312
 rc=0 hypothesis docform-cu12-312
@@ -357,7 +357,7 @@ ok  docs/how_to/use_hypergraphs_from_python.md:47 hypergraph-python-apply
 ok  docs/how_to/use_hypergraphs_from_python.md:131 hypergraph-python-hypothesis
 ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets docform-cu12-312
-== venv docform-cpu-313: -i <index> --extra-index-url PyPI dyng==0.3.0rc1 (2026-10-23T11:41:59Z)
+== venv docform-cpu-313: -i <index> --extra-index-url PyPI dyng==0.3.0rc1 (2026-10-27T20:21:34Z)
 rc=0 docform-cpu install 313
 rc=0 hypothesis docform-cpu-313
 rc=0 README quickstart docform-cpu-313
@@ -374,7 +374,7 @@ ok  docs/how_to/use_hypergraphs_from_python.md:47 hypergraph-python-apply
 ok  docs/how_to/use_hypergraphs_from_python.md:131 hypergraph-python-hypothesis
 ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets docform-cpu-313
-== venv docform-cu13-313: numpy from PyPI, then --no-deps dyng dyng-cu13 from the index (2026-10-23T11:42:11Z)
+== venv docform-cu13-313: numpy from PyPI, then --no-deps dyng dyng-cu13 from the index (2026-10-27T20:21:48Z)
 rc=0 numpy 313
 rc=0 docform-cu13 install 313
 rc=0 hypothesis docform-cu13-313
@@ -392,7 +392,7 @@ ok  docs/how_to/use_hypergraphs_from_python.md:47 hypergraph-python-apply
 ok  docs/how_to/use_hypergraphs_from_python.md:131 hypergraph-python-hypothesis
 ok  docs/how_to/use_hypergraphs_from_python.md:166 hypergraph-python-update
 rc=0 doc snippets docform-cu13-313
-== venv docform-cu12-313: numpy from PyPI, then --no-deps dyng dyng-cu12 from the index (2026-10-23T11:42:28Z)
+== venv docform-cu12-313: numpy from PyPI, then --no-deps dyng dyng-cu12 from the index (2026-10-27T20:22:08Z)
 rc=0 numpy 313
 rc=0 docform-cu12 install 313
 rc=0 hypothesis docform-cu12-313

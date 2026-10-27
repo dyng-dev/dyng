@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r030-fix/final/check-parity.log (sha256 46102c7235ef3565a9ddfbb0b5c65b4802a53b5baa89ae4f239419cb0e3146cd, 1287961 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r030-tagday/check-parity.log (sha256 66083fa35643e767aa4725b3c72424184d9e395e0a7e241c1460ef1b4c2e7715, 1288354 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -192,22 +192,22 @@ provenance: OK (271 files checked)
 test data: 1,002,671 bytes in 1481 tracked files under cpp/tests/data (budget 1,250,000 bytes): OK
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-356 passed in 148.49s (0:02:28)
+356 passed in 192.72s (0:03:12)
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
-==> pip install -e . into /home/sskg8/Projects/dyng-work/r030/fix/clone-repo/build/py-venv (build directory build/)
-==> installed: 0.3.0rc1 /home/sskg8/Projects/dyng-work/r030/fix/clone-repo/python/dyng/__init__.py
+==> pip install -e . into /home/sskg8/Projects/dyng-work/r030/tagday/clone-repo/build/py-venv (build directory build/)
+==> installed: 0.3.0rc1 /home/sskg8/Projects/dyng-work/r030/tagday/clone-repo/python/dyng/__init__.py
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng and python/plugin/dyng_plugin
 ==> pytest python/tests
-736 passed, 81 skipped in 72.55s (0:01:12)
+736 passed, 81 skipped in 79.50s (0:01:19)
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> the frozen C++ API against origin/main (ci/api_snapshot.py --against)
 ==> griffe check dyng against origin/main (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.nVQuxV/src
+==> copy of the working tree in /tmp/dyng-scaffold.TOshQi/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 ==> scripts/new_algorithm.py --container hypergraph: one hypergraph algorithm of each family
 ==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)
