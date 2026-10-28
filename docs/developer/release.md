@@ -196,7 +196,10 @@ release's state:
   - **carried over**, when the library did not change since the release candidate's measured
     commits (`git diff <measured> HEAD` over the library paths is empty, which `certify.py
     write` verifies for every part in the paths of its scope): copy the release candidate's
-    directory, `cp -r benchmarks/results/X.Y.ZrcN benchmarks/results/X.Y.Z`, and run
+    directory's contents, `mkdir -p benchmarks/results/X.Y.Z && cp -r
+    benchmarks/results/X.Y.ZrcN/. benchmarks/results/X.Y.Z/` (the directory may already hold the
+    smoke test's log `checks/smoke-rc1.txt`, and a `cp -r` of the directory into an existing one
+    would nest it as `X.Y.Z/X.Y.ZrcN/`), and run
     `parity/certify.py write --version X.Y.Z` on the committed final tree. It checks every
     measured commit against the final commit in the paths of its scope and writes a
     `parity.json` naming `X.Y.Z` and the final commit. `VERSION`, `CHANGELOG.md` and
@@ -329,5 +332,7 @@ retrospective ({doc}`retrospectives/M5`), the R010 retrospective ({doc}`retrospe
 and the R011 retrospective, the final-release record ({doc}`retrospectives/R011`), and the R012
 retrospective, the tag day ({doc}`retrospectives/R012`). Those of 0.2.0 are in the R020
 retrospective, the release candidate ({doc}`retrospectives/R020`), and the R021 retrospective,
-its smoke test from TestPyPI and the final-release pull request ({doc}`retrospectives/R021`). That of
-0.3.0rc1 is in the R030 retrospective ({doc}`retrospectives/R030`).
+its smoke test from TestPyPI and the final-release pull request ({doc}`retrospectives/R021`). Those
+of 0.3.0 are in the R030 retrospective, the release candidate ({doc}`retrospectives/R030`), and
+the R031 retrospective, its smoke test from TestPyPI and the final-release pull request
+({doc}`retrospectives/R031`).
