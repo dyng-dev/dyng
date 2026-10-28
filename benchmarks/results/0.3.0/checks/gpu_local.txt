@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r031/cert/gpu_local.log (sha256 b9e7f2513cc0a433df0a63c47f43b049226f6dcb56abdd43370b0b5e4699684a, 1013356 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r031/cert/gpu_local.log (sha256 75ef660550833675f3454798a1793683f1ed637303074d7016a925bd3544de8d, 1013357 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> preset dev-cuda: configure and build
 ==> ctest -L gpu (GPU 1)
 100% tests passed out of 866
@@ -264,8 +264,8 @@ dist/dyng_cu13-0.3.0-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
 ok     dyng_cu13-0.3.0-cp312-abi3-manylinux_2_28_x86_64.whl (8.58 MB)
 ok     dyng-0.3.0-cp312-abi3-manylinux_2_28_x86_64.whl (2.11 MB)
 ==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r031/cert/clone-gpu/build/dev-cuda/plugin-wheels/venv-cu13-3.12)
-70 passed, 7 skipped, 740 deselected in 5.58s
-735 passed, 82 skipped in 67.03s (0:01:07)
+70 passed, 7 skipped, 740 deselected in 5.62s
+735 passed, 82 skipped in 67.37s (0:01:07)
 ==> plugin wheels in /home/sskg8/Projects/dyng-work/r031/cert/clone-gpu/build/dev-cuda/plugin-wheels/dist
 ==> clang-tidy (naming rules, library sources, CUDA branches)
 ### ci/gpu_local.sh: dev-cuda

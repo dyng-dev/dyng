@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r031/cert/check-parity.log (sha256 8a800283986bb1b768c86e77c5b16fa0f0a1c0cdff26a7f311134cef3ec2474e, 1288077 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r031/cert/check-parity.log (sha256 1482ded3658b79991e14986f42e6a2d6a6c3a0f7aded8072759bc38017b10a34, 1288077 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -192,7 +192,7 @@ provenance: OK (271 files checked)
 test data: 1,002,671 bytes in 1481 tracked files under cpp/tests/data (budget 1,250,000 bytes): OK
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-356 passed in 193.52s (0:03:13)
+356 passed in 182.00s (0:03:01)
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
@@ -201,13 +201,13 @@ harness: OK
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng and python/plugin/dyng_plugin
 ==> pytest python/tests
-736 passed, 81 skipped in 80.46s (0:01:20)
+736 passed, 81 skipped in 79.87s (0:01:19)
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> the frozen C++ API against origin/main (ci/api_snapshot.py --against)
 ==> griffe check dyng against origin/main (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.FVu3xt/src
+==> copy of the working tree in /tmp/dyng-scaffold.wDIH8V/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 ==> scripts/new_algorithm.py --container hypergraph: one hypergraph algorithm of each family
 ==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)

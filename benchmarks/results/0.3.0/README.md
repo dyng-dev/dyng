@@ -19,9 +19,10 @@ verified for every part in the paths of its scope. This certificate's measured c
 `d803284` (the golden replays, the performance gates and the golden mutations, `library` scope,
 plus `cpp/tests` for the golden mutations of the GoogleTest suites), `669fa60` (the hosted
 sanitizer jobs of pull request #18, `library` scope), `d77620b` (the `tests` checks run again on
-the final tree, below; the review's fixes after it changed no path of the `tests` scope) and
-`1a509a1` (the `packaging` and `repo` checks run again after those fixes, whose diff to the final
-commit outside this directory is empty); `git diff`
+the final tree, below; the review's fixes and the acceptance review's fix after it changed no
+path of the `tests` scope) and `9fff2a8` (the `packaging` and `repo` checks run a third time,
+after the acceptance review's fix, whose diff to the final commit outside this directory is
+empty); `git diff`
 from each to the final commit touches no path of its scope. `a0f7177` (the release candidate's
 sanitizer presets and mutation CTests), `7e918a2` (its tag day's re-run checks) and `177df79`
 (the head of its first hosted sanitizer run) are not measured here: their records were replaced.
@@ -35,8 +36,10 @@ sanitizer presets and mutation CTests), `7e918a2` (its tag day's re-run checks) 
   (`python/tests/test_triad_count_cli.py`, the documented `--format escher` output) and
   documents changed (R031, `docs/developer/retrospectives/R031.md`), none a library path.
 - **Run again on the final tree** from fresh clones of the branch `release-0.3.0-final`: the
-  `packaging` and `repo` checks at `1a509a1`, the last commit outside this directory (first run at
-  `d77620b`, then again after the review's fixes of the pull request's branch, R031), the `tests`
+  `packaging` and `repo` checks at `9fff2a8`, the last commit outside this directory (first run at
+  `d77620b`, again at `1a509a1` after the review's fixes of the pull request's branch, and a third
+  time after the acceptance review's fix: `docs/developer/plan.md`'s status line dated
+  2026-10-29, `c31bda5`, and `docs/developer/retrospectives/R031.md`; R031), the `tests`
   checks at `d77620b`; concurrently under the shared lock and never
   during a timing run, and recorded with `certify.py check --version 0.3.0` in place of the
   release candidate's records of the same names (logs under `$DYNG_SCRATCH/runs/r031/cert/`, the
@@ -68,8 +71,14 @@ sanitizer presets and mutation CTests), `7e918a2` (its tag day's re-run checks) 
     known (another process on the shared machine or the sanitizer are the candidates). Nothing
     was changed: the whole of `ci/gpu_local.sh` was run again from a fresh clone of `1a509a1`
     (09:44-13:26 UTC, every step passed, with a 30-second monitor of the GPUs' processes), and
-    that run is the `gpu_local` record (logs `gpu_local-1a509a1-run1-failed.log`,
-    `cbst-scenario-racecheck-rerun1..3.log` and `gpu-monitor-1a509a1-run2.log` beside it);
+    that run was the `gpu_local` record at `1a509a1` (logs `gpu_local-1a509a1-run1-failed.log`,
+    `gpu_local-1a509a1.log`, `cbst-scenario-racecheck-rerun1..3.log` and
+    `gpu-monitor-1a509a1-run2.log` beside it; R031 deviation 7, an open item for 0.4.0). The
+    run at `9fff2a8`, after the acceptance review's fix (14:29-18:17 UTC, concurrently with the
+    `distributions` and `check-parity` runs under the shared lock, with the same monitor of GPU
+    1, `gpu-monitor-9fff2a8.log`, whose samples show only dynG's own test processes), passed
+    every step at its first attempt and is the `gpu_local` record; the logs of the `1a509a1` runs of the
+    `packaging` and `repo` checks are kept beside the new ones with the suffix `-1a509a1`;
   - the `tests` checks `asan`, `tsan`, `tsan-openmp` and `mutation-ctests`, because `README.md`,
     whose C++ quickstart is a test, changed (its status block and install lines; the C++
     quickstart itself did not); at `d77620b`, whose `tests`-scope paths are the final commit's.
@@ -128,7 +137,7 @@ performance gates and golden mutations (at `d803284`) are the ones carried over 
 distributions of `v0.3.0rc1`, `ci/check.sh --parity`, `ci/api_check.sh e6f87ed` and
 `ci/gpu_local.sh` at `7e918a2`, and the hosted `sanitizers.yml` run 40568804466 at `177df79` were
 replaced in this directory's `checks.json` and `checks/` by the R031 runs at `d77620b` and
-`1a509a1` listed in "Carried over from 0.3.0rc1" above (the distributions of `v0.3.0`,
+`9fff2a8` listed in "Carried over from 0.3.0rc1" above (the distributions of `v0.3.0`,
 `ci/api_check.sh 20bc2d0`) and by the hosted run 40603416606 at `669fa60`. The statements below about which check records
 stand, and at which commits, are the release candidate's; the generated tables at the end of this
 page are this certificate's.
