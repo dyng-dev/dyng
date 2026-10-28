@@ -335,8 +335,8 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
   {doc}`roadmap <../roadmap>`).
 - **Host memory exhaustion** is `out_of_memory_error` on every backend, with the guarantee of
   `update()`'s documentation (the hypergraph poisoned when the failure is inside the commit, the
-  result then unchanged): since 0.3.0rc1 also inside the hypergraph container's OpenMP loops,
-  which ended the process with `std::terminate` before (D13; {doc}`ADR 0061
+  result then unchanged), also inside the hypergraph container's OpenMP loops, which ended the
+  process with `std::terminate` before the release candidate 0.3.0rc1 (D13; {doc}`ADR 0061
   <../adr/0061-exceptions-out-of-openmp-regions>`).
 
 ## 7. Differences from the paper

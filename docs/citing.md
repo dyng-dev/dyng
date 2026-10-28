@@ -13,8 +13,9 @@ algorithm you use**.
 
 From C++, `dyng::citation("sssp")` returns the BibTeX entries of an algorithm and
 `dyng::citation()` all of them. GitHub's "Cite this repository" button uses `CITATION.cff`.
-The releases so far, 0.1.0, 0.2.0 and 0.3.0, have no DOI (they are not archived on Zenodo); cite dynG by version, `CITATION.cff` and the repository URL. Once
-Zenodo is connected, each release published after that gets a DOI.
+The releases so far, 0.1.0, 0.2.0 and 0.3.0, have no DOI (they are not archived on Zenodo);
+cite dynG by version, `CITATION.cff` and the repository URL. Once Zenodo is connected, each
+release published after that gets a DOI.
 
 ## References
 

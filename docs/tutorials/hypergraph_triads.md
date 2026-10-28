@@ -7,9 +7,8 @@ output. It takes about 15 minutes.
 
 You need dynG 0.3 or newer installed ({doc}`../getting_started/install`): for C++ a compiler and
 CMake, for Python `pip install "dyng>=0.3"` (the hypergraph and `triad_count` are new in 0.3;
-until 0.3.0 is on PyPI, take the release candidate's lines of the install page's "Python"
-section, since a plain `pip install dyng` gives 0.2.0, which has neither). You should know what a
-hypergraph is ({doc}`../concepts/hypergraphs`).
+an environment with 0.2.0, which has neither, needs `pip install -U dyng`). You should know what
+a hypergraph is ({doc}`../concepts/hypergraphs`).
 The algorithm is {doc}`../algorithms/triad_count`; this page shows how to use it.
 
 The code is two example programs, `examples/cpp/triad_count_update.cpp` and
@@ -28,7 +27,7 @@ run every command of this page from its root (the tag of your version keeps the 
 page quotes them):
 
 ```bash
-git clone --branch v0.3.0rc1 https://github.com/dyng-dev/dyng.git
+git clone --branch v0.3.0 https://github.com/dyng-dev/dyng.git
 cd dyng
 ```
 

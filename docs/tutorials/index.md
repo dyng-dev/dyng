@@ -19,10 +19,10 @@ Planned, each written when its code exists:
 
 | Tutorial | Release |
 |---|---|
-| Dynamic SSSP in Python in 10 minutes | 0.2.x |
-| Cycle counting on a changing graph | 0.2.x |
+| Dynamic SSSP in Python in 10 minutes | later (planned for 0.2.x, which was not made) |
+| Cycle counting on a changing graph | later (planned for 0.2.x, which was not made) |
 | **Aggregate deltas** (`triangle_delta`: signed recounts with an ownership rule; the code and its page exist since 0.2) | later |
-| MOSP with preferences | 0.2.x |
+| MOSP with preferences | later (planned for 0.2.x, which was not made) |
 | **Hypergraph triads** (`triad_count`, in C++ and Python): delivered, {doc}`hypergraph_triads` | 0.3 |
 | **Count a new hypergraph pattern (an Op)** (`experimental::count_local_patterns`): delivered, {doc}`count_a_new_hypergraph_pattern` | 0.3 |
 | Streaming label propagation | 0.4 |

@@ -343,4 +343,4 @@ the magic `MOSPCSR2`; a uint32 length L and L bytes of source identity (for each
 modification time as libstdc++'s `file_time_type` counts it, nanoseconds since 2174-01-01, each
 followed by a newline); int32 n and K; int64 m; then n + 1 int32 row offsets, m int32 column
 indices and m * K int32 weights, edge-major. `dyng prep cache` writes the same bytes as
-`mospPrep cache`. A versioned cache format of dynG's own (`.dgc`) is planned, not in 0.1 or 0.2.
+`mospPrep cache`. A versioned cache format of dynG's own (`.dgc`) is planned, not in 0.1, 0.2 or 0.3.
