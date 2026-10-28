@@ -38,9 +38,9 @@ The properties are keywords (or a `dyng.HypergraphProperties`): `line_graph="non
 "default" | "escher_gpu" | "mosp_escher"` (or a `dyng.CapacityPolicy`, e.g.
 `dyng.CapacityPolicy.mosp_escher(extra=1 << 20)`), `store_v2h=True`. A hypergraph belongs to the
 backend of its resources: `resources=dyng.Resources("openmp")`, or `dyng.Resources.cuda()` with a
-CUDA plugin of the same version as `dyng` (the lines of {doc}`../getting_started/install`,
-"CUDA from Python": `pip install "dyng[cu13]"` for a release on PyPI, TestPyPI's for a release
-candidate); `h.to_backend(res)` copies it to another backend.
+CUDA plugin of the same version as `dyng` (`pip install "dyng[cu13]"`,
+{doc}`../getting_started/install`, "CUDA from Python"); `h.to_backend(res)` copies it to another
+backend.
 
 ## Apply batches and read the ids
 
