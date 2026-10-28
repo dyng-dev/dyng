@@ -11,7 +11,7 @@ change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in 
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
 
-Status: 2026-10-22. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
+Status: 2026-10-29. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
 conformance kit and the 0.1 API freeze), M4 (this infrastructure) and M5 (the Python package, a
 CPU wheel, the `dyng` command line and the documentation of 0.1; pull request #4, merged at
 `8842acf`) are done and merged into `main`. **0.1.0 is released**: the release preparation R010
