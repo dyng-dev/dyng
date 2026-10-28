@@ -6,32 +6,24 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 
 ## Where we are
 
-**0.2.0 is released** (`pip install dyng`; with the CUDA backend `pip install "dyng[cu13]"` or
-`"dyng[cu12]"`, upgrading from 0.1.0 with `pip install -U`, {doc}`getting_started/install`; the
-release checklist is {doc}`developer/release`). Everything listed for 0.2.0 below is done:
-`mosp` is stable from 0.2.0 (the author's decision of 2026-10-07), byte-identical to the
-original MOSP-OpenMP and MOSP-CUDA codes and within its own release gates against them, and the
-CUDA backend comes from PyPI as the plugin wheels `dyng-cu12` and `dyng-cu13`. The parity
-certificate of the release is `benchmarks/results/0.2.0/`, carried over from the release
-candidate 0.2.0rc1, which was published on TestPyPI only.
+**0.3.0 is released** (`pip install dyng`; with the CUDA backend `pip install "dyng[cu13]"` or
+`"dyng[cu12]"`, upgrading from 0.2.0 or 0.1.0 with `pip install -U`,
+{doc}`getting_started/install`; the release checklist is {doc}`developer/release`). Everything
+listed for 0.3.0 below is done: the dynamic hypergraph, `triad_count` (C++, Python and the
+command line) and the file formats `.hg`, `.dgb` and the triad bins at version 1 are stable from
+0.3.0 (the author's decision of 2026-10-22), `triad_count` is exact against the original
+ESCHER-GPU code and within its release gates against it, and `count_local_patterns` is
+experimental. The parity certificate of the release is `benchmarks/results/0.3.0/`, carried over
+from the release candidate 0.3.0rc1, which was published on TestPyPI only. `label_propagation`
+and `hyper_sssp` follow as 0.4.0.
 
-The hypergraph and `triad_count` make **0.3.0**, whose release candidate **0.3.0rc1** is
-prepared on the branch `release-0.3.0` (TestPyPI only: `pip install -i
-https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.3.0rc1`; with
-the CUDA plugin, `pip install "numpy>=1.26"`, then `pip install -i https://test.pypi.org/simple/
---no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1"`, {doc}`getting_started/install`). Everything
-listed for 0.3.0 below is in it; the hypergraph, `triad_count` (C++, Python and the command
-line) and the file formats `.hg`, `.dgb` and the triad bins at version 1 are stable from 0.3.0
-(the author's decision of 2026-10-22), with `triad_count`'s release gates against ESCHER-GPU in
-the certificate `benchmarks/results/0.3.0rc1/`. As for 0.2.0, the AI assistant pushes the tags
-and creates the GitHub Release on the author's behalf, and the author merges the release pull
-requests and approves the three PyPI uploads (`dyng-cu12` and `dyng-cu13`, then `dyng`;
-{doc}`developer/release`). `label_propagation` and `hyper_sssp` follow as 0.4.0.
-
-Before it, **0.1.0** (2026-10-02) made `sssp` and `cycle_count` work on all three backends,
-byte-identical to the original codes on their golden corpora and within the performance gates
-against them (certificate `benchmarks/results/0.1.0/`), with the Python package, the `dyng`
-command line and the documentation. After 0.1.0 the releases come in smaller steps (the
+Before it, **0.2.0** (2026-10-14) made `mosp` stable (the author's decision of 2026-10-07),
+byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes and within its own release gates
+against them, and brought the CUDA backend to PyPI as the plugin wheels `dyng-cu12` and
+`dyng-cu13` (certificate `benchmarks/results/0.2.0/`). **0.1.0** (2026-10-02) made `sssp` and
+`cycle_count` work on all three backends, byte-identical to the original codes on their golden
+corpora and within the performance gates against them (certificate `benchmarks/results/0.1.0/`),
+with the Python package, the `dyng` command line and the documentation. After 0.1.0 the releases come in smaller steps (the
 author's decision of 2026-10-02): the hardening planned as 0.1.x and `mosp` made 0.2.0.
 
 ## 0.1.0: the first release
@@ -57,9 +49,10 @@ author's decision of 2026-10-02): the hardening planned as 0.1.x and `mosp` made
 - Fuzzers for the file readers, mutation checks of the golden suites, sanitizer jobs (ASan,
   UBSan, TSan) on every pull request.
 
-After 0.2.0, in 0.2.x releases: the Python tutorials (dynamic SSSP in ten minutes, cycle
-counting on a changing graph, MOSP with preferences). A citable DOI per release needs Zenodo,
-which the author may connect later (checkpoint A4); it is not part of 0.2.0, and 0.1.0 has none.
+Planned after 0.2.0 for 0.2.x releases, of which none was made, and not yet assigned to a later
+release: the Python tutorials (dynamic SSSP in ten minutes, cycle counting on a changing graph,
+MOSP with preferences). A citable DOI per release needs Zenodo, which the author may connect
+later (checkpoint A4); it is not part of 0.2.0 or 0.3.0, and 0.1.0 has none.
 
 ## 0.3.0: the dynamic hypergraph
 
@@ -86,7 +79,8 @@ tutorials, and `triad_count` frozen and `stable`, its gates read again on M9b's 
 done.** The release preparation of 0.3.0 (R030) makes the hypergraph surface, `triad_count`
 (C++, Python and the command line) and the formats `.hg`, `.dgb` and the triad bins at version 1
 stable (the author's decision of 2026-10-22), fixes the container's OpenMP allocation-failure
-defect (D13, ADR 0061), certifies 0.3.0rc1 and makes its release changes.
+defect (D13, ADR 0061), certifies 0.3.0rc1 and makes its release changes; the final-release pull
+request (R031) makes 0.3.0 from the release candidate, with no change to the library.
 
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
   views, hypergraph generators, and binary batch files (`.dgb`), from C++ and Python (done in
