@@ -96,6 +96,14 @@ triangles are not ported; `label_propagation` and `hyper_sssp` with 0.4.0; no DO
   `triad_count`, the `.hg`, `.dgb` and triad-bins formats, the hypergraph tutorials) describe
   them as released, stable from 0.3.0 as the author confirmed on 2026-10-22
   (`count_local_patterns` stays experimental).
+- Docs (the review of the final-release pull request): the upgrade line `pip install -U
+  "dyng[cu13]"` also on the PyPI project page (`python/README.md`) and in the prerequisites of
+  the tutorial "Hypergraph triads" (`pip install -U dyng` alone leaves a 0.2.0 plugin, which the
+  0.3.0 core does not load); the Python hypergraph how-to no longer points to the install page's
+  former TestPyPI lines; the `--format escher` transcripts of `dyng triad_count update` show the
+  `update_seconds=` line of standard error; `docs/developer/release.md` names the branch
+  `release-0.3.0-final` and lists `python/README.md` and the tutorials' prerequisites among the
+  pages with the upgrade line.
 - Added: `benchmarks/results/0.3.0/`, the certificate of the release, carried over from
   0.3.0rc1 (`docs/developer/release.md`, step 9): the library did not change since the measured
   commits, so the gates, the golden replays and the golden mutations stand; the checks of the
