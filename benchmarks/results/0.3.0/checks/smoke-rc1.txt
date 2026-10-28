@@ -1,0 +1,904 @@
+# Copy of $DYNG_SCRATCH/runs/r031/smoke-rc1.log (sha256 fea1115089f46f251a5be93819daeb5978fded6a822d8481eb55014878f889ec, 75168 bytes): the smoke test of 0.3.0rc1 and its CUDA plugins from TestPyPI (R031 step 1; $DYNG_SCRATCH/r031/run_smoke.sh and smoke_rc_cpu.py): the logs smoke-cpu, smoke-plugin-cu12, smoke-plugin-cu13, smoke-extras-cu12 and smoke-extras-cu13, the skip reasons of the GPU tests and of the CPU suite (skips-gpu, skips-cpu), and the step-10 rehearsal on the release run's artifact (step10-dryrun), concatenated with their colour codes and trailing blanks removed.
+=== CPU package, Python 3.12 (2026-10-28T00:14:03Z)
+pip 25.0.1 from /home/sskg8/Projects/dyng-work/r031/venv-cpu-3.12/lib/python3.12/site-packages/pip (python 3.12)
+Looking in indexes: https://test.pypi.org/simple/, https://pypi.org/simple/
+Collecting dyng==0.3.0rc1
+  Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Collecting numpy>=1.26 (from dyng==0.3.0rc1)
+  Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 13.3 MB/s eta 0:00:00
+Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 55.7 MB/s eta 0:00:00
+Installing collected packages: numpy, dyng
+Successfully installed dyng-0.3.0rc1 numpy-2.5.4
+Package Version
+------- --------
+dyng    0.3.0rc1
+numpy   2.5.4
+pip     25.0.1
+python 3.12.14 dyng 0.3.0rc1 from /home/sskg8/Projects/dyng-work/r031/venv-cpu-3.12/lib/python3.12/site-packages/dyng/__init__.py
+numpy 2.5.4
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no CUDA plugin is installed
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the CUDA plugins: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python')
+License-Expression: Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1
+Requires-Dist: ['numpy>=1.26', 'pytest>=8; extra == "test"', 'hypothesis>=6.100; extra == "test"', 'torch; extra == "torch"', 'pandas; extra == "pandas"', 'dyng-cu12==0.3.0rc1; extra == "cu12"', 'dyng-cu13==0.3.0rc1; extra == "cu13"', 'cupy-cuda12x; extra == "cupy-cu12"', 'cupy-cuda13x; extra == "cupy-cu13"']
+sequential triad_count (4, 30) -> (1, -3, 3) | type1 3
+sequential sssp [0, 4, 1, 5, 7] -> [0, 4, 1, 1, 3] | cycle_count ([0, 0, 1, 1, 0], 2) -> ([0, 0, 0, 1, 0], 1)
+sequential mosp costs[6] [10, 12, 10] -> [15, 3, 20] | parents [-1, 0, 0, 1, 3, 4, 4] -> [-1, 0, 0, 2, 3, 1, 5]
+sequential mosp update stats Stats(affected=4, iterations=6, frontier_visits=15, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), objectives=(Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=0, iterations=0, frontier_visits=0, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=0, epochs=0, pushes=0, packed_parents=True)), combined_edges=9, preference_scale=4)
+openmp triad_count (4, 30) -> (1, -3, 3) | type1 3
+openmp sssp [0, 4, 1, 5, 7] -> [0, 4, 1, 1, 3] | cycle_count ([0, 0, 1, 1, 0], 2) -> ([0, 0, 0, 1, 0], 1)
+openmp mosp costs[6] [10, 12, 10] -> [15, 3, 20] | parents [-1, 0, 0, 1, 3, 4, 4] -> [-1, 0, 0, 2, 3, 1, 5]
+openmp mosp update stats Stats(affected=4, iterations=6, frontier_visits=15, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), objectives=(Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=0, iterations=0, frontier_visits=0, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=0, epochs=0, pushes=0, packed_parents=True)), combined_edges=9, preference_scale=4)
+sequential == openmp: equal results
+@software{dyng2027,   author    = {Shovan, S. M.},   title     = {{dynG}
+@software{dyng2027,   author    = {Shovan, S. M.},   title     = {{dynG}
+SMOKE OK
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no CUDA plugin is installed
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the CUDA plugins: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python')
+dyng 0.3.0rc1
+compute 0.0887895 ms (3 objective(s))
+combined: L=4, reachable 7 of 7
+compute 0.688048 ms (3 objective(s))
+combined: L=4, reachable 7 of 7
+CLI: sequential == openmp
+0 0 0 0
+1 2 1 5
+2 4 1 1
+3 4 5 7
+4 5 6 8
+5 6 8 10
+6 10 12 10
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no CUDA plugin is installed
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+example triad_count (sequential) == expected
+example triad_count (openmp) == expected
+CLI triad_count: sequential == openmp
+{
+  "format": "dyng.triad_bins",
+  "version": 1,
+  "kind": "h_motif",
+  "num_bins": 30,
+  "graph_version": 0,
+  "counts": [0, 0, 0, 3, 0, 0, 6, 0, 0, 11, 0, 0, 0, 0, 24, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 11]
+}
+
+SKIPPED [1] python/tests/test_triad_count_cuda.py:101: needs a CUDA plugin module and a visible CUDA device
+SKIPPED [1] python/tests/test_triad_count_cuda.py:119: needs a CUDA plugin module and a visible CUDA device
+735 passed, 82 skipped in 64.75s (0:01:04)
+=== CPU package, Python 3.13 (2026-10-28T00:15:20Z)
+pip 26.2.1 from /home/sskg8/Projects/dyng-work/r031/venv-cpu-3.13/lib/python3.13/site-packages/pip (python 3.13)
+Looking in indexes: https://test.pypi.org/simple/, https://pypi.org/simple/
+Collecting dyng==0.3.0rc1
+  Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Collecting numpy>=1.26 (from dyng==0.3.0rc1)
+  Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 38.7 MB/s  0:00:00
+Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 64.1 MB/s  0:00:00
+Installing collected packages: numpy, dyng
+
+Successfully installed dyng-0.3.0rc1 numpy-2.5.4
+Package Version
+------- --------
+dyng    0.3.0rc1
+numpy   2.5.4
+pip     26.2.1
+python 3.13.15 dyng 0.3.0rc1 from /home/sskg8/Projects/dyng-work/r031/venv-cpu-3.13/lib/python3.13/site-packages/dyng/__init__.py
+numpy 2.5.4
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no CUDA plugin is installed
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the CUDA plugins: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python')
+License-Expression: Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1
+Requires-Dist: ['numpy>=1.26', 'pytest>=8; extra == "test"', 'hypothesis>=6.100; extra == "test"', 'torch; extra == "torch"', 'pandas; extra == "pandas"', 'dyng-cu12==0.3.0rc1; extra == "cu12"', 'dyng-cu13==0.3.0rc1; extra == "cu13"', 'cupy-cuda12x; extra == "cupy-cu12"', 'cupy-cuda13x; extra == "cupy-cu13"']
+sequential triad_count (4, 30) -> (1, -3, 3) | type1 3
+sequential sssp [0, 4, 1, 5, 7] -> [0, 4, 1, 1, 3] | cycle_count ([0, 0, 1, 1, 0], 2) -> ([0, 0, 0, 1, 0], 1)
+sequential mosp costs[6] [10, 12, 10] -> [15, 3, 20] | parents [-1, 0, 0, 1, 3, 4, 4] -> [-1, 0, 0, 2, 3, 1, 5]
+sequential mosp update stats Stats(affected=4, iterations=6, frontier_visits=15, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), objectives=(Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=0, iterations=0, frontier_visits=0, fallback_used=False, converged=True, engine_used='operators', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=0, epochs=0, pushes=0, packed_parents=True)), combined_edges=9, preference_scale=4)
+openmp triad_count (4, 30) -> (1, -3, 3) | type1 3
+openmp sssp [0, 4, 1, 5, 7] -> [0, 4, 1, 1, 3] | cycle_count ([0, 0, 1, 1, 0], 2) -> ([0, 0, 0, 1, 0], 1)
+openmp mosp costs[6] [10, 12, 10] -> [15, 3, 20] | parents [-1, 0, 0, 1, 3, 4, 4] -> [-1, 0, 0, 2, 3, 1, 5]
+openmp mosp update stats Stats(affected=4, iterations=6, frontier_visits=15, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), objectives=(Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=4, iterations=1, frontier_visits=4, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=4, epochs=0, pushes=4, packed_parents=True), Stats(affected=0, iterations=0, frontier_visits=0, fallback_used=False, converged=True, engine_used='fused', batch=ApplySummary(inserted_edges=2, updated_edges=0, deleted_edges=2, ignored_deletions=0, dropped_self_loops=0, cancelled_pairs=0, inserted_vertices=0, deleted_vertices=0, num_vertices_after=7, ignored_insertions=0), invalidated=0, epochs=0, pushes=0, packed_parents=True)), combined_edges=9, preference_scale=4)
+sequential == openmp: equal results
+@software{dyng2027,   author    = {Shovan, S. M.},   title     = {{dynG}
+@software{dyng2027,   author    = {Shovan, S. M.},   title     = {{dynG}
+SMOKE OK
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no CUDA plugin is installed
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the CUDA plugins: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python')
+dyng 0.3.0rc1
+compute 0.0903253 ms (3 objective(s))
+combined: L=4, reachable 7 of 7
+compute 0.654526 ms (3 objective(s))
+combined: L=4, reachable 7 of 7
+CLI: sequential == openmp
+0 0 0 0
+1 2 1 5
+2 4 1 1
+3 4 5 7
+4 5 6 8
+5 6 8 10
+6 10 12 10
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no CUDA plugin is installed
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+example triad_count (sequential) == expected
+example triad_count (openmp) == expected
+CLI triad_count: sequential == openmp
+{
+  "format": "dyng.triad_bins",
+  "version": 1,
+  "kind": "h_motif",
+  "num_bins": 30,
+  "graph_version": 0,
+  "counts": [0, 0, 0, 3, 0, 0, 6, 0, 0, 11, 0, 0, 0, 0, 24, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 11]
+}
+
+SKIPPED [1] python/tests/test_triad_count_cuda.py:101: needs a CUDA plugin module and a visible CUDA device
+SKIPPED [1] python/tests/test_triad_count_cuda.py:119: needs a CUDA plugin module and a visible CUDA device
+735 passed, 82 skipped in 64.35s (0:01:04)
+=== cpu : done (2026-10-28T00:16:35Z)
+=== dyng-cu12, Python 3.12 (2026-10-28T00:16:36Z)
+pip 25.0.1 from /home/sskg8/Projects/dyng-work/r031/venv-cu12-3.12/lib/python3.12/site-packages/pip (python 3.12)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting pytest>=8
+  Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+Collecting hypothesis==6.167.1
+  Downloading hypothesis-6.167.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.7 kB)
+Collecting sortedcontainers<3.0.0,>=2.1.0 (from hypothesis==6.167.1)
+  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Collecting iniconfig>=2 (from pytest>=8)
+  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting packaging>=24 (from pytest>=8)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pluggy<2,>=1.6 (from pytest>=8)
+  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting pygments>=2.15 (from pytest>=8)
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Downloading hypothesis-6.167.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 26.1 MB/s eta 0:00:00
+Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 51.1 MB/s eta 0:00:00
+Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 46.4 MB/s eta 0:00:00
+Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Installing collected packages: sortedcontainers, pygments, pluggy, packaging, numpy, iniconfig, hypothesis, pytest
+Successfully installed hypothesis-6.167.1 iniconfig-2.3.1 numpy-2.5.4 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0 sortedcontainers-2.4.0
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1
+  Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Collecting dyng-cu12==0.3.0rc1
+  Downloading https://test-files.pythonhosted.org/packages/56/fa/eaf7ea6bef5dd8cc32bcf44ddebdbcb463e10be64fc43b1f62db1940f4de/dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 39.3 MB/s eta 0:00:00
+Downloading https://test-files.pythonhosted.org/packages/56/fa/eaf7ea6bef5dd8cc32bcf44ddebdbcb463e10be64fc43b1f62db1940f4de/dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.3/8.3 MB 9.3 MB/s eta 0:00:00
+Installing collected packages: dyng-cu12, dyng
+Successfully installed dyng-0.3.0rc1 dyng-cu12-0.3.0rc1
+Package          Version
+---------------- --------
+dyng             0.3.0rc1
+dyng-cu12        0.3.0rc1
+hypothesis       6.167.1
+iniconfig        2.3.1
+numpy            2.5.4
+packaging        26.3
+pip              25.0.1
+pluggy           1.7.0
+Pygments         2.21.0
+pytest           9.2.0
+sortedcontainers 2.4.0
+--- plugin_smoke --expect cuda (GPU 1)
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng_cu12 (plugin cu12)
+  chosen because    : plugin cu12: the driver supports CUDA 13.1; no CUDA 13 plugin is installed, and CUDA 12 runs on it
+  backends          : sequential (yes), openmp (yes), cuda (yes)
+  default backend   : cuda
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu12, toolkit 12.9, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu12 (plugin cu12)); their arrays equal the sequential backend's
+--- plugin_smoke --expect fallback, no visible device
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): unusable (no CUDA device is visible)
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu12 0.3.0rc1: no CUDA device is visible
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu12._core imports without a driver: CUDA 12.9, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu12 0.3.0rc1 (unusable: no CUDA device is visible)
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- plugin_smoke --expect fallback, no CUDA driver
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12): unusable (no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 525.60.13 or newer for CUDA 12))
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu12 0.3.0rc1: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 525.60.13 or newer for CUDA 12)
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu12._core imports without a driver: CUDA 12.9, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu12 0.3.0rc1 (unusable: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 525.60.13 or newer for CUDA 12))
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- pytest -m gpu python/tests (GPU 1, DYNG_REQUIRE_CUDA=1)
+SKIPPED [2] python/tests/test_cuda.py:593: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:625: could not import 'cupy': No module named 'cupy'
+70 passed, 7 skipped, 740 deselected in 5.03s
+--- pytest python/tests with DYNG_CPU_ONLY=1
+SKIPPED [1] python/tests/test_triad_count_cuda.py:101: needs a CUDA plugin module and a visible CUDA device
+SKIPPED [1] python/tests/test_triad_count_cuda.py:119: needs a CUDA plugin module and a visible CUDA device
+735 passed, 82 skipped in 62.97s (0:01:02)
+=== dyng-cu12, Python 3.13 (2026-10-28T00:17:57Z)
+pip 26.2.1 from /home/sskg8/Projects/dyng-work/r031/venv-cu12-3.13/lib/python3.13/site-packages/pip (python 3.13)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting pytest>=8
+  Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+Collecting hypothesis==6.167.1
+  Downloading hypothesis-6.167.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.7 kB)
+Collecting sortedcontainers<3.0.0,>=2.1.0 (from hypothesis==6.167.1)
+  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Collecting iniconfig>=2 (from pytest>=8)
+  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting packaging>=24 (from pytest>=8)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pluggy<2,>=1.6 (from pytest>=8)
+  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting pygments>=2.15 (from pytest>=8)
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Downloading hypothesis-6.167.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 26.4 MB/s  0:00:00
+Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 30.7 MB/s  0:00:00
+Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 21.4 MB/s  0:00:00
+Installing collected packages: sortedcontainers, pygments, pluggy, packaging, numpy, iniconfig, hypothesis, pytest
+
+Successfully installed hypothesis-6.167.1 iniconfig-2.3.1 numpy-2.5.4 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0 sortedcontainers-2.4.0
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1
+  Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Collecting dyng-cu12==0.3.0rc1
+  Downloading dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 39.4 MB/s  0:00:00
+Downloading dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.3/8.3 MB 62.2 MB/s  0:00:00
+Installing collected packages: dyng-cu12, dyng
+
+Successfully installed dyng-0.3.0rc1 dyng-cu12-0.3.0rc1
+Package          Version
+---------------- --------
+dyng             0.3.0rc1
+dyng-cu12        0.3.0rc1
+hypothesis       6.167.1
+iniconfig        2.3.1
+numpy            2.5.4
+packaging        26.3
+pip              26.2.1
+pluggy           1.7.0
+Pygments         2.21.0
+pytest           9.2.0
+sortedcontainers 2.4.0
+--- plugin_smoke --expect cuda (GPU 1)
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng_cu12 (plugin cu12)
+  chosen because    : plugin cu12: the driver supports CUDA 13.1; no CUDA 13 plugin is installed, and CUDA 12 runs on it
+  backends          : sequential (yes), openmp (yes), cuda (yes)
+  default backend   : cuda
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu12, toolkit 12.9, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu12 (plugin cu12)); their arrays equal the sequential backend's
+--- plugin_smoke --expect fallback, no visible device
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): unusable (no CUDA device is visible)
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu12 0.3.0rc1: no CUDA device is visible
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu12._core imports without a driver: CUDA 12.9, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu12 0.3.0rc1 (unusable: no CUDA device is visible)
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- plugin_smoke --expect fallback, no CUDA driver
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12): unusable (no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 525.60.13 or newer for CUDA 12))
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu12 0.3.0rc1: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 525.60.13 or newer for CUDA 12)
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu12._core imports without a driver: CUDA 12.9, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu12 0.3.0rc1 (unusable: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 525.60.13 or newer for CUDA 12))
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- pytest -m gpu python/tests (GPU 1, DYNG_REQUIRE_CUDA=1)
+SKIPPED [2] python/tests/test_cuda.py:593: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:625: could not import 'cupy': No module named 'cupy'
+70 passed, 7 skipped, 740 deselected in 4.99s
+--- pytest python/tests with DYNG_CPU_ONLY=1
+SKIPPED [1] python/tests/test_triad_count_cuda.py:101: needs a CUDA plugin module and a visible CUDA device
+SKIPPED [1] python/tests/test_triad_count_cuda.py:119: needs a CUDA plugin module and a visible CUDA device
+735 passed, 82 skipped in 62.32s (0:01:02)
+=== plugin cu12: done (2026-10-28T00:19:16Z)
+=== dyng-cu13, Python 3.12 (2026-10-28T00:19:16Z)
+pip 25.0.1 from /home/sskg8/Projects/dyng-work/r031/venv-cu13-3.12/lib/python3.12/site-packages/pip (python 3.12)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting pytest>=8
+  Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+Collecting hypothesis==6.167.1
+  Downloading hypothesis-6.167.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.7 kB)
+Collecting sortedcontainers<3.0.0,>=2.1.0 (from hypothesis==6.167.1)
+  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Collecting iniconfig>=2 (from pytest>=8)
+  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting packaging>=24 (from pytest>=8)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pluggy<2,>=1.6 (from pytest>=8)
+  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting pygments>=2.15 (from pytest>=8)
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Downloading hypothesis-6.167.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 26.0 MB/s eta 0:00:00
+Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 50.6 MB/s eta 0:00:00
+Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 36.9 MB/s eta 0:00:00
+Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Installing collected packages: sortedcontainers, pygments, pluggy, packaging, numpy, iniconfig, hypothesis, pytest
+Successfully installed hypothesis-6.167.1 iniconfig-2.3.1 numpy-2.5.4 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0 sortedcontainers-2.4.0
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1
+  Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Collecting dyng-cu13==0.3.0rc1
+  Downloading https://test-files.pythonhosted.org/packages/b4/0b/be235ac4aa62a11b702b1a0e5b7e488b4b80d49af33fc38d373e11e299dd/dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 38.8 MB/s eta 0:00:00
+Downloading https://test-files.pythonhosted.org/packages/b4/0b/be235ac4aa62a11b702b1a0e5b7e488b4b80d49af33fc38d373e11e299dd/dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.7/8.7 MB 8.6 MB/s eta 0:00:00
+Installing collected packages: dyng-cu13, dyng
+Successfully installed dyng-0.3.0rc1 dyng-cu13-0.3.0rc1
+Package          Version
+---------------- --------
+dyng             0.3.0rc1
+dyng-cu13        0.3.0rc1
+hypothesis       6.167.1
+iniconfig        2.3.1
+numpy            2.5.4
+packaging        26.3
+pip              25.0.1
+pluggy           1.7.0
+Pygments         2.21.0
+pytest           9.2.0
+sortedcontainers 2.4.0
+--- plugin_smoke --expect cuda (GPU 1)
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng_cu13 (plugin cu13)
+  chosen because    : plugin cu13: it matches the driver's CUDA major (CUDA 13.1)
+  backends          : sequential (yes), openmp (yes), cuda (yes)
+  default backend   : cuda
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu13, toolkit 13.4, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu13 (plugin cu13)); their arrays equal the sequential backend's
+--- plugin_smoke --expect fallback, no visible device
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): unusable (no CUDA device is visible)
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu13 0.3.0rc1: no CUDA device is visible
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu13._core imports without a driver: CUDA 13.4, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu13 0.3.0rc1 (unusable: no CUDA device is visible)
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- plugin_smoke --expect fallback, no CUDA driver
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.12.14 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13): unusable (no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 580.65.06 or newer for CUDA 13))
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu13 0.3.0rc1: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 580.65.06 or newer for CUDA 13)
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu13._core imports without a driver: CUDA 13.4, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu13 0.3.0rc1 (unusable: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 580.65.06 or newer for CUDA 13))
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- pytest -m gpu python/tests (GPU 1, DYNG_REQUIRE_CUDA=1)
+SKIPPED [2] python/tests/test_cuda.py:593: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:625: could not import 'cupy': No module named 'cupy'
+70 passed, 7 skipped, 740 deselected in 4.88s
+--- pytest python/tests with DYNG_CPU_ONLY=1
+SKIPPED [1] python/tests/test_triad_count_cuda.py:101: needs a CUDA plugin module and a visible CUDA device
+SKIPPED [1] python/tests/test_triad_count_cuda.py:119: needs a CUDA plugin module and a visible CUDA device
+735 passed, 82 skipped in 62.67s (0:01:02)
+=== dyng-cu13, Python 3.13 (2026-10-28T00:20:37Z)
+pip 26.2.1 from /home/sskg8/Projects/dyng-work/r031/venv-cu13-3.13/lib/python3.13/site-packages/pip (python 3.13)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting pytest>=8
+  Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+Collecting hypothesis==6.167.1
+  Downloading hypothesis-6.167.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.7 kB)
+Collecting sortedcontainers<3.0.0,>=2.1.0 (from hypothesis==6.167.1)
+  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Collecting iniconfig>=2 (from pytest>=8)
+  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting packaging>=24 (from pytest>=8)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pluggy<2,>=1.6 (from pytest>=8)
+  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting pygments>=2.15 (from pytest>=8)
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Downloading hypothesis-6.167.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.5 MB/s  0:00:00
+Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 5.5 MB/s  0:00:03
+Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 9.3 MB/s  0:00:00
+Installing collected packages: sortedcontainers, pygments, pluggy, packaging, numpy, iniconfig, hypothesis, pytest
+
+Successfully installed hypothesis-6.167.1 iniconfig-2.3.1 numpy-2.5.4 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0 sortedcontainers-2.4.0
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1
+  Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Collecting dyng-cu13==0.3.0rc1
+  Downloading dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 37.2 MB/s  0:00:00
+Downloading dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.7/8.7 MB 56.3 MB/s  0:00:00
+Installing collected packages: dyng-cu13, dyng
+
+Successfully installed dyng-0.3.0rc1 dyng-cu13-0.3.0rc1
+Package          Version
+---------------- --------
+dyng             0.3.0rc1
+dyng-cu13        0.3.0rc1
+hypothesis       6.167.1
+iniconfig        2.3.1
+numpy            2.5.4
+packaging        26.3
+pip              26.2.1
+pluggy           1.7.0
+Pygments         2.21.0
+pytest           9.2.0
+sortedcontainers 2.4.0
+--- plugin_smoke --expect cuda (GPU 1)
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng_cu13 (plugin cu13)
+  chosen because    : plugin cu13: it matches the driver's CUDA major (CUDA 13.1)
+  backends          : sequential (yes), openmp (yes), cuda (yes)
+  default backend   : cuda
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu13, toolkit 13.4, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu13 (plugin cu13)); their arrays equal the sequential backend's
+--- plugin_smoke --expect fallback, no visible device
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): unusable (no CUDA device is visible)
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu13 0.3.0rc1: no CUDA device is visible
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu13._core imports without a driver: CUDA 13.4, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu13 0.3.0rc1 (unusable: no CUDA device is visible)
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- plugin_smoke --expect fallback, no CUDA driver
+plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+dynG 0.3.0rc1
+  native module     : dyng._core
+  chosen because    : no installed CUDA plugin can be used (see the plugins)
+  backends          : sequential (yes), openmp (yes), cuda (no)
+  default backend   : openmp
+  OpenMP threads    : 4 (OpenMP 201511)
+  built with        : GNU 14.2.1, Release
+  Python / NumPy    : 3.13.15 / 2.5.4
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : not in this module (the CPU wheel); the installed CUDA plugins are not used (see the plugin lines below)
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13): unusable (no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 580.65.06 or newer for CUDA 13))
+plugin_smoke: the warning:
+dyng: a CUDA plugin is installed but cannot be used, so dynG runs on the CPU module dyng._core (sequential and OpenMP backends; Resources.cuda() is not available):
+  dyng_cu13 0.3.0rc1: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 580.65.06 or newer for CUDA 13)
+  (dyng.show_config() shows the choice; set DYNG_CPU_ONLY=1 or call dyng.use_cpu_only() to choose the CPU module without this warning)
+plugin_smoke: dyng_cu13._core imports without a driver: CUDA 13.4, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120, runtime static
+plugin_smoke: Resources.cuda() on the CPU module: NotSupportedError: dyng.Resources.cuda: the active native module is dyng._core, the CPU module (sequential and OpenMP backends); the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: the plugins of the pre-release 0.3.0rc1 are on TestPyPI only (pip install "dyng[cu13]" would replace it with the latest release from PyPI): pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1" (or "dyng-cu12==0.3.0rc1"), NumPy first from PyPI (the install page, 'Python'). With a plugin installed, dyng.show_config() says why it is not used (docs: getting started, 'Install', section 'Python'). Installed CUDA plugins: dyng_cu13 0.3.0rc1 (unusable: no CUDA driver: libcuda.so.1 cannot be loaded (install the NVIDIA driver, 580.65.06 or newer for CUDA 13))
+plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the CPU backends
+--- pytest -m gpu python/tests (GPU 1, DYNG_REQUIRE_CUDA=1)
+SKIPPED [2] python/tests/test_cuda.py:593: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:625: could not import 'cupy': No module named 'cupy'
+70 passed, 7 skipped, 740 deselected in 4.93s
+--- pytest python/tests with DYNG_CPU_ONLY=1
+SKIPPED [1] python/tests/test_triad_count_cuda.py:101: needs a CUDA plugin module and a visible CUDA device
+SKIPPED [1] python/tests/test_triad_count_cuda.py:119: needs a CUDA plugin module and a visible CUDA device
+735 passed, 82 skipped in 62.50s (0:01:02)
+=== plugin cu13: done (2026-10-28T00:21:59Z)
+=== dyng[cu12], Python 3.12 (2026-10-28T00:21:59Z)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 53.2 MB/s eta 0:00:00
+Installing collected packages: numpy
+Successfully installed numpy-2.5.4
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1 (from dyng[cu12]==0.3.0rc1)
+  Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Requirement already satisfied: numpy>=1.26 in ./r031/venv-extras-cu12-3.12/lib/python3.12/site-packages (from dyng==0.3.0rc1->dyng[cu12]==0.3.0rc1) (2.5.4)
+Collecting dyng-cu12==0.3.0rc1 (from dyng[cu12]==0.3.0rc1)
+  Downloading https://test-files.pythonhosted.org/packages/56/fa/eaf7ea6bef5dd8cc32bcf44ddebdbcb463e10be64fc43b1f62db1940f4de/dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 39.4 MB/s eta 0:00:00
+Downloading https://test-files.pythonhosted.org/packages/56/fa/eaf7ea6bef5dd8cc32bcf44ddebdbcb463e10be64fc43b1f62db1940f4de/dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.3/8.3 MB 62.0 MB/s eta 0:00:00
+Installing collected packages: dyng, dyng-cu12
+Successfully installed dyng-0.3.0rc1 dyng-cu12-0.3.0rc1
+Package   Version
+--------- --------
+dyng      0.3.0rc1
+dyng-cu12 0.3.0rc1
+numpy     2.5.4
+pip       25.0.1
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu12, toolkit 12.9, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu12 (plugin cu12)); their arrays equal the sequential backend's
+=== dyng[cu12], Python 3.13 (2026-10-28T00:22:06Z)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 56.3 MB/s  0:00:00
+Installing collected packages: numpy
+Successfully installed numpy-2.5.4
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1 (from dyng[cu12]==0.3.0rc1)
+  Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Requirement already satisfied: numpy>=1.26 in ./r031/venv-extras-cu12-3.13/lib/python3.13/site-packages (from dyng==0.3.0rc1->dyng[cu12]==0.3.0rc1) (2.5.4)
+Collecting dyng-cu12==0.3.0rc1 (from dyng[cu12]==0.3.0rc1)
+  Downloading dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 39.8 MB/s  0:00:00
+Downloading dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.3/8.3 MB 78.7 MB/s  0:00:00
+Installing collected packages: dyng, dyng-cu12
+
+Successfully installed dyng-0.3.0rc1 dyng-cu12-0.3.0rc1
+Package   Version
+--------- --------
+dyng      0.3.0rc1
+dyng-cu12 0.3.0rc1
+numpy     2.5.4
+pip       26.2.1
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu12, toolkit 12.9, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu12 (plugin cu12)); their arrays equal the sequential backend's
+=== extras cu12: done (2026-10-28T00:22:13Z)
+=== dyng[cu13], Python 3.12 (2026-10-28T00:22:13Z)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 55.9 MB/s eta 0:00:00
+Installing collected packages: numpy
+Successfully installed numpy-2.5.4
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1 (from dyng[cu13]==0.3.0rc1)
+  Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Requirement already satisfied: numpy>=1.26 in ./r031/venv-extras-cu13-3.12/lib/python3.12/site-packages (from dyng==0.3.0rc1->dyng[cu13]==0.3.0rc1) (2.5.4)
+Collecting dyng-cu13==0.3.0rc1 (from dyng[cu13]==0.3.0rc1)
+  Downloading https://test-files.pythonhosted.org/packages/b4/0b/be235ac4aa62a11b702b1a0e5b7e488b4b80d49af33fc38d373e11e299dd/dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading https://test-files.pythonhosted.org/packages/d6/8d/f483afc3088a1e03193082e44be895e75b79cd83849247d76171869d58fc/dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 36.1 MB/s eta 0:00:00
+Downloading https://test-files.pythonhosted.org/packages/b4/0b/be235ac4aa62a11b702b1a0e5b7e488b4b80d49af33fc38d373e11e299dd/dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.7/8.7 MB 58.7 MB/s eta 0:00:00
+Installing collected packages: dyng, dyng-cu13
+Successfully installed dyng-0.3.0rc1 dyng-cu13-0.3.0rc1
+Package   Version
+--------- --------
+dyng      0.3.0rc1
+dyng-cu13 0.3.0rc1
+numpy     2.5.4
+pip       25.0.1
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu13, toolkit 13.4, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu13 (plugin cu13)); their arrays equal the sequential backend's
+=== dyng[cu13], Python 3.13 (2026-10-28T00:22:20Z)
+Collecting numpy>=1.26
+  Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Downloading numpy-2.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 56.8 MB/s  0:00:00
+Installing collected packages: numpy
+Successfully installed numpy-2.5.4
+Looking in indexes: https://test.pypi.org/simple/
+Collecting dyng==0.3.0rc1 (from dyng[cu13]==0.3.0rc1)
+  Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (5.4 kB)
+Requirement already satisfied: numpy>=1.26 in ./r031/venv-extras-cu13-3.13/lib/python3.13/site-packages (from dyng==0.3.0rc1->dyng[cu13]==0.3.0rc1) (2.5.4)
+Collecting dyng-cu13==0.3.0rc1 (from dyng[cu13]==0.3.0rc1)
+  Downloading dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl.metadata (3.9 kB)
+Downloading dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 39.8 MB/s  0:00:00
+Downloading dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.7/8.7 MB 61.5 MB/s  0:00:00
+Installing collected packages: dyng, dyng-cu13
+
+Successfully installed dyng-0.3.0rc1 dyng-cu13-0.3.0rc1
+Package   Version
+--------- --------
+dyng      0.3.0rc1
+dyng-cu13 0.3.0rc1
+numpy     2.5.4
+pip       26.2.1
+  platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+  CUDA              : plugin cu13, toolkit 13.4, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+  CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): chosen
+plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu13 (plugin cu13)); their arrays equal the sequential backend's
+=== extras cu13: done (2026-10-28T00:22:27Z)
+=== skip reasons: pytest -m gpu, venv-cu13-3.12 (GPU 1, DYNG_REQUIRE_CUDA=1) (2026-10-28T00:25:14Z)
+SKIPPED [1] python/tests/test_cuda.py:458: could not import 'torch': No module named 'torch'
+SKIPPED [1] python/tests/test_cuda.py:504: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:546: needs PyTorch or CuPy
+SKIPPED [1] python/tests/test_cuda.py:560: could not import 'cupy': No module named 'cupy'
+SKIPPED [2] python/tests/test_cuda.py:593: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:625: could not import 'cupy': No module named 'cupy'
+70 passed, 7 skipped, 740 deselected in 5.01s
+=== skip reasons: pytest -m gpu, venv-cu12-3.13
+SKIPPED [1] python/tests/test_cuda.py:458: could not import 'torch': No module named 'torch'
+SKIPPED [1] python/tests/test_cuda.py:504: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:546: needs PyTorch or CuPy
+SKIPPED [1] python/tests/test_cuda.py:560: could not import 'cupy': No module named 'cupy'
+SKIPPED [2] python/tests/test_cuda.py:593: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_cuda.py:625: could not import 'cupy': No module named 'cupy'
+70 passed, 7 skipped, 740 deselected in 4.89s
+=== skip reasons: pytest python/tests, venv-cpu-3.12 (2026-10-28T00:25:33Z)
+      1 735 passed, 82 skipped in 62.96s (0:01:02)
+      1 SKIPPED [10] python/tests/test_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [12] python/tests/test_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [1] python/tests/test_arrays.py: could not import 'cupy': No module named 'cupy'
+      1 SKIPPED [1] python/tests/test_arrays.py: could not import 'torch': No module named 'torch'
+      1 SKIPPED [1] python/tests/test_batch.py: could not import 'torch': No module named 'torch'
+      1 SKIPPED [1] python/tests/test_cli.py: dyng-compat-mosp is not built in this checkout (build/dev, build/parity)
+     17 SKIPPED [1] python/tests/test_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [1] python/tests/test_examples.py: needs a CUDA plugin module and a visible CUDA device
+      4 SKIPPED [1] python/tests/test_hypergraph_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [1] python/tests/test_profiler.py: could not import 'pandas': No module named 'pandas'
+      4 SKIPPED [1] python/tests/test_triad_count_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      3 SKIPPED [2] python/tests/test_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [2] python/tests/test_hypergraph_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [3] python/tests/test_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      2 SKIPPED [4] python/tests/test_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [4] python/tests/test_triad_count_cuda.py: needs a CUDA plugin module and a visible CUDA device
+      1 SKIPPED [6] python/tests/test_cuda.py: needs a CUDA plugin module and a visible CUDA device
+=== the gpu-marked tests in this suite:
+77/817 tests collected (740 deselected) in 0.19s
+=== the step-10 block of release.md on the dist artifact of release.yml run 40606434243, from a clone of v0.3.0rc1 ($DYNG_SCRATCH/r031/step10_dryrun.sh; GPU 1)
+==> twine check, ci/wheel_check.py
+Checking
+/home/sskg8/Projects/dyng-work/r031/release-0.3.0rc1/plugins/dist/dyng_cu12-0.3.
+0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+Checking
+/home/sskg8/Projects/dyng-work/r031/release-0.3.0rc1/plugins/dist/dyng_cu13-0.3.
+0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+ok     dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.26 MB)
+ok     dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (8.72 MB)
+ok     dyng-0.3.0rc1-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.96 MB)
+==> cu12, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r031/release-0.3.0rc1/plugins/venv-cu12-3.12)
+    plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+    dynG 0.3.0rc1
+      native module     : dyng_cu12 (plugin cu12)
+      chosen because    : plugin cu12: the driver supports CUDA 13.1; no CUDA 13 plugin is installed, and CUDA 12 runs on it
+      backends          : sequential (yes), openmp (yes), cuda (yes)
+      default backend   : cuda
+      OpenMP threads    : 56 (OpenMP 201511)
+      built with        : GNU 14.2.1, Release
+      Python / NumPy    : 3.12.14 / 2.5.4
+      platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+      CUDA              : plugin cu12, toolkit 12.9, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+      CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): chosen
+    plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu12 (plugin cu12)); their arrays equal the sequential backend's
+    no visible device: falls back to dyng._core with a dyng.BackendWarning
+    no CUDA driver: falls back to dyng._core; the plugin's module imports without it
+    pytest -m gpu python/tests (GPU 1)
+70 passed, 7 skipped, 740 deselected in 5.82s
+    pytest python/tests with DYNG_CPU_ONLY=1 (plugin installed)
+735 passed, 82 skipped in 66.10s (0:01:06)
+==> cu12, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r031/release-0.3.0rc1/plugins/venv-cu12-3.13)
+    plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu12': '0.3.0rc1'}
+    dynG 0.3.0rc1
+      native module     : dyng_cu12 (plugin cu12)
+      chosen because    : plugin cu12: the driver supports CUDA 13.1; no CUDA 13 plugin is installed, and CUDA 12 runs on it
+      backends          : sequential (yes), openmp (yes), cuda (yes)
+      default backend   : cuda
+      OpenMP threads    : 56 (OpenMP 201511)
+      built with        : GNU 14.2.1, Release
+      Python / NumPy    : 3.13.15 / 2.5.4
+      platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+      CUDA              : plugin cu12, toolkit 12.9, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+      CUDA plugin       : dyng_cu12 0.3.0rc1 (CUDA 12, driver CUDA 13.1): chosen
+    plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu12 (plugin cu12)); their arrays equal the sequential backend's
+    no visible device: falls back to dyng._core with a dyng.BackendWarning
+    no CUDA driver: falls back to dyng._core; the plugin's module imports without it
+    pytest -m gpu python/tests (GPU 1)
+70 passed, 7 skipped, 740 deselected in 5.79s
+    pytest python/tests with DYNG_CPU_ONLY=1 (plugin installed)
+735 passed, 82 skipped in 65.25s (0:01:05)
+==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r031/release-0.3.0rc1/plugins/venv-cu13-3.12)
+    plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+    dynG 0.3.0rc1
+      native module     : dyng_cu13 (plugin cu13)
+      chosen because    : plugin cu13: it matches the driver's CUDA major (CUDA 13.1)
+      backends          : sequential (yes), openmp (yes), cuda (yes)
+      default backend   : cuda
+      OpenMP threads    : 56 (OpenMP 201511)
+      built with        : GNU 14.2.1, Release
+      Python / NumPy    : 3.12.14 / 2.5.4
+      platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+      CUDA              : plugin cu13, toolkit 13.4, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+      CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): chosen
+    plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu13 (plugin cu13)); their arrays equal the sequential backend's
+    no visible device: falls back to dyng._core with a dyng.BackendWarning
+    no CUDA driver: falls back to dyng._core; the plugin's module imports without it
+    pytest -m gpu python/tests (GPU 1)
+70 passed, 7 skipped, 740 deselected in 5.74s
+    pytest python/tests with DYNG_CPU_ONLY=1 (plugin installed)
+735 passed, 82 skipped in 64.35s (0:01:04)
+==> cu13, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r031/release-0.3.0rc1/plugins/venv-cu13-3.13)
+    plugin_smoke: installed {'dyng': '0.3.0rc1', 'dyng-cu13': '0.3.0rc1'}
+    dynG 0.3.0rc1
+      native module     : dyng_cu13 (plugin cu13)
+      chosen because    : plugin cu13: it matches the driver's CUDA major (CUDA 13.1)
+      backends          : sequential (yes), openmp (yes), cuda (yes)
+      default backend   : cuda
+      OpenMP threads    : 56 (OpenMP 201511)
+      built with        : GNU 14.2.1, Release
+      Python / NumPy    : 3.13.15 / 2.5.4
+      platform          : Linux-6.1.0-52-amd64-x86_64-with-glibc2.36
+      CUDA              : plugin cu13, toolkit 13.4, static runtime, architectures 75-real,80-real,86-real,89-real,90-real,100-real,120
+      CUDA plugin       : dyng_cu13 0.3.0rc1 (CUDA 13, driver CUDA 13.1): chosen
+    plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda (dyng_cu13 (plugin cu13)); their arrays equal the sequential backend's
+    no visible device: falls back to dyng._core with a dyng.BackendWarning
+    no CUDA driver: falls back to dyng._core; the plugin's module imports without it
+    pytest -m gpu python/tests (GPU 1)
+70 passed, 7 skipped, 740 deselected in 5.68s
+    pytest python/tests with DYNG_CPU_ONLY=1 (plugin installed)
+735 passed, 82 skipped in 63.72s (0:01:03)
+==> plugin wheels in /home/sskg8/Projects/dyng-work/r031/release-0.3.0rc1/plugins/dist
+total 16588
+-rw-r--r-- 1 sskg8 domain users 8261282 Oct 27 19:27 dyng_cu12-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl
+-rw-r--r-- 1 sskg8 domain users 8723704 Oct 27 19:27 dyng_cu13-0.3.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl
+=== step-10 rehearsal: done
