@@ -7,8 +7,10 @@ output. It takes about 15 minutes.
 
 You need dynG 0.3 or newer installed ({doc}`../getting_started/install`): for C++ a compiler and
 CMake, for Python `pip install "dyng>=0.3"` (the hypergraph and `triad_count` are new in 0.3;
-an environment with 0.2.0, which has neither, needs `pip install -U dyng`). You should know what
-a hypergraph is ({doc}`../concepts/hypergraphs`).
+this upgrades an installed 0.2.0, but not its CUDA plugin, which is pinned to its own version:
+with the plugin, upgrade both with `pip install -U "dyng[cu13]"` or `"dyng[cu12]"`,
+{doc}`../getting_started/install`). You should know what a hypergraph is
+({doc}`../concepts/hypergraphs`).
 The algorithm is {doc}`../algorithms/triad_count`; this page shows how to use it.
 
 The code is two example programs, `examples/cpp/triad_count_update.cpp` and
@@ -180,11 +182,13 @@ It prints the eight lines above, byte for byte (`python/tests/test_examples.py`)
 ## 6. From the command line
 
 `dyng triad_count` does the same without a program; `--format escher` prints ESCHER-GPU's
-output lines (all 30 bins, then the deltas of each batch):
+output lines (all 30 bins, then the deltas of each batch) on standard output, and the update's
+time `update_seconds=` on standard error:
 
 ```console
 $ dyng triad_count update --input examples/data/triad_count.hg --dedupe-hyperedges \
       --batches examples/data/triad_count.dgt --format escher
+update_seconds=...
 Hypergraph: 11 hyperedges, max vertex id 10, 36 pins
 Motif counts (30 bins): 0 0 0 2 0 0 0 0 0 9 0 0 0 0 19 6 0 0 0 0 0 0 0 0 0 0 0 0 1 8
 Batch 1 (2 deletions, 2 insertions)
