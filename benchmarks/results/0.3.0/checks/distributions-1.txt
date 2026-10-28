@@ -1,0 +1,12 @@
+# Copy of $DYNG_SCRATCH/runs/r031/cert/toolkits.log (sha256 01f02cd9f99129cad08b0976a397518baead64fdf84df9366b7b8b0c24bf72bb, 379 bytes), written by parity/certify.py check.
+Wed Oct 28 12:51:32 AM UTC 2026
+commit d77620b58451273a7549f914c93c6f797d3797b6
+newest nvcc per major in NVIDIA's RHEL 8 repository:
+10 cuda-nvcc-10-2 10.2.89-1
+11 cuda-nvcc-11-8 11.8.89-1
+12 cuda-nvcc-12-9 12.9.86-1
+13 cuda-nvcc-13-4 13.4.92-1
+fresh lock (cu12 12.9, cu13 13.4) vs ci/cuda_toolkits.toml:
+identical
+verify --signatures cu12 exit=0
+verify --signatures cu13 exit=0
