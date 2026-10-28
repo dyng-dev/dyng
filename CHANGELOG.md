@@ -8,25 +8,27 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.3.0rc1] - 2026-10-28
+## [0.3.0] - 2026-10-29
 
 ### Summary
 
-The release candidate of dynG 0.3.0: the dynamic hypergraph, and on it a fourth stable
-algorithm, `triad_count`, exact against the original ESCHER-GPU code. Release candidates are
-published on TestPyPI only:
+dynG 0.3.0: the dynamic hypergraph, and on it a fourth stable algorithm, `triad_count`, exact
+against the original ESCHER-GPU code. Install it from PyPI (Python >= 3.12, Linux x86-64):
 
 ```bash
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.3.0rc1   # the CPU package
-pip install "numpy>=1.26"
-pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1"   # with the CUDA plugin
+pip install dyng            # the sequential and OpenMP backends
+pip install "dyng[cu13]"    # with the CUDA backend, for an NVIDIA driver of CUDA 13 ("dyng[cu12]": CUDA 12)
 ```
 
-(`dyng-cu12==0.3.0rc1` for an NVIDIA driver of CUDA 12; a release candidate's plugin comes from
-TestPyPI alone, after NumPy from PyPI, so that pip never mixes the two indexes for it); 0.3.0
-follows on PyPI, with `pip install -U "dyng[cu13]"`. Nothing of 0.2.0 changes incompatibly:
-`sssp`, `cycle_count` and `mosp` keep their API. The entries below the summary are the detailed
-record of milestones M8a, M8b, M9a and M9b and of the release preparation R030.
+Upgrading from 0.2.0 or 0.1.0: `pip install -U "dyng[cu13]"` (or `-U dyng`). Without `-U`, pip
+keeps an installed 0.2.0 (with the 0.2.0 plugin, which has no hypergraph) or 0.1.0 (which has no
+`cu12` / `cu13` extras: pip only warns).
+
+0.3.0 is the release candidate 0.3.0rc1 (tag `v0.3.0rc1`, published on TestPyPI only and
+smoke-tested from there) with the final-release changes below and no change to the library.
+Nothing of 0.2.0 changes incompatibly: `sssp`, `cycle_count` and `mosp` keep their API. The
+entries below the summary are the detailed record of milestones M8a, M8b, M9a and M9b and of the
+release preparation (R030, R031).
 
 - **The dynamic hypergraph** (stable from 0.3.0): `dyng::hypergraph` in C++
   (`<dyng/hypergraph/hypergraph.hpp>`) and `dyng.Hypergraph` in Python, on the sequential, OpenMP
@@ -65,7 +67,7 @@ record of milestones M8a, M8b, M9a and M9b and of the release preparation R030.
 - **Tutorials:** "Hypergraph triads" (C++ and Python) and "Count a new hypergraph pattern (an
   Op)"; the algorithm page of `triad_count` with its "Paper vs fixed code" section; the scaffold
   `scripts/new_algorithm.py --container hypergraph` for a new hypergraph algorithm.
-- **The release certificate** `benchmarks/results/0.3.0rc1/` (PLAN 8.3 and 8.6): as for 0.2.0
+- **The release certificate** `benchmarks/results/0.3.0/` (PLAN 8.3 and 8.6): as for 0.2.0
   (sssp, cycle_count and mosp: golden parity on every backend and the release gates against the
   unpatched originals), and new: the triad_count suites `ipdps26_escher` and `tkde26_escher_plus`
   against ESCHER-GPU@abcf9b2 (CUDA at locked clocks, ADRs 0018 and 0021; the store accounting and
@@ -79,6 +81,36 @@ offsets are 32-bit (a hypergraph of up to about 2^31 member slots); triad_count'
 are untuned (their performance is not gated); on CUDA the memory pool keeps, between batches,
 what the line graph's merge reached (recorded beside the memory gates, not gated); ESCHER-GPU's coarse
 triangles are not ported; `label_propagation` and `hyper_sssp` with 0.4.0; no DOI (Zenodo is not connected).
+
+### Final release (R031)
+
+- Changed: `VERSION` 0.3.0, `CITATION.cff` `version: 0.3.0` and `date-released: 2026-10-29`
+  (the planned tag day); this section, the release candidate's `[0.3.0rc1]`, renamed `[0.3.0] -
+  2026-10-29` with its link references, its summary with the install lines from PyPI and the
+  upgrade line.
+- Docs: the status texts of the release candidate brought to the release (README, the
+  documentation's start page, the getting-started and install pages, `SECURITY.md` with its
+  supported versions, `CONTRIBUTING.md`, `SUPPORT.md`, `docs/citing.md`, the roadmap and the
+  developer plan): `pip install dyng` and `pip install "dyng[cu13]"` / `"dyng[cu12]"` from PyPI,
+  `pip install -U` for users of 0.2.0 and 0.1.0; the pages of 0.3's content (the hypergraph,
+  `triad_count`, the `.hg`, `.dgb` and triad-bins formats, the hypergraph tutorials) describe
+  them as released, stable from 0.3.0 as the author confirmed on 2026-10-22
+  (`count_local_patterns` stays experimental).
+- Docs (the review of the final-release pull request): the upgrade line `pip install -U
+  "dyng[cu13]"` also on the PyPI project page (`python/README.md`) and in the prerequisites of
+  the tutorial "Hypergraph triads" (`pip install -U dyng` alone leaves a 0.2.0 plugin, which the
+  0.3.0 core does not load); the Python hypergraph how-to no longer points to the install page's
+  former TestPyPI lines; the `--format escher` transcripts of `dyng triad_count update` show the
+  `update_seconds=` line of standard error; `docs/developer/release.md` names the branch
+  `release-0.3.0-final` and lists `python/README.md` and the tutorials' prerequisites among the
+  pages with the upgrade line.
+- Added: `benchmarks/results/0.3.0/`, the certificate of the release, carried over from
+  0.3.0rc1 (`docs/developer/release.md`, step 9): the library did not change since the measured
+  commits, so the gates, the golden replays and the golden mutations stand; the checks of the
+  `packaging` and `repo` scopes (the distributions as `release.yml` builds them for `v0.3.0`,
+  `ci/check.sh --parity`, `ci/api_check.sh`, `ci/gpu_local.sh`) were run again on the final
+  tree. The smoke test of 0.3.0rc1 from TestPyPI (the CPU package and both CUDA plugins, on
+  GPU 1) is recorded there and in `docs/developer/retrospectives/R031.md`.
 
 ### R030: the tag day (0.3, branch `release-0.3.0`)
 
@@ -2051,8 +2083,8 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
   Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.3.0rc1...main
-[0.3.0rc1]: https://github.com/dyng-dev/dyng/compare/v0.2.0...v0.3.0rc1
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.3.0...main
+[0.3.0]: https://github.com/dyng-dev/dyng/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dyng-dev/dyng/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/dyng-dev/dyng/tree/v0.0.1

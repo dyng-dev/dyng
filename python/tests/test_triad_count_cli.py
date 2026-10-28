@@ -20,6 +20,7 @@ import dataclasses
 import inspect
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -339,7 +340,9 @@ _PAGES = [
 @pytest.mark.parametrize("page", _PAGES, ids=lambda p: p.name)
 def test_the_documented_escher_output(page: Path, capsys: pytest.CaptureFixture[str]) -> None:
     # The `dyng triad_count update ... --format escher` console block of the page is what the
-    # command prints, run from the repository root on the examples' files.
+    # command prints, run from the repository root on the examples' files: its `name=...` lines
+    # are the notes on standard error (the time, written before the output), the rest is
+    # standard output.
     if not page.is_file():
         pytest.skip("the documentation is not present")
     root = page.parents[2]
@@ -358,6 +361,10 @@ def test_the_documented_escher_output(page: Path, capsys: pytest.CaptureFixture[
     argv = command.split()
     assert argv[:3] == ["dyng", "triad_count", "update"]
     argv = [str(root / a) if a.startswith("examples/") else a for a in argv[1:]]
-    status, out, _ = run(capsys, *argv)
+    status, out, err = run(capsys, *argv)
     assert status == 0
-    assert out.splitlines() == block[i + 1 :]
+    shown = block[i + 1 :]
+    notes = [line for line in shown if re.fullmatch(r"[a-z_]+=\.\.\.", line)]
+    assert notes == ["update_seconds=..."]
+    assert [line.split("=")[0] + "=..." for line in err.splitlines()] == notes
+    assert out.splitlines() == [line for line in shown if line not in notes]

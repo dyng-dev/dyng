@@ -214,12 +214,14 @@ program, and the reference is {doc}`../api/python/index`.
 field (`--kind`, `--cuda-engine`), `dyng.io.read_hypergraph`'s keywords as read flags, and
 `--batches` (`.dgt` or `.dgb` files). `--format json` (the default) writes the triad-bins JSON
 ({doc}`../api/file_formats`, `dyng.io.read_triad_bins` reads it back); `--format escher` prints
-ESCHER-GPU's own output lines byte for byte (diffed against its unpatched standard output on all
-60 make-test cases, `parity/results/M9b.md` section 2.1):
+ESCHER-GPU's own output lines byte for byte on standard output (diffed against its unpatched
+standard output on all 60 make-test cases, `parity/results/M9b.md` section 2.1), and
+`update_seconds=` on standard error:
 
 ```console
 $ dyng triad_count update --input examples/data/triad_count.hg --dedupe-hyperedges \
       --batches examples/data/triad_count.dgt --format escher
+update_seconds=...
 Hypergraph: 11 hyperedges, max vertex id 10, 36 pins
 Motif counts (30 bins): 0 0 0 2 0 0 0 0 0 9 0 0 0 0 19 6 0 0 0 0 0 0 0 0 0 0 0 0 1 8
 Batch 1 (2 deletions, 2 insertions)
@@ -335,8 +337,8 @@ read 0.50-0.55 s, 5.05 s and 8.6 s in M9a's step 5 (`parity/results/M9a.md` sect
   {doc}`roadmap <../roadmap>`).
 - **Host memory exhaustion** is `out_of_memory_error` on every backend, with the guarantee of
   `update()`'s documentation (the hypergraph poisoned when the failure is inside the commit, the
-  result then unchanged): since 0.3.0rc1 also inside the hypergraph container's OpenMP loops,
-  which ended the process with `std::terminate` before (D13; {doc}`ADR 0061
+  result then unchanged), also inside the hypergraph container's OpenMP loops, which ended the
+  process with `std::terminate` before the release candidate 0.3.0rc1 (D13; {doc}`ADR 0061
   <../adr/0061-exceptions-out-of-openmp-regions>`).
 
 ## 7. Differences from the paper

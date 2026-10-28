@@ -1,0 +1,40 @@
+{
+ "set": "cbst_trace_escher_gpu_syn1m",
+ "kind": "hypergraph_ids",
+ "date": "2026-10-23T11:38:31+00:00",
+ "goldens": {
+  "manifest_sha256": "d73a368586dd3145cc93d60484032d76f171d8612310c6bc3ec8aef7ffd659d8"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+ "reference": "ESCHER-GPU",
+ "configs": [
+  "cuda:hypergraph_ids/both"
+ ],
+ "checks": {
+  "model": true,
+  "verified": true,
+  "line_graph_oracle": true
+ },
+ "totals": {
+  "sessions": 3,
+  "batches": 9,
+  "ids_compared": 225000,
+  "rows_compared": 12001327,
+  "mismatch_count": 0
+ },
+ "matrix": {
+  "syn1m_b50k_s1": {
+   "cuda:hypergraph_ids/both": "equal"
+  },
+  "syn1m_b50k_s2": {
+   "cuda:hypergraph_ids/both": "equal"
+  },
+  "syn1m_b50k_s3": {
+   "cuda:hypergraph_ids/both": "equal"
+  }
+ },
+ "passed": true
+}

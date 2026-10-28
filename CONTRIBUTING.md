@@ -5,12 +5,11 @@ request. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 to [GitHub Discussions](https://github.com/dyng-dev/dyng/discussions) ([SUPPORT.md](SUPPORT.md));
 security problems are reported privately ([SECURITY.md](SECURITY.md)).
 
-dynG is **alpha** (0.2.0, the latest release; 0.3.0rc1, the release candidate of 0.3.0; 0.1.0
-was the first): the stable algorithms and the hypergraph follow SemVer from the release that made
-them stable (0.1.0, 0.2.0 or 0.3.0; the file formats by their own format versions), but the
-framework and the build options still change. For anything larger than a small fix, please open
-an issue (or a discussion) first, so that we can agree on the approach before you invest time in
-it.
+dynG is **alpha** (0.3.0, the latest release; 0.1.0 was the first): the stable algorithms and
+the hypergraph follow SemVer from the release that made them stable (0.1.0, 0.2.0 or 0.3.0; the
+file formats by their own format versions), but the framework and the build options still
+change. For anything larger than a small fix, please open an issue (or a discussion) first, so
+that we can agree on the approach before you invest time in it.
 
 ## Contents
 

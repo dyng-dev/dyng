@@ -1,0 +1,34 @@
+{
+ "set": "cbst_trace_escher_gpu_coauth50k",
+ "kind": "hypergraph_ids",
+ "date": "2026-10-23T11:35:37+00:00",
+ "goldens": {
+  "manifest_sha256": "7ddec4438292cdf25cbbcd028e26f87e04bd518ee50b6ef856c3e5ea8635ae57"
+ },
+ "port": {
+  "commit": "d8032840efa4b04ba468f1daf1ef8ecf437aaa46"
+ },
+ "executable": "build/parity/cpp/tests/dyng_hypergraph_ids",
+ "reference": "ESCHER-GPU",
+ "configs": [
+  "openmp/t8:hypergraph_ids/both"
+ ],
+ "checks": {
+  "model": true,
+  "verified": true,
+  "line_graph_oracle": true
+ },
+ "totals": {
+  "sessions": 1,
+  "batches": 3,
+  "ids_compared": 75000,
+  "rows_compared": 12337324,
+  "mismatch_count": 0
+ },
+ "matrix": {
+  "coauth_b50k_s1": {
+   "openmp/t8:hypergraph_ids/both": "equal"
+  }
+ },
+ "passed": true
+}

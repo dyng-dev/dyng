@@ -97,19 +97,12 @@ manylinux_2_28; OpenMP's runtime is bundled). It contains the sequential and Ope
 the `dyng` command line ({doc}`../api/cli`); NumPy is its only dependency.
 
 ```bash
-pip install dyng                   # from PyPI (0.2.0)
+pip install dyng                   # from PyPI (0.3.0)
 python -c "import dyng; dyng.show_config()"
 ```
 
 An environment that has an earlier release keeps it unless pip is told to upgrade: `pip install
 -U dyng` (and `pip install -U "dyng[cu13]"` for the plugin, below).
-
-The release candidate of 0.3.0, **0.3.0rc1** (the hypergraph and `triad_count`), is on TestPyPI
-only (its dependency NumPy comes from PyPI):
-
-```bash
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.3.0rc1
-```
 
 The same package can be built from a clone (it compiles the C++ core, so it needs CMake >=
 3.30 and Ninja, for example from the `dyng-dev` environment, and a C++17 compiler from the
@@ -146,21 +139,11 @@ pip install "dyng[cu12]"           # NVIDIA driver 525 or newer (CUDA 12.x)
 python -c "import dyng; dyng.show_config()"
 ```
 
-**Upgrading from 0.1.0:** `pip install -U "dyng[cu13]"` (or `"dyng[cu12]"`). Without `-U`, pip
-treats the installed `dyng` 0.1.0 as satisfying the requirement, only warns that 0.1.0 does not
-provide the extra `cu13`, and installs neither 0.2.0 nor the plugin (0.1.0's own error message
-for `Resources.cuda()` names the line without `-U`).
-
-Until 0.3.0 is on PyPI, the plugins of the release candidate 0.3.0rc1 are on TestPyPI only.
-Take `dyng` and the plugin from TestPyPI alone, after NumPy from PyPI, so that pip does not mix
-the two indexes for them (an `--extra-index-url https://pypi.org/simple/` would let pip take
-files from either):
-
-```bash
-pip install "numpy>=1.26"
-pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu13==0.3.0rc1"
-pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.3.0rc1" "dyng-cu12==0.3.0rc1"   # or CUDA 12
-```
+**Upgrading from 0.2.0 or 0.1.0:** `pip install -U "dyng[cu13]"` (or `"dyng[cu12]"`). Without
+`-U`, pip treats the installed `dyng` as satisfying the requirement: with 0.2.0 it keeps 0.2.0
+and installs the 0.2.0 plugin of its extra, which has no hypergraph and no `triad_count`; with
+0.1.0 it only warns that 0.1.0 does not provide the extra `cu13`, and installs neither 0.3.0 nor
+the plugin (0.1.0's own error message for `Resources.cuda()` names the line without `-U`).
 
 A plugin contains the CUDA runtime (no CUDA toolkit is needed), code for the GPU architectures
 sm_75 to sm_120 (Turing to Blackwell) and PTX for newer ones. Which one to install: `nvidia-smi`

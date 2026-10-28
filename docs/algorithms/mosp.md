@@ -190,7 +190,7 @@ accepted) the host backends recover the lowest-id parents and cuda keeps the imp
 such trees the K trees, and with them the combined files and the path costs, differ between the
 host backends and cuda, each byte-identical to its own original (`parity/results/M7.md` section
 11). The combined graph itself (weights at most L * (K + 1)) is far below the window. On cuda the trees and the combined arrays are
-device memory; the path costs are host memory on every backend in 0.2 (computed on the host as the
+device memory; the path costs are host memory on every backend in 0.2 and 0.3 (computed on the host as the
 original computes them, after one download of the MOSP tree).
 
 Host synchronizations of an update on cuda: one per objective with the fused engine (the

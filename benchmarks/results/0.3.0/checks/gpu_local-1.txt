@@ -1,0 +1,28 @@
+# Copy of $DYNG_SCRATCH/runs/r031/cert/gpu_local_summary.md (sha256 271f6727ed4d7279353c6fbecbb6b277a9e403a45a4667b99ebc0d1ad2c950e6, 1116 bytes), written by parity/certify.py check.
+### ci/gpu_local.sh: dev-cuda
+
+commit 9fff2a8; GPU 1: NVIDIA RTX A5000, 590.48.01; CUDA 13.1
+
+| step | result |
+|---|---|
+| build | passed |
+| ctest -L gpu | passed |
+| ctest -L cpu | passed |
+| parity (cuda goldens) | passed |
+| parity (cycle_count cuda goldens) | passed |
+| memcheck | passed |
+| synccheck | passed |
+| synccheck (mosp) | passed |
+| synccheck (cycle_count) | passed |
+| racecheck | passed |
+| cbst sanitizers (racecheck, synccheck, initcheck) | passed |
+| cbst replays (device, small sets) | passed |
+| cbst replays (device, default preset) | passed |
+| cbst bin/main recorded and replayed once | passed |
+| cbst lockstep with the host model (compact after every op; every preset) | passed |
+| hypergraph sanitizers (racecheck, synccheck, initcheck) | passed |
+| hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator) | passed |
+| triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck) | passed |
+| count_local_patterns (sanitizers on the tutorial and API tests; nvcc consumer) | passed |
+| plugin wheel (pytest -m gpu) | passed |
+| clang-tidy | passed |
