@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r031/cert/check-parity.log (sha256 3d2f3b8ba6371a70fe7595d75a69c3f6b1247a7875c5382e031e78e7724578df, 1288077 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r031/cert/check-parity.log (sha256 8a800283986bb1b768c86e77c5b16fa0f0a1c0cdff26a7f311134cef3ec2474e, 1288077 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -192,7 +192,7 @@ provenance: OK (271 files checked)
 test data: 1,002,671 bytes in 1481 tracked files under cpp/tests/data (budget 1,250,000 bytes): OK
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-356 passed in 194.71s (0:03:14)
+356 passed in 193.52s (0:03:13)
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
@@ -201,13 +201,13 @@ harness: OK
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng and python/plugin/dyng_plugin
 ==> pytest python/tests
-736 passed, 81 skipped in 77.04s (0:01:17)
+736 passed, 81 skipped in 80.46s (0:01:20)
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> the frozen C++ API against origin/main (ci/api_snapshot.py --against)
 ==> griffe check dyng against origin/main (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.Ba3mxg/src
+==> copy of the working tree in /tmp/dyng-scaffold.FVu3xt/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 ==> scripts/new_algorithm.py --container hypergraph: one hypergraph algorithm of each family
 ==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)
@@ -269,7 +269,7 @@ doxygen-coverage: OK (210 compounds checked)
 doc-snippets: OK (13 snippets)
 tutorial-quotes: OK (37 quotes in 5 pages match their pins)
 api-snapshot: OK (1248 declarations match public_api.txt)
-docs_links: OK (repository URLs in 2052 files, relative links and anchors of build/docs/html)
+docs_links: OK (repository URLs in 2067 files, relative links and anchors of build/docs/html)
 docs: OK
 ==> pre-commit run --all-files
 pre-commit: OK

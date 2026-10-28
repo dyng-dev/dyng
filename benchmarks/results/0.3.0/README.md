@@ -18,8 +18,10 @@ library did not change since the release candidate's measured commits, which `ce
 verified for every part in the paths of its scope. This certificate's measured commits are
 `d803284` (the golden replays, the performance gates and the golden mutations, `library` scope,
 plus `cpp/tests` for the golden mutations of the GoogleTest suites), `669fa60` (the hosted
-sanitizer jobs of pull request #18, `library` scope) and `d77620b` (the checks run again on the
-final tree, below, whose diff to the final commit outside this directory is empty); `git diff`
+sanitizer jobs of pull request #18, `library` scope), `d77620b` (the `tests` checks run again on
+the final tree, below; the review's fixes after it changed no path of the `tests` scope) and
+`1a509a1` (the `packaging` and `repo` checks run again after those fixes, whose diff to the final
+commit outside this directory is empty); `git diff`
 from each to the final commit touches no path of its scope. `a0f7177` (the release candidate's
 sanitizer presets and mutation CTests), `7e918a2` (its tag day's re-run checks) and `177df79`
 (the head of its first hosted sanitizer run) are not measured here: their records were replaced.
@@ -28,10 +30,14 @@ sanitizer presets and mutation CTests), `7e918a2` (its tag day's re-run checks) 
   CBST trace goldens, the hypergraph container's replays and the triad goldens), the suite
   summaries and the compacted records of the performance gates of the five suites, and the golden
   mutations (`mutation-goldens.json`, measured at `d803284`), all described below as measured for
-  0.3.0rc1. Only `VERSION` (0.3.0rc1, now 0.3.0), `CHANGELOG.md`, `CITATION.cff`, `README.md` and
+  0.3.0rc1. Only `VERSION` (0.3.0rc1, now 0.3.0), `CHANGELOG.md`, `CITATION.cff`, `README.md`,
+  `python/README.md` (the PyPI project page), one Python test
+  (`python/tests/test_triad_count_cli.py`, the documented `--format escher` output) and
   documents changed (R031, `docs/developer/retrospectives/R031.md`), none a library path.
-- **Run again on the final tree** from fresh clones of the branch `release-0.3.0-final` at
-  `d77620b`, the last commit outside this directory, concurrently under the shared lock and never
+- **Run again on the final tree** from fresh clones of the branch `release-0.3.0-final`: the
+  `packaging` and `repo` checks at `1a509a1`, the last commit outside this directory (first run at
+  `d77620b`, then again after the review's fixes of the pull request's branch, R031), the `tests`
+  checks at `d77620b`; concurrently under the shared lock and never
   during a timing run, and recorded with `certify.py check --version 0.3.0` in place of the
   release candidate's records of the same names (logs under `$DYNG_SCRATCH/runs/r031/cert/`, the
   scripts in `$DYNG_SCRATCH/r031/cert/`):
@@ -50,10 +56,23 @@ sanitizer presets and mutation CTests), `7e918a2` (its tag day's re-run checks) 
   - the `repo` checks `check-parity` (`ci/check.sh --parity`), `api-check` (`ci/api_check.sh
     20bc2d0`, against `main` as pushed, the merge of 0.3.0rc1) and `gpu_local`
     (`ci/gpu_local.sh`, every step, the compute-sanitizer steps and 0.3's CBST, hypergraph,
-    triad_count and count_local_patterns steps included);
+    triad_count and count_local_patterns steps included). The first `ci/gpu_local.sh` run at
+    `1a509a1` (05:40-09:24 UTC) failed one step, transiently, as in R030 (deviation 7): every
+    step passed except "cbst sanitizers", where compute-sanitizer's racecheck of
+    `dyng_cbst_scenario_tests` ended with "process didn't terminate successfully", 0 hazards and
+    no gtest output at all (the process ended before its buffered output was written), while the
+    other six CBST executables passed under racecheck, synccheck and initcheck. The same command
+    (`DYNG_CBST_REDUCED=1`, GPU 1) run alone three times from a fresh build of the same commit
+    passed every time: 39 / 39 tests, 0 hazards. The test is unchanged since `d77620b`, where the
+    step passed; without a reproduction and without access to the kernel log the cause is not
+    known (another process on the shared machine or the sanitizer are the candidates). Nothing
+    was changed: the whole of `ci/gpu_local.sh` was run again from a fresh clone of `1a509a1`
+    (09:44-13:26 UTC, every step passed, with a 30-second monitor of the GPUs' processes), and
+    that run is the `gpu_local` record (logs `gpu_local-1a509a1-run1-failed.log`,
+    `cbst-scenario-racecheck-rerun1..3.log` and `gpu-monitor-1a509a1-run2.log` beside it);
   - the `tests` checks `asan`, `tsan`, `tsan-openmp` and `mutation-ctests`, because `README.md`,
     whose C++ quickstart is a test, changed (its status block and install lines; the C++
-    quickstart itself did not).
+    quickstart itself did not); at `d77620b`, whose `tests`-scope paths are the final commit's.
 - **Replaced by a newer run:** `sanitizers-hosted`, the hosted `sanitizers.yml` jobs of the
   release candidate's pull request #18: run 40603416606 on its final head `669fa60` (2026-10-27,
   23:37-23:55 UTC; event `pull_request`, which tested the merge of `669fa60` into `e6f87ed`, the
@@ -108,9 +127,9 @@ performance gates and golden mutations (at `d803284`) are the ones carried over 
 **check records** are not: the sanitizer presets and the mutation CTests at `a0f7177`, the
 distributions of `v0.3.0rc1`, `ci/check.sh --parity`, `ci/api_check.sh e6f87ed` and
 `ci/gpu_local.sh` at `7e918a2`, and the hosted `sanitizers.yml` run 40568804466 at `177df79` were
-replaced in this directory's `checks.json` and `checks/` by the R031 runs at `d77620b` listed in
-"Carried over from 0.3.0rc1" above (the distributions of `v0.3.0`, `ci/api_check.sh 20bc2d0`)
-and by the hosted run 40603416606 at `669fa60`. The statements below about which check records
+replaced in this directory's `checks.json` and `checks/` by the R031 runs at `d77620b` and
+`1a509a1` listed in "Carried over from 0.3.0rc1" above (the distributions of `v0.3.0`,
+`ci/api_check.sh 20bc2d0`) and by the hosted run 40603416606 at `669fa60`. The statements below about which check records
 stand, and at which commits, are the release candidate's; the generated tables at the end of this
 page are this certificate's.
 
@@ -219,7 +238,7 @@ page are this certificate's.
 
 <!-- certify:begin (generated by parity/certify.py write; do not edit by hand) -->
 
-**Certificate:** `parity.json` (dynG 0.3.0, commit `d77620b58451`): **all parts passed**.
+**Certificate:** `parity.json` (dynG 0.3.0, commit `1a509a1b5738`): **FAILED**: the release tree is dirty (commit first, or --allow-dirty for a draft)
 
 Machine: Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz (56 threads), 2x NVIDIA RTX A5000; driver 590.48.01 (CUDA driver API 13.1; named by 45 records); Build cuda_13.1.r13.1/compiler.37061995_0; c++ (Debian 12.2.0-14+deb12u1) 12.2.0.
 
