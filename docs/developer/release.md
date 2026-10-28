@@ -15,7 +15,7 @@ author merges the release pull requests), for 0.3.0 on 2026-10-22 (as for 0.2.0)
 
 | Step | 0.1.0 (`v0.1.0rc1`, `v0.1.0`) | 0.2.0 (`v0.2.0rc1`, `v0.2.0`) | 0.3.0 (`v0.3.0rc1`, `v0.3.0`) | later releases |
 |---|---|---|---|---|
-| the checks, the certificate, the version bump, the CHANGELOG, `CITATION.cff` (steps 1-6, 9) | the AI assistant, in the release branch and its pull request | the AI assistant, in the release branches (`release-0.2.0` for 0.2.0rc1, `release-0.2.0-final` for 0.2.0) and their pull requests | the AI assistant, in the release branch `release-0.3.0` (0.3.0rc1) and the final release's branch, and their pull requests | a maintainer or the AI assistant |
+| the checks, the certificate, the version bump, the CHANGELOG, `CITATION.cff` (steps 1-6, 9) | the AI assistant, in the release branch and its pull request | the AI assistant, in the release branches (`release-0.2.0` for 0.2.0rc1, `release-0.2.0-final` for 0.2.0) and their pull requests | the AI assistant, in the release branches (`release-0.3.0` for 0.3.0rc1, `release-0.3.0-final` for 0.3.0) and their pull requests | a maintainer or the AI assistant |
 | merging the release pull request into `main` (merge commit, ADR 0019) | the AI assistant, through the pull request (the `main` ruleset) | the **author**, personally; the AI assistant reports when each pull request is green and ready to merge (2026-10-07) | the **author**, personally (merge commits only, 2026-10-14); the AI assistant reports when each pull request is green and ready to merge (2026-10-22) | the author |
 | pushing the signed tag (steps 7, 10), which uploads to TestPyPI | the **AI assistant**, on the author's behalf | the **AI assistant**, on the author's behalf (2026-10-06) | the **AI assistant**, on the author's behalf (2026-10-22) | the **author** |
 | the approval of the PyPI deployments (step 10), which upload to PyPI: `pypi` for `dyng`; from 0.2.0 also `pypi-cu12` and `pypi-cu13` for the CUDA plugins, three approvals | the **author** (never delegated) | the **author** (never delegated): `pypi-cu12` and `pypi-cu13` together, then `pypi` once both plugins are on PyPI | the **author** (never delegated): `pypi-cu12` and `pypi-cu13` together, then `pypi` (2026-10-22) | the **author** |
@@ -183,10 +183,13 @@ release's state:
   algorithm pages (`docs/algorithms/*.md`), the tutorials (`docs/tutorials/`, for 0.2.0 the
   sentence that sent readers to `main` instead of the previous release), and any other
   user-facing page; "not released yet" goes, "new in X.Y" (or "since X.Y.Z") stays;
-- the upgrade line wherever the docs install the package (`README.md`, `install.md`, the
-  CHANGELOG summary, which becomes the GitHub Release's text) when the release adds extras or
-  something an earlier release lacks: `pip install "dyng[cu13]"` without `-U` keeps an installed
-  older `dyng` that has no such extra, and pip only warns;
+- the upgrade line wherever the docs install the package (`README.md`, `install.md`,
+  `python/README.md` (the PyPI project page), the CHANGELOG summary, which becomes the GitHub
+  Release's text, and the tutorials' prerequisites, with the plugin's form) when the release
+  adds extras or something an earlier release lacks: `pip install "dyng[cu13]"` without `-U`
+  keeps an installed older `dyng` that has no such extra, and pip only warns; `pip install -U
+  dyng` alone upgrades the core but leaves an installed plugin of the older version, which the
+  new core does not load;
 - what is left: `grep -rn "X.Y.ZrcN\|release candidate\|not released\|new in X.Y"`, and a
   grep for the previous release's version (wording such as "not the 0.1.0 release"), over the
   user-facing files (`README.md`, the top-level `*.md` files, `python/README.md` and `docs/`

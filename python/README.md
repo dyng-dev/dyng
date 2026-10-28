@@ -47,8 +47,11 @@ $ dyng triad_count update --input coauth.hg --batches batches.dgb --format json 
 This wheel contains the sequential and OpenMP backends (`dyng.Resources("openmp")`). The CUDA
 backend comes as a plugin wheel of the same version, from 0.2: `pip install "dyng[cu13]"` (an
 NVIDIA driver of CUDA 13) or `pip install "dyng[cu12]"` (CUDA 12); `dyng.Resources.cuda()` then
-runs every algorithm on the GPU, and `dyng.show_config()` reports which module is used. The C++ library, the documentation and
-the parity reports with the original codes are at <https://github.com/dyng-dev/dyng>.
+runs every algorithm on the GPU, and `dyng.show_config()` reports which module is used.
+Upgrading from 0.2.0 or 0.1.0: `pip install -U "dyng[cu13]"` (or `"dyng[cu12]"`, or `-U dyng`
+without the plugin); without `-U` pip keeps the installed release. The C++ library, the
+documentation and the parity reports with the original codes are at
+<https://github.com/dyng-dev/dyng>.
 
 Cite dynG and the papers behind the algorithms you use: `dyng.citation("sssp")`.
 
