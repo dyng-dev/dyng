@@ -263,8 +263,8 @@ struct count_local_patterns {
    * @throws invalid_argument_error if the shape needs the line graph or the vertex-to-hyperedge
    *         rows and `h` keeps none, `h` has 2,147,483,647 vertices, `h` belongs to another
    *         backend than `res`, or `h` was poisoned; or an Op named a bin outside [0, num_bins).
-   * @throws not_supported_error    if the backend of `res` is not available, or the header and
-   *         the library differ.
+   * @throws not_supported_error    if the backend of `res` is not available, the header and the
+   *         library differ, or `h` has hypergraph_storage::slack_csr (0.4: escher storage only).
    * @throws capacity_error         if a count exceeds 2^64 - 1.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error.
@@ -339,8 +339,9 @@ struct count_local_patterns {
    * @throws invalid_argument_error if a batch member is invalid, `h` belongs to another backend
    *         than `res` or was poisoned (nothing is changed); or an Op named a bin outside
    *         [0, num_bins) (after the commit: `r` is left unusable).
-   * @throws not_supported_error    if the backend of `res` is not available or the batch has
-   *         incidence edits (nothing is changed).
+   * @throws not_supported_error    if the backend of `res` is not available, the batch has
+   *         incidence edits, or `h` has hypergraph_storage::slack_csr (0.4: escher storage only;
+   *         nothing is changed).
    * @throws internal_error         if a bin would become negative (an Op whose counts depend on
    *         the order of its calls, or a library bug; `r` is left unusable).
    * @throws capacity_error         if a count exceeds 2^64 - 1 or the change of a bin is outside
