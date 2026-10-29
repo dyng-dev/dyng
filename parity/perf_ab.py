@@ -2546,6 +2546,11 @@ def memory(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["hyper_sssp"]:  # hyper_sssp against MOSP_ESCHER (M11a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import hsosp_perf
+
+        return hsosp_perf.main(sys.argv[2:])
     if sys.argv[1:2] == ["cycle_count"]:  # cycle_count against CycleEnumeration-GPU
         sys.path.insert(0, str(REPO / "parity"))
         import cycle_count_perf

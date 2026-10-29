@@ -21,17 +21,37 @@ unpinned threads):
    ADR 0056 (load average 16, procs_blocked 4) unless B's quiet maximum of the load average
    exceeds 8; then it is 2x that maximum (or an audit of foreign_runnable instead).
 
-Run it only in an exclusive-lock window of the shared calendar on GPU 0, as
+    parity/hsosp_perf.py run --configs <name> ... [--rounds 11] [--gpu 0] [--clocks base]
+        --maintain-only [--exe build/parity-cuda/tools/compat/dyng-compat-hsosp] [--json OUT]
+
+`run` (M11a step 3: the early maintain reading, criterion 12; the gate readings of
+parity/timed_regions/hyper_sssp.toml follow in step 5): per configuration, `--rounds` alternating
+rounds (B first in every round) of the UNPATCHED B (hsospBench --hg with B's defaults and --verify
+none) and the port (dyng-compat-hsosp bench, the golden's exported batches replayed, --sync-stages,
+--maintain-only), both with one heap layout (the CSV, timing and work directory names of fixed
+length), CUDA_MODULE_LOADING=EAGER and no OMP_* variable, the GPU clocks locked (`--clocks`: the
+probe's choice of step 1, base for both datasets), the contamination monitor (a rejected round is
+repeated) and the audit of ADR 0056 with step 1's thresholds. Every round is guarded: B's h2h_pairs
+and overflow_rebuilds of every batch equal the golden's and its mismatch_static is 0; the port's
+pairs (the SHA-256 of their canonical encoding), pair count and CSR rebuilds of every batch equal
+the golden's. A failed guard stops the reading (no record). The rows: maintain[b1..b3] (B's
+t_delta_ms + t_csr_apply_ms against the port's stage hypergraph.apply), delta and csr_apply
+(reported). Verdict of criterion 12 per row: at most 1.03 GO, 1.03-1.05 recorded with a fix plan,
+above 1.05 fixed before the acceptance.
+
+Run them only in an exclusive-lock window of the shared calendar on GPU 0, as
 `tools/locklog.py run --reset-gpu 0 EXCL M11a <step key> <what> <minutes> -- parity/hsosp_perf.py
-probe ...` (the clock reset after the window runs inside the lock). M11a step 3 adds `run`
-(the A/B gate readings of hyper_sssp.toml), `memory` and `kernels` to this file.
+<probe|run> ...` (the clock reset after the window runs inside the lock); `perf_ab.py hyper_sssp
+...` dispatches here. Step 5 adds the gated rows of the full update, `memory` and `kernels`.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
+import re
 import shutil
 import statistics
 import sys
@@ -44,10 +64,19 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "parity"))
 
 import hsosp_goldens as hg  # noqa: E402
+import hypergraph_perf  # noqa: E402
 import perf_ab  # noqa: E402
 
 # One heap layout: every run writes its CSV under one name of this length (ADR 0024).
 CSV_NAME = "hsosp-ab.csv"
+TIMING_NAME = "hsosp-ab.json"
+# Criterion 12's verdicts of the early maintain reading.
+EARLY_GO = 1.03
+EARLY_FIX = 1.05
+PORT_BATCH = re.compile(
+    r"^\[batch (\d+)\] pairs ([0-9a-f]{64}) deleted (\d+) inserted (\d+) h2h_pairs (-?\d+) "
+    r"csr_rebuilds (\d+)$"
+)
 # The contamination audit of ADR 0056 section 4 and HD4's rule for H-SOSP.
 AUDIT_LOAD = 16.0
 AUDIT_BLOCKED = 4
@@ -282,6 +311,313 @@ def probe(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- run: the A/B rounds ------------------------------------------------------------------------
+
+
+def golden_case(scratch: Path, name: str) -> tuple[dict, Path]:
+    """The golden case of a P configuration: its case.json and its dump."""
+    d = hg.set_dir(scratch) / "paper" / name
+    return json.loads((d / "case.json").read_text()), d / "dump.hsd.zst"
+
+
+def golden_batches(case: dict) -> list[dict]:
+    """Per batch what the guards compare: B's pair count and pairs digest, and the CSR rebuilds so
+    far (overflow_rebuilds counts them over the run)."""
+    out, rebuilds = [], 0
+    for a in case["sessions"][0]["apply"]:
+        rebuilds += int(a["counters"]["bt.csr_rebuilt"])
+        out.append(
+            {
+                "h2h_pairs": int(a["h2h_pair_count"]),
+                "pairs_sha256": a["pairs.sha256"],
+                "pairs_deleted": int(a["pairs.deleted"]),
+                "pairs_inserted": int(a["pairs.inserted"]),
+                "overflow_rebuilds": rebuilds,
+            }
+        )
+    return out
+
+
+def guard_original(rows: list[dict], golden: list[dict]) -> list[str]:
+    """B's round: its h2h_pairs and overflow_rebuilds of every batch are the golden's, and its
+    update equals its static recompute (mismatch_static 0)."""
+    problems = []
+    if len(rows) != len(golden):
+        return [f"original: {len(rows)} CSV rows, the golden has {len(golden)} batches"]
+    for k, (r, g) in enumerate(zip(rows, golden, strict=True), 1):
+        if int(r["h2h_pairs"]) != g["h2h_pairs"]:
+            problems.append(f"original b{k}: h2h_pairs {r['h2h_pairs']} != {g['h2h_pairs']}")
+        if int(r["overflow_rebuilds"]) != g["overflow_rebuilds"]:
+            problems.append(
+                f"original b{k}: overflow_rebuilds {r['overflow_rebuilds']} != "
+                f"{g['overflow_rebuilds']}"
+            )
+        if int(r["mismatch_static"]) != 0:
+            problems.append(f"original b{k}: mismatch_static {r['mismatch_static']}")
+    return problems
+
+
+def parse_port_batches(out: str) -> list[dict]:
+    rows = []
+    for line in out.splitlines():
+        m = PORT_BATCH.match(line.strip())
+        if m:
+            rows.append(
+                {
+                    "batch": int(m.group(1)),
+                    "pairs_sha256": m.group(2),
+                    "pairs_deleted": int(m.group(3)),
+                    "pairs_inserted": int(m.group(4)),
+                    "h2h_pairs": int(m.group(5)),
+                    "csr_rebuilds": int(m.group(6)),
+                }
+            )
+    return rows
+
+
+def guard_port(out: str, golden: list[dict]) -> list[str]:
+    """The port's round: its pairs (by digest), pair count and CSR rebuilds of every batch are the
+    golden's."""
+    rows = parse_port_batches(out)
+    if len(rows) != len(golden):
+        return [f"port: {len(rows)} batch lines, the golden has {len(golden)} batches"]
+    problems = []
+    for k, (r, g) in enumerate(zip(rows, golden, strict=True), 1):
+        for key, want in (
+            ("pairs_sha256", g["pairs_sha256"]),
+            ("pairs_deleted", g["pairs_deleted"]),
+            ("pairs_inserted", g["pairs_inserted"]),
+            ("h2h_pairs", g["h2h_pairs"]),
+            ("csr_rebuilds", g["overflow_rebuilds"]),
+        ):
+            if r[key] != want:
+                problems.append(f"port b{k}: {key} {r[key]} != the golden's {want}")
+    return problems
+
+
+def port_argv(exe: Path, path: Path, kind: str, size: int, golden: Path, work: Path) -> list:
+    return [
+        str(exe),
+        "bench",
+        *hg.p_argv(path, kind, size, str(work / CSV_NAME)),
+        "--golden",
+        str(golden),
+        "--timing",
+        str(work / TIMING_NAME),
+        "--maintain-only",
+        "--sync-stages",
+        "--digests",
+        "--threads",
+        str(os.cpu_count() or 1),
+    ]
+
+
+def original_rows(text: str) -> list[dict]:
+    return perf_ab.parse_hsosp_csv(text)
+
+
+def maintain_rows(b_rounds: list[list[dict]], p_rounds: list[dict], batches: int) -> list[dict]:
+    """maintain[bk] (gated by criterion 12's early verdict) and the reported delta[bk],
+    csr_apply[bk]: medians over the rounds, ratio port / original."""
+    out = []
+    for k in range(1, batches + 1):
+        for name, original, port in (
+            ("maintain", ("t_delta_ms", "t_csr_apply_ms"), ["hypergraph.apply"]),
+            (
+                "delta",
+                ("t_delta_ms",),
+                [
+                    "hypergraph.apply.normalize",
+                    "hypergraph.apply.ids",
+                    "hypergraph.apply.incidence",
+                    "hypergraph.apply.translate",
+                ],
+            ),
+            ("csr_apply", ("t_csr_apply_ms",), ["hypergraph.apply.line_graph"]),
+        ):
+            a = [sum(float(r[k - 1][c]) for c in original) for r in b_rounds]
+            b = [hypergraph_perf.region_value(t, port, k) for t in p_rounds]
+            ma, mb = statistics.median(a), statistics.median(b)
+            row = {
+                "row": f"{name}[b{k}]",
+                "original": "+".join(original),
+                "port": port,
+                "original_ms": ma,
+                "port_ms": mb,
+                "ratio": mb / ma if ma > 0 else None,
+                "original_rounds": a,
+                "port_rounds": b,
+            }
+            if name == "maintain":
+                r = row["ratio"]
+                row["verdict"] = (
+                    "GO"
+                    if r is not None and r <= EARLY_GO
+                    else "recorded, fix plan"
+                    if r is not None and r <= EARLY_FIX
+                    else "above 1.05: fix"
+                )
+            out.append(row)
+    return out
+
+
+def audit(loads: list[dict], rule: dict) -> dict:
+    flagged = [
+        i + 1
+        for i, x in enumerate(loads)
+        if (x.get("load_average_max") or 0) > rule["load_average"]
+        or (x.get("procs_blocked_max") or 0) > rule["procs_blocked"]
+    ]
+    return {"rule": rule, "flagged_rounds": flagged, "flagged": bool(flagged)}
+
+
+def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work, b_exe) -> dict:
+    path = hg.check_dataset(args.scratch, dataset)
+    case, dump = golden_case(args.scratch, name)
+    golden = golden_batches(case)
+    b_cmd = [str(b_exe), *hg.p_argv(path, kind, size, str(work / CSV_NAME))]
+    p_cmd = port_argv(exe, path, kind, size, dump, work)
+    b_rounds, p_rounds, windows, rejected, loads = [], [], [], [], []
+    guarded = 0
+    with perf_ab.MachineMonitor(
+        args.gpu,
+        args.max_foreign_cpu,
+        allowed_pids={clocks.pid} if clocks.pid else None,
+        locked=clocks.locked,
+    ) as monitor:
+        r = 0
+        while r < args.rounds:
+            (work / CSV_NAME).unlink(missing_ok=True)
+            t0 = time.time()
+            out_b, win_b = monitor.run(b_cmd, env)
+            rows = original_rows((work / CSV_NAME).read_text())
+            (work / CSV_NAME).unlink(missing_ok=True)
+            (work / TIMING_NAME).unlink(missing_ok=True)
+            out_p, win_p = monitor.run(p_cmd, env)
+            t1 = time.time()
+            timing = hypergraph_perf.stage_times(work / TIMING_NAME)
+            bad = guard_original(rows, golden) + guard_port(out_p, golden)
+            if bad:
+                raise SystemExit(f"{name}: round {r + 1}: the guard failed: {bad}")
+            guarded += 1
+            reasons = win_b.get("reasons", []) + win_p.get("reasons", [])
+            load = sampler.between(t0, t1)
+            if reasons:
+                rejected.append({"before_round": r + 1, "reasons": reasons})
+                print(f"{name}: round {r + 1} rejected ({'; '.join(reasons)})", flush=True)
+                if len(rejected) > 2 * args.rounds:
+                    raise SystemExit(f"{name}: {len(rejected)} rounds rejected; giving up")
+                continue
+            r += 1
+            b_rounds.append(rows)
+            p_rounds.append(timing)
+            windows.append({"original": win_b, "port": win_p})
+            loads.append(load)
+            m = [
+                (
+                    round(
+                        float(rows[k - 1]["t_delta_ms"]) + float(rows[k - 1]["t_csr_apply_ms"]), 1
+                    ),
+                    round(hypergraph_perf.region_value(timing, ["hypergraph.apply"], k), 1),
+                )
+                for k in range(1, len(golden) + 1)
+            ]
+            print(f"{name} round {r}/{args.rounds}: maintain (B, port) {m}", flush=True)
+    return {
+        "config": name,
+        "dataset": dataset,
+        "kind": kind,
+        "batch": size,
+        "rounds": len(b_rounds),
+        "rows": maintain_rows(b_rounds, p_rounds, len(golden)),
+        "monitor": perf_ab.monitor_summary(windows, rejected, args.max_foreign_cpu),
+        "loads": loads,
+        "audit": audit(loads, audit_rule(args.quiet_max)),
+        "guard": {"rounds_checked": guarded, "passed": True},
+        "original_csv": [
+            [{k: r[k] for k in ("t_delta_ms", "t_csr_apply_ms")} for r in x] for x in b_rounds
+        ],
+        "port_rounds": [{f"{s}@{b}": v for (s, b), v in t.items()} for t in p_rounds],
+    }
+
+
+def run(args: argparse.Namespace) -> int:
+    if not args.maintain_only:
+        print("hsosp_perf.py run: the full rows arrive with hyper_sssp (M11a step 5); use "
+              "--maintain-only", file=sys.stderr)  # fmt: skip
+        return 2
+    exe = args.exe.resolve()
+    b_exe = hg.reference_dir(args.scratch, "unpatched") / "bin" / "hsospBench"
+    env = env_for(args.gpu)
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="dyng-hsosp-run-", dir=args.scratch / "runs"))
+    started = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    results = {}
+    clocks = perf_ab.ClockLock(args.gpu, args.clocks)
+    try:
+        with LoadSampler() as sampler, clocks:
+            for name, dataset, kind, size in hg.p_configs():
+                if name not in args.configs:
+                    continue
+                results[name] = run_config(
+                    args, name, dataset, kind, size, exe, env, clocks, sampler, work, b_exe
+                )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    for name, res in results.items():
+        print(f"{name} (GPU {args.gpu}; clocks {clocks.record.get('locked')}):")
+        for row in res["rows"]:
+            ratio = row["ratio"]
+            print(
+                f"  {row['row']:16} original {row['original_ms']:9.2f} port {row['port_ms']:9.2f} "
+                f"ratio {ratio if ratio is None else round(ratio, 3)} {row.get('verdict', '')}"
+            )
+        if res["audit"]["flagged"]:
+            print(f"  contamination audit: FLAGGED {res['audit']['flagged_rounds']}")
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "hyper_sssp (the container's maintain row)",
+            "what": "M11a criterion 12: the early maintain reading against MOSP_ESCHER@4b86159 "
+            "(dyng-compat-hsosp bench --maintain-only; a go/no-go on the host costs, not the "
+            "binding gate)",
+            "date": started,
+            "date_end": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "protocol": {
+                "rounds": args.rounds,
+                "order": "A/B alternation (B first in every round)",
+                "gpu": args.gpu,
+                "clocks": clocks.record,
+                "lock": {k: os.environ.get(k) for k in ("DYNG_PERF_LOCK", "DYNG_PERF_LOCK_HELD")},
+                "layout": f"one (--out <work>/{CSV_NAME}, --timing <work>/{TIMING_NAME})",
+                "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+                "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify none",
+                "port": "dyng-compat-hsosp bench --maintain-only --sync-stages --digests "
+                "(the golden's batches; --threads = the machine's hardware threads, as B's "
+                "OpenMP default)",
+                "statistic": "median",
+                "contamination_monitor": "rejected rounds repeated (perf_ab.MachineMonitor)",
+                "guard": "every round: B's h2h_pairs, overflow_rebuilds and mismatch_static "
+                "and the port's pairs digest, pair count and CSR rebuilds of every batch against "
+                "the golden; a failure stops the reading",
+                "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above "
+                "1.05 fixed (criterion 12)",
+            },
+            "reference": {"repo": hg.REFERENCE, "commit": hg.COMMIT, "exe": hg.portable(b_exe)},
+            "port": {
+                "commit": perf_ab.port_commit(),
+                "binary": perf_ab.portable_path(exe),
+                "build": perf_ab.port_build(exe, "cuda"),
+            },
+            "driver": perf_ab.driver_versions(),
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -301,7 +637,46 @@ def main(argv: list[str] | None = None) -> int:
         help="a check of the harness outside any window: GPU 1, default clocks, no "
         "record of a reading",
     )
+    ru = sub.add_parser("run", help="the A/B rounds (M11a step 3: --maintain-only)")
+    ru.add_argument("--configs", nargs="+", required=True)
+    ru.add_argument("--rounds", type=int, default=11)
+    ru.add_argument("--gpu", type=int, default=0)
+    ru.add_argument("--clocks", default="base", choices=["base", "boost", "none"])
+    ru.add_argument("--maintain-only", action="store_true")
+    ru.add_argument(
+        "--exe",
+        type=Path,
+        default=REPO / "build" / "parity-cuda" / "tools" / "compat" / "dyng-compat-hsosp",
+    )
+    ru.add_argument("--scratch", type=Path, default=hg.scratch_default())
+    ru.add_argument("--json", type=Path)
+    ru.add_argument("--max-foreign-cpu", type=float, default=perf_ab.MAX_FOREIGN_CPU)
+    ru.add_argument(
+        "--quiet-max",
+        type=float,
+        default=7.03,
+        help="B's quiet maximum load average of step 1's pre-read (M11a-quiet-pre-read.json)",
+    )
+    ru.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="a check of the harness outside any window: GPU 1, default clocks, no record",
+    )
     args = p.parse_args(argv)
+    if args.cmd == "run":
+        if args.dry_run:
+            if args.gpu == 0:
+                print("hsosp_perf.py: a dry run never uses GPU 0 (the timing GPU)", file=sys.stderr)
+                return 2
+            args.clocks = "none"
+            return run(args)
+        if os.environ.get("DYNG_PERF_LOCK_HELD") != "1":
+            print(
+                "hsosp_perf.py: run it inside an exclusive-lock window (tools/locklog.py run EXCL)",
+                file=sys.stderr,
+            )
+            return 2
+        return run(args)
     if args.dry_run:
         if args.gpu == 0:
             print("hsosp_perf.py: a dry run never uses GPU 0 (the timing GPU)", file=sys.stderr)
