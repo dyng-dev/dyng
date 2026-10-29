@@ -47,6 +47,7 @@ import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -291,11 +292,15 @@ def tool_versions() -> dict:
 
 def deterministic_log(text: str) -> list[str]:
     """B's stderr lines that do not vary between runs: the [load] and [warn] lines with their times
-    replaced by <ms>, and the [e2e]-free rest dropped (the [row] lines are all times)."""
+    replaced by <ms> and the initial recompute's iterations by <n>; the rest dropped (the [row]
+    lines are all times and counters)."""
     keep = []
     for line in text.splitlines():
         if line.startswith(("[load]", "[warn]", "[FAIL]", "[error]")):
-            keep.append(re.sub(r"[0-9.]+ ms", "<ms>", line))
+            # the times, and the initial recompute's iteration count (logged only, HD7: it
+            # differed between the two exports of the first try)
+            line = re.sub(r"[0-9.]+ ms", "<ms>", line)
+            keep.append(re.sub(r"\(\d+ iterations\)", "(<n> iterations)", line))
     return keep
 
 
@@ -1196,10 +1201,53 @@ def _cbst_rows(rec: dict, name: str, trace) -> list[list[int]]:
     return out
 
 
+class BatchScan:
+    """The batch records of a (large) CBST trace, streamed through `zstd -dc` with every other
+    record skipped unparsed (coauth-DBLP's traces hold millions of op records); side-file arrays
+    are read as escher_trace.Trace reads them."""
+
+    TAG_BATCH = 5
+    blob = escher_trace.Trace.blob
+
+    def __init__(self, path: Path) -> None:
+        self.path = Path(path)
+        self._blob: bytes | None = None
+
+    def records(self):
+        p = subprocess.Popen(
+            ["zstd", "-q", "-dc", "--long=31", str(self.path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,  # a scan stopped early closes the pipe: zstd complains
+        )
+        f = p.stdout
+        assert f is not None
+        try:
+            if f.read(8) != escher_trace.MAGIC:
+                raise ExportError(f"{self.path}: not a CBST trace")
+            f.read(8)
+            while True:
+                h = f.read(12)
+                if len(h) < 12:
+                    break
+                tag, length = struct.unpack("<IQ", h)
+                if tag == self.TAG_BATCH:
+                    buf = memoryview(f.read(length))
+                    yield "batch", escher_trace.parse_fields(buf, 0, length)
+                else:
+                    while length:
+                        n = len(f.read(min(length, 1 << 22)))
+                        if n == 0:
+                            raise ExportError(f"{self.path}: truncated")
+                        length -= n
+        finally:
+            f.close()
+            p.wait()
+
+
 def compare_with_trace(dump: Path, trace: Path) -> dict:
     """The bulk_load and begin_batch records of a dump against those of a CBST trace of the same
     invocation, in order."""
-    t = escher_trace.Trace(trace)
+    t = BatchScan(trace)
     theirs = [
         (rec["hook"], rec["phase"], rec)
         for kind, rec in t.records()
@@ -1300,7 +1348,7 @@ def cbst_main(argv: list[str]) -> int:
         trace = root / f"mosp_escher_dblp50k_{kind}" / f"dblp_{kind}_50000" / "trace.cbt.zst"
         r = compare_with_trace(out / case / "dump.hsd.zst", trace)
         # the loaded rows of the paper cases are in loads/dblp.hsd.zst
-        t = escher_trace.Trace(trace)
+        t = BatchScan(trace)
         b = next(
             rec
             for k, rec in t.records()

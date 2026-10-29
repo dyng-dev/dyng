@@ -237,10 +237,14 @@ def test_canonical_encodings() -> None:
 def test_bs_deterministic_output() -> None:
     text = "timestamp,t_escher_ms,h2h_pairs,fallback,iters\n2026,1.5,10,0,7\n"
     assert hd.csv_deterministic(text) == [{"h2h_pairs": "10", "fallback": "0"}]
-    log = "[load] x: built in 9000 ms; h2h pairs=3\n[row] a dyn=1.0ms\n[warn] x: overflow\n"
+    log = (
+        "[load] x: built in 9000 ms; h2h pairs=3\n[row] a dyn=1.0ms\n[warn] x: overflow\n"
+        "[load] x: device build+initial SOSP in 31 ms (25 iterations)\n"
+    )
     assert hg.deterministic_log(log) == [
         "[load] x: built in <ms>; h2h pairs=3",
         "[warn] x: overflow",
+        "[load] x: device build+initial SOSP in <ms> (<n> iterations)",
     ]
 
 
