@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (fillCBST, unfillCBST: the tail
+// segment a fill writes and an unfill leaves)
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/unfill.cu (unfillRowSerial: the tail occupancy)
 /**
  * @file id_allocator.hpp
  * @brief The host best-fit id allocator: the ids, deleted slots and payload accounting of the

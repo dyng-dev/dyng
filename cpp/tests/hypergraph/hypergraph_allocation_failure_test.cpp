@@ -17,10 +17,14 @@
  *   - of each region directly, with its loop run in parallel (4 threads, more than the regions'
  *     parallel thresholds, every thread's allocations): the std::bad_alloc comes out of the
  *     region on the calling thread, where the entry points translate it.
+ * M11a step 2 adds the regions of slack_csr storage: its v2h append, the slack CSR's build and
+ * delta apply and the pair delta (operators::openmp_exec::for_each, ADR 0083), through the public
+ * calls with incidence edits and, on 4 threads with every thread's allocations failing, directly.
  * Not under the sanitizers, which replace operator new themselves (the tests skip).
  */
 #include "hypergraph/incidence_model.hpp"
 #include "hypergraph/line_graph/host_line_graph.hpp"
+#include "hypergraph/slack_csr/host_store.hpp"
 #include "hypergraph/store.hpp"
 #include "support/failing_allocator.hpp"
 #include "support/gtest_helpers.hpp"
@@ -278,6 +282,162 @@ TEST(HypergraphAllocationFailure, TheLineGraphRowBuildRegionRethrowsOnTheCalling
         });
     EXPECT_GT(failures, 0);
   }
+}
+
+// ---- slack_csr storage (M11a step 2; ADRs 0083, 0085, 0086) -------------------------------------
+
+hgraph make_slack(const dyng::resources& res, dyng::line_graph_policy lg,
+                  const dyng::hyperedge_list<std::int32_t, dyng::unweighted>& list) {
+  dyng::hypergraph_properties props;
+  props.storage = dyng::hypergraph_storage::slack_csr;
+  props.store_v2h = true;
+  props.line_graph = lg;
+  return hgraph::from_hyperedges(res, list.view(), props);
+}
+
+hgraph make_slack(const dyng::resources& res, dyng::line_graph_policy lg, const rows_t& rows,
+                  std::int32_t n) {
+  return make_slack(res, lg, list_of(rows, n));
+}
+
+/// small_batch() with incidence edits (two removals, two additions, one skipped).
+batch_t small_edit_batch() {
+  batch_t b = small_batch();
+  b.delete_incidence(0, 1);
+  b.delete_incidence(5, 7);
+  b.insert_incidence(2, 7);
+  b.insert_incidence(3, 6);
+  b.insert_incidence(6, 0);  // already a member: skipped
+  return b;
+}
+
+// hypergraph::apply() on slack_csr storage, with incidence edits and every line-graph policy:
+// strong before the store phase, poisoned inside it (the slack CSR apply and the pair delta among
+// it), the documented error either way.
+TEST(HypergraphAllocationFailure, ApplyOnSlackCsrReportsOutOfMemoryOnTheHostBackends) {
+  if (DYNG_TEST_SANITIZED) GTEST_SKIP() << "operator new is the sanitizer's";
+  for (const dyng::resources& res : host_resources()) {
+    for (const dyng::line_graph_policy lg :
+         {dyng::line_graph_policy::none, dyng::line_graph_policy::slack_csr,
+          dyng::line_graph_policy::automatic}) {
+      SCOPED_TRACE(name_of(res) + " " + std::string(dyng::to_string(lg)));
+      const batch_t batch = small_edit_batch();
+      rows_t after;
+      {
+        hgraph h = make_slack(res, lg, small_rows(), 8);
+        (void)h.apply(res, batch.view());
+        after = rows_by_id(h);
+      }
+      std::optional<hgraph> h;
+      rows_t before;
+      std::uint64_t version = 0;
+      int unchanged = 0, poisoned_count = 0;
+      const int failures = alloc::fail_each_allocation<dyng::out_of_memory_error>(
+          alloc::scope::calling_thread,
+          [&] {
+            h.emplace(make_slack(res, lg, small_rows(), 8));
+            before = rows_by_id(*h);
+            version = h->version();
+          },
+          [&] { (void)h->apply(res, batch.view()); },
+          [&](bool threw) {
+            if (!threw) {
+              EXPECT_EQ(h->version(), version + 1);
+              EXPECT_EQ(rows_by_id(*h), after);
+              h->check_integrity(res);
+            } else if (poisoned(res, *h)) {
+              ++poisoned_count;
+            } else {
+              ++unchanged;
+              EXPECT_EQ(h->version(), version);
+              EXPECT_EQ(rows_by_id(*h), before);
+              (void)h->apply(res, batch.view());
+              EXPECT_EQ(rows_by_id(*h), after);
+            }
+          });
+      EXPECT_GT(failures, 0);
+      EXPECT_GT(unchanged, 0);
+      EXPECT_GT(poisoned_count, 0);
+    }
+  }
+}
+
+// The slack CSR's build: at construction under line_graph_policy::slack_csr, and on the first
+// h2h() under automatic, which keeps the hypergraph as it was when it fails.
+TEST(HypergraphAllocationFailure, TheSlackLineGraphBuildReportsOutOfMemory) {
+  if (DYNG_TEST_SANITIZED) GTEST_SKIP() << "operator new is the sanitizer's";
+  for (const dyng::resources& res : host_resources()) {
+    SCOPED_TRACE(name_of(res));
+    const auto list = list_of(small_rows(), 8);  // the test's own allocations outside the sweep
+    EXPECT_GT(alloc::fail_each_allocation<dyng::out_of_memory_error>(
+                  alloc::scope::calling_thread, [] {},
+                  [&] { (void)make_slack(res, dyng::line_graph_policy::slack_csr, list); }),
+              0);
+    std::vector<std::int64_t> want;
+    {
+      const hgraph full = make_slack(res, dyng::line_graph_policy::slack_csr, small_rows(), 8);
+      const auto v = full.h2h();
+      want.assign(v.col_ind.begin(), v.col_ind.end());
+    }
+    std::optional<hgraph> h;
+    EXPECT_GT(alloc::fail_each_allocation<dyng::out_of_memory_error>(
+                  alloc::scope::calling_thread,
+                  [&] {
+                    h.emplace(make_slack(res, dyng::line_graph_policy::automatic, small_rows(), 8));
+                  },
+                  [&] { (void)h->h2h(); },
+                  [&](bool threw) {
+                    if (!threw) return;
+                    EXPECT_FALSE(poisoned(res, *h));
+                    const auto v = h->h2h();  // built now
+                    EXPECT_EQ(std::vector<std::int64_t>(v.col_ind.begin(), v.col_ind.end()), want);
+                  }),
+              0);
+  }
+}
+
+// The regions themselves on 4 threads, every thread's allocations failing: slack_host_store's v2h
+// append (1,200 groups, above its parallel threshold) and a whole apply with incidence edits (the
+// slack CSR's for_each regions and the pair delta's).
+TEST(HypergraphAllocationFailure, TheSlackCsrRegionsRethrowOnTheCallingThread) {
+  if (DYNG_TEST_SANITIZED) GTEST_SKIP() << "operator new is the sanitizer's";
+  if (!dyng::backend_available(dyng::backend::openmp)) GTEST_SKIP() << "no openmp backend";
+  const dyng::resources res = dyng::resources::openmp(4);
+  constexpr std::int32_t n = 1200;
+  rows_t rows;
+  for (std::int32_t v = 0; v + 2 < n; v += 3) rows.push_back({v, v + 1, v + 2});
+  dyng::detail::hyper::member_rows m;
+  for (const auto& r : rows) {
+    m.members.insert(m.members.end(), r.begin(), r.end());
+    m.offsets.push_back(static_cast<std::int64_t>(m.members.size()));
+  }
+  dyng::detail::hyper::grouped_incidences g;
+  for (std::int32_t v = 0; v < n; ++v) {
+    g.vertices.push_back(v);
+    g.ids.push_back(static_cast<std::int64_t>(rows.size()) + v / 3);
+    g.prefix.push_back(static_cast<std::int32_t>(g.ids.size()));
+  }
+  std::optional<dyng::detail::hyper::slack_host_store> store;
+  EXPECT_GE(alloc::fail_each_allocation<std::bad_alloc>(
+                alloc::scope::any_thread,
+                [&] {
+                  store.emplace(res, n, m, dyng::capacity_policy{},
+                                dyng::detail::hyper::slack::knobs{});
+                },
+                [&] { store->v2h_append(g); }),
+            n);  // every v2h row grows once at least
+  // A whole apply: out_of_memory_error on the calling thread, whichever thread failed.
+  batch_t batch;
+  for (std::int32_t k = 0; k < 300; ++k) {
+    batch.delete_incidence(k, 3 * k);
+    batch.insert_incidence(k, (3 * k + 5) % n);
+  }
+  std::optional<hgraph> h;
+  EXPECT_GT(alloc::fail_each_allocation<dyng::out_of_memory_error>(
+                alloc::scope::any_thread,
+                [&] { h.emplace(make_slack(res, dyng::line_graph_policy::slack_csr, rows, n)); },
+                [&] { (void)h->apply(res, batch.view()); }),
+            0);
 }
 
 }  // namespace

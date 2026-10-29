@@ -44,6 +44,7 @@ std::int64_t padded4(std::int64_t count) noexcept {
 // the delta and the CSR apply are one source on both (ADR 0086).
 template <typename work_t>
 void with_exec(int threads, work_t&& work) {
+  (void)threads;  // without OpenMP: the sequential executor only
 #if DYNG_HAS_OPENMP
   if (threads > 1) {
     const ops::openmp_exec exec(resources::openmp(threads));
