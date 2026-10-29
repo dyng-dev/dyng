@@ -38,7 +38,6 @@ dyng_add_test(
   NAME dyng_graph_tests
   SOURCES graph/apply_test.cpp graph/graph_test.cpp graph/mosp_apply_fixture_test.cpp
           graph/set_semantics_test.cpp graph/structural_change_test.cpp graph/slotted_test.cpp
-          graph/compact_guard_test.cpp
   LABELS cpu graph
   LIBRARIES dyng::testing
 )
@@ -1341,6 +1340,14 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   string(TOUPPER "${_dyng_algorithm}" _dyng_upper)
   list(APPEND _dyng_algorithm_defines DYNG_ALGORITHM_${_dyng_upper}=1)
 endforeach()
+# The compact-only guard of the 0.1-0.3 algorithms (ADR 0070): the checks of each algorithm built
+# here (DYNG_ALGORITHM_<NAME>; a subset build compiles the others out).
+dyng_add_test(
+  NAME dyng_compact_guard_tests
+  SOURCES graph/compact_guard_test.cpp
+  LABELS cpu graph
+)
+target_compile_definitions(dyng_compact_guard_tests PRIVATE ${_dyng_algorithm_defines})
 foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   set(_suite "algorithms/${_dyng_algorithm}/${_dyng_algorithm}_conformance_test.cpp")
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_suite}")

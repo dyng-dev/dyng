@@ -274,6 +274,10 @@ NOT_DERIVED = {
     "there)",
     "cpp/src/algorithms/triad_count/engine/exact.hpp": "new exact arithmetic (ADR 0057); names "
     "ESCHER-GPU's Choose3Op / Type2Op / Type3Op only to say what it replaces",
+    "cpp/include/dyng/label_propagation.hpp": "public API; documents the semantics the port "
+    "reproduces (label_propagation.cpp and problem.hpp carry the header)",
+    "cpp/src/algorithms/label_propagation/trace.hpp": "declares the stage trace in the format of "
+    "dynG's recorder (ADR 0065); no copied code",
 }
 
 

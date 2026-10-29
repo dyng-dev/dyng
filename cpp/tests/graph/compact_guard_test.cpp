@@ -6,21 +6,32 @@
  *        (sssp, mosp, cycle_count, dynamic_bfs, triangle_delta), each of its entries (compute,
  *        update, from_arrays) and dyng::update()'s composition refuse a graph with
  *        row_layout::slotted with a not_supported_error that names the layout, before anything
- *        changes; compact graphs are unaffected.
+ *        changes; compact graphs are unaffected. Each algorithm's checks are compiled when the
+ *        algorithm is built (DYNG_ALGORITHM_<NAME>, a subset build of DYNG_ALGORITHMS).
  */
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
-#include <dyng/cycle_count.hpp>
-#include <dyng/dynamic_bfs.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/edge_list.hpp>
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
-#include <dyng/mosp.hpp>
-#include <dyng/sssp.hpp>
-#include <dyng/triangle_delta.hpp>
 #include <dyng/update.hpp>
+#if defined(DYNG_ALGORITHM_CYCLE_COUNT)
+#include <dyng/cycle_count.hpp>
+#endif
+#if defined(DYNG_ALGORITHM_DYNAMIC_BFS)
+#include <dyng/dynamic_bfs.hpp>
+#endif
+#if defined(DYNG_ALGORITHM_MOSP)
+#include <dyng/mosp.hpp>
+#endif
+#if defined(DYNG_ALGORITHM_SSSP)
+#include <dyng/sssp.hpp>
+#endif
+#if defined(DYNG_ALGORITHM_TRIANGLE_DELTA)
+#include <dyng/triangle_delta.hpp>
+#endif
 
 #include <gtest/gtest.h>
 
@@ -82,22 +93,55 @@ weighted compact_weighted(const dyng::resources& res) {
 TEST(CompactGuard, ComputeRefusesSlottedRows) {
   const dyng::resources res = dyng::resources::sequential();
   const weighted g = slotted_weighted(res);
-  expect_refused([&] { (void)dyng::sssp::compute(res, g, 0); }, "sssp::compute");
-  expect_refused([&] { (void)dyng::mosp::compute(res, g, 0); }, "mosp::compute");
-  expect_refused([&] { (void)dyng::cycle_count::compute(res, g); }, "cycle_count::compute");
-  expect_refused([&] { (void)dyng::dynamic_bfs::compute(res, g); }, "dynamic_bfs::compute");
-  expect_refused([&] { (void)dyng::triangle_delta::compute(res, g); }, "triangle_delta::compute");
   const plain u = plain::with_capacity(res, 3, host_view(capacity), slotted_props(0));
+  (void)g;
+  (void)u;
+#if defined(DYNG_ALGORITHM_SSSP)
+  expect_refused([&] { (void)dyng::sssp::compute(res, g, 0); }, "sssp::compute");
+#endif
+#if defined(DYNG_ALGORITHM_MOSP)
+  expect_refused([&] { (void)dyng::mosp::compute(res, g, 0); }, "mosp::compute");
+#endif
+#if defined(DYNG_ALGORITHM_CYCLE_COUNT)
+  expect_refused([&] { (void)dyng::cycle_count::compute(res, g); }, "cycle_count::compute");
   expect_refused([&] { (void)dyng::cycle_count::compute(res, u); }, "cycle_count::compute");
+#endif
+#if defined(DYNG_ALGORITHM_DYNAMIC_BFS)
+  expect_refused([&] { (void)dyng::dynamic_bfs::compute(res, g); }, "dynamic_bfs::compute");
   expect_refused([&] { (void)dyng::dynamic_bfs::compute(res, u); }, "dynamic_bfs::compute");
+#endif
+#if defined(DYNG_ALGORITHM_TRIANGLE_DELTA)
+  expect_refused([&] { (void)dyng::triangle_delta::compute(res, g); }, "triangle_delta::compute");
+#endif
 }
 
 TEST(CompactGuard, UpdateAndCompositionRefuseSlottedRows) {
   const dyng::resources res = dyng::resources::sequential();
   const weighted c = compact_weighted(res);
   weighted g = slotted_weighted(res);
+  (void)c;
+  dyng::edge_batch<std::int32_t, std::int32_t> b;
+  b.insert_edge(1, 2, {4});
+  const std::uint64_t version = g.version();
+#if defined(DYNG_ALGORITHM_SSSP)
   auto tree = dyng::sssp::compute(res, c, 0);
+  expect_refused([&] { (void)dyng::sssp::update(res, g, b.view(), tree); }, "sssp::update");
+#endif
+#if defined(DYNG_ALGORITHM_MOSP)
+  auto multi = dyng::mosp::compute(res, c, 0);
+  expect_refused([&] { (void)dyng::mosp::update(res, g, b.view(), multi); }, "mosp::update");
+#endif
+#if defined(DYNG_ALGORITHM_CYCLE_COUNT)
+  auto cycles = dyng::cycle_count::compute(res, c);
+  expect_refused([&] { (void)dyng::cycle_count::update(res, g, b.view(), cycles); },
+                 "cycle_count::update");
+#endif
+#if defined(DYNG_ALGORITHM_DYNAMIC_BFS)
   auto bfs = dyng::dynamic_bfs::compute(res, c);
+  expect_refused([&] { (void)dyng::dynamic_bfs::update(res, g, b.view(), bfs); },
+                 "dynamic_bfs::update");
+#endif
+#if defined(DYNG_ALGORITHM_TRIANGLE_DELTA)
   dyng::graph_properties undirected;
   undirected.directed = false;
   const std::vector<std::int32_t> src = {0};
@@ -106,28 +150,23 @@ TEST(CompactGuard, UpdateAndCompositionRefuseSlottedRows) {
   const weighted cu =
       weighted::from_edges(res, {3, host_view(src), host_view(dst), host_view(w), 1}, undirected);
   auto tri = dyng::triangle_delta::compute(res, cu);
-  auto cycles = dyng::cycle_count::compute(res, c);
-  auto multi = dyng::mosp::compute(res, c, 0);
-  dyng::edge_batch<std::int32_t, std::int32_t> b;
-  b.insert_edge(1, 2, {4});
-  const std::uint64_t version = g.version();
-  expect_refused([&] { (void)dyng::sssp::update(res, g, b.view(), tree); }, "sssp::update");
-  expect_refused([&] { (void)dyng::mosp::update(res, g, b.view(), multi); }, "mosp::update");
-  expect_refused([&] { (void)dyng::cycle_count::update(res, g, b.view(), cycles); },
-                 "cycle_count::update");
-  expect_refused([&] { (void)dyng::dynamic_bfs::update(res, g, b.view(), bfs); },
-                 "dynamic_bfs::update");
   expect_refused([&] { (void)dyng::triangle_delta::update(res, g, b.view(), tri); },
                  "triangle_delta::update");
+#endif
+#if defined(DYNG_ALGORITHM_SSSP) && defined(DYNG_ALGORITHM_DYNAMIC_BFS)
   expect_refused([&] { (void)dyng::update(res, g, b.view(), tree, bfs); }, "dyng::update");
+#endif
   EXPECT_EQ(g.version(), version);  // nothing was applied
   EXPECT_NO_THROW(g.check_integrity(res));
+#if defined(DYNG_ALGORITHM_SSSP)
   // The results are still usable on their compact graph.
   weighted c2 = compact_weighted(res);
   auto tree2 = dyng::sssp::compute(res, c2, 0);
   EXPECT_NO_THROW((void)dyng::sssp::update(res, c2, b.view(), tree2));
+#endif
 }
 
+#if defined(DYNG_ALGORITHM_SSSP)
 TEST(CompactGuard, ImportedTreesRefuseSlottedRows) {
   const dyng::resources res = dyng::resources::sequential();
   const weighted g = slotted_weighted(res);
@@ -140,5 +179,6 @@ TEST(CompactGuard, ImportedTreesRefuseSlottedRows) {
       },
       "sssp::result::from_arrays");
 }
+#endif
 
 }  // namespace
