@@ -1737,17 +1737,181 @@ COMMANDS = {
 }
 
 
+def find_replay() -> Path | None:
+    """dyng_hsosp_replay: $DYNG_HSOSP_REPLAY, else the first build tree that has it."""
+    env = os.environ.get("DYNG_HSOSP_REPLAY")
+    if env:
+        return Path(env)
+    for preset in (
+        "release",
+        "cpu-only",
+        "parity",
+        "dev",
+        "release-cuda",
+        "parity-cuda",
+        "dev-cuda",
+    ):
+        exe = REPO / "build" / preset / "cpp" / "tests" / "dyng_hsosp_replay"
+        if exe.is_file():
+            return exe
+    return None
+
+
+DELTA_TOTALS = (
+    "sessions",
+    "stopped_sessions",
+    "batches",
+    "vertex_batches",
+    "ids_compared",
+    "rows_compared",
+    "pair_batches",
+    "deleted_pairs",
+    "inserted_pairs",
+    "filtered_virtual",
+    "skipped_ops",
+    "skipped_edits",
+    "removals",
+    "additions",
+    "original_exceptions",
+    "hyper_sssp_weight_limit",
+    "oracle_states",
+    "candidates_equal",
+    "candidates_differ",
+    "csr_rebuilds",
+    "b_csr_rebuilds",
+    "node_growths",
+    "mismatch_count",
+)
+
+
+def delta_main(args) -> int:
+    """--part delta (M11a criteria 8 and 10, ADRs 0085 and 0086): every session of the cases
+    replayed whole through dyng::hypergraph on slack_csr storage by id with dyng_hsosp_replay (the
+    ids, skipped ops, dead ids, rows, weights, the pair delta and count, check_integrity(), and
+    with the oracle rebuild_line_graph and line_graph_delta after every batch). A paper case's
+    loaded rows are spliced back in from loads/ (one case at a time: the spliced dump is a few
+    GB for coauth-DBLP). --record writes M11a-hsosp-delta-<backend>[-t<N>].json."""
+    exe = args.exe or find_replay()
+    if exe is None or not exe.is_file():
+        print("dyng_hsosp_replay not found: build dyng_hsosp_replay_tool", file=sys.stderr)
+        return 2
+    out = set_dir(args.scratch)
+    if not (out / "MANIFEST.sha256").is_file():
+        print(f"no goldens under {out}; skipping", file=sys.stderr)
+        return 77
+    problems: list[str] = []
+    if not args.skip_verify:
+        problems += verify_set(args.scratch)
+    t, names = select(args.cases)
+    cases = ([f"test/{n}" for n, _ in T_CASES] if t else []) + [f"paper/{n}" for n in names]
+    digest = [c for c in cases if c.startswith("paper/") and c.split("/", 1)[1] not in P50]
+    if digest:
+        print(
+            f"{digest}: digest cases (their pairs are hashes): the CUDA replay's", file=sys.stderr
+        )
+        return 2
+    reports = []
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=args.scratch / "runs", prefix="hsosp-delta-") as tmp:
+        for case in cases:
+            dump = out / case / "dump.hsd.zst"
+            if case.startswith("paper/"):
+                dump = splice_load(out, case, Path(tmp))
+            js = Path(tmp) / "report.json"
+            cmd = [str(exe), "--backend", args.backend, "--json", str(js)]
+            if args.threads:
+                cmd += ["--threads", str(args.threads)]
+            if args.no_oracle:
+                cmd.append("--no-oracle")
+            cmd.append(str(dump))
+            t0 = time.monotonic()
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode not in (0, 1) or not js.is_file():
+                rep = {"ok": False, "error": (r.stderr or r.stdout)[-2000:], "mismatch_count": 1}
+            else:
+                rep = json.loads(js.read_text())[0]
+            rep["file"] = f"{case}/dump.hsd.zst"
+            rep["wall_seconds"] = round(time.monotonic() - t0, 1)
+            reports.append(rep)
+            first = "" if rep.get("ok") else (rep.get("mismatches") or [rep.get("error", "")])[0]
+            print(
+                f"{case}: {'ok' if rep.get('ok') else 'MISMATCH'} ({rep.get('sessions')} sessions, "
+                f"{rep.get('batches')} batches, {rep.get('vertex_batches')} with incidence edits, "
+                f"{rep.get('ids_compared')} ids, {rep.get('deleted_pairs')} + "
+                f"{rep.get('inserted_pairs')} pairs, {rep['wall_seconds']} s) "
+                f"{first}",
+                flush=True,
+            )
+            if case.startswith("paper/"):
+                dump.unlink()
+    totals = {k: sum(int(r.get(k, 0)) for r in reports) for k in DELTA_TOTALS}
+    for r in reports:
+        if not r.get("ok"):
+            problems.append(f"{r['file']}: {(r.get('mismatches') or [r.get('error', '?')])[0]}")
+    if totals["stopped_sessions"]:
+        problems.append(f"{totals['stopped_sessions']} sessions were not replayed to their end")
+    record = {
+        "record": "hyper_sssp's container side by id: B's sessions replayed whole on slack_csr",
+        "backend": args.backend,
+        "threads": args.threads,
+        "oracle": not args.no_oracle,
+        "verified": not args.skip_verify,
+        "commit": git_head(),
+        "tool": portable(exe),
+        "passed": not problems,
+        "totals": totals,
+        "cases": reports,
+        "problems": problems,
+    }
+    print(
+        f"hyper_sssp delta on {args.backend}"
+        + (f" ({args.threads} threads)" if args.threads else "")
+        + f": {len(reports)} cases, {totals['sessions']} sessions ({totals['stopped_sessions']} "
+        f"stopped), {totals['batches']} batches ({totals['vertex_batches']} with incidence edits), "
+        f"{totals['ids_compared']} ids, {totals['deleted_pairs']} + {totals['inserted_pairs']} "
+        f"pairs, {totals['mismatch_count']} mismatches: " + ("OK" if not problems else "FAILED")
+    )
+    for pr in problems[:20]:
+        print("  " + pr)
+    if args.record:
+        args.record.mkdir(parents=True, exist_ok=True)
+        name = f"M11a-hsosp-delta-{args.backend}" + (f"-t{args.threads}" if args.threads else "")
+        (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
+    return 0 if not problems else 1
+
+
+def git_head() -> str:
+    try:
+        return subprocess.run(
+            ["git", "-C", str(REPO), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
 def compare_main(argv: list[str]) -> int:
     """parity/compare.py hyper_sssp [--verify [--full]] [--list] [--part delta|results]: the
-    goldens verified; --part names what a replay compares (the line-graph delta and ids, or the
-    distances and parents; the replays come with the port, M11a steps 2-4)."""
+    goldens verified; --part delta replays the sessions on the container (M11a step 2, the host
+    backends; delta_main); --part results compares the distances and parents (M11a step 4)."""
     p = argparse.ArgumentParser(prog="compare.py hyper_sssp")
     p.add_argument("--verify", action="store_true")
     p.add_argument("--full", action="store_true")
     p.add_argument("--list", action="store_true")
     p.add_argument("--part", choices=["delta", "results"])
     p.add_argument("--scratch", type=Path, default=scratch_default())
+    p.add_argument("--backend", choices=["sequential", "openmp"], default="sequential")
+    p.add_argument("--threads", type=int, default=0, help="openmp threads (0: the default)")
+    p.add_argument("--cases", default="t,p50", help="'t', 'p50' or a comma list (default t,p50)")
+    p.add_argument("--no-oracle", action="store_true", help="leave out the oracle checks")
+    p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
+    p.add_argument("--exe", type=Path, help="dyng_hsosp_replay (default: find it in build/)")
+    p.add_argument("--record", type=Path, help="write M11a-hsosp-delta-*.json here")
     args = p.parse_args(argv)
+    if args.part == "delta":
+        return delta_main(args)
     if args.list:
         for name, _ in T_CASES:
             print(f"test/{name}")
