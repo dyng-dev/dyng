@@ -24,6 +24,19 @@ Before 0.1.0 anything may change.
 
 ### M10: `label_propagation` (0.4)
 
+- The parity harness of `label_propagation` against LabelPropagation-CUDA@a276a3a (M10a step 1;
+  ADRs 0063-0066; no library change): the reference in `parity/references.toml` and its
+  link-time recording twin (`parity/export_patches/LabelPropagation-CUDA`,
+  `parity/exporters/dynlp`, `parity/dynlp_trace.py`); the timed-region map
+  `parity/timed_regions/label_propagation.toml` with M10's region keys `first_batch` and
+  `sum_gate` in `parity/perf_ab.py` and `parity/bench_suite.py`; `perf_ab.py label_propagation`
+  (`parity/label_propagation_perf.py`: the pre-port baseline and the memory readings of the
+  original); the golden sets `label_propagation_{generator,damped,trace,hub,irlp,inplace}` and
+  the in_place calibration (`parity/label_propagation_goldens.py`, through
+  `export_goldens.py label_propagation` and `compare.py label_propagation --verify`), with the
+  thresholds frozen in `parity/goldens.toml`; the build-flags go/no-go
+  (`parity/label_propagation_sass.py`); the records under `parity/results/` (`M10a.md`).
+
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
 ## [0.3.0] - 2026-10-29

@@ -850,6 +850,7 @@ def toml_section(short: str, set_path: Path) -> str:
             else "export --twice (parity/export_goldens.py label_propagation)"
         )
         + '"',
+        f"num_cases = {num_cases(short, set_path)}",
         f"num_files = {len(lines)}",
         f"num_bytes = {size}",
         f'manifest_sha256 = "{sha256_bytes(manifest.read_bytes())}"',
@@ -862,6 +863,16 @@ def toml_section(short: str, set_path: Path) -> str:
         for name, c in cases.items():
             out.append(f'"{name}" = {{ sha256 = "{c["sha256"]}", files = {c["files"]} }}')
     return "\n".join(out) + "\n"
+
+
+def num_cases(short: str, set_path: Path) -> int:
+    """The cases of a set (parity/certify.py lists them): the case directories; the hub is one
+    case; the in_place set has its I cases and the delta 1e-6 cases."""
+    if short == "hub":
+        return 1
+    if short == "inplace":
+        return len(CALIBRATION["cases"]) + len(CALIBRATION["tight_cases"])
+    return len(case_digests(set_path))
 
 
 def write_toml(short: str, set_path: Path) -> None:
