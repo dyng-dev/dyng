@@ -24,11 +24,15 @@ port against the original instead of reading it:
     python3 parity/escher_port/transplant.py --mechanical DIR     # steps 1-4 only (no hunks)
 
 --map selects another rename map (default rename_map.toml, M8a's store): rename_map_line_graph.toml
-is the line-graph port of M8b (ADR 0042). A map may name its manual hunks (`hunks`, a file next to
-it; default manual_hunks.patch) and the note of its generated headers (`note`).
+is the line-graph port of M8b (ADR 0042), rename_map_hsosp.toml the slack_csr store of M11a
+(MOSP_ESCHER@4b86159's DeviceIncidence, DeviceH2H, deriveDelta and applyDeltaPairs; ADR 0089). A
+map may name its manual hunks (`hunks`, a file next to it; default manual_hunks.patch), the note of
+its generated headers (`note`) and the directory of its original's clone (`original_dir`; default
+ESCHER-GPU).
 
-The original's clone defaults to $DYNG_ORIGINALS/ESCHER-GPU or ~/Projects/ESCHER-GPU
-(--original). Exit status: 0 identical (--check) or written, 1 different, 2 usage or input error.
+The original's clone defaults to $DYNG_ORIGINALS/<original_dir> or ~/Projects/<original_dir>
+(--original); only `git show <commit>:<path>` reads it (the committed tree, never the working tree).
+Exit status: 0 identical (--check) or written, 1 different, 2 usage or input error.
 """
 
 from __future__ import annotations
@@ -216,9 +220,9 @@ def apply_hunks(out: Path, hunks: Path = HUNKS) -> None:
         )
 
 
-def default_original() -> Path:
+def default_original(cfg: dict) -> Path:
     base = os.environ.get("DYNG_ORIGINALS", str(Path.home() / "Projects"))
-    return Path(base) / "ESCHER-GPU"
+    return Path(base) / cfg.get("original_dir", "ESCHER-GPU")
 
 
 def check(cfg: dict, generated: Path, rev: str) -> int:
@@ -249,7 +253,7 @@ def check(cfg: dict, generated: Path, rev: str) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--original", type=Path, default=default_original())
+    ap.add_argument("--original", type=Path, help="the original's clone (default: see above)")
     ap.add_argument("--out", type=Path, help="write the transplant (with the manual hunks) here")
     ap.add_argument("--mechanical", type=Path, help="write the mechanical part only here")
     ap.add_argument("--check", action="store_true", help="compare with --rev")
@@ -257,18 +261,19 @@ def main() -> int:
     ap.add_argument("--map", type=Path, default=MAP, help="the rename map (default: M8a's store)")
     args = ap.parse_args()
     cfg = load_map(args.map)
+    original = args.original if args.original is not None else default_original(cfg)
     hunks = args.map.resolve().parent / cfg.get("hunks", HUNKS.name)
     if args.mechanical:
-        mechanical(cfg, args.original, args.mechanical)
+        mechanical(cfg, original, args.mechanical)
         return 0
     if args.out:
-        mechanical(cfg, args.original, args.out)
+        mechanical(cfg, original, args.out)
         apply_hunks(args.out, hunks)
         return 0
     if args.check:
         with tempfile.TemporaryDirectory(prefix="dyng-transplant-") as tmp:
             out = Path(tmp)
-            mechanical(cfg, args.original, out)
+            mechanical(cfg, original, out)
             apply_hunks(out, hunks)
             return check(cfg, out, args.rev)
     ap.print_usage()
