@@ -1249,6 +1249,11 @@
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const csr_view< vertex_t, edge_t, weight_t > &out, vertex_t source, int objective=0)
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, int objective=0)
 
+[dyng/testing/hyper_sssp_reference.hpp] tracked
+  [[nodiscard]] std::pair< std::vector< std::int64_t >, std::vector< std::int32_t > > dyng::testing::hyper_sssp_reference(const std::vector< std::int64_t > &h2v_offsets, const std::vector< std::int32_t > &h2v_members, std::int32_t num_vertices, const std::vector< std::int64_t > &weights, std::int64_t source, bool source_is_vertex=false)
+  [[nodiscard]] std::pair< std::int64_t, std::int64_t > dyng::testing::check_hyper_sssp_tree(const std::vector< std::int64_t > &h2v_offsets, const std::vector< std::int32_t > &h2v_members, std::int32_t num_vertices, const std::vector< std::int64_t > &weights, std::int64_t source, bool source_is_vertex, const std::vector< std::int64_t > &distances, const std::vector< std::int32_t > &parents)
+  [[nodiscard]] std::pair< std::vector< std::pair< std::int64_t, std::int64_t > >, std::vector< std::pair< std::int64_t, std::int64_t > > > dyng::testing::line_graph_delta(const std::vector< std::int64_t > &pre_offsets, const std::vector< std::int32_t > &pre_members, const std::vector< std::int64_t > &post_offsets, const std::vector< std::int32_t > &post_members, std::int32_t num_vertices)
+
 [dyng/testing/line_graph_oracle.hpp] tracked
   struct dyng::testing::line_graph_rows
       std::vector< std::int64_t > offsets {0}
