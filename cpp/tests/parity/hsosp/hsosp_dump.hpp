@@ -48,7 +48,9 @@ struct record {
   std::string tag;
   std::map<std::string, field> fields;
 
-  [[nodiscard]] bool has(const std::string& name) const { return fields.count(name) != 0; }
+  [[nodiscard]] bool has(const std::string& name) const {
+    return fields.count(name) != 0;
+  }
   /// An int64 field (throws dump_error when it is missing or of another type).
   [[nodiscard]] std::int64_t i64(const std::string& name) const;
   /// A string field.

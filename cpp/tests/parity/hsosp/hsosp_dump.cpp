@@ -22,9 +22,9 @@ namespace dyng::test::hsosp_dump {
 
 namespace {
 
-const char* const tag_names[] = {"",           "header",      "session",     "load",
-                                 "device_build", "begin_batch", "apply_batch", "sssp",
-                                 "compare",    "end"};
+const char* const tag_names[] = {
+    "",     "header",  "session", "load", "device_build", "begin_batch", "apply_batch",
+    "sssp", "compare", "end"};
 
 std::string quote_for_shell(const std::string& s) {
   std::string out = "'";
@@ -49,7 +49,8 @@ struct cursor {
     need(static_cast<std::size_t>(bytes));
     std::uint64_t v = 0;
     for (int i = 0; i < bytes; ++i)
-      v |= static_cast<std::uint64_t>(static_cast<unsigned char>(b[pos + static_cast<std::size_t>(i)]))
+      v |= static_cast<std::uint64_t>(
+               static_cast<unsigned char>(b[pos + static_cast<std::size_t>(i)]))
            << (8 * i);
     pos += static_cast<std::size_t>(bytes);
     return v;
@@ -225,8 +226,8 @@ oracle_report check_with_oracle(const std::vector<record>& records, std::size_t 
   oracle_report rep;
   std::map<std::int64_t, state> sessions;
   // The reference of the last state of a session (version -> distances and parents).
-  std::map<std::int64_t, std::pair<std::int64_t, std::pair<std::vector<std::int64_t>,
-                                                         std::vector<std::int32_t>>>>
+  std::map<std::int64_t,
+           std::pair<std::int64_t, std::pair<std::vector<std::int64_t>, std::vector<std::int32_t>>>>
       cache;
   for (const record& r : records) {
     if (!r.has("session")) continue;
@@ -337,14 +338,22 @@ oracle_report check_with_oracle(const std::vector<record>& records, std::size_t 
           << " distance and " << pm << " parent differences";
         if (first_d >= 0)
           o << "; id " << first_d << ": B "
-            << (static_cast<std::size_t>(first_d) < got_d.size() ? got_d[static_cast<std::size_t>(first_d)] : inf)
+            << (static_cast<std::size_t>(first_d) < got_d.size()
+                    ? got_d[static_cast<std::size_t>(first_d)]
+                    : inf)
             << ", oracle "
-            << (static_cast<std::size_t>(first_d) < want_d.size() ? want_d[static_cast<std::size_t>(first_d)] : inf);
+            << (static_cast<std::size_t>(first_d) < want_d.size()
+                    ? want_d[static_cast<std::size_t>(first_d)]
+                    : inf);
         if (first_p >= 0)
           o << "; id " << first_p << ": parent B "
-            << (static_cast<std::size_t>(first_p) < got_p.size() ? got_p[static_cast<std::size_t>(first_p)] : -1)
+            << (static_cast<std::size_t>(first_p) < got_p.size()
+                    ? got_p[static_cast<std::size_t>(first_p)]
+                    : -1)
             << ", oracle "
-            << (static_cast<std::size_t>(first_p) < want_p.size() ? want_p[static_cast<std::size_t>(first_p)] : -1);
+            << (static_cast<std::size_t>(first_p) < want_p.size()
+                    ? want_p[static_cast<std::size_t>(first_p)]
+                    : -1);
         note(rep, max_problems, o.str());
       }
     }

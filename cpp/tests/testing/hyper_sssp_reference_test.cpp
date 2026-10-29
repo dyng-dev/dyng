@@ -214,8 +214,8 @@ TEST(HyperSsspReference, AgreesWithABruteForce) {
     }
     const csr c = to_csr(r);
     const bool vertex = trial % 2 == 1;
-    const std::int64_t source = vertex ? static_cast<std::int64_t>(rng() % n)
-                                       : static_cast<std::int64_t>(rng() % m);
+    const std::int64_t source =
+        vertex ? static_cast<std::int64_t>(rng() % n) : static_cast<std::int64_t>(rng() % m);
     const auto got = ts::hyper_sssp_reference(c.offsets, c.members, n, w, source, vertex);
     const auto want = brute(r, w, source, vertex);
     ASSERT_EQ(got.first, want.first) << "trial " << trial;
@@ -256,11 +256,9 @@ TEST(LineGraphDelta, AgreesWithABruteForce) {
 
 TEST(HyperSsspReference, RefusesMalformedInput) {
   const csr c = to_csr(chain);
-  const auto call = [&](const std::vector<std::int64_t>& off,
-                        const std::vector<std::int32_t>& mem, std::int32_t n,
-                        const std::vector<std::int64_t>& w, std::int64_t s, bool v) {
-    return ts::hyper_sssp_reference(off, mem, n, w, s, v);
-  };
+  const auto call = [&](const std::vector<std::int64_t>& off, const std::vector<std::int32_t>& mem,
+                        std::int32_t n, const std::vector<std::int64_t>& w, std::int64_t s,
+                        bool v) { return ts::hyper_sssp_reference(off, mem, n, w, s, v); };
   EXPECT_THROW((void)call({1, 2}, {0}, 7, {0}, 0, false), std::invalid_argument);
   EXPECT_THROW((void)call({0, 2, 1}, {0, 1}, 7, {0, 0}, 0, false), std::invalid_argument);
   EXPECT_THROW((void)call(c.offsets, c.members, 6, chain_w, 0, false), std::invalid_argument);

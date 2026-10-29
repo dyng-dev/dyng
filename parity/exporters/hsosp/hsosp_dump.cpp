@@ -244,8 +244,9 @@ bool dump::open() {
     if (st.st_size <= (16 << 20)) {
       std::ifstream in(raw[i], std::ios::binary);
       std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-      std::snprintf(hex, sizeof hex, "%016llx",
-                    static_cast<unsigned long long>(fnv_bytes(fnv_offset, data.data(), data.size())));
+      std::snprintf(
+          hex, sizeof hex, "%016llx",
+          static_cast<unsigned long long>(fnv_bytes(fnv_offset, data.data(), data.size())));
       std::string leaf = normalize_arg(raw[i]);
       if (leaf.rfind("<abs>/", 0) == 0) leaf = leaf.substr(6);
       std::replace(leaf.begin(), leaf.end(), '/', '_');
@@ -264,8 +265,8 @@ bool dump::open() {
   }
   f.strings("inputs", inputs);
   std::vector<std::string> env;
-  for (const char* k : {"DYNG_HSOSP_DUMP_ROWS", "CUDA_VISIBLE_DEVICES", "CUDA_MODULE_LOADING",
-                        "OMP_NUM_THREADS"}) {
+  for (const char* k :
+       {"DYNG_HSOSP_DUMP_ROWS", "CUDA_VISIBLE_DEVICES", "CUDA_MODULE_LOADING", "OMP_NUM_THREADS"}) {
     const char* v = std::getenv(k);
     if (v) env.push_back(std::string(k) + "=" + v);
   }

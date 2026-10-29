@@ -33,7 +33,9 @@ struct line_graph {
   std::vector<std::int64_t> offsets;  // ids + 1
   std::vector<std::int32_t> neighbours;
 
-  [[nodiscard]] std::int64_t ids() const { return static_cast<std::int64_t>(offsets.size()) - 1; }
+  [[nodiscard]] std::int64_t ids() const {
+    return static_cast<std::int64_t>(offsets.size()) - 1;
+  }
 };
 
 // The hyperedges of a call, checked.
@@ -100,9 +102,8 @@ line_graph rebuild(const std::vector<std::int64_t>& offsets,
     for (std::int64_t i = v_off[v]; i < v_off[v + 1]; ++i)
       for (std::int64_t j = v_off[v]; j < v_off[v + 1]; ++j)
         if (i != j)
-          pairs.push_back(
-              (static_cast<std::uint64_t>(v_he[static_cast<std::size_t>(i)]) << 32) |
-              static_cast<std::uint32_t>(v_he[static_cast<std::size_t>(j)]));
+          pairs.push_back((static_cast<std::uint64_t>(v_he[static_cast<std::size_t>(i)]) << 32) |
+                          static_cast<std::uint32_t>(v_he[static_cast<std::size_t>(j)]));
   }
   std::sort(pairs.begin(), pairs.end());
   pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());
@@ -230,8 +231,7 @@ std::pair<std::int64_t, std::int64_t> check_hyper_sssp_tree(
     const std::vector<std::int32_t>& parents) {
   const reference r = solve("check_hyper_sssp_tree", h2v_offsets, h2v_members, num_vertices,
                             weights, source, source_is_vertex);
-  const std::size_t n =
-      std::max({r.distances.size(), distances.size(), parents.size()});
+  const std::size_t n = std::max({r.distances.size(), distances.size(), parents.size()});
   std::int64_t distance_mismatches = 0;
   std::int64_t parent_errors = 0;
   for (std::size_t id = 0; id < n; ++id) {

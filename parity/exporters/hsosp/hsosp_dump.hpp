@@ -58,7 +58,9 @@ class fields {
   void str(const char* name, const std::string& s);
   void strings(const char* name, const std::vector<std::string>& v);
   void ints(const char* name, const int* data, std::size_t count);
-  void ints(const char* name, const std::vector<int>& v) { ints(name, v.data(), v.size()); }
+  void ints(const char* name, const std::vector<int>& v) {
+    ints(name, v.data(), v.size());
+  }
   void longs(const char* name, const long long* data, std::size_t count);
   void longs(const char* name, const std::vector<long long>& v) {
     longs(name, v.data(), v.size());

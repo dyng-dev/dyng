@@ -50,8 +50,7 @@ int main(int argc, char** argv) {
           "%lld, \"parent_mismatches\": %lld, \"batches_checked\": %lld, \"pair_mismatches\": "
           "%lld, \"not_checked\": %lld, \"ok\": %s, \"problems\": %s}\n",
           json_string(argv[i]).c_str(), static_cast<long long>(rep.sessions),
-          static_cast<long long>(rep.sssp_checked),
-          static_cast<long long>(rep.distance_mismatches),
+          static_cast<long long>(rep.sssp_checked), static_cast<long long>(rep.distance_mismatches),
           static_cast<long long>(rep.parent_mismatches),
           static_cast<long long>(rep.batches_checked), static_cast<long long>(rep.pair_mismatches),
           static_cast<long long>(rep.not_checked), rep.ok() ? "true" : "false", problems.c_str());

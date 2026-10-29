@@ -63,11 +63,10 @@ namespace dyng::testing {
  * @throws std::bad_alloc        if host memory cannot be allocated.
  * @ingroup testing
  */
-[[nodiscard]] std::pair<std::vector<std::int64_t>, std::vector<std::int32_t>>
-hyper_sssp_reference(const std::vector<std::int64_t>& h2v_offsets,
-                     const std::vector<std::int32_t>& h2v_members, std::int32_t num_vertices,
-                     const std::vector<std::int64_t>& weights, std::int64_t source,
-                     bool source_is_vertex = false);
+[[nodiscard]] std::pair<std::vector<std::int64_t>, std::vector<std::int32_t>> hyper_sssp_reference(
+    const std::vector<std::int64_t>& h2v_offsets, const std::vector<std::int32_t>& h2v_members,
+    std::int32_t num_vertices, const std::vector<std::int64_t>& weights, std::int64_t source,
+    bool source_is_vertex = false);
 
 /**
  * @brief Checks distances and parents of a hyper_sssp result against the oracle (MOSP_ESCHER's
@@ -88,7 +87,9 @@ hyper_sssp_reference(const std::vector<std::int64_t>& h2v_offsets,
  * @param[in] parents          The parents to check, by id (0-based, -1 for none).
  * @return {distance mismatches, parent errors} over max(ids, distances.size(), parents.size())
  *         ids.
- * @throws std::invalid_argument, std::overflow_error, std::bad_alloc as hyper_sssp_reference().
+ * @throws std::invalid_argument as hyper_sssp_reference().
+ * @throws std::overflow_error   as hyper_sssp_reference().
+ * @throws std::bad_alloc        if host memory cannot be allocated.
  * @ingroup testing
  */
 [[nodiscard]] std::pair<std::int64_t, std::int64_t> check_hyper_sssp_tree(

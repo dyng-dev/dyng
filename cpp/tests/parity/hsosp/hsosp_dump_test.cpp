@@ -90,7 +90,8 @@ TEST(HsospDump, APlantedWrongDistanceOrParentFails) {
   s = nth(recs, "sssp", 1);
   auto& parents = s->fields.at("parents").ints;
   // A parent that is not the canonical one (any other id, or none).
-  const auto it = std::find_if(parents.begin(), parents.end(), [](std::int32_t p) { return p >= 0; });
+  const auto it =
+      std::find_if(parents.begin(), parents.end(), [](std::int32_t p) { return p >= 0; });
   ASSERT_NE(it, parents.end());
   *it = *it == 0 ? 1 : 0;
   rep = hd::check_with_oracle(recs);

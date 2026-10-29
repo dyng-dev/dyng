@@ -133,7 +133,7 @@ void put_device(hd::fields& f, const hs::DeviceH2H& dev) {
 
 extern "C" {
 void __real__ZN11escher_mosp17DynamicHypergraphC1EiRKNS0_4CapsE(DynamicHypergraph*, int,
-                                                               const DynamicHypergraph::Caps&);
+                                                                const DynamicHypergraph::Caps&);
 void __real__ZN11escher_mosp5hsosp14buildDeviceH2HERNS0_9DeviceH2HERKNS_14HostHypergraphERKNS_12LineGraphCSREid(
     hs::DeviceH2H&, const HostHypergraph&, const LineGraphCSR&, int, double);
 hs::BatchTimes
@@ -460,8 +460,9 @@ __wrap__ZN11escher_mosp5hsosp11hsospUpdateERKNS0_9DeviceH2HERNS0_10HsospStateEiR
         dev, st, source_id, cfg);
   hs::UpdateStats us;
   try {
-    us = __real__ZN11escher_mosp5hsosp11hsospUpdateERKNS0_9DeviceH2HERNS0_10HsospStateEiRKNS0_12UpdateConfigE(
-        dev, st, source_id, cfg);
+    us =
+        __real__ZN11escher_mosp5hsosp11hsospUpdateERKNS0_9DeviceH2HERNS0_10HsospStateEiRKNS0_12UpdateConfigE(
+            dev, st, source_id, cfg);
   } catch (...) {
     record_sssp(d, "update", dev, st, source_id, cfg, nullptr, hd::current_exception_text());
     throw;
@@ -479,8 +480,9 @@ __wrap__ZN11escher_mosp5hsosp14hsospRecomputeERKNS0_9DeviceH2HERNS0_10HsospState
         dev, st, source_id, cfg);
   hs::UpdateStats us;
   try {
-    us = __real__ZN11escher_mosp5hsosp14hsospRecomputeERKNS0_9DeviceH2HERNS0_10HsospStateEiRKNS0_12UpdateConfigE(
-        dev, st, source_id, cfg);
+    us =
+        __real__ZN11escher_mosp5hsosp14hsospRecomputeERKNS0_9DeviceH2HERNS0_10HsospStateEiRKNS0_12UpdateConfigE(
+            dev, st, source_id, cfg);
   } catch (...) {
     record_sssp(d, "recompute", dev, st, source_id, cfg, nullptr, hd::current_exception_text());
     throw;
@@ -494,7 +496,8 @@ __wrap__ZN11escher_mosp5hsosp14hsospRecomputeERKNS0_9DeviceH2HERNS0_10HsospState
 extern "C" long long __wrap__ZN11escher_mosp5hsosp16compareDistancesERKNS0_10HsospStateES3_i(
     const hs::HsospState& a, const hs::HsospState& b, int n) {
   hd::dump* d = hd::get();
-  const long long r = __real__ZN11escher_mosp5hsosp16compareDistancesERKNS0_10HsospStateES3_i(a, b, n);
+  const long long r =
+      __real__ZN11escher_mosp5hsosp16compareDistancesERKNS0_10HsospStateES3_i(a, b, n);
   if (d == nullptr) return r;
   std::lock_guard<std::recursive_mutex> lock(g_mutex);
   // The states' session: the one that used them last (by their ordinals).
