@@ -17,3 +17,6 @@ _Z25launchConnectedComponentsPKiS0_S0_iS0_iPiRiR11CCWorkspaceP11CUstream_st
 _Z25launchLabelInitializationPKiS0_S0_PKfPfS0_S0_iS0_iS0_iR18LabelInitWorkspaceP11CUstream_st
 _Z26launchIterativePropagationPKiS0_S0_PKfPfS0_S0_S0_ifi10UpdateRuleR20PropagationWorkspaceRiP11CUstream_st
 _Z15runIrLPSnapshotRK8CSRGraphRKSt6vectorIiSaIiEERKS2_IfSaIfEEfiRS8_RiRf
+# checker.o: the label oracle's line (--check; recorder_dynlp.cpp records its arguments and passes
+# every call on to vsnprintf)
+snprintf

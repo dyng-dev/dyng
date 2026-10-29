@@ -38,6 +38,13 @@
 //   irlp_snapshot       (b)   runIrLPSnapshot (--validate): the label bits, iterations, time_ms
 //   run_end             (-1)  runDynLP after: the final and IrLP label bits, the BatchResult
 //                             columns, the return value
+//   check_labels        (b)   --check only (M10a step 2): the values of O's label oracle line,
+//                             taken from the arguments of the snprintf call that formats it in
+//                             DynLPChecker::checkLabels (checker.o; --wrap=snprintf, which passes
+//                             every call on to vsnprintf unchanged): PCG iterations, relative
+//                             residual, vertices compared, mean |F - F*| and its tolerance, max,
+//                             class flips, excluded vertices, as full-precision values; with
+//                             skipped = 1 the oracle did not converge (iterations, residual only)
 // A stage that is not called in a batch has no record there (numInserted == 0 skips sparsify,
 // connected_components and label_init).
 #include "connectedComponents.h"
@@ -51,7 +58,9 @@
 #include <cuda_runtime.h>
 
 #include <algorithm>
+#include <cstdarg>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -493,4 +502,75 @@ extern "C" bool __wrap__Z15runIrLPSnapshotRK8CSRGraphRKSt6vectorIiSaIiEERKS2_IfS
     t->end_record(r);
   }
   return ok;
+}
+
+// --- checker.o: the label oracle's values (--check) --------------------------------------------
+
+namespace {
+
+bool starts_with(const char* s, const char* prefix) {
+  return std::strncmp(s, prefix, std::strlen(prefix)) == 0;
+}
+
+// The two formats of DynLPChecker::checkLabels (src/checker.cu at a276a3a), whose arguments are
+// recorded; every other call is only passed on.
+constexpr const char* k_checked =
+    "labels vs harmonic optimum (PCG, %d it, residual %.1e): %lld vertices, mean |F-F*| %.2e "
+    "(tol %.1e), max %.2e, class flips %lld (%.3f%%); %lld in GT-free components excluded";
+constexpr const char* k_skipped =
+    "labels vs harmonic optimum: the oracle did not converge (PCG, %d it, relative residual "
+    "%.2e > %.0e); labels not compared";
+
+void record_check(const char* fmt, va_list args) {
+  rec::trace* t = rec::trace::get();
+  if (t == nullptr || !starts_with(fmt, "labels vs harmonic optimum")) {
+    return;
+  }
+  rec::record r = t->begin("check_labels", g_batch);
+  if (std::strcmp(fmt, k_checked) == 0) {
+    const std::int32_t it = va_arg(args, int);
+    const double residual = va_arg(args, double);
+    const std::int64_t count = va_arg(args, long long);
+    const double mean = va_arg(args, double);
+    const double tol = va_arg(args, double);
+    const double max = va_arg(args, double);
+    const std::int64_t flips = va_arg(args, long long);
+    const double percent = va_arg(args, double);
+    const std::int64_t excluded = va_arg(args, long long);
+    (void)percent;
+    const std::int32_t skipped = 0;
+    t->add(r, "skipped", rec::i32, &skipped, 1);
+    t->add(r, "pcg_iterations", rec::i32, &it, 1);
+    t->add(r, "relative_residual", rec::f64, &residual, 1);
+    t->add(r, "compared", rec::i64, &count, 1);
+    t->add(r, "mean", rec::f64, &mean, 1);
+    t->add(r, "tolerance", rec::f64, &tol, 1);
+    t->add(r, "max", rec::f64, &max, 1);
+    t->add(r, "flips", rec::i64, &flips, 1);
+    t->add(r, "excluded", rec::i64, &excluded, 1);
+  } else if (std::strcmp(fmt, k_skipped) == 0) {
+    const std::int32_t it = va_arg(args, int);
+    const double residual = va_arg(args, double);
+    const std::int32_t skipped = 1;
+    t->add(r, "skipped", rec::i32, &skipped, 1);
+    t->add(r, "pcg_iterations", rec::i32, &it, 1);
+    t->add(r, "relative_residual", rec::f64, &residual, 1);
+  } else {
+    rec::fatal(std::string("an unknown label-oracle format: ") + fmt);
+  }
+  t->end_record(r);
+}
+
+}  // namespace
+
+extern "C" int __wrap_snprintf(char* s, std::size_t n, const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  va_list copy;
+  va_copy(copy, args);
+  const int written = std::vsnprintf(s, n, fmt, args);
+  va_end(args);
+  record_check(fmt, copy);
+  va_end(copy);
+  return written;
 }

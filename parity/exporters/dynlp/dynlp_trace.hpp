@@ -10,7 +10,10 @@
 // Recording is on only when DYNG_DYNLP_TRACE_DIR is set; the trace is the file
 // $DYNG_DYNLP_TRACE_DIR/<program>.dlt (an existing file is never overwritten: the twin stops).
 // With DYNG_DYNLP_TRACE_DIGEST=1 every array is stored as its element count and the SHA-256 of
-// its little-endian bytes instead of the bytes (the 5M cases; scalars stay as they are).
+// its little-endian bytes instead of the bytes (the 5M cases; scalars stay as they are). With
+// DYNG_DYNLP_TRACE_TAGS=<tag>,<tag>,... only the records of those tags (and the end record) are
+// written (M10a step 2: the labels and the --check records of O's oracle runs at 5M without the
+// graph's arrays).
 //
 // File format (little-endian; parity/label_propagation_goldens.py reads it):
 //   header   8 bytes "DYNGDLT1", u32 format version (1), u32 flags (bit 0: digest mode)
@@ -87,6 +90,8 @@ class trace {
   void end_record(const record& r);
   /// Closes the trace with its "end" record (also run at exit).
   void close();
+  /// Whether records of `tag` are written (DYNG_DYNLP_TRACE_TAGS; all when it is not set).
+  bool wants(const std::string& tag) const;
 
  private:
   trace(const std::string& path, bool digest);
@@ -94,6 +99,7 @@ class trace {
   bool digest_ = false;
   std::uint64_t records_ = 0;
   std::vector<std::pair<std::string, int>> sequence_;
+  std::vector<std::string> tags_;  // DYNG_DYNLP_TRACE_TAGS (empty: every tag)
 };
 
 /// Element size of a dtype in bytes.

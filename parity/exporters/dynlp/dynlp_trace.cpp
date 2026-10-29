@@ -202,6 +202,22 @@ trace* trace::get() {
 }
 
 trace::trace(const std::string& path, bool digest) : digest_(digest) {
+  if (const char* tags = std::getenv("DYNG_DYNLP_TRACE_TAGS"); tags != nullptr) {
+    std::string list(tags);
+    std::size_t start = 0;
+    while (start <= list.size()) {
+      const std::size_t comma = list.find(',', start);
+      const std::string tag =
+          list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+      if (!tag.empty()) {
+        tags_.push_back(tag);
+      }
+      if (comma == std::string::npos) {
+        break;
+      }
+      start = comma + 1;
+    }
+  }
   struct stat st{};
   if (::stat(path.c_str(), &st) == 0) {
     fatal("the trace " + path + " exists already (a trace is never overwritten)");
@@ -265,9 +281,24 @@ void trace::add_array(record& r, const char* name, dtype type, const void* data,
   ++r.fields;
 }
 
+bool trace::wants(const std::string& tag) const {
+  if (tags_.empty() || tag == "end") {
+    return true;
+  }
+  for (const std::string& t : tags_) {
+    if (t == tag) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void trace::end_record(const record& r) {
   if (f_ == nullptr) {
     fatal("a record after the end of the trace");
+  }
+  if (!wants(r.tag)) {
+    return;  // DYNG_DYNLP_TRACE_TAGS leaves it out
   }
   int seq = 0;
   bool found = false;

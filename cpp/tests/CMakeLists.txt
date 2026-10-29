@@ -463,6 +463,30 @@ else()
   target_compile_definitions(dyng_triad_replay_tests PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
 endif()
 list(APPEND _dyng_private_tests dyng_triad_replay_tests)
+# label_propagation's replays against LabelPropagation-CUDA@a276a3a (M10a step 2, ADRs 0067 and
+# 0068): the trace reader and the original's layouts (dyng_lp_replay_support), the tool
+# dyng_lp_replay that parity/compare.py label_propagation drives over the golden corpus, and the
+# CPU suite on the committed digests (the generator at 5k5 and 50k, the host model at 5k5:
+# cpp/tests/data/goldens/label_propagation).
+add_library(dyng_lp_replay_support STATIC parity/label_propagation/lp_replay.cpp)
+target_include_directories(
+  dyng_lp_replay_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/cpp/src"
+)
+target_link_libraries(dyng_lp_replay_support PUBLIC dyng::dyng dyng::testing)
+target_compile_features(dyng_lp_replay_support PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_lp_replay_support)
+dyng_enable_sanitizers(dyng_lp_replay_support)
+add_executable(dyng_lp_replay parity/label_propagation/lp_replay_main.cpp)
+target_link_libraries(dyng_lp_replay PRIVATE dyng_lp_replay_support)
+dyng_set_warnings(dyng_lp_replay)
+dyng_enable_sanitizers(dyng_lp_replay)
+dyng_add_test(
+  NAME dyng_lp_replay_tests
+  SOURCES parity/label_propagation/lp_replay_test.cpp
+  LABELS cpu parity label_propagation
+  LIBRARIES dyng_lp_replay_support
+)
+list(APPEND _dyng_private_tests dyng_lp_replay_tests)
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
