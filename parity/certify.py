@@ -194,13 +194,21 @@ METADATA_PATHS = {
         for name in ALGORITHM_MANIFESTS
     },
 }
-# What `equivalence` builds and compares: the measured programs and the library they load.
+# What `equivalence` builds and compares: the measured programs and the library they load (the
+# targets and files one per line; from 0.4 each milestone adds its own below its comment).
 EQUIVALENCE_PRESETS = ["parity", "parity-cuda"]
-EQUIVALENCE_TARGETS = ["dyng-compat-mosp", "dyng-compat-cycle-enum"]
+EQUIVALENCE_TARGETS = [
+    "dyng-compat-mosp",
+    "dyng-compat-cycle-enum",
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp
+]
 EQUIVALENCE_FILES = [
     "cpp/libdyng.so",
     "tools/compat/dyng-compat-mosp",
     "tools/compat/dyng-compat-cycle-enum",
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp
 ]
 # Sections that may differ besides the listed functions' code: the build id, the unwind tables
 # (a listed function's frame range and call-site table) and the symbol tables (its size, which the
@@ -267,7 +275,8 @@ HYPERGRAPH_ID_MODES = {"ids": ("by_id", "both"), "line_graph": ("line_graph",)}
 # cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
 # certificate of a version that does not parse as <major>.<minor> needs every suite. Each summary
 # must also hold every gated metric of its suite (`missing_gates`): a reading of every gated
-# region on every backend the suite gates it on.
+# region on every backend the suite gates it on. From 0.4 each milestone adds its suites below its
+# comment.
 REQUIRED_SUITES = {
     "ipdps25_dynamosp_sosp": {"algorithm": "sssp", "since": (0, 1)},
     "ieee_tc_dyntrucy": {"algorithm": "cycle_count", "since": (0, 1)},
@@ -276,6 +285,8 @@ REQUIRED_SUITES = {
     # and the memory gates (store accounting, the Nsight Systems peak, decision D1) of ESCHER+.
     "ipdps26_escher": {"algorithm": "triad_count", "since": (0, 3)},
     "tkde26_escher_plus": {"algorithm": "triad_count", "since": (0, 3)},
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp
 }
 # The release checks a certificate needs (checks.json), each from the release series on which it
 # became part of the release (docs/developer/release.md, steps 1-4), with the narrowest scope its
@@ -303,7 +314,8 @@ REQUIRED_CHECKS = {
 # plugin wheel and clang-tidy over the CUDA branches; from 0.3 the CBST store's, the hypergraph
 # container's and triad_count's sanitizers and replays and count_local_patterns (R030 review: until
 # then only memcheck, synccheck and racecheck were required, so a 0.3 record with the new steps
-# skipped would have certified).
+# skipped would have certified); from 0.4 the steps of M10 and M11, each milestone in its own
+# commented sub-list of the one (0, 4) key (a second (0, 4) key would silently replace the first).
 GPU_LOCAL_STEPS = {
     (0, 1): [
         "build",
@@ -327,6 +339,10 @@ GPU_LOCAL_STEPS = {
         "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)",
         "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)",
         "count_local_patterns (sanitizers on the tutorial and API tests; nvcc consumer)",
+    ],
+    (0, 4): [
+        # M10 label_propagation
+        # M11 slack_csr / hyper_sssp
     ],
 }
 # The results of a step of ci/gpu_local.sh that are not a failure (only "passed" counts as run).

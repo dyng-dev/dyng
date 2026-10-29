@@ -193,7 +193,7 @@ The Op is compiled for both: run it on the GPU with `dyng::resources::cuda()` an
 In your own project, put the Op and the calls in a `.cu` file and build it with nvcc against the
 installed library:
 
-% quote: ci/consumer/op.CMakeLists.txt#op consumer cb2e261b55c8
+% quote: ci/consumer/op.CMakeLists.txt#op consumer 9fecb9ce9fb6
 ```{literalinclude} ../../ci/consumer/op.CMakeLists.txt
 :language: cmake
 :start-after: "# [tutorial: op consumer]"

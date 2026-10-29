@@ -577,6 +577,12 @@ if ! skipped experimental; then
   fi
 fi
 
+# The steps of 0.4 (parity/certify.py GPU_LOCAL_STEPS[(0, 4)]): each milestone adds its steps below
+# its own comment.
+# M10 label_propagation
+
+# M11 slack_csr / hyper_sssp
+
 if ! skipped plugin; then
   step "the CUDA plugin wheel from Python (GPU ${gpu})"
   scratch="${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}"
