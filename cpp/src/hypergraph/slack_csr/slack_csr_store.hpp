@@ -28,6 +28,7 @@
  */
 
 #include "core/resources_access.hpp"
+#include "framework/scratch_buffer.hpp"
 #include "hypergraph/slack_csr/slack_layout.hpp"
 #include "util/cuda_check.hpp"
 #include "util/device_error_flags.hpp"
@@ -139,11 +140,9 @@ struct incidence_batch {
  * pairs; ids = new (inserted or recreated) nodes, then dead ones.
  */
 struct device_delta {
-  buffer<int2> d_pairs;
-  buffer<int> d_ids;
-  buffer<long long> d_new_w;  ///< weights of the new nodes
-  long long pair_capacity = 0;
-  long long id_capacity = 0;
+  scratch_buffer<int2> d_pairs;
+  scratch_buffer<int> d_ids;
+  scratch_buffer<long long> d_new_w;  ///< weights of the new nodes
   int num_del = 0;
   int num_ins = 0;
   int num_new = 0;
@@ -152,15 +151,14 @@ struct device_delta {
   // The scratch of the device-side grouping of the CSR apply: directed
   // row keys (double buffered for the radix sort), row runs and offsets,
   // and the CUB temporary storage. Grown on demand, reused across batches.
-  buffer<unsigned long long> d_keys;
-  buffer<unsigned long long> d_keys_alt;
-  buffer<int> d_rows;
-  buffer<int> d_row_len;
-  buffer<int> d_row_off;
+  scratch_buffer<unsigned long long> d_keys;
+  scratch_buffer<unsigned long long> d_keys_alt;
+  scratch_buffer<int> d_rows;
+  scratch_buffer<int> d_row_len;
+  scratch_buffer<int> d_row_off;
   buffer<int> d_num_rows;
-  buffer<char> d_temp;
-  std::size_t temp_bytes = 0;
-  long long key_capacity = 0;
+  scratch_buffer<char> d_temp;
+  std::size_t temp_bytes = 0;  ///< d_temp's bytes (CUB takes them by reference)
   /// After the CSR apply: the sorted directed keys (row << 33 |
   /// isInsert << 32 | col), 2 per pair (one of d_keys / d_keys_alt).
   const unsigned long long* d_sorted_keys = nullptr;
@@ -226,46 +224,38 @@ struct device_incidence {
 using u64 = unsigned long long;
 
 struct device_incidence::scratch_arrays {
-  buffer<u64> inc_keys;
-  buffer<u64> inc_keys_alt;
-  buffer<int> signs;
-  buffer<int> signs_alt;
-  buffer<u64> uniq;
-  buffer<int> net;
-  buffer<long long> cnt0;
-  buffer<long long> cnt1;
-  buffer<long long> off0;
-  buffer<long long> off1;
-  buffer<int> seg_len;
-  buffer<int> seg_off;
-  buffer<int> seg_vert;
-  long long inc_cap = 0, inc_cap2 = 0, inc_cap3 = 0, inc_cap4 = 0, inc_cap5 = 0, inc_cap6 = 0,
-            inc_cap7 = 0, inc_cap8 = 0, inc_cap9 = 0, inc_cap10 = 0, inc_cap11 = 0, inc_cap12 = 0,
-            inc_cap13 = 0;
-  buffer<u64> cand;
-  buffer<u64> cand_alt;
-  buffer<signed char> cls;
-  buffer<u64> selected;
-  long long cand_cap = 0, cand_cap2 = 0, cls_cap = 0, sel_cap = 0;
-  buffer<int> touched;
-  buffer<int> pre_off;
-  buffer<int> post_off;
-  buffer<long long> he_write_off;
-  long long t_cap = 0, t_cap2 = 0, t_cap3 = 0, t_cap4 = 0;
-  buffer<int> pre_vals;
-  buffer<int> post_vals;
-  long long val_cap = 0, val_cap2 = 0;
-  buffer<int> t_verts;
-  buffer<int> t_vert_len;
-  buffer<int> reloc_verts;
-  buffer<long long> reloc_off;
-  long long tv_cap = 0, tv_cap2 = 0, r_cap = 0, r_cap2 = 0;
+  scratch_buffer<u64> inc_keys;
+  scratch_buffer<u64> inc_keys_alt;
+  scratch_buffer<int> signs;
+  scratch_buffer<int> signs_alt;
+  scratch_buffer<u64> uniq;
+  scratch_buffer<int> net;
+  scratch_buffer<long long> cnt0;
+  scratch_buffer<long long> cnt1;
+  scratch_buffer<long long> off0;
+  scratch_buffer<long long> off1;
+  scratch_buffer<int> seg_len;
+  scratch_buffer<int> seg_off;
+  scratch_buffer<int> seg_vert;
+  scratch_buffer<u64> cand;
+  scratch_buffer<u64> cand_alt;
+  scratch_buffer<signed char> cls;
+  scratch_buffer<u64> selected;
+  scratch_buffer<int> touched;
+  scratch_buffer<int> pre_off;
+  scratch_buffer<int> post_off;
+  scratch_buffer<long long> he_write_off;
+  scratch_buffer<int> pre_vals;
+  scratch_buffer<int> post_vals;
+  scratch_buffer<int> t_verts;
+  scratch_buffer<int> t_vert_len;
+  scratch_buffer<int> reloc_verts;
+  scratch_buffer<long long> reloc_off;
   buffer<long long> totals;
   buffer<int> counts;             // [0] uniq, [1] segs, [2] cand, [3] sel
   buffer<long long> host_totals;  // pinned
   buffer<int> host_counts;        // pinned
-  buffer<char> temp;
-  std::size_t temp_cap = 0;
+  scratch_buffer<char> temp;
 
   const resources* res = nullptr;
 
@@ -275,11 +265,11 @@ struct device_incidence::scratch_arrays {
         host_totals(2, r.stream(), resources_access::staging_memory(r), -1),
         host_counts(4, r.stream(), resources_access::staging_memory(r), -1),
         res(&r) {}
+  std::size_t temp_cap = 0;  ///< temp's bytes (CUB takes them by reference)
+
   void reserve_temp(std::size_t bytes) {
-    if (bytes <= temp_cap) return;
-    temp = buffer<char>();
-    temp_cap = bytes + bytes / 2 + 4096;
-    temp = buffer<char>(*res, temp_cap);
+    (void)temp.reserve_with_headroom(*res, bytes);
+    temp_cap = temp.capacity();
   }
 };
 

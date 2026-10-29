@@ -53,15 +53,6 @@ namespace {
 
 constexpr u64 sentinel = ~0ull;
 
-/** Grows a device buffer to hold at least @p n elements (contents lost). */
-template <class T>
-void grow(buffer<T>& b, long long& cap, long long n, const resources& res) {
-  if (n <= cap) return;
-  b = buffer<T>();  // release first: the peak holds one array, not two
-  cap = n + n / 2 + 1024;
-  b = buffer<T>(res, static_cast<std::size_t>(cap));
-}
-
 template <class T>
 void upload(T* dst, const std::vector<T>& src, cudaStream_t stream) {
   if (!src.empty())
@@ -318,27 +309,29 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   for (int i = 0; i < n_inc; ++i) keys[i] = inc.inc_key[i] - 1;  // h -> h-1
   std::vector<int> touched0(n_t);
   for (int t = 0; t < n_t; ++t) touched0[t] = inc.touched[t] - 1;
-  grow(sc.inc_keys, sc.inc_cap, n_inc, *dev.res);
-  grow(sc.inc_keys_alt, sc.inc_cap2, n_inc, *dev.res);
-  grow(sc.signs, sc.inc_cap3, n_inc, *dev.res);
-  grow(sc.signs_alt, sc.inc_cap4, n_inc, *dev.res);
-  grow(sc.uniq, sc.inc_cap5, n_inc, *dev.res);
-  grow(sc.net, sc.inc_cap6, n_inc, *dev.res);
-  grow(sc.cnt0, sc.inc_cap7, n_inc, *dev.res);
-  grow(sc.cnt1, sc.inc_cap8, n_inc, *dev.res);
-  grow(sc.off0, sc.inc_cap9, n_inc, *dev.res);
-  grow(sc.off1, sc.inc_cap10, n_inc, *dev.res);
-  grow(sc.seg_len, sc.inc_cap11, n_inc, *dev.res);
-  grow(sc.seg_off, sc.inc_cap12, n_inc, *dev.res);
-  grow(sc.seg_vert, sc.inc_cap13, n_inc, *dev.res);
-  grow(sc.touched, sc.t_cap, n_t, *dev.res);
-  grow(sc.pre_off, sc.t_cap2, n_t + 1, *dev.res);
-  grow(sc.post_off, sc.t_cap3, n_t + 1, *dev.res);
-  grow(sc.he_write_off, sc.t_cap4, n_t, *dev.res);
-  grow(sc.pre_vals, sc.val_cap, static_cast<long long>(inc.pre_vals.size()), *dev.res);
-  grow(sc.post_vals, sc.val_cap2, static_cast<long long>(inc.post_vals.size()), *dev.res);
-  grow(sc.t_verts, sc.tv_cap, n_tv, *dev.res);
-  grow(sc.t_vert_len, sc.tv_cap2, n_tv, *dev.res);
+  (void)sc.inc_keys.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.inc_keys_alt.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.signs.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.signs_alt.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.uniq.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.net.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.cnt0.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.cnt1.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.off0.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.off1.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.seg_len.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.seg_off.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.seg_vert.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_inc));
+  (void)sc.touched.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_t));
+  (void)sc.pre_off.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_t + 1));
+  (void)sc.post_off.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_t + 1));
+  (void)sc.he_write_off.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_t));
+  (void)sc.pre_vals.reserve_with_headroom(
+      *dev.res, static_cast<std::size_t>(static_cast<long long>(inc.pre_vals.size())));
+  (void)sc.post_vals.reserve_with_headroom(
+      *dev.res, static_cast<std::size_t>(static_cast<long long>(inc.post_vals.size())));
+  (void)sc.t_verts.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_tv));
+  (void)sc.t_vert_len.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_tv));
   upload(sc.inc_keys.data(), keys, dev.stream);
   upload(sc.signs.data(), inc.inc_sign, dev.stream);
   upload(sc.touched.data(), touched0, dev.stream);
@@ -401,8 +394,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
     total1 = sc.host_totals.data()[1];
   }
   const long long n_cand = total0 + total1;
-  grow(sc.cand, sc.cand_cap, n_cand, *dev.res);
-  grow(sc.cand_alt, sc.cand_cap2, n_cand, *dev.res);
+  (void)sc.cand.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_cand));
+  (void)sc.cand_alt.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_cand));
 
   // ---- 3. pass 0, update the vertex -> hyperedge mirror, pass 1 ----------
   if (n_uniq > 0) {
@@ -437,8 +430,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
     } else {
       const int n_r = static_cast<int>(reloc_v.size());
       if (n_r > 0) {
-        grow(sc.reloc_verts, sc.r_cap, n_r, *dev.res);
-        grow(sc.reloc_off, sc.r_cap2, n_r, *dev.res);
+        (void)sc.reloc_verts.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_r));
+        (void)sc.reloc_off.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_r));
         upload(sc.reloc_verts.data(), reloc_v, dev.stream);
         upload(sc.reloc_off.data(), reloc_off, dev.stream);
         relocate_rows_kernel<<<grid_for(32LL * n_r, block), block, 0, dev.stream>>>(
@@ -492,8 +485,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
                                                  static_cast<int>(sizeof(u64) * 8), dev.stream));
     DYNG_CUDA_TRY(cub::DeviceSelect::Unique(nullptr, b2, sc.cand.data(), sc.cand_alt.data(),
                                             sc.counts.data() + 2, n, dev.stream));
-    grow(sc.cls, sc.cls_cap, n_cand, *dev.res);
-    grow(sc.selected, sc.sel_cap, n_cand, *dev.res);
+    (void)sc.cls.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_cand));
+    (void)sc.selected.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_cand));
     DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(
         nullptr, b3, sc.cand.data(), thrust::make_transform_iterator(sc.cls.data(), is_deleted()),
         sc.selected.data(), sc.counts.data() + 3, n, dev.stream));

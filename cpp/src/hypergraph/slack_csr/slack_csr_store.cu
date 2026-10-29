@@ -27,15 +27,6 @@ namespace dyng::detail::hyper::slack {
 
 namespace {
 
-/** Grows a device buffer to hold at least @p n elements (contents lost). */
-template <class T>
-void grow(buffer<T>& b, long long& cap, long long n, const resources& res) {
-  if (n <= cap) return;
-  b = buffer<T>();  // release first: the peak holds one array, not two
-  cap = n + n / 2 + 1024;
-  b = buffer<T>(res, static_cast<std::size_t>(cap));
-}
-
 template <class T>
 void upload(T* dst, const std::vector<T>& src, cudaStream_t stream) {
   if (!src.empty())
@@ -223,42 +214,24 @@ void device_h2h::free() {
 }
 
 void device_delta::reserve(const resources& res, long long pairs, long long ids) {
-  if (pairs > pair_capacity) {
-    d_pairs = buffer<int2>();
-    pair_capacity = pairs + pairs / 2 + 1024;
-    d_pairs = buffer<int2>(res, static_cast<std::size_t>(pair_capacity));
-  }
-  if (ids > id_capacity) {
-    d_ids = buffer<int>();
-    d_new_w = buffer<long long>();
-    id_capacity = ids + ids / 2 + 1024;
-    d_ids = buffer<int>(res, static_cast<std::size_t>(id_capacity));
-    d_new_w = buffer<long long>(res, static_cast<std::size_t>(id_capacity));
-  }
+  (void)d_pairs.reserve_with_headroom(res, static_cast<std::size_t>(pairs));
+  (void)d_ids.reserve_with_headroom(res, static_cast<std::size_t>(ids));
+  (void)d_new_w.reserve_with_headroom(res, static_cast<std::size_t>(ids));
 }
 
 void device_delta::reserve_keys(const resources& res, long long keys) {
-  if (keys <= key_capacity) return;
-  d_keys = {};
-  d_keys_alt = {};
-  d_rows = {};
-  d_row_len = {};
-  d_row_off = {};
   if (d_num_rows.size() == 0) d_num_rows = buffer<int>(res, 1);
-  key_capacity = keys + keys / 2 + 4096;
-  const auto n = static_cast<std::size_t>(key_capacity);
-  d_keys = buffer<unsigned long long>(res, n);
-  d_keys_alt = buffer<unsigned long long>(res, n);
-  d_rows = buffer<int>(res, n);
-  d_row_len = buffer<int>(res, n);
-  d_row_off = buffer<int>(res, n);
+  const auto n = static_cast<std::size_t>(keys);
+  (void)d_keys.reserve_with_headroom(res, n);
+  (void)d_keys_alt.reserve_with_headroom(res, n);
+  (void)d_rows.reserve_with_headroom(res, n);
+  (void)d_row_len.reserve_with_headroom(res, n);
+  (void)d_row_off.reserve_with_headroom(res, n);
 }
 
 void device_delta::reserve_temp(const resources& res, std::size_t bytes) {
-  if (bytes <= temp_bytes) return;
-  d_temp = {};
-  temp_bytes = bytes + bytes / 2 + 4096;
-  d_temp = buffer<char>(res, temp_bytes);
+  (void)d_temp.reserve_with_headroom(res, bytes);
+  temp_bytes = d_temp.capacity();
 }
 
 void device_delta::free() {

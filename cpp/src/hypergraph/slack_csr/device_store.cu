@@ -543,9 +543,25 @@ class slack_device_store final : public incidence_store, public slack_access {
     st.view_bytes = 0;
     if (line_graph_.load(std::memory_order_acquire)) {
       const slack::device_delta& dd = dev_.delta;
-      st.device_bytes = dev_.device_bytes() + dd.pair_capacity * 8 + dd.id_capacity * (4 + 8) +
-                        dd.key_capacity * (8 + 8 + 4 + 4 + 4) +
-                        static_cast<std::int64_t>(dd.temp_bytes);
+      // The CSR and the mirror (B's graph_mb scope), the delta's buffers and the delta's
+      // scratch (documented in ADR 0089).
+      std::size_t scratch = dd.d_pairs.bytes() + dd.d_ids.bytes() + dd.d_new_w.bytes() +
+                            dd.d_keys.bytes() + dd.d_keys_alt.bytes() + dd.d_rows.bytes() +
+                            dd.d_row_len.bytes() + dd.d_row_off.bytes() + dd.d_temp.bytes() +
+                            dd.d_num_rows.size() * sizeof(int);
+      if (const auto* sc = dev_.inc.scratch.get()) {
+        scratch += sc->inc_keys.bytes() + sc->inc_keys_alt.bytes() + sc->signs.bytes() +
+                   sc->signs_alt.bytes() + sc->uniq.bytes() + sc->net.bytes() + sc->cnt0.bytes() +
+                   sc->cnt1.bytes() + sc->off0.bytes() + sc->off1.bytes() + sc->seg_len.bytes() +
+                   sc->seg_off.bytes() + sc->seg_vert.bytes() + sc->cand.bytes() +
+                   sc->cand_alt.bytes() + sc->cls.bytes() + sc->selected.bytes() +
+                   sc->touched.bytes() + sc->pre_off.bytes() + sc->post_off.bytes() +
+                   sc->he_write_off.bytes() + sc->pre_vals.bytes() + sc->post_vals.bytes() +
+                   sc->t_verts.bytes() + sc->t_vert_len.bytes() + sc->reloc_verts.bytes() +
+                   sc->reloc_off.bytes() + sc->temp.bytes() +
+                   (sc->totals.size() + 0) * sizeof(long long) + sc->counts.size() * sizeof(int);
+      }
+      st.device_bytes = dev_.device_bytes() + 4 + static_cast<std::int64_t>(scratch);
     }
     const auto add = [&](std::size_t bytes) { st.view_bytes += static_cast<std::int64_t>(bytes); };
     if (h2v_built_) add((h2v_row_ptr_.size() * 8) + (h2v_col_ind_.size() * 4));
