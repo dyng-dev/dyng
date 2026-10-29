@@ -701,8 +701,9 @@ TEST_P(SlackEdits, TheStagesOfTheCommit) {
   (void)h.apply(r, b.view());
   std::vector<std::string> names;
   for (const auto& st : prof.stages()) names.push_back(st.name);
-  for (const char* want : {"hypergraph.apply", "hypergraph.apply.ids", "hypergraph.apply.incidence",
-                           "hypergraph.apply.translate", "hypergraph.apply.line_graph"})
+  for (const char* want :
+       {"hypergraph.apply", "hypergraph.apply.normalize", "hypergraph.apply.ids",
+        "hypergraph.apply.incidence", "hypergraph.apply.translate", "hypergraph.apply.line_graph"})
     EXPECT_NE(std::find(names.begin(), names.end(), want), names.end()) << want;
 }
 

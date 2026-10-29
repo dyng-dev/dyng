@@ -27,6 +27,7 @@
 #include "hypergraph/slack_csr/slack_csr_store.hpp"
 #include "hypergraph/slack_csr/slack_line_graph.hpp"
 #include "util/cuda_check.hpp"
+#include "util/kernel_registry.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/buffer.hpp>
@@ -53,6 +54,7 @@ __global__ void zero_dead_degrees_kernel(const int* dead, int n, int* deg) {
   const int i = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
   if (i < n) deg[dead[i]] = 0;
 }
+DYNG_REGISTER_KERNEL(zero_dead_degrees_kernel);
 
 namespace {
 
@@ -274,6 +276,7 @@ class slack_device_store final : public incidence_store, public slack_access {
     dev_.num_entries += 2LL * (dd.num_ins - dd.num_del);
     const long long used_before = dev_.used_entries;
     if (!slack::apply_delta_pairs(dev_)) {
+      const scoped_stage stage(res_, "hypergraph.apply.line_graph.rebuild");
       slack_line_graph lg;
       host_line_graph(lg);
       slack::build_csr(dev_, host_model(), csr_of(lg), dev_.max_nodes, knobs_.entry_headroom);

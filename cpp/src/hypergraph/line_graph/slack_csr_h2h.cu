@@ -15,6 +15,7 @@
 #include "core/budget_counters.hpp"
 #include "hypergraph/slack_csr/slack_csr_store.hpp"
 #include "util/device_error_flags.cuh"
+#include "util/kernel_registry.hpp"
 
 #include <cub/cub.cuh>
 #include <thrust/iterator/transform_iterator.h>
@@ -136,6 +137,11 @@ __global__ void scatter_weights_kernel(const int* ids, const long long* w, int n
 }
 
 }  // namespace
+
+// dynG: the kernels in the registry of resources::warm_up() (kernel_registry.hpp).
+DYNG_REGISTER_KERNEL(expand_delta_keys_kernel);
+DYNG_REGISTER_KERNEL(apply_rows_warp_kernel);
+DYNG_REGISTER_KERNEL(scatter_weights_kernel);
 
 void build_device_h2h(device_h2h& dev, const host_hypergraph& hg, const line_graph_csr& lg,
                       int max_nodes, double entry_headroom) {

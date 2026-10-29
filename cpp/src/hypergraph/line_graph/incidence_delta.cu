@@ -36,6 +36,9 @@
 #include "core/budget_counters.hpp"
 #include "hypergraph/slack_csr/slack_csr_store.hpp"
 #include "util/device_error_flags.cuh"
+#include "util/kernel_registry.hpp"
+
+#include <dyng/core/profiler.hpp>
 
 #include <cub/cub.cuh>
 #include <thrust/iterator/transform_iterator.h>
@@ -283,6 +286,19 @@ __global__ void write_he_rows_kernel(const int* touched, const long long* off, i
 
 }  // namespace
 
+// dynG: the kernels in the registry of resources::warm_up() (kernel_registry.hpp).
+DYNG_REGISTER_KERNEL(set_index_kernel);
+DYNG_REGISTER_KERNEL(reset_index_kernel);
+DYNG_REGISTER_KERNEL(scatter_int_kernel);
+DYNG_REGISTER_KERNEL(count_candidates_kernel);
+DYNG_REGISTER_KERNEL(totals_kernel);
+DYNG_REGISTER_KERNEL(emit_candidates_kernel);
+DYNG_REGISTER_KERNEL(relocate_rows_kernel);
+DYNG_REGISTER_KERNEL(apply_vertex_rows_kernel);
+DYNG_REGISTER_KERNEL(classify_pairs_kernel);
+DYNG_REGISTER_KERNEL(keys_to_pairs_kernel);
+DYNG_REGISTER_KERNEL(write_he_rows_kernel);
+
 long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const incidence_batch& inc,
                        int& reuploads, long long max_candidates) {
   device_incidence& di = dev.inc;
@@ -425,6 +441,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
       reloc_off.push_back(di.v_off[v]);
     }
     if (reupload) {
+      // dynG: the stage of a re-upload (its host layout and copy)
+      const scoped_stage stage(*dev.res, "hypergraph.apply.translate.reupload");
       upload_vertex_rows(di, hg, 1.5);
       ++reuploads;
     } else {
@@ -564,6 +582,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
       write_off[t] = di.he_off[node];
     }
     if (reupload) {
+      // dynG: the stage of a re-upload (its host layout and copy)
+      const scoped_stage stage(*dev.res, "hypergraph.apply.translate.reupload");
       upload_he_rows(di, hg, 1.5);
       ++reuploads;
     } else {

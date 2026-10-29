@@ -33,6 +33,7 @@
 #include <climits>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -572,8 +573,13 @@ hyper_apply_summary hypergraph_access::apply(const resources& res,
                                              bool record_incidence_delta) {
   // A transaction without participants (ADR 0043): begin (Step 0), then the commit.
   const scoped_stage stage(res, "hypergraph.apply");
-  hyper_transaction<vertex_t, weight_t> txn(res, h, batch, "hypergraph::apply");
-  return txn.commit(record_incidence_delta);
+  std::optional<hyper_transaction<vertex_t, weight_t>> txn;
+  {
+    // Step 0 (the region map of hyper_sssp names it: parity/timed_regions/hyper_sssp.toml).
+    const scoped_stage normalize(res, "hypergraph.apply.normalize");
+    txn.emplace(res, h, batch, "hypergraph::apply");
+  }
+  return txn->commit(record_incidence_delta);
 }
 
 namespace {
