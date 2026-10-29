@@ -327,6 +327,52 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(triad_reference_isolation PROPERTIES LABELS "cpu;testing;triad_count")
+  # The hyper_sssp oracle (M11a criterion 5, ADR 0082): MOSP_ESCHER's oracle algorithms, sharing
+  # no code with hyper_sssp (cpp/src/algorithms/hyper_sssp) or the container's internals
+  # (cpp/src/hypergraph). The two planted violations prove that the check fails: a source that
+  # includes a container header, and an object that references a dynG symbol.
+  set(_hsosp_isolation
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/hyper_sssp_reference.hpp
+  )
+  add_test(
+    NAME hyper_sssp_reference_isolation
+    COMMAND
+      ${_hsosp_isolation} -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/hyper_sssp_reference.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(hyper_sssp_reference_isolation PROPERTIES LABELS "cpu;testing;hyper_sssp")
+  add_library(dyng_hsosp_isolation_planted OBJECT testing/hyper_sssp_isolation_planted_link.cpp)
+  target_include_directories(dyng_hsosp_isolation_planted PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+  target_compile_features(dyng_hsosp_isolation_planted PRIVATE cxx_std_17)
+  add_test(
+    NAME hyper_sssp_reference_isolation_planted_include
+    COMMAND
+      ${_hsosp_isolation}
+      -DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/testing/hyper_sssp_isolation_planted_include.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  add_test(
+    NAME hyper_sssp_reference_isolation_planted_link
+    COMMAND
+      ${_hsosp_isolation}
+      -DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/testing/hyper_sssp_isolation_planted_link.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_hsosp_isolation_planted>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  # Each must fail for its own reason (the check's message), not for another one.
+  set_tests_properties(
+    hyper_sssp_reference_isolation_planted_include
+    PROPERTIES LABELS "cpu;testing;hyper_sssp" PASS_REGULAR_EXPRESSION
+               "/cpp/src/hypergraph/row_views.hpp"
+  )
+  set_tests_properties(
+    hyper_sssp_reference_isolation_planted_link
+    PROPERTIES LABELS "cpu;testing;hyper_sssp" PASS_REGULAR_EXPRESSION
+               "U dyng::detail::planted_isolation_violation"
+  )
 endif()
 # The hypergraph container (M8b, ADR 0041): construction, apply semantics, guarantees,
 # placement, the host id allocator against the CBST host model, random streams in lockstep with
@@ -1182,6 +1228,15 @@ dyng_add_test(
   NAME dyng_triad_reference_tests
   SOURCES testing/triad_reference_test.cpp
   LABELS cpu testing triad_count
+  LIBRARIES dyng::testing
+)
+# The hyper_sssp oracle (M11a criterion 5, ADR 0082): hand cases of both source kinds, weights
+# 0, dead rows, the canonical parents, the separate parent count, the line-graph delta, the
+# refusals.
+dyng_add_test(
+  NAME dyng_hyper_sssp_reference_tests
+  SOURCES testing/hyper_sssp_reference_test.cpp
+  LABELS cpu testing hyper_sssp
   LIBRARIES dyng::testing
 )
 # The oracle's planted mutation (parity/mutate.py, triad_reference_class_map): two classes of its

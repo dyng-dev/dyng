@@ -282,6 +282,20 @@ if(DYNG_ENABLE_OPENMP)
 endif()
 dyng_set_warnings(dyng_testing_triad_reference)
 dyng_enable_sanitizers(dyng_testing_triad_reference)
+# The hyper_sssp oracle (M11a criterion 5, ADR 0082): MOSP_ESCHER's HypergraphOracle algorithms
+# (the line graph, the node-weighted Dijkstra, the canonical parents, the line-graph delta), the
+# standard library only, checked to share nothing with hyper_sssp or the container
+# (hyper_sssp_reference_isolation).
+add_library(dyng_testing_hyper_sssp_reference OBJECT src/testing/hyper_sssp_reference.cpp)
+target_include_directories(
+  dyng_testing_hyper_sssp_reference PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include"
+)
+target_compile_features(dyng_testing_hyper_sssp_reference PRIVATE cxx_std_17)
+set_target_properties(
+  dyng_testing_hyper_sssp_reference PROPERTIES POSITION_INDEPENDENT_CODE ON
+)
+dyng_set_warnings(dyng_testing_hyper_sssp_reference)
+dyng_enable_sanitizers(dyng_testing_hyper_sssp_reference)
 add_library(
   dyng_testing
   src/testing/dijkstra.cpp
@@ -291,6 +305,7 @@ add_library(
   $<TARGET_OBJECTS:dyng_testing_cbst_model>
   $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
   $<TARGET_OBJECTS:dyng_testing_triad_reference>
+  $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(
