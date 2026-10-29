@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The symbols of LabelPropagation-CUDA@a276a3a that the bin/dynLP recording twin wraps
+# (-Xlinker --wrap=<symbol>); parity/exporters/dynlp/recorder_dynlp.cpp defines __wrap_<symbol>
+# for each. Taken with nm from the objects of the archive build (obj/*.o). Every one is called
+# from another object (main.o or dynLP.o), which is what --wrap redirects.
+# main.o: the generator and the run
+_Z19generateSparseGraphiijR8CSRGraphRSt6vectorIfSaIfEERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE
+_Z15generateBatchesRK8CSRGraphRKSt6vectorIfSaIfEERK11DynLPConfigRS2_I9BatchDataSaISA_EE
+_Z8runDynLPRK11DynLPConfigRK8CSRGraphRKSt6vectorIfSaIfEERKS5_I9BatchDataSaISA_EERS7_SF_RS5_I11BatchResultSaISG_EE
+# dynLP.o: the stages of a batch and the IrLP snapshot
+_Z24launchApplyVertexChangesPKiiS0_iS0_PKfiPiS3_R11DeviceGraphP11CUstream_st
+_Z17launchAppendEdgesR11DeviceGraphPKiS2_PKfiS2_P11CUstream_st
+_Z29launchBuildSparsifiedSubgraphPiPKiS1_PKfiiS1_S1_ifS_S_S_P11CUstream_st
+_Z25launchConnectedComponentsPKiS0_S0_iS0_iPiRiR11CCWorkspaceP11CUstream_st
+_Z25launchLabelInitializationPKiS0_S0_PKfPfS0_S0_iS0_iS0_iR18LabelInitWorkspaceP11CUstream_st
+_Z26launchIterativePropagationPKiS0_S0_PKfPfS0_S0_S0_ifi10UpdateRuleR20PropagationWorkspaceRiP11CUstream_st
+_Z15runIrLPSnapshotRK8CSRGraphRKSt6vectorIiSaIiEERKS2_IfSaIfEEfiRS8_RiRf

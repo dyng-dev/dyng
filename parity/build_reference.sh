@@ -142,6 +142,9 @@ build_fingerprint() { # <build command> <cxx> [build_env...]: one "key=value" li
   echo "cxx=$(command -v "${cxx}" || echo "${cxx} (not found)")"
   echo "cxx_version=$("${cxx}" --version 2>/dev/null | head -n 1)"
   nvcc="$(sed -nE 's/.*NVCC=([^ ]+).*/\1/p' <<<"${build}")"
+  # A build that names no NVCC= and relies on the Makefile's default (LabelPropagation-CUDA):
+  # the nvcc that default resolves to (references.toml nvcc_default; empty for the others).
+  [ -n "${nvcc}" ] || nvcc="${fingerprint_nvcc_default:-}"
   if [ -n "${nvcc}" ]; then
     echo "nvcc_version=$("${nvcc}" --version 2>/dev/null | tail -n 1)"
   else
@@ -226,6 +229,8 @@ build_copy() { # <name> <variant>
   cxx="$(field "${name}" cxx)"
   cxx="${cxx:-g++}"
   mapfile -t env_args < <(field "${name}" build_env | sed "/^$/d")
+  local fingerprint_nvcc_default
+  fingerprint_nvcc_default="$(field "${name}" nvcc_default)"
   fingerprint="$(build_fingerprint "${build}" "${cxx}" ${env_args[@]+"${env_args[@]}"})"
   if [ -f "${dir}/.dyng-reference" ] &&
     [ "$(grep -E '^(build|build_env|cxx|cxx_version|nvcc_version)=' "${dir}/.dyng-reference")" != \
