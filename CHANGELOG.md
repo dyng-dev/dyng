@@ -36,6 +36,22 @@ Before 0.1.0 anything may change.
   `export_goldens.py label_propagation` and `compare.py label_propagation --verify`), with the
   thresholds frozen in `parity/goldens.toml`; the build-flags go/no-go
   (`parity/label_propagation_sass.py`); the records under `parity/results/` (`M10a.md`).
+- M10a step 2 (api-change, additive; provisional until M10b's freeze): **the DynLP legacy
+  generator** (ADR 0067): `<dyng/generators/vertex_arrival.hpp>` (added to `<dyng/dyng.hpp>`)
+  with `generators::vertex_arrival_options`, `vertex_arrival_batch`, `vertex_arrival_stream` and
+  `generators::legacy::dynlp_vertex_arrival_stream()`, byte-identical to LabelPropagation-CUDA's
+  generator for a seed (every corpus case, build and thread count); libstdc++ 12's
+  `std::shuffle` with `std::mt19937` and `std::uniform_real_distribution<float>` reproduced by the
+  library and compared with `std::` at run time; `standard_library_matches_legacy_streams()` also
+  compares those draws (its description gains a sentence).
+- M10a step 2 (api-change, additive, `dyng::testing`): **the label_propagation oracles** (ADR
+  0068): `testing::harmonic_solution` (with `harmonic_options`, `harmonic_result`,
+  `label_error_against`, `class_agreement_with`), `testing::union_find` and
+  `testing::lp_host_model` (with `lp_model_batch`, `lp_model_report`), standard library only,
+  validated against the original's traces and its `--check`; the replay tool `dyng_lp_replay`
+  and `compare.py label_propagation generator|model|check-runs|oracle|margin|subset`
+  (`parity/label_propagation_replay.py`); the recorder's `check_labels` record; the committed
+  digests under `cpp/tests/data/goldens/label_propagation` (19.6 KB).
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 

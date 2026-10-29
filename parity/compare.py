@@ -11,7 +11,9 @@ records through the hypergraph container (parity/hypergraph_ids.py, M8b); `parit
 triad_count ...` ESCHER-GPU's triad goldens (parity/triad_goldens.py, M9a: --verify and --list;
 the replays through dynG by key and by content, parity/triad_replay.py); `parity/compare.py
 label_propagation --verify` LabelPropagation-CUDA's goldens (parity/label_propagation_goldens.py,
-M10a; the replays through dynG arrive with the port).
+M10a; `parity/compare.py label_propagation generator|model|check-runs|oracle|margin|subset` the
+replays of the legacy generator and the oracles, parity/label_propagation_replay.py, M10a step 2;
+the replays of the port arrive with it).
 
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
