@@ -189,12 +189,16 @@ struct batch_file_flags {
   static constexpr std::uint64_t incidence_edits = 8U;
   /// The flags this library knows in a graph file (none; bit 4 is reserved for a later release).
   static constexpr std::uint64_t known_graph = 0U;
-  /// The flags this library knows in a hypergraph file.
-  static constexpr std::uint64_t known_hypergraph =
-      deleted_members | expected_ids | insert_first | incidence_edits;
+  /// The flags this library knows in a hypergraph file: deleted_members | expected_ids |
+  /// insert_first | incidence_edits (bits 0-3).
+  static constexpr std::uint64_t known_hypergraph = 15U;
   /// Every flag this library knows (of either kind).
   static constexpr std::uint64_t known = known_graph | known_hypergraph;
 };
+static_assert(batch_file_flags::known_hypergraph ==
+                  (batch_file_flags::deleted_members | batch_file_flags::expected_ids |
+                   batch_file_flags::insert_first | batch_file_flags::incidence_edits),
+              "known_hypergraph is the union of the hypergraph flags");
 
 /**
  * @brief The header of a `.dgb` file: what its batch records hold.

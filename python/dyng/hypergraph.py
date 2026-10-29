@@ -189,7 +189,7 @@ class HypergraphProperties:
             # refusing it as 0.3 did.
             raise NotSupportedError(
                 'storage="slack_csr" and line_graph="slack_csr" are planned for the Python layer '
-                "of 0.4; use storage=\"escher\""
+                'of 0.4; use storage="escher"'
             )
         p = native.HypergraphProperties()
         p.storage = enum_member(native.HypergraphStorage, self.storage, "storage")

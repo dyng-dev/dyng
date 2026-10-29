@@ -358,8 +358,8 @@ nb::tuple current_batch(const io::batch_reader& r) {
                  "the Python package reads hypergraph .dgb files with int32 vertex ids");
     if ((h.flags & io::batch_file_flags::incidence_edits) != 0) {
       throw not_supported_error(
-          "dyng: a .dgb file with incidence edits (flag incidence_edits): the Python layer reads "
-          "them from 0.4 (planned for the Python layer of 0.4); read the file from C++");
+          "dyng: a .dgb file with incidence edits (flag incidence_edits): planned for the Python "
+          "layer of 0.4; until then read the file from C++");
     }
     nb::object batch;
     if (h.weight_type == io::batch_dtype::none) {

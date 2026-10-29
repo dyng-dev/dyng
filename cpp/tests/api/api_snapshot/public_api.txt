@@ -499,7 +499,7 @@
       std::int64_t max_weight = 100
       std::uint64_t seed = 1
   template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_list< vertex_t, weight_t > dyng::generators::uniform_hypergraph(const uniform_hypergraph_options &opt)
-  enum class dyng::generators::hyperedge_batch_mix : std::uint8_t { insert_only, delete_only, mixed, reuse, heavy_delete, delete_all, reinsert, larger, duplicates, dead_ids, skewed, limits, empty }
+  enum class dyng::generators::hyperedge_batch_mix : std::uint8_t { insert_only, delete_only, mixed, reuse, heavy_delete, delete_all, reinsert, larger, duplicates, dead_ids, skewed, limits, empty, incidence_removals, incidence_additions, incidence_mixed, incidence_emptying, incidence_same_batch, incidence_repeats, incidence_out_of_range }
   [[nodiscard]] std::string_view dyng::generators::to_string(hyperedge_batch_mix mix) noexcept
   struct dyng::generators::hyperedge_batch_options
       hyperedge_batch_mix mix = hyperedge_batch_mix::mixed
@@ -910,7 +910,10 @@
       static constexpr std::uint64_t deleted_members = 1U
       static constexpr std::uint64_t expected_ids = 2U
       static constexpr std::uint64_t insert_first = 4U
-      static constexpr std::uint64_t known = deleted_members | expected_ids | insert_first
+      static constexpr std::uint64_t incidence_edits = 8U
+      static constexpr std::uint64_t known_graph = 0U
+      static constexpr std::uint64_t known_hypergraph = 15U
+      static constexpr std::uint64_t known = known_graph | known_hypergraph
   struct dyng::io::batch_file_header
       std::uint32_t format_version = 1
       container_kind kind = container_kind::graph
