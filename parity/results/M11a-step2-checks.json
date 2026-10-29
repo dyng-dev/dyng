@@ -67,5 +67,6 @@
   "seq-alg": "triad_count sequential both algorithm: 60/60 cases passed (226 s)",
   "omp-alg": "triad_count openmp:8 both algorithm: 60/60 cases passed (46 s)"
  },
- "gpu1_job": "dyng_hypergraph_cuda_tests (dev-cuda), after locklog.py quiet-ok M11a carried-host-incidence-slack, nvidia-smi -i 1 empty before: 75 tests, 58 passed, 17 skipped (slack_csr on cuda, M11a step 3); SlackBackends.SlackCsrOnCudaArrivesInStep3/cuda passed"
+ "gpu1_job": "dyng_hypergraph_cuda_tests (dev-cuda), after locklog.py quiet-ok M11a carried-host-incidence-slack, nvidia-smi -i 1 empty before: 75 tests, 58 passed, 17 skipped (slack_csr on cuda, M11a step 3); SlackBackends.SlackCsrOnCudaArrivesInStep3/cuda passed",
+ "shallow_checkout": "git clone --depth 1 of d9692f7: ci/test_data_budget.py OK (1,074,029 of 1,250,000 B), ci/provenance_check.py OK (281 files), pytest parity/tests ci/tests 374 passed, 12 skipped (tools not built in the clone)"
 }
