@@ -766,7 +766,7 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
   };
 
   /// C7 under one preset on one backend: invalid batches are rejected before anything changes
-  /// (invalid_argument_error; incidence edits not_supported_error, planned for 0.4); skipped
+  /// (invalid_argument_error; incidence edits under escher storage not_supported_error); skipped
   /// deletions and dropped members are counted; duplicates still give compute().
   static void invalid_input(backend be, const kit_preset<hypergraph_properties>& p) {
     std::mt19937_64 rng(7000);
@@ -830,11 +830,12 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
         expect_rejected(b.view(), "weights on an unweighted batch", false);
       }
     }
-    {
+    if (p.props.storage == hypergraph_storage::escher) {
+      // escher storage refuses incidence edits (slack_csr only in 0.4, HD9).
       raw_batch b = one({0, 1}, 1);
       b.incidence_hyperedge = {0};
       b.incidence_vertex = {1};
-      expect_rejected(b.view(), "an incidence edit (planned for 0.4)", true);
+      expect_rejected(b.view(), "an incidence edit (slack_csr storage only)", true);
     }
     // Bad options: each must throw invalid_argument_error.
     for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
@@ -906,10 +907,19 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
         << "applied + skipped != requested";
     EXPECT_EQ(a.ignored_deletions, gen.expected_ignored);
     EXPECT_EQ(a.dropped_members, gen.expected_dropped);
-    EXPECT_EQ(a.skipped_ops, a.ignored_deletions + a.dropped_members);
+    EXPECT_EQ(a.skipped_ops, a.ignored_deletions + a.dropped_members + gen.expected_skipped_edits)
+        << "skipped_ops counts every skipped operation";
     EXPECT_EQ(a.deleted_hyperedges, static_cast<std::int64_t>(gen.deleted.size()));
-    EXPECT_EQ(a.inserted_incidences, 0);
-    EXPECT_EQ(a.deleted_incidences, 0);
+    // The incidence edits (slack_csr storage): applied + skipped = requested, as the model says.
+    const auto edits =
+        static_cast<std::int64_t>(gen.batch.view().delete_incidence_hyperedge.size() +
+                                  gen.batch.view().insert_incidence_hyperedge.size());
+    EXPECT_EQ(a.inserted_incidences + a.deleted_incidences +
+                  (a.skipped_ops - a.ignored_deletions - a.dropped_members),
+              edits)
+        << "applied + skipped != requested incidence edits";
+    EXPECT_EQ(a.inserted_incidences, gen.expected_additions);
+    EXPECT_EQ(a.deleted_incidences, gen.expected_removals);
     EXPECT_EQ(a.num_hyperedges_after, h.num_hyperedges());
     EXPECT_EQ(a.id_bound_after, h.hyperedge_id_bound());
     ASSERT_EQ(static_cast<std::int64_t>(a.inserted_ids.size()), a.inserted_hyperedges);
@@ -1152,6 +1162,9 @@ TYPED_TEST_P(conformance, C6_RunsAreDeterministic) {
       SCOPED_TRACE(p.label);
       for (const size_class size : {size_class::small, size_class::medium}) {
         for (const auto mix : ct::mixes(kit_check::c6)) {
+          if (!ct::mix_applies(mix, p.props)) {
+            continue;
+          }
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
           std::mt19937_64 rng(6000 + static_cast<std::uint64_t>(mix));
           typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);

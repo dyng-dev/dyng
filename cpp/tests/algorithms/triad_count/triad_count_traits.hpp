@@ -89,6 +89,11 @@ struct traits_of {
       props.line_graph = line_graph_policy::automatic;
     }
   }
+  /// triad_count reads the escher storage only in 0.4 (slack_csr is refused, HD9): the kit's
+  /// slack_csr presets are not its.
+  static bool accepts(const hypergraph_properties& props) {
+    return props.storage == hypergraph_storage::escher;
+  }
   /// One extra preset: the line graph maintained from construction (the gates' preset).
   static std::vector<hypergraph_properties> extra_properties() {
     hypergraph_properties p;
