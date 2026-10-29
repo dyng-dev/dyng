@@ -448,5 +448,170 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
     }
 
 
+# The sets of the allocator lockstep (M11a criterion 8; ADR 0085): MOSP_ESCHER's CBST traces with
+# the H2V trees of make test's H-SOSP sessions and of the 50K DBLP runs (their vertex-kind batches
+# fill and unfill rows), and the targeted scenarios (every tree: they drive CBSTOperations
+# directly).
+ALLOCATOR_SETS = {
+    "cbst_trace_mosp_escher_test": "h2v",
+    "cbst_trace_mosp_escher_dblp50k_hyperedge": "h2v",
+    "cbst_trace_mosp_escher_dblp50k_vertex": "h2v",
+    "cbst_trace_mosp_escher_targeted": "all",
+}
+ALLOCATOR_TOTALS = (
+    "trees",
+    "ops",
+    "states",
+    "keys_compared",
+    "inserts",
+    "fills",
+    "unfills",
+    "multi_segment_unfills",
+    "overflow_fills",
+    "compactions",
+    "exceptions",
+    "not_sets",
+    "unreplayable",
+    "mismatch_count",
+)
+
+
+def find_allocator_exe() -> Path | None:
+    """dyng_allocator_lockstep: $DYNG_ALLOCATOR_LOCKSTEP, else the first build tree that has it."""
+    env = os.environ.get("DYNG_ALLOCATOR_LOCKSTEP")
+    if env:
+        return Path(env)
+    for preset in (
+        "release",
+        "cpu-only",
+        "parity",
+        "dev",
+        "release-cuda",
+        "parity-cuda",
+        "dev-cuda",
+    ):
+        exe = REPO / "build" / preset / "cpp" / "tests" / "dyng_allocator_lockstep"
+        if exe.is_file():
+            return exe
+    return None
+
+
+def allocator_main(argv: list[str]) -> int:
+    """parity/hypergraph_ids.py allocator [--set NAME]... [--record DIR] [--exe PATH]: the host id
+    allocator in lockstep with MOSP_ESCHER's recorded CBST trees and the host model (M11a
+    criterion 8): every operation of every H2V tree (every tree of the targeted scenarios), the
+    allocator's keys, slot lengths, counts, tail occupancy and capacity, segments, bump pointer,
+    capacity, compactions, InsertMappings and exceptions against the trace's state digest and the
+    model. --record writes M11a-allocator-lockstep.json. Exit status: 0 every trace matched, 1 a
+    mismatch, 2 a usage error, 77 no goldens."""
+    p = argparse.ArgumentParser(
+        prog="hypergraph_ids.py allocator", description=allocator_main.__doc__
+    )
+    p.add_argument("--set", action="append", help="a set (default: every set of ALLOCATOR_SETS)")
+    p.add_argument("--scratch", type=Path, default=cbst_trace_goldens.scratch_default())
+    p.add_argument("--exe", type=Path, help="dyng_allocator_lockstep (default: find it in build/)")
+    p.add_argument("--record", type=Path, help="write M11a-allocator-lockstep.json here")
+    p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
+    args = p.parse_args(argv)
+    names = [full_name(n) for n in (args.set or list(ALLOCATOR_SETS))]
+    unknown = [n for n in names if n not in ALLOCATOR_SETS]
+    if unknown:
+        print(f"unknown sets {unknown}; the sets are {', '.join(ALLOCATOR_SETS)}", file=sys.stderr)
+        return 2
+    exe = args.exe or find_allocator_exe()
+    if exe is None or not exe.is_file():
+        print(
+            "dyng_allocator_lockstep not found: build dyng_allocator_lockstep_tool", file=sys.stderr
+        )
+        return 2
+    present = [
+        n
+        for n in names
+        if (cbst_trace_goldens.set_dir(args.scratch, n) / "MANIFEST.sha256").is_file()
+    ]
+    if not present:
+        print(f"no goldens for {names} under {args.scratch}; skipping", file=sys.stderr)
+        return 77
+    runs = args.scratch / "runs"
+    runs.mkdir(parents=True, exist_ok=True)
+    sets = []
+    failed = False
+    for n in present:
+        problems: list[str] = []
+        if not args.skip_verify:
+            problems += cbst_trace_goldens.verify_set(n, args.scratch)
+        cases = cases_of(n, args.scratch)
+        reports = []
+        with tempfile.TemporaryDirectory(dir=runs) as t:
+            for c in cases:
+                out = Path(t) / (c.parent.name + ".json")
+                cmd = [
+                    str(exe),
+                    "--trees",
+                    ALLOCATOR_SETS[n],
+                    "--tmp",
+                    t,
+                    "--json",
+                    str(out),
+                    str(c),
+                ]
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                if proc.returncode not in (0, 1) or not out.is_file():
+                    reports.append(
+                        {
+                            "trace": cbst_trace_goldens.portable(c),
+                            "ok": False,
+                            "error": (proc.stderr or proc.stdout).strip()[-2000:],
+                            "mismatch_count": 1,
+                        }
+                    )
+                    continue
+                r = json.loads(out.read_text())[0]
+                r["trace"] = cbst_trace_goldens.portable(c)
+                reports.append(r)
+        totals = {k: sum(int(r.get(k, 0)) for r in reports) for k in ALLOCATOR_TOTALS}
+        for r in reports:
+            if not r.get("ok", False):
+                first = r.get("error") or (r.get("mismatches") or ["?"])[0]
+                problems.append(f"{r['trace']}: {r.get('mismatch_count', 1)} mismatches ({first})")
+        if totals["states"] == 0:
+            problems.append("no state was compared")
+        print(
+            f"{n}: {len(reports)} traces, {totals['trees']} trees, {totals['ops']} ops, "
+            f"{totals['states']} states, {totals['fills']} fills, {totals['unfills']} unfills "
+            f"({totals['multi_segment_unfills']} items on rows with an overflow segment), "
+            f"{totals['compactions']} compactions, {totals['mismatch_count']} mismatches: "
+            + ("OK" if not problems else "FAILED")
+        )
+        for pr in problems[:20]:
+            print("  " + pr)
+        failed = failed or bool(problems)
+        sets.append(
+            {
+                "set": n,
+                "trees": ALLOCATOR_SETS[n],
+                "verified": not args.skip_verify,
+                "passed": not problems,
+                "totals": totals,
+                "cases": reports,
+                "problems": problems,
+            }
+        )
+    if args.record:
+        args.record.mkdir(parents=True, exist_ok=True)
+        doc = {
+            "record": "the host id allocator in lockstep with MOSP_ESCHER's CBST trees and the "
+            "host model",
+            "commit": git_head(),
+            "tool": cbst_trace_goldens.portable(exe),
+            "passed": not failed,
+            "sets": sets,
+        }
+        (args.record / "M11a-allocator-lockstep.json").write_text(json.dumps(doc, indent=1) + "\n")
+    return 1 if failed else 0
+
+
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["allocator"]:
+        sys.exit(allocator_main(sys.argv[2:]))
     sys.exit(compare_main(sys.argv[1:]))

@@ -21,6 +21,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace dyng::detail::hyper {
@@ -80,13 +81,35 @@ class id_allocator {
   void erase(const std::vector<std::int32_t>& keys);
 
   /**
-   * @brief Append values to live rows (a fill): into the tail segment, the rest into an overflow
-   *        segment of `((k + 4) / 4) * 4` slots at the bump pointer (padding rule 3).
+   * @brief Append values to live rows (a fill, MOSP_ESCHER's fillCBST): into the tail segment, the
+   *        rest into an overflow segment of `((k + 4) / 4) * 4` slots at the bump pointer
+   *        (padding rule 3), which becomes the row's tail; a fill whose overflow segments do not
+   *        fit compacts first under the compacting presets.
+   *
+   * The values themselves are kept for the rows whose tail is an overflow segment (only those:
+   * a single-segment row's tail holds all its values), because a later remove_values() leaves in
+   * `occupancy` the values left in the tail segment (ADR 0085).
    * @param[in] keys   Distinct live keys.
-   * @param[in] counts The values appended to each.
+   * @param[in] prefix The inclusive end of each key's values in `values`.
+   * @param[in] values The values of every key, in the order the store writes them (the batch
+   *                   order of the additions).
    * @throws capacity_error if the payload cannot hold the overflow segments (undefined after).
    */
-  void append(const std::vector<std::int32_t>& keys, const std::vector<std::int32_t>& counts);
+  void append(const std::vector<std::int32_t>& keys, const std::vector<std::int32_t>& prefix,
+              const std::vector<std::int32_t>& values);
+
+  /**
+   * @brief Remove values from live rows (an unfill, MOSP_ESCHER's unfillCBST): every segment of
+   *        the row is compacted in place, so the row's value count drops by the values removed and
+   *        its tail occupancy becomes the values left in its tail segment (unfillRowSerial; the
+   *        warp and block kernels give the same on a single-segment row). The slots and the bump
+   *        pointer do not change; nothing compacts or grows.
+   * @param[in] keys   Distinct live keys (other keys are ignored).
+   * @param[in] prefix The inclusive end of each key's values in `values`.
+   * @param[in] values The values to remove from each key's row (each a member of it, distinct).
+   */
+  void remove_values(const std::vector<std::int32_t>& keys, const std::vector<std::int32_t>& prefix,
+                     const std::vector<std::int32_t>& values);
 
   /**
    * @brief Compact the payload: every row one segment, in key order; a live row of c values
@@ -103,6 +126,17 @@ class id_allocator {
   [[nodiscard]] std::int32_t length(std::int64_t key) const noexcept;
   /// @brief The value count of a live key. @param[in] key The key. @return The count.
   [[nodiscard]] std::int32_t count(std::int64_t key) const noexcept;
+  /// @brief The values in the tail segment of a key. @param[in] key The key. @return The
+  /// occupancy (0 for a key not in the tree).
+  [[nodiscard]] std::int32_t occupancy(std::int64_t key) const noexcept;
+  /// @brief The usable slots of the tail segment of a key. @param[in] key The key. @return The
+  /// tail capacity (0 for a key not in the tree).
+  [[nodiscard]] std::int32_t tail_capacity(std::int64_t key) const noexcept;
+  /// @brief Whether the tail of a live key is an overflow segment. @param[in] key The key.
+  /// @return true for a row with more than one segment.
+  [[nodiscard]] bool multi_segment(std::int64_t key) const noexcept {
+    return tails_.count(key) != 0;
+  }
   /// @brief The largest key in the tree (0: empty). @return The key.
   [[nodiscard]] std::int64_t max_key() const noexcept {
     return max_key_;
@@ -140,6 +174,10 @@ class id_allocator {
   [[nodiscard]] const std::array<std::int64_t, 3>& fill_paths() const noexcept {
     return fill_paths_;
   }
+  /// @brief The unfill path counters of the removals so far. @return The counters.
+  [[nodiscard]] const std::array<std::int64_t, 3>& unfill_paths() const noexcept {
+    return unfill_paths_;
+  }
   /// @brief The policy. @return The store policy.
   [[nodiscard]] const escher::store_policy& policy() const noexcept {
     return policy_;
@@ -163,8 +201,8 @@ class id_allocator {
 
   void ensure_capacity(std::int64_t needed);
   void keep_headroom_after_compaction(std::int64_t compactions_before);
-  void fill_impl(const std::vector<std::int32_t>& keys, const std::vector<std::int32_t>& counts,
-                 bool allow_compact);
+  void fill_impl(const std::vector<std::int32_t>& keys, const std::vector<std::int32_t>& prefix,
+                 const std::vector<std::int32_t>& values, bool allow_compact);
   slot& at(std::int64_t key);
 
   escher::store_policy policy_;
@@ -179,6 +217,9 @@ class id_allocator {
   std::int64_t compactions_ = 0;
   std::array<std::int64_t, 3> reuse_paths_{};
   std::array<std::int64_t, 3> fill_paths_{};
+  std::array<std::int64_t, 3> unfill_paths_{};
+  // The values of the tail segment of every row whose tail is an overflow segment of a fill.
+  std::unordered_map<std::int64_t, std::vector<std::int32_t>> tails_;
 };
 
 }  // namespace dyng::detail::hyper

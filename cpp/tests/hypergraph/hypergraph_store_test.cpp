@@ -54,6 +54,13 @@ std::string difference(const id_allocator& a, const dyng::testing::cbst_host_mod
     if (a.length(rec.key) != rec.length) out += "key " + std::to_string(rec.key) + " length; ";
     if (rec.avail == 0 && a.count(rec.key) != rec.row_len)
       out += "key " + std::to_string(rec.key) + " count; ";
+    if (rec.avail == 0 && a.occupancy(rec.key) != rec.occupancy)
+      out += "key " + std::to_string(rec.key) + " occupancy " +
+             std::to_string(a.occupancy(rec.key)) + " vs " + std::to_string(rec.occupancy) + "; ";
+    if (rec.avail == 0 && a.tail_capacity(rec.key) != rec.tail_capacity)
+      out += "key " + std::to_string(rec.key) + " tail capacity; ";
+    if (rec.avail == 0 && a.multi_segment(rec.key) != (rec.segments > 1))
+      out += "key " + std::to_string(rec.key) + " segments; ";
     (rec.avail != 0 ? dead : live) += 1;
   }
   if (live != a.live() || dead != a.dead()) out += "key counts; ";
@@ -158,7 +165,7 @@ TEST(IdAllocator, MatchesTheHostModelUnderEveryPreset) {
           }
           bool threw = false;
           try {
-            a.append(live, adds);
+            a.append(live, prefix, payload);
           } catch (const dyng::capacity_error&) {
             threw = true;
           }
@@ -181,6 +188,166 @@ TEST(IdAllocator, MatchesTheHostModelUnderEveryPreset) {
       EXPECT_GT(growths, 0) << preset;
     }
   }
+}
+
+// The fills and unfills of the incidence edits (slack_csr, 0.4; ADR 0085): random streams of
+// inserts, erases, fills of new values and unfills of members on the allocator and the model,
+// under every preset, compared after every operation (counts, tail occupancy and capacity, the
+// segments, the slots, the bump pointer, the capacity, the compactions). The rows stay sets (a
+// fill adds values no row holds), as a hypergraph's rows do.
+TEST(IdAllocator, MatchesTheHostModelWithFillsAndUnfills) {
+  for (const std::string& preset : presets()) {
+    std::int64_t compactions = 0, multi_unfills = 0, single_unfills = 0, wide_unfills = 0;
+    for (const std::uint64_t seed : {11ULL, 12ULL, 13ULL, 14ULL, 15ULL}) {
+      SCOPED_TRACE(preset + " seed " + std::to_string(seed));
+      std::mt19937_64 rng(seed);
+      const capacity_policy c = capacity_of(preset, 160);
+      std::vector<std::int32_t> counts, keys, starts, flat, row_counts;
+      std::int32_t next_value = 1;
+      for (int i = 0; i < 30; ++i) counts.push_back(1 + static_cast<std::int32_t>(rng() % 6));
+      for (std::size_t i = 0; i < counts.size(); ++i) {
+        keys.push_back(static_cast<std::int32_t>(i) + 1);
+        starts.push_back(static_cast<std::int32_t>(flat.size()));
+        const std::int32_t padded = (counts[i] + 4) / 4 * 4;
+        for (std::int32_t k = 0; k < counts[i]; ++k) flat.push_back(next_value++);
+        flat.insert(flat.end(), static_cast<std::size_t>(padded - counts[i] - 1), 0);
+        flat.push_back(INT_MIN);
+      }
+      const std::int64_t capacity =
+          preset == "escher_gpu"
+              ? static_cast<std::int64_t>(flat.size()) + 8
+              : dyng::detail::hyper::initial_payload(c, static_cast<std::int64_t>(flat.size()));
+      id_allocator a(dyng::detail::hyper::to_store_policy(c), capacity);
+      a.construct(counts);
+      dyng::testing::cbst_host_model m(dyng::test::hyper::model_policy(preset), capacity, 4, "h2v");
+      row_counts = counts;
+      ASSERT_EQ(m.construct(keys, starts, flat, &row_counts).status,
+                dyng::testing::cbst_op_status::ok);
+      ASSERT_EQ(difference(a, m), "");
+      for (int op = 0; op < 500; ++op) {
+        const int kind = static_cast<int>(rng() % 5);
+        std::vector<const dyng::testing::cbst_key_record*> live;
+        const auto records = m.records();
+        for (const auto& rec : records)
+          if (rec.avail == 0) live.push_back(&rec);
+        std::shuffle(live.begin(), live.end(), rng);
+        if (kind == 0 && !live.empty()) {  // erase a few
+          std::vector<std::int32_t> erase;
+          for (std::size_t i = 0; i < std::min<std::size_t>(live.size(), 1 + rng() % 4); ++i)
+            erase.push_back(live[i]->key);
+          a.erase(erase);
+          ASSERT_EQ(m.erase(erase).status, dyng::testing::cbst_op_status::ok);
+        } else if (kind == 1) {  // insert a few
+          std::vector<std::int32_t> sizes, requested, payload, prefix;
+          const int k = 1 + static_cast<int>(rng() % 5);
+          for (int i = 0; i < k; ++i) {
+            sizes.push_back(1 + static_cast<std::int32_t>(rng() % 9));
+            requested.push_back(i + 1);
+            for (std::int32_t v = 0; v < sizes.back(); ++v) payload.push_back(next_value++);
+            prefix.push_back(static_cast<std::int32_t>(payload.size()));
+          }
+          std::vector<std::int32_t> got;
+          bool threw = false;
+          try {
+            got = a.insert(sizes);
+          } catch (const dyng::capacity_error&) {
+            threw = true;
+          }
+          const auto r = m.insert(requested, payload, prefix);
+          ASSERT_EQ(threw, r.status != dyng::testing::cbst_op_status::ok) << r.message;
+          if (threw) break;
+          ASSERT_EQ(got, r.mapping) << "op " << op;
+        } else if ((kind == 2 || kind == 3) && !live.empty()) {  // fill new values
+          std::vector<const dyng::testing::cbst_key_record*> chosen(
+              live.begin(), live.begin() + static_cast<std::ptrdiff_t>(
+                                               std::min<std::size_t>(live.size(), 1 + rng() % 4)));
+          std::sort(chosen.begin(), chosen.end(),
+                    [](const auto* x, const auto* y) { return x->key < y->key; });
+          std::vector<std::int32_t> fkeys, payload, prefix;
+          for (const auto* rec : chosen) {
+            fkeys.push_back(rec->key);
+            const auto add = 1 + static_cast<std::int32_t>(rng() % (op % 7 == 0 ? 40 : 6));
+            for (std::int32_t v = 0; v < add; ++v) payload.push_back(next_value++);
+            prefix.push_back(static_cast<std::int32_t>(payload.size()));
+          }
+          bool threw = false;
+          try {
+            a.append(fkeys, prefix, payload);
+          } catch (const dyng::capacity_error&) {
+            threw = true;
+          }
+          const auto r = m.append(fkeys, payload, prefix);
+          ASSERT_EQ(threw, r.status != dyng::testing::cbst_op_status::ok) << r.message;
+          if (threw) break;
+        } else if (kind == 4 && !live.empty()) {  // unfill members (never a whole row)
+          std::vector<const dyng::testing::cbst_key_record*> chosen;
+          for (const auto* rec : live)
+            if (rec->row.size() > 1 && chosen.size() < 1 + rng() % 4) chosen.push_back(rec);
+          std::sort(chosen.begin(), chosen.end(),
+                    [](const auto* x, const auto* y) { return x->key < y->key; });
+          std::vector<std::int32_t> ukeys, payload, prefix;
+          for (const auto* rec : chosen) {
+            std::vector<std::int32_t> row = rec->row;
+            std::shuffle(row.begin(), row.end(), rng);
+            const std::size_t k =
+                row.size() > 33 && rng() % 2 == 0 ? row.size() - 1 : 1 + rng() % (row.size() - 1);
+            ukeys.push_back(rec->key);
+            payload.insert(payload.end(), row.begin(),
+                           row.begin() + static_cast<std::ptrdiff_t>(k));
+            prefix.push_back(static_cast<std::int32_t>(payload.size()));
+            (a.multi_segment(rec->key) ? multi_unfills : single_unfills) += 1;
+            wide_unfills += k >= 32 ? 1 : 0;
+          }
+          a.remove_values(ukeys, prefix, payload);
+          ASSERT_EQ(m.remove_values(ukeys, payload, prefix).status,
+                    dyng::testing::cbst_op_status::ok);
+        }
+        ASSERT_EQ(difference(a, m), "") << "op " << op << " kind " << kind;
+      }
+      compactions += a.compactions();
+    }
+    EXPECT_GT(multi_unfills, 0) << preset;
+    EXPECT_GT(single_unfills, 0) << preset;
+    EXPECT_GT(wide_unfills, 0) << preset;  // the warp kernel (32 or more values of one row)
+    if (preset != "escher_gpu") {
+      EXPECT_GT(compactions, 0) << preset;
+    }
+  }
+}
+
+// An unfill of a row with an overflow segment: the occupancy is what is left in the tail
+// segment, not the row's count (MOSP_ESCHER's unfillRowSerial, escher/kernel/unfill.cu:18-23).
+TEST(IdAllocator, AnUnfillLeavesTheTailSegmentsOccupancy) {
+  id_allocator a(esc::store_policy::mosp_escher(64), 200);
+  a.construct({3});  // key 1: {1, 2, 3}, one segment of 4 slots (3 usable)
+  EXPECT_EQ(a.occupancy(1), 3);
+  a.append({1}, {3}, {4, 5, 6});  // 0 fit; an overflow segment of 4 slots holds 4, 5, 6
+  EXPECT_TRUE(a.multi_segment(1));
+  EXPECT_EQ(a.count(1), 6);
+  EXPECT_EQ(a.occupancy(1), 3);
+  EXPECT_EQ(a.tail_capacity(1), 3);
+  a.remove_values({1}, {2}, {1, 2});  // both in the first segment: the tail keeps 3 values
+  EXPECT_EQ(a.count(1), 4);
+  EXPECT_EQ(a.occupancy(1), 3);
+  a.remove_values({1}, {1}, {5});  // in the tail segment
+  EXPECT_EQ(a.count(1), 3);
+  EXPECT_EQ(a.occupancy(1), 2);
+  a.append({1}, {1}, {7});  // fits the tail
+  EXPECT_EQ(a.occupancy(1), 3);
+  EXPECT_EQ(a.count(1), 4);
+  const std::int64_t bump = a.bump();
+  // A state round trip keeps the tail values.
+  id_allocator b(esc::store_policy::mosp_escher(64), 0);
+  b.restore(a.state());
+  b.remove_values({1}, {1}, {7});
+  a.remove_values({1}, {1}, {7});
+  EXPECT_EQ(b.occupancy(1), a.occupancy(1));
+  EXPECT_EQ(a.occupancy(1), 2);
+  EXPECT_EQ(a.bump(), bump);  // an unfill never moves the bump pointer
+  (void)a.compact();
+  EXPECT_FALSE(a.multi_segment(1));
+  EXPECT_EQ(a.occupancy(1), 3);
+  EXPECT_EQ(a.length(1), 4);
 }
 
 TEST(IdAllocator, StateRoundTrip) {

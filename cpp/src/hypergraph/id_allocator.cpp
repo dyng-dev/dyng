@@ -3,7 +3,8 @@
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu (insertCBST: best fit, surplus rows)
 // Derived from ESCHER-GPU@abcf9b2:utils/flatten.cpp (flatten2DVector: padding rule 1)
 // Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (compactCBST, the trigger
-// points of fillImpl and insertCBST)
+// points of fillImpl and insertCBST, unfillCBST)
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/unfill.cu (unfillRowSerial: the tail occupancy)
 /**
  * @file id_allocator.cpp
  * @brief The host best-fit id allocator (ADR 0041, section 5).
@@ -12,7 +13,9 @@
  * policies"); the comments name the original each one comes from. The allocator only keeps what
  * decides ids and the payload accounting: which keys are in the tree, which are deleted slots,
  * the slot lengths, the value counts and tail segments of the rows, the bump pointer and the
- * capacity. It never holds a value of a row (the host store does).
+ * capacity. It holds no value of a row (the host store does), except the values of the tail
+ * segment of a row whose tail is an overflow segment of a fill: an unfill's tail occupancy is
+ * the values left in that segment (MOSP_ESCHER's unfillRowSerial; ADR 0085).
  */
 #include "hypergraph/id_allocator.hpp"
 
@@ -20,6 +23,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <cstddef>
 #include <numeric>
 #include <string>
 #include <utility>
@@ -77,6 +81,15 @@ std::int32_t id_allocator::count(std::int64_t key) const noexcept {
   return state_of(key) == key_state::live ? slots_[static_cast<std::size_t>(key)].count : 0;
 }
 
+std::int32_t id_allocator::occupancy(std::int64_t key) const noexcept {
+  return state_of(key) == key_state::absent ? 0 : slots_[static_cast<std::size_t>(key)].occupancy;
+}
+
+std::int32_t id_allocator::tail_capacity(std::int64_t key) const noexcept {
+  return state_of(key) == key_state::absent ? 0
+                                            : slots_[static_cast<std::size_t>(key)].tail_capacity;
+}
+
 void id_allocator::construct(const std::vector<std::int32_t>& counts) {
   std::int64_t total = 0;
   for (const std::int32_t c : counts) total += padded4(c);
@@ -95,6 +108,7 @@ void id_allocator::construct(const std::vector<std::int32_t>& counts) {
   live_ = max_key_;
   dead_ = 0;
   bump_ = total;
+  tails_.clear();
 }
 
 void id_allocator::restore(const allocator_state& state) {
@@ -120,6 +134,12 @@ void id_allocator::restore(const allocator_state& state) {
   capacity_ = state.capacity;
   growths_ = state.growths;
   compactions_ = state.compactions;
+  tails_.clear();
+  for (std::size_t i = 0; i < state.tail_keys.size(); ++i) {
+    tails_[state.tail_keys[i]].assign(
+        state.tail_values.begin() + static_cast<std::ptrdiff_t>(state.tail_offsets[i]),
+        state.tail_values.begin() + static_cast<std::ptrdiff_t>(state.tail_offsets[i + 1]));
+  }
 }
 
 allocator_state id_allocator::state() const {
@@ -138,6 +158,17 @@ allocator_state id_allocator::state() const {
   out.capacity = capacity_;
   out.growths = growths_;
   out.compactions = compactions_;
+  std::vector<std::int64_t> tail_keys;
+  tail_keys.reserve(tails_.size());
+  for (const auto& entry : tails_) tail_keys.push_back(entry.first);
+  std::sort(tail_keys.begin(), tail_keys.end());
+  out.tail_offsets.assign(1, 0);
+  for (const std::int64_t key : tail_keys) {
+    const auto& values = tails_.at(key);
+    out.tail_keys.push_back(static_cast<std::int32_t>(key));
+    out.tail_values.insert(out.tail_values.end(), values.begin(), values.end());
+    out.tail_offsets.push_back(static_cast<std::int64_t>(out.tail_values.size()));
+  }
   return out;
 }
 
@@ -196,6 +227,7 @@ std::int64_t id_allocator::compact() {
   }
   bump_ = total;
   ++compactions_;
+  tails_.clear();  // every row is one segment now
   return bump_;
 }
 
@@ -206,6 +238,7 @@ void id_allocator::erase(const std::vector<std::int32_t>& keys) {
       slots_[static_cast<std::size_t>(key)].state = key_state::dead;
       --live_;
       ++dead_;
+      tails_.erase(key);  // a reused slot is rewritten from its first slot; a compaction empties it
     }
   }
 }
@@ -314,6 +347,7 @@ std::vector<std::int32_t> id_allocator::insert(const std::vector<std::int32_t>& 
       slot& s = slots_[static_cast<std::size_t>(key)];
       if (s.state == key_state::dead) {
         s = slot{};
+        tails_.erase(key);
       } else if (s.state == key_state::live) {
         last_live = key;
       }
@@ -343,9 +377,16 @@ std::vector<std::int32_t> id_allocator::insert(const std::vector<std::int32_t>& 
 }
 
 void id_allocator::fill_impl(const std::vector<std::int32_t>& keys,
-                             const std::vector<std::int32_t>& counts, bool allow_compact) {
+                             const std::vector<std::int32_t>& prefix,
+                             const std::vector<std::int32_t>& values, bool allow_compact) {
   if (keys.empty()) return;
-  std::vector<std::int64_t> sizes(counts.begin(), counts.end());
+  const auto begin_of = [&](std::size_t i) -> std::int64_t { return i == 0 ? 0 : prefix[i - 1]; };
+  std::vector<std::int32_t> counts(keys.size());
+  std::vector<std::int64_t> sizes(keys.size());
+  for (std::size_t i = 0; i < keys.size(); ++i) {
+    counts[i] = static_cast<std::int32_t>(prefix[i] - begin_of(i));
+    sizes[i] = counts[i];
+  }
   record_paths(sizes, fill_paths_);
   // ESCHER-GPU's insertNode kernels (kernel/payload.cu@abcf9b2) with MOSP_ESCHER's clamp: the
   // values that fit the tail segment are written there; the rest of an item goes to an overflow
@@ -356,6 +397,14 @@ void id_allocator::fill_impl(const std::vector<std::int32_t>& keys,
     slot& s = slots_[static_cast<std::size_t>(keys[i])];
     const std::int32_t occupancy = std::min(std::max(s.occupancy, 0), s.tail_capacity);
     const std::int64_t room = s.tail_capacity - occupancy;
+    const std::int64_t fit = std::min<std::int64_t>(counts[i], room);
+    // The values that fit go to the tail segment (kept only when it is an overflow segment).
+    const auto tail = tails_.find(keys[i]);
+    if (tail != tails_.end()) {
+      tail->second.insert(tail->second.end(),
+                          values.begin() + static_cast<std::ptrdiff_t>(begin_of(i)),
+                          values.begin() + static_cast<std::ptrdiff_t>(begin_of(i) + fit));
+    }
     if (counts[i] <= room) {
       s.occupancy = occupancy + counts[i];
       s.count += counts[i];
@@ -373,15 +422,18 @@ void id_allocator::fill_impl(const std::vector<std::int32_t>& keys,
       policy_.compaction != escher::store_policy::compaction_rule::never) {
     // MOSP_ESCHER's fillImpl (escher/structure/operations.cu@4b86159:409-444): compact, then
     // append the values that did not fit their tails once more, without compacting.
-    std::vector<std::int32_t> rest_keys, rest_counts;
+    std::vector<std::int32_t> rest_keys, rest_prefix, rest_values;
     for (std::size_t i = 0; i < keys.size(); ++i) {
       if (segment[i] != 0) {
         rest_keys.push_back(keys[i]);
-        rest_counts.push_back(static_cast<std::int32_t>(counts[i] - taken[i]));
+        rest_values.insert(rest_values.end(),
+                           values.begin() + static_cast<std::ptrdiff_t>(begin_of(i) + taken[i]),
+                           values.begin() + static_cast<std::ptrdiff_t>(prefix[i]));
+        rest_prefix.push_back(static_cast<std::int32_t>(rest_values.size()));
       }
     }
     (void)compact();
-    fill_impl(rest_keys, rest_counts, false);
+    fill_impl(rest_keys, rest_prefix, rest_values, false);
     return;
   }
   if (total > 0) {
@@ -392,16 +444,61 @@ void id_allocator::fill_impl(const std::vector<std::int32_t>& keys,
       s.count += static_cast<std::int32_t>(counts[i] - taken[i]);
       s.tail_capacity = static_cast<std::int32_t>(segment[i] - 1);
       s.occupancy = static_cast<std::int32_t>(counts[i] - taken[i]);
+      // The overflow segment is the row's tail now: its values are the rest of the item.
+      tails_[keys[i]].assign(values.begin() + static_cast<std::ptrdiff_t>(begin_of(i) + taken[i]),
+                             values.begin() + static_cast<std::ptrdiff_t>(prefix[i]));
     }
     bump_ = needed;
   }
 }
 
 void id_allocator::append(const std::vector<std::int32_t>& keys,
-                          const std::vector<std::int32_t>& counts) {
+                          const std::vector<std::int32_t>& prefix,
+                          const std::vector<std::int32_t>& values) {
   const std::int64_t compactions_before = compactions_;
-  fill_impl(keys, counts, true);
+  fill_impl(keys, prefix, values, true);
   keep_headroom_after_compaction(compactions_before);
+}
+
+void id_allocator::remove_values(const std::vector<std::int32_t>& keys,
+                                 const std::vector<std::int32_t>& prefix,
+                                 const std::vector<std::int32_t>& values) {
+  if (keys.empty()) return;
+  std::vector<std::int64_t> sizes(keys.size());
+  for (std::size_t i = 0; i < keys.size(); ++i) sizes[i] = prefix[i] - (i == 0 ? 0 : prefix[i - 1]);
+  record_paths(sizes, unfill_paths_);
+  std::vector<std::int32_t> removed;
+  for (std::size_t i = 0; i < keys.size(); ++i) {
+    if (state_of(keys[i]) != key_state::live) continue;
+    slot& s = slots_[static_cast<std::size_t>(keys[i])];
+    const std::int64_t begin = i == 0 ? 0 : prefix[i - 1];
+    removed.assign(values.begin() + static_cast<std::ptrdiff_t>(begin),
+                   values.begin() + static_cast<std::ptrdiff_t>(prefix[i]));
+    std::sort(removed.begin(), removed.end());
+    removed.erase(std::unique(removed.begin(), removed.end()), removed.end());
+#if defined(DYNG_MUTATION_HSOSP_ALLOCATOR_UNFILL_DROPS_LAST)
+    // MUTATION (PLAN 8.4; M11a criterion 16 #4): the H2V unfill model drops the last value of
+    // every item (its removal is neither counted nor taken from the tail).
+    if (!removed.empty()) removed.pop_back();
+#endif
+    s.count -= static_cast<std::int32_t>(removed.size());
+    const auto tail = tails_.find(keys[i]);
+    if (tail == tails_.end()) {
+      // One segment: its tail is the whole row (unfill_segment and unfillRowSerial agree).
+      s.occupancy = s.count;
+    } else {
+      // Several segments: every segment is compacted in place; the occupancy is what is left in
+      // the tail segment (unfillRowSerial's return value).
+      auto& tail_values = tail->second;
+      tail_values.erase(std::remove_if(tail_values.begin(), tail_values.end(),
+                                       [&](std::int32_t v) {
+                                         return std::binary_search(removed.begin(), removed.end(),
+                                                                   v);
+                                       }),
+                        tail_values.end());
+      s.occupancy = static_cast<std::int32_t>(tail_values.size());
+    }
+  }
 }
 
 std::vector<std::string> id_allocator::check() const {

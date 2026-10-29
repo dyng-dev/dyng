@@ -446,11 +446,25 @@ set_target_properties(dyng_hypergraph_ids_tool PROPERTIES OUTPUT_NAME dyng_hyper
 target_link_libraries(dyng_hypergraph_ids_tool PRIVATE dyng_hypergraph_ids)
 dyng_set_warnings(dyng_hypergraph_ids_tool)
 dyng_enable_sanitizers(dyng_hypergraph_ids_tool)
+# The host id allocator in lockstep with MOSP_ESCHER's recorded CBST trees and the host model (M11a
+# criterion 8, ADR 0085): the library, the tool parity/hypergraph_ids.py allocator drives over the
+# golden sets, and its test on the committed traces.
+add_library(dyng_allocator_lockstep STATIC parity/escher/allocator_lockstep.cpp)
+target_link_libraries(dyng_allocator_lockstep PUBLIC dyng_cbst_compare dyng::dyng)
+target_include_directories(dyng_allocator_lockstep PUBLIC "${PROJECT_SOURCE_DIR}/cpp/src")
+target_compile_features(dyng_allocator_lockstep PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_allocator_lockstep)
+dyng_enable_sanitizers(dyng_allocator_lockstep)
+add_executable(dyng_allocator_lockstep_tool parity/escher/allocator_lockstep_main.cpp)
+set_target_properties(dyng_allocator_lockstep_tool PROPERTIES OUTPUT_NAME dyng_allocator_lockstep)
+target_link_libraries(dyng_allocator_lockstep_tool PRIVATE dyng_allocator_lockstep)
+dyng_set_warnings(dyng_allocator_lockstep_tool)
+dyng_enable_sanitizers(dyng_allocator_lockstep_tool)
 dyng_add_test(
   NAME dyng_hypergraph_ids_tests
-  SOURCES parity/escher/hypergraph_ids_test.cpp
+  SOURCES parity/escher/hypergraph_ids_test.cpp parity/escher/allocator_lockstep_test.cpp
   LABELS cpu parity hypergraph
-  LIBRARIES dyng_hypergraph_ids
+  LIBRARIES dyng_hypergraph_ids dyng_allocator_lockstep
 )
 list(APPEND _dyng_private_tests dyng_hypergraph_ids_tests)
 if(DYNG_ENABLE_CUDA)

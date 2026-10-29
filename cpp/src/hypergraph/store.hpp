@@ -82,6 +82,13 @@ struct allocator_state {
   std::int64_t capacity = 0;                ///< payload capacity
   std::int64_t growths = 0;                 ///< payload growths so far
   std::int64_t compactions = 0;             ///< payload compactions so far
+  /// The rows whose tail segment is an overflow segment of a fill (incidence additions of
+  /// slack_csr storage, 0.4): their keys, increasing, and the values of that segment (CSR:
+  /// tail_offsets has one entry more than tail_keys). Empty for every row of a hyperedge-only
+  /// history (0.3).
+  std::vector<std::int32_t> tail_keys;
+  std::vector<std::int64_t> tail_offsets{0};  ///< offsets into tail_values
+  std::vector<std::int32_t> tail_values;      ///< the values of the tail segments
 };
 
 /// The state of a store on the host (snapshot()): its allocator state, the live rows and the
