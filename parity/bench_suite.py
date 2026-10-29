@@ -94,6 +94,7 @@ REGION_MAPS = {
     "mosp": "parity/timed_regions/mosp.toml",
     "cycle_count": "parity/timed_regions/cycle_count.toml",
     "triad_count": "parity/timed_regions/triad_count.toml",
+    "label_propagation": "parity/timed_regions/label_propagation.toml",  # M10a (ADR 0064)
 }
 # The region map's section per backend.
 MAP_KEYS = {
@@ -101,6 +102,7 @@ MAP_KEYS = {
     "mosp": {"openmp": "mosp_openmp", "cuda": "mosp_cuda"},
     "cycle_count": {"openmp": "cycle_enum_openmp", "cuda": "cycle_enum_cuda"},
     "triad_count": {"cuda": "escher_gpu"},
+    "label_propagation": {"cuda": "dynlp_cuda"},
 }
 EXECUTABLES = {
     "sssp": "dyng-compat-mosp",
@@ -175,7 +177,10 @@ def region_map(algorithm: str, backend: str) -> dict[str, dict]:
     for r in doc["reference"][MAP_KEYS[algorithm][backend]]["region"]:
         perf_ab.check_batch_rows(REPO / REGION_MAPS[algorithm], r)
         for row in perf_ab.region_rows(r):
-            out[row] = r if row == r["name"] else dict(r, name=row, row_of=r["name"])
+            if row == r["name"]:
+                out[row] = r
+            else:  # a per-batch row, or the gated sum row (sum_gate, M10) with its own gate
+                out[row] = dict(r, name=row, row_of=r["name"], gate=perf_ab.row_gate(r, row))
     return out
 
 
