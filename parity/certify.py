@@ -351,6 +351,8 @@ GPU_LOCAL_STEPS = {
     (0, 4): [
         # M10 label_propagation
         # M11 slack_csr / hyper_sssp
+        "slack_csr sanitizers (all four tools; a forced-overflow session)",
+        "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
     ],
 }
 # The results of a step of ci/gpu_local.sh that are not a failure (only "passed" counts as run).

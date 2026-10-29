@@ -102,6 +102,18 @@
 #              (parity/compare.py triad_count --counter algorithm through a racecheck wrapper of
 #              dyng_triad_replay; skipped without the triad goldens); the step is "partial" when
 #              the coauth batch or the replays were skipped
+#   slack      slack_csr storage on the CUDA store (M11a step 3, ADR 0089): compute-sanitizer
+#              memcheck, racecheck, synccheck and initcheck on the store's tests
+#              (dyng_hypergraph_cuda_tests, the Slack* suites: the property matrix, the edits, the
+#              overflow paths and the over-limit inputs) and on one session of MOSP_ESCHER's make
+#              test with forced overflows (dyng_hsosp_replay --backend cuda on the golden T case
+#              02-test_h2h_delta: headroom 1.0 on every third configuration, the CSR rebuilds and
+#              the mirror re-uploads; skipped without the goldens), then the container-level
+#              replay of every make-test session on cuda by id (parity/compare.py hyper_sssp
+#              --part delta --backend cuda --cases t: ids, skips, pairs, the pair count,
+#              candidates, csrRebuilt, mirrorReuploads and the device layout per batch; its
+#              record in $DYNG_GPU_RESULTS, default build/<preset>/hsosp-records); "partial"
+#              when the goldens are missing
 #
 # A step is recorded passed, FAILED, skipped (DYNG_GPU_SKIP="<step> ...", or its inputs missing)
 # or partial; a release certificate needs the steps of its series passed (parity/certify.py,
@@ -582,6 +594,60 @@ fi
 # M10 label_propagation
 
 # M11 slack_csr / hyper_sssp
+if ! skipped slack; then
+  step "slack_csr storage on cuda: sanitizers and the make-test replays (GPU ${gpu})"
+  sl_ok=1
+  sl_partial=0
+  sl_tests="${build_dir}/cpp/tests/dyng_hypergraph_cuda_tests"
+  sl_replay="${build_dir}/cpp/tests/dyng_hsosp_replay"
+  sl_goldens="${DYNG_SCRATCH}/goldens/hyper_sssp/mosp_escher"
+  sl_records="${DYNG_GPU_RESULTS:-${build_dir}/hsosp-records}"
+  if [ -z "${sanitizer}" ] || [ ! -x "${sl_tests}" ]; then
+    echo "compute-sanitizer or ${sl_tests} missing"
+    sl_ok=0
+  else
+    for tool in memcheck racecheck synccheck initcheck; do
+      extra=()
+      [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
+      [ "${tool}" = memcheck ] && extra=(--leak-check full)
+      if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+        --error-exitcode 1 "${sl_tests}" --gtest_brief=1 --gtest_filter='*Slack*/cuda'; then
+        echo "compute-sanitizer --tool ${tool} ${sl_tests} (Slack*): FAILED"
+        sl_ok=0
+      fi
+    done
+    if [ -f "${sl_goldens}/MANIFEST.sha256" ] && [ -x "${sl_replay}" ]; then
+      for tool in memcheck racecheck synccheck initcheck; do
+        if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" \
+          --error-exitcode 1 "${sl_replay}" --backend cuda --no-oracle \
+          "${sl_goldens}/test/02-test_h2h_delta/dump.hsd.zst" >/dev/null; then
+          echo "compute-sanitizer --tool ${tool} (the forced-overflow session): FAILED"
+          sl_ok=0
+        fi
+      done
+    else
+      echo "the H-SOSP goldens or ${sl_replay} missing: the forced-overflow session is skipped"
+      sl_partial=1
+    fi
+  fi
+  if [ "${sl_ok}" = 1 ] && [ "${sl_partial}" = 1 ]; then
+    record "slack_csr sanitizers (all four tools; a forced-overflow session)" partial
+  elif [ "${sl_ok}" = 1 ]; then
+    record "slack_csr sanitizers (all four tools; a forced-overflow session)" passed
+  else
+    record "slack_csr sanitizers (all four tools; a forced-overflow session)" FAILED
+  fi
+  if [ ! -f "${sl_goldens}/MANIFEST.sha256" ] || [ ! -x "${sl_replay}" ]; then
+    echo "the H-SOSP goldens or ${sl_replay} missing; skipped"
+    record "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)" skipped
+  elif mkdir -p "${sl_records}" && heavy python3 parity/compare.py hyper_sssp --part delta \
+    --backend cuda --gpu "${gpu}" --cases t --exe "${sl_replay}" \
+    --record "${sl_records}"; then
+    record "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)" passed
+  else
+    record "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)" FAILED
+  fi
+fi
 
 if ! skipped plugin; then
   step "the CUDA plugin wheel from Python (GPU ${gpu})"
