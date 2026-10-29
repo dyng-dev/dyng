@@ -117,8 +117,17 @@ TEST_P(HypergraphBackends, ConstructionRejectsInvalidInput) {
       dyng::invalid_argument_error);
   auto slack = p;
   slack.storage = dyng::hypergraph_storage::slack_csr;
+  if (GetParam() == backend::cuda) {
+    // slack_csr storage on cuda arrives in M11a step 3 (hypergraph_slack_test.cpp has the rest of
+    // the matrix).
+    EXPECT_THROW((void)hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), slack),
+                 dyng::not_supported_error);
+  } else {
+    EXPECT_NO_THROW((void)hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), slack));
+  }
+  slack.store_v2h = false;  // slack_csr keeps v2h
   EXPECT_THROW((void)hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), slack),
-               dyng::not_supported_error);
+               dyng::invalid_argument_error);
   auto merged = p;
   merged.line_graph = dyng::line_graph_policy::sorted_merge;
   merged.store_v2h = false;  // the merge reads v2h

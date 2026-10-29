@@ -96,13 +96,16 @@ TEST_P(HypergraphLineGraph, Policies) {
   EXPECT_TRUE(store_of(sorted).line_graph_enabled());
   EXPECT_EQ(check_line_graph(sorted), "");
 
-  // slack_csr: planned for 0.4.
+  // The slack_csr line graph belongs to slack_csr storage (HD9; hypergraph_slack_test.cpp): under
+  // escher storage it is refused, the message naming the alternatives.
   p.line_graph = line_graph_policy::slack_csr;
   try {
     (void)hgraph::from_hyperedges(res(), list.view(), p);
     ADD_FAILURE() << "slack_csr accepted";
   } catch (const dyng::not_supported_error& e) {
-    EXPECT_NE(std::string(e.what()).find("0.4"), std::string::npos) << e.what();
+    EXPECT_NE(std::string(e.what()).find("hypergraph_storage::slack_csr"), std::string::npos)
+        << e.what();
+    EXPECT_NE(std::string(e.what()).find("sorted_merge"), std::string::npos) << e.what();
   }
 
   // The line graph needs v2h.

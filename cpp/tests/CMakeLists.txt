@@ -404,7 +404,7 @@ dyng_add_test(
   NAME dyng_hypergraph_tests
   SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
           hypergraph/hypergraph_store_test.cpp hypergraph/hypergraph_line_graph_test.cpp
-          hypergraph/hypergraph_update_test.cpp
+          hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
   LABELS cpu hypergraph
   LIBRARIES dyng_cbst_compare
 )
@@ -422,7 +422,8 @@ if(DYNG_ENABLE_CUDA)
     NAME dyng_hypergraph_cuda_tests
     SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
             hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
-            hypergraph/hypergraph_update_test.cpp framework/fake_hyper_kernels.cu
+            hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
+            framework/fake_hyper_kernels.cu
             hypergraph/stream_probe_kernels.cu
     LABELS gpu hypergraph
     LIBRARIES dyng_cbst_compare
@@ -1061,6 +1062,14 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       "control||pass"
       "h2v_not_deduplicated|DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED|fail"
       "allocator_ties_reversed|DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES|fail"
+      # M11a's host sites of the hyper_sssp suite (criterion 16; registered in parity/mutate.py by
+      # step 5): #4 the allocator's H2V unfill drops the last value, #3's host twin (the slack CSR
+      # apply skips the last deletion of a row), #7 the pair count adds the deletions, #8 the
+      # line-graph delta drops its post-batch candidate pass.
+      "hsosp_allocator_unfill_drops_last|DYNG_MUTATION_HSOSP_ALLOCATOR_UNFILL_DROPS_LAST|fail"
+      "hsosp_csr_skips_last_deletion|DYNG_MUTATION_HSOSP_CSR_SKIPS_LAST_DELETION|fail"
+      "hsosp_pair_count_adds_deletions|DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS|fail"
+      "hsosp_delta_no_post_pass|DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS|fail"
       "mirror_additions_dropped|DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED|fail"
   )
   foreach(_entry IN LISTS _dyng_hypergraph_mutants)
@@ -1078,13 +1087,17 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       hypergraph/hypergraph_random_test.cpp
       hypergraph/hypergraph_store_test.cpp
       hypergraph/hypergraph_line_graph_test.cpp
+      hypergraph/hypergraph_slack_test.cpp
       parity/escher/hypergraph_ids_test.cpp
       parity/escher/hypergraph_ids.cpp
+      parity/escher/allocator_lockstep_test.cpp
+      parity/escher/allocator_lockstep.cpp
       parity/escher/cbst_trace.cpp
       parity/escher/escher_dump.cpp
       parity/escher/cbst_compare.cpp
       $<TARGET_OBJECTS:dyng_testing_cbst_model>
       $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+      $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
     )
     foreach(_target ${_lib}_hypergraph ${_lib} ${_exe})
       target_compile_features(${_target} PRIVATE cxx_std_17)

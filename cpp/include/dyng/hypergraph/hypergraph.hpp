@@ -37,10 +37,13 @@ struct hyper_applied;
 
 /**
  * @brief A dynamic hypergraph: hyperedges (sets of vertices) identified by 0-based int64 ids,
- *        changed by batches of hyperedge deletions and insertions.
+ *        changed by batches of hyperedge deletions and insertions (and, on slack_csr storage,
+ *        incidence edits).
  *
  * The hypergraph owns its storage (hypergraph_storage::escher: the ESCHER store, ESCHER
- * IPDPS'26 with the best-fit reuse of ESCHER+, TKDE'26) and a version counter that increases by
+ * IPDPS'26 with the best-fit reuse of ESCHER+, TKDE'26; hypergraph_storage::slack_csr, 0.4:
+ * MOSP_ESCHER's H-SOSP storage, the same ids, with incidence edits and a slack line graph) and a
+ * version counter that increases by
  * one with every applied batch, plus a process-wide unique state identity (renewed by every
  * construction and every batch, copied by clone()), so a result computed on it is detected as
  * stale when it is used with another hypergraph or state.
@@ -100,9 +103,12 @@ class hypergraph {
    *         for an unweighted list, or missing for a weighted one), line_graph_policy::
    *         sorted_merge is asked for without v2h (store_v2h is false), or an array must be copied
    *         and the copy policy is copy_policy::error.
-   * @throws not_supported_error    for hypergraph_storage::slack_csr or line_graph_policy::
-   *         slack_csr (planned for 0.4), a grow_factor other than 1.5 or 0, or the cuda backend in
-   *         a build without CUDA.
+   * @throws invalid_argument_error also for hypergraph_storage::slack_csr with store_v2h =
+   *         false (slack_csr keeps v2h).
+   * @throws not_supported_error    for line_graph_policy::slack_csr under escher storage or
+   *         line_graph_policy::sorted_merge under slack_csr storage (each message names the
+   *         alternative), slack_csr storage on the cuda backend (0.4.0.dev0: not yet), a
+   *         grow_factor other than 1.5 or 0, or the cuda backend in a build without CUDA.
    * @throws capacity_error         if the storage (the line graph of sorted_merge included)
    *         exceeds the policy's max_payload (by default the int32 offsets of the store).
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
@@ -236,10 +242,13 @@ class hypergraph {
    *        the row's id).
    *
    * Under line_graph_policy::sorted_merge the line graph is built with the hypergraph and kept
-   * by every apply() (ESCHER-GPU's sorted delta merge); under automatic the first call builds it,
-   * and apply() keeps it from then on. The view itself (decoded: 0-based ids, int64 offsets, in
-   * the hypergraph's memory space; the weights by id in host memory) is built from the line graph
-   * on first use per version and kept until the next apply().
+   * by every apply() (ESCHER-GPU's sorted delta merge); under slack_csr likewise, from each
+   * batch's order-free pair delta (its slack rows are sets in no order: the view sorts them);
+   * under automatic the first call builds it (as sorted_merge or slack_csr, after the storage),
+   * and apply() keeps it from then on. The view itself (decoded: 0-based ids, int64 offsets,
+   * sorted and contiguous rows, in the hypergraph's memory space; the weights by id in host
+   * memory; overlaps empty under both storages) is built from the line graph on first use per
+   * version and kept until the next apply() (counted in storage_stats::view_bytes).
    * @return The view, invalidated by the next apply().
    * @throws invalid_argument_error for a moved-from or poisoned hypergraph, one built with
    *         line_graph_policy::none, or one built with store_v2h = false.
@@ -261,12 +270,16 @@ class hypergraph {
 
   /**
    * @brief Apply a batch: delete hyperedges by id and insert new ones, in the order of
-   *        properties().reuse.
+   *        properties().reuse (and, on slack_csr storage, apply its incidence edits).
    *
    * Deletions of dead, out-of-range or repeated ids are skipped and counted
    * (hyper_apply_summary::ignored_deletions), as are repeated members of an inserted hyperedge
    * (dropped_members). The inserted hyperedges get the ids the store's best-fit reuse chooses,
-   * reported in hyper_apply_summary::inserted_ids.
+   * reported in hyper_apply_summary::inserted_ids. Incidence edits (slack_csr storage) are
+   * applied after the deletions and before the insertions, removals before additions, each
+   * checked against the hypergraph before the batch; one that cannot apply (see
+   * hyperedge_batch_view) is skipped and counted in skipped_ops, and the applied ones in
+   * inserted_incidences / deleted_incidences.
    *
    * On CUDA the storage works on the stream of the resources the hypergraph was built with;
    * apply() orders that work after the work queued so far on the stream of `res`, and the work
@@ -280,10 +293,14 @@ class hypergraph {
    *         match the insertions), the resources belong to another backend or device, the
    *         hypergraph was moved from or is poisoned, or an array must be copied and the copy
    *         policy is copy_policy::error.
-   * @throws not_supported_error    if the batch has incidence edits (planned for 0.4).
+   * @throws invalid_argument_error also for incidence edits whose hyperedge and vertex arrays
+   *         differ in length.
+   * @throws not_supported_error    if the batch has incidence edits and the hypergraph has
+   *         escher storage (they need hypergraph_storage::slack_csr in 0.4).
    * @throws capacity_error         if the batch inserts more than INT_MAX / 3 (715,827,882)
    *         members in all (found before the store changes: nothing changed), or the storage
-   *         exceeds its policy (the hypergraph is then poisoned).
+   *         exceeds its policy or, under slack_csr, the batch's line-graph change has more than
+   *         2^31 - 1 candidate pairs (the hypergraph is then poisoned).
    * @throws out_of_memory_error    if host or device memory cannot be allocated: while the batch
    *         is staged and checked nothing changed, in a store operation the hypergraph is
    *         poisoned.

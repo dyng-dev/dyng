@@ -180,8 +180,11 @@ dyng_add_module(
     src/hypergraph/id_allocator.cpp
     src/hypergraph/incidence_model.cpp
     src/hypergraph/line_graph/flat_adjacency.cpp
+    src/hypergraph/line_graph/incidence_delta.cpp
     src/hypergraph/line_graph/sorted_merge_host.cpp
     src/hypergraph/names.cpp
+    src/hypergraph/slack_csr/host_store.cpp
+    src/hypergraph/slack_csr/slack_line_graph.cpp
     src/hypergraph/store.cpp
   CUDA_SOURCES
     src/hypergraph/escher_store.cu

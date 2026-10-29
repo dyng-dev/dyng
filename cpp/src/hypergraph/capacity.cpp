@@ -39,31 +39,64 @@ void validate_capacity(const capacity_policy& c) {
 }
 
 void validate_properties(const hypergraph_properties& props) {
-  if (props.storage == hypergraph_storage::slack_csr) {
-    throw not_supported_error(
-        "dyng: hypergraph_storage::slack_csr is planned for 0.4; use hypergraph_storage::escher");
-  }
-  DYNG_EXPECTS(props.storage == hypergraph_storage::escher,
-               "hypergraph_properties::storage has an unknown value");
-  switch (props.line_graph) {
-    case line_graph_policy::none:
-    case line_graph_policy::automatic:
+  // The storage and line-graph matrix (HD9, decided by the author on 2026-10-28; ADR 0086).
+  switch (props.storage) {
+    case hypergraph_storage::escher:
+      switch (props.line_graph) {
+        case line_graph_policy::none:
+        case line_graph_policy::automatic:  // maintained as sorted_merge
+          break;
+        case line_graph_policy::sorted_merge:
+          DYNG_EXPECTS(props.store_v2h,
+                       "hypergraph_properties: line_graph_policy::sorted_merge needs v2h (the "
+                       "merge reads the vertices' hyperedges); set store_v2h = true");
+          break;
+        case line_graph_policy::slack_csr:
+          throw not_supported_error(
+              "dyng: line_graph_policy::slack_csr is the line graph of hypergraph_storage::"
+              "slack_csr; under hypergraph_storage::escher use line_graph_policy::sorted_merge "
+              "(or automatic, or none), or build the hypergraph with hypergraph_storage::"
+              "slack_csr");
+        default:
+          DYNG_FAIL("hypergraph_properties::line_graph has an unknown value");
+      }
       break;
-    case line_graph_policy::sorted_merge:
+    case hypergraph_storage::slack_csr:
       DYNG_EXPECTS(props.store_v2h,
-                   "hypergraph_properties: line_graph_policy::sorted_merge needs v2h (the merge "
-                   "reads the vertices' hyperedges); set store_v2h = true");
+                   "hypergraph_properties: hypergraph_storage::slack_csr keeps v2h (the line "
+                   "graph's delta reads the vertices' hyperedges); set store_v2h = true");
+      switch (props.line_graph) {
+        case line_graph_policy::none:
+        case line_graph_policy::automatic:  // maintained as slack_csr
+        case line_graph_policy::slack_csr:
+          break;
+        case line_graph_policy::sorted_merge:
+          throw not_supported_error(
+              "dyng: line_graph_policy::sorted_merge is ESCHER-GPU's merge of "
+              "hypergraph_storage::escher; under hypergraph_storage::slack_csr use "
+              "line_graph_policy::slack_csr (or automatic, or none), or build the hypergraph "
+              "with hypergraph_storage::escher");
+        default:
+          DYNG_FAIL("hypergraph_properties::line_graph has an unknown value");
+      }
       break;
-    case line_graph_policy::slack_csr:
-      throw not_supported_error(
-          "dyng: line_graph_policy::slack_csr is planned for 0.4; use line_graph_policy::none "
-          "or automatic");
     default:
-      DYNG_FAIL("hypergraph_properties::line_graph has an unknown value");
+      DYNG_FAIL("hypergraph_properties::storage has an unknown value");
   }
   DYNG_EXPECTS(props.reuse == id_reuse::erase_first || props.reuse == id_reuse::insert_first,
                "hypergraph_properties::reuse has an unknown value");
   validate_capacity(props.capacity);
+}
+
+void validate_knobs(const slack::knobs& k) {
+  // !(x >= 1) also rejects NaN (MOSP_ESCHER's buildCsr).
+  DYNG_EXPECTS(k.entry_headroom >= 1.0,
+               "hypergraph: the slack_csr line graph's entry headroom must be at least 1, got ",
+               k.entry_headroom);
+  DYNG_EXPECTS(k.node_capacity >= 0, "hypergraph: the slack_csr node capacity must be >= 0, got ",
+               k.node_capacity);
+  DYNG_EXPECTS(k.max_candidates >= 0,
+               "hypergraph: the slack_csr candidate limit must be >= 0, got ", k.max_candidates);
 }
 
 std::int64_t payload_limit(const capacity_policy& c) noexcept {

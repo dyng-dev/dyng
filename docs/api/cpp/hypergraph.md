@@ -32,10 +32,13 @@ batch is committed once, then every result reads the hypergraph after it, with t
 gave (`stats.batch.inserted_ids`). A result whose update fails after the commit is poisoned and
 the others are still updated; an error before the commit changes nothing.
 
-**Planned for 0.4** (declared now, so 0.4 adds behaviour, not declarations):
-`hypergraph_storage::slack_csr`, `line_graph_policy::slack_csr` and the incidence edits of a
-batch (`hyperedge_batch::delete_incidence()` / `insert_incidence()` and their accessors, the
-`*_incidence_*` arrays of the view) raise `not_supported_error` naming 0.4.
+**0.4** (declared in 0.3, so 0.4 adds behaviour, not declarations): `hypergraph_storage::
+slack_csr` and `line_graph_policy::slack_csr` (MOSP_ESCHER's H-SOSP storage and line graph; the
+CPU backends in 0.4.0.dev0, the cuda backend refuses it until its store lands) and the incidence
+edits of a batch (`hyperedge_batch::delete_incidence()` / `insert_incidence()` and their
+accessors, the `*_incidence_*` arrays of the view), applied on slack_csr storage after the
+deletions and before the insertions, with MOSP_ESCHER's skip rules; escher storage keeps raising
+`not_supported_error` for them, naming slack_csr.
 
 ```{doxygengroup} hypergraph
 :content-only:
