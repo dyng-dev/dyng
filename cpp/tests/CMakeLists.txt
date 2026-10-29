@@ -38,6 +38,7 @@ dyng_add_test(
   NAME dyng_graph_tests
   SOURCES graph/apply_test.cpp graph/graph_test.cpp graph/mosp_apply_fixture_test.cpp
           graph/set_semantics_test.cpp graph/structural_change_test.cpp graph/slotted_test.cpp
+          graph/compact_guard_test.cpp
   LABELS cpu graph
   LIBRARIES dyng::testing
 )

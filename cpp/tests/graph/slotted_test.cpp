@@ -682,4 +682,15 @@ TEST(Slotted, DynlpStreamAgainstTheHostModel) {
   }
 }
 
+TEST(Slotted, TheDeviceCopyRefusesSlottedRows) {
+  const dyng::resources res = dyng::resources::sequential();
+  lp_graph g = make<lp_graph>(res, {1, 1});
+  const auto& impl = dyng::detail::graph_access::impl(g);
+  EXPECT_THROW((void)impl.device_edges(res, false), dyng::not_supported_error);
+  EXPECT_THROW(dyng::detail::graph_access::expect_placement(res, g, "a compact-only reader"),
+               dyng::not_supported_error);
+  EXPECT_NO_THROW(
+      dyng::detail::graph_access::expect_placement_any_layout(res, g, "label_propagation"));
+}
+
 }  // namespace

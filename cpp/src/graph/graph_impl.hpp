@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <string_view>
 #include <vector>
 
 namespace dyng::detail {
@@ -447,7 +448,27 @@ struct graph_access {
   /**
    * @brief Check that an algorithm may run on `g` with `res` (PLAN Section 4.6 rule 5): a graph
    *        built with CUDA resources needs CUDA resources of the same device, a host graph needs
-   *        host resources. Never a silent copy of a whole graph.
+   *        host resources. Never a silent copy of a whole graph. Then the compact-only guard
+   *        (AD11, ADR 0070): the algorithms of 0.1-0.3 read compact rows only, so a graph with
+   *        row_layout::slotted or slack is refused here, at every entry of those algorithms
+   *        (compute, update, from_arrays), of dyng::update() through them, and of the device copy
+   *        (expect_compact_layout).
+   * @tparam vertex_t Vertex id type.
+   * @tparam edge_t   Edge offset type.
+   * @tparam weight_t Weight type.
+   * @param[in] res  Execution resources.
+   * @param[in] g    The graph.
+   * @param[in] what The calling function, for the message.
+   * @throws invalid_argument_error on a mismatch (the message names g.clone(res)).
+   * @throws not_supported_error    for rows that are not row_layout::compact.
+   */
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  static void expect_placement(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+                               const char* what);
+
+  /**
+   * @brief The placement check of expect_placement() without the compact-only guard, for the
+   *        algorithms that read slotted rows (label_propagation).
    * @tparam vertex_t Vertex id type.
    * @tparam edge_t   Edge offset type.
    * @tparam weight_t Weight type.
@@ -457,8 +478,21 @@ struct graph_access {
    * @throws invalid_argument_error on a mismatch (the message names g.clone(res)).
    */
   template <typename vertex_t, typename edge_t, typename weight_t>
-  static void expect_placement(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-                               const char* what);
+  static void expect_placement_any_layout(const resources& res,
+                                          const graph<vertex_t, edge_t, weight_t>& g,
+                                          const char* what);
 };
+
+/**
+ * @brief The compact-only guard (AD11, ADR 0070): the one check that refuses rows other than
+ *        row_layout::compact in every reader written for compact rows. graph_access::
+ *        expect_placement() calls it (so every entry of sssp, mosp, cycle_count, dynamic_bfs,
+ *        triangle_delta and the scaffold's algorithms, and dyng::update() through them), as do the
+ *        upload of the device copy and the device merge.
+ * @param[in] props    The graph's properties.
+ * @param[in] consumer The calling function, for the message (e.g. "sssp::compute").
+ * @throws not_supported_error naming the layout and the consumer if props.layout is not compact.
+ */
+void expect_compact_layout(const graph_properties& props, std::string_view consumer);
 
 }  // namespace dyng::detail

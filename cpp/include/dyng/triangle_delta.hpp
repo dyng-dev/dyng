@@ -238,6 +238,8 @@ namespace dyng::triangle_delta {
  * @throws not_supported_error    if the backend of `res` is not available for
  *         triangle_delta.
  * @throws out_of_memory_error    if memory cannot be allocated.
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync
  * @backends sequential, openmp, cuda
  * @determinism Exact: identical counts on every backend and run.
@@ -272,6 +274,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws not_supported_error    if the backend of `res` is not available for
  *         triangle_delta.
  * @throws out_of_memory_error    if memory cannot be allocated.
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync
  * @backends sequential, openmp, cuda
  * @determinism Exact: identical counts and counters on every backend and run.

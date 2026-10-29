@@ -423,6 +423,7 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
     if (state.home == backend::cuda && res.get_backend() == backend::cuda &&
         res.device() == state.home_device && state.has_device_edges() &&
         state.props.semantics.as_sets && state.num_weights() == 0) {
+      expect_compact_layout(state.props, "graph::apply (the device merge)");
       normalized_batch<vertex_t> local;
       if (normalized == nullptr) {
         normalize(res, g, batch, local);
@@ -515,6 +516,7 @@ void graph_impl<vertex_t, edge_t, weight_t>::drop_in_edges() noexcept {
 template <typename vertex_t, typename edge_t, typename weight_t>
 const typename graph_impl<vertex_t, edge_t, weight_t>::device_type&
 graph_impl<vertex_t, edge_t, weight_t>::device_edges(const resources& res, bool in_edges) const {
+  expect_compact_layout(props, "the device copy of a graph (graph.upload)");  // ADR 0070
   if (!device_built_.load(std::memory_order_acquire) ||
       (in_edges && !device_in_built_.load(std::memory_order_acquire))) {
     const std::lock_guard<std::mutex> lock(device_mutex_);
@@ -584,9 +586,30 @@ edge_t graph_impl<vertex_t, edge_t, weight_t>::num_edges() const noexcept {
   return host_current_.load(std::memory_order_acquire) ? out_.num_edges() : device_->num_edges;
 }
 
+void expect_compact_layout(const graph_properties& props, std::string_view consumer) {
+  if (props.layout == row_layout::compact) {
+    return;
+  }
+  throw not_supported_error(concat_message(
+      "dyng: ", consumer,
+      " reads graphs with row_layout::compact only; this graph has row_layout::",
+      to_string(props.layout),
+      " (its rows serve label_propagation's vertex batches). Copy its edges into a compact graph: "
+      "graph::from_csr(res, g.to_csr(res).view(), props) with props.layout = "
+      "row_layout::compact"));
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 void graph_access::expect_placement(const resources& res,
                                     const graph<vertex_t, edge_t, weight_t>& g, const char* what) {
+  expect_placement_any_layout(res, g, what);
+  expect_compact_layout(g.impl().props, what);  // AD11: the compact-only guard (ADR 0070)
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void graph_access::expect_placement_any_layout(const resources& res,
+                                               const graph<vertex_t, edge_t, weight_t>& g,
+                                               const char* what) {
   const auto& state = g.impl();
   const backend b = res.get_backend();
   if (b == backend::cuda) {
@@ -652,6 +675,8 @@ graph_view<vertex_t, edge_t, weight_t> graph_access::view(
                                                          const edge_batch_view<V, W>&,            \
                                                          detail::normalized_batch<V>&);           \
   template void detail::graph_access::expect_placement<V, E, W>(                                  \
+      const resources&, const graph<V, E, W>&, const char*);                                      \
+  template void detail::graph_access::expect_placement_any_layout<V, E, W>(                       \
       const resources&, const graph<V, E, W>&, const char*);                                      \
   template class graph<V, E, W>;                                                                  \
   template apply_summary detail::graph_access::apply<V, E, W>(                                    \

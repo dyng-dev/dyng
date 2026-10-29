@@ -68,6 +68,14 @@ Before 0.1.0 anything may change.
   `generators::vertex_arrival_batch::view()`. The 0.1-0.3 instantiations and compact rows are
   unchanged; a vertex batch on compact rows still raises `not_supported_error`, now naming
   `with_capacity()`.
+- M10a step 3 (api-change, documentation only, the frozen algorithm headers; ADR 0070): **the
+  compact-only guard** (AD11). `sssp`, `mosp`, `cycle_count`, `dynamic_bfs` and `triangle_delta`
+  (`compute`, `update`, `from_arrays`), `dyng::update()` through them, the upload of the device
+  copy and the device merge refuse a graph whose rows are not `row_layout::compact` with a
+  `not_supported_error` that names the layout and the fix (`graph::from_csr(res,
+  g.to_csr(res).view(), props)`), before anything changes. Their headers and `update.hpp` gain the
+  `@throws` line; nothing else in those algorithms changes, and `triad_count` (hypergraphs) is
+  untouched.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
