@@ -82,9 +82,16 @@ endif()
 dyng_add_test(
   NAME dyng_generators_tests
   SOURCES generators/legacy_test.cpp generators/cycle_enum_batch_test.cpp
-          generators/hypergraph_generators_test.cpp
+          generators/hypergraph_generators_test.cpp generators/vertex_arrival_test.cpp
   LABELS cpu generators
 )
+# The DynLP twins of libstdc++'s draws are compared with std:: in this file: neither side may be
+# contracted into fused multiply-adds (ADR 0067), as in src/generators/legacy_dynlp.cpp.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set_source_files_properties(
+    generators/vertex_arrival_test.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off"
+  )
+endif()
 # Parity with CycleEnumeration-GPU@0a976ad on the TUDataset graphs (outside the repository; the
 # test skips when they are missing). Label parity, not cpu: run with `ctest -L parity`.
 set(_dyng_private_tests dyng_graph_tests dyng_io_tests dyng_io_fuzz_regression_tests dyng_framework_tests

@@ -176,6 +176,19 @@ SYMBOLS = [
     "ensureScratchCapacity",
     "checkSubtreeAvail",
     "EscherError",
+    # LabelPropagation-CUDA@a276a3a, the generator, the writers and the checker's oracles (M10a)
+    "generateSparseGraph",
+    "generateBatches",
+    "edgeListToCSR",
+    "computeAvgEdgeWeight",
+    "writeGraphFiles",
+    "writeLabelsToFile",
+    "putFixed6",
+    "DynLPConfig",
+    "BatchData",
+    "DynLPChecker",
+    "harmonicSolution",
+    "checkLabels",
 ]
 
 RENAME_MAP = REPO / "parity" / "escher_port" / "rename_map.toml"

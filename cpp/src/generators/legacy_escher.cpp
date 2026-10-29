@@ -16,6 +16,7 @@
  * range's width, plus the lower bound (for `<int>` the width is computed in 64-bit unsigned
  * arithmetic, as libstdc++ does).
  */
+#include "generators/dynlp_stream.hpp"
 #include "hypergraph/instantiate.hpp"
 #include "util/allocation.hpp"
 #include "util/rng.hpp"
@@ -129,6 +130,9 @@ bool standard_library_matches_legacy_streams() try {
     std::shuffle(y.begin(), y.end(), theirs);
     same = same && x == y && ours() == theirs();
   }
+  // DynLP's draws (ADR 0067): std::shuffle and std::uniform_real_distribution<float> with
+  // std::mt19937, compared in a translation unit without floating-point contraction.
+  same = same && detail::dynlp_draws_match_standard_library();
   return same;
 #else
   return false;

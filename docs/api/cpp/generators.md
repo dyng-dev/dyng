@@ -20,6 +20,15 @@ Seeded generators of graphs, hypergraphs and batches (`dyng::generators`).
   libstdc++'s algorithms, which dynG reproduces itself; `standard_library_matches_legacy_streams()`
   checks at run time that the build's standard library draws the same (true with libstdc++ 11 and
   later, which built the originals).
+- `generators/vertex_arrival.hpp` (0.4, provisional until M10b): the vertex-arrival streams of
+  `label_propagation`. `generators::legacy::dynlp_vertex_arrival_stream()` reproduces
+  LabelPropagation-CUDA's generator byte for byte for a seed (ADR 0067): the similarity graph with
+  its true classes, the batches of arriving (some labelled) and departing vertices, the row
+  capacities and the published threshold `similarity_threshold`. It reproduces libstdc++ 12's
+  `std::shuffle` with `std::mt19937` and its `std::uniform_real_distribution<float>` itself
+  (compared with `std::` at run time on libstdc++ builds) and evaluates the original's float
+  products without contraction, so the stream is the same with any compiler, standard library,
+  `-march` and thread count.
 
 ```{doxygengroup} generators
 :content-only:

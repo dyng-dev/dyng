@@ -37,6 +37,7 @@
 #include <dyng/dynamic_bfs.hpp>
 #include <dyng/generators/hypergraphs.hpp>
 #include <dyng/generators/legacy.hpp>
+#include <dyng/generators/vertex_arrival.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>
 #include <dyng/graph/edge_batch.hpp>

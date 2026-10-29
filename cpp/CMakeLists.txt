@@ -206,6 +206,7 @@ dyng_add_module(
     src/io/batch_io.cpp
     src/io/batch_text.cpp
     src/io/csr_triplet.cpp
+    src/io/dynlp_text.cpp
     src/io/edge_list_io.cpp
     src/io/hypergraph_io.cpp
     src/io/matrix_market.cpp
@@ -221,7 +222,17 @@ dyng_add_module(
 dyng_add_module(
   NAME generators SOURCES src/generators/legacy.cpp src/generators/legacy_cycle_enum.cpp
                           src/generators/legacy_escher.cpp src/generators/hypergraphs.cpp
+                          src/generators/legacy_dynlp.cpp
 )
+# DynLP's legacy generator reproduces libstdc++ 12's float draws and LabelPropagation-CUDA's float
+# products as separately rounded operations (ADR 0067): no fused multiply-add may be contracted
+# into them, whatever -march a build adds (GCC contracts by default where FMA exists).
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set_source_files_properties(
+    src/generators/legacy_dynlp.cpp TARGET_DIRECTORY dyng_generators
+    PROPERTIES COMPILE_OPTIONS "-ffp-contract=off"
+  )
+endif()
 
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
