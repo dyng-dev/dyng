@@ -8,6 +8,24 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+### Changed
+
+- `VERSION` is 0.4.0.dev0, the development version after the 0.3.0 release.
+- The documented `find_package(dyng 0.4 REQUIRED)` (README.md, docs/getting_started/install.md and
+  the tutorial's Op consumer `ci/consumer/op.CMakeLists.txt`) follows the development version,
+  which `ci/cmake_consumer.sh` requires; a build of 0.3.0 asks for 0.3.
+- An empty block for each milestone of 0.4 where a merge of the two could silently drop the
+  other's entries (the author's decision of 2026-10-28 on the 0.4.0 plan, sheet A3; GOVERNANCE.md,
+  approvals log): `parity/certify.py` (the one `GPU_LOCAL_STEPS` key (0, 4), `REQUIRED_SUITES` and
+  the `EQUIVALENCE_TARGETS` / `EQUIVALENCE_FILES` lists, one entry per line), `parity/mutate.py`
+  (`SUITES` and `MUTATIONS`), `ci/gpu_local.sh`, this file and GOVERNANCE.md's Open decisions.
+  M10 (`label_propagation`) and M11 (`slack_csr`, `hyper_sssp`) are developed in parallel, and each
+  adds its entries to its own block.
+
+### M10: `label_propagation` (0.4)
+
+### M11: `slack_csr` and `hyper_sssp` (0.4)
+
 ## [0.3.0] - 2026-10-29
 
 ### Summary

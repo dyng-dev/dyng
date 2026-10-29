@@ -85,11 +85,13 @@ REPO = Path(__file__).resolve().parent.parent
 SCRATCH = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
 
 # The golden suites: the driver each one builds and the arguments of its replay
-# (parity/compare.py [<prefix>] --exe <driver> --configs <config> --json <out>).
+# (parity/compare.py [<prefix>] --exe <driver> --configs <config> --json <out>). From 0.4 each
+# milestone adds its suites (and, in MUTATIONS, its mutations) below its comment.
 SUITES = {
     "sssp": {"target": "dyng-compat-mosp", "compare": [], "goldens": "sssp"},
     "mosp": {"target": "dyng-compat-mosp", "compare": [], "goldens": "sssp"},
     "cycle_count": {"target": "dyng-compat-cycle-enum", "compare": ["cycle_count"]},
+    # M10 label_propagation
     # The triad oracle (M9a step 2, ADR 0049): its tests (the class map against ESCHER-GPU's table,
     # one triple per bin, the brute force) run on the host.
     "triad_reference": {
@@ -122,6 +124,7 @@ SUITES = {
         "runner": "gtest",
         "compare": [],
     },
+    # M11 slack_csr / hyper_sssp
     # The conformance kit's hypergraph axis (M8b, criterion 11): the kit over the test-only fake on
     # every backend.
     "kit": {
@@ -204,6 +207,7 @@ MUTATIONS = [
         "defines": ["DYNG_MUTATION_CUDA_WEAK_OWNERSHIP"],
         "config": "cuda",
     },
+    # M10 label_propagation
     # mosp (PLAN 8.4 lists none; these put back the two parts of the combined-graph step that the
     # originals' preference vector fixed, MOSP-OpenMP's CHANGES.md M-d): the weight of a combined
     # edge counts only the first tree that holds it (W(e) = K + 1 - sum over every tree holding e
@@ -376,6 +380,7 @@ MUTATIONS = [
         "defines": ["DYNG_MUTATION_CBST_UNFILL_DROPS_LAST"],
         "config": "cuda",
     },
+    # M11 slack_csr / hyper_sssp
     # triad_reference (M9a criterion 4): the oracle's planted mutation, two classes of its
     # representative list swapped (cpp/src/testing/triad_reference.cpp); its tests must fail (the
     # CTest testing.mutation.triad_reference_class_map of every build checks the same).

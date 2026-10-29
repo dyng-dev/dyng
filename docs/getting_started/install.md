@@ -77,14 +77,14 @@ Install a build (`cmake --install build/cpu-only --prefix <prefix>`) and find it
 project:
 
 ```cmake
-find_package(dyng 0.3 REQUIRED)
+find_package(dyng 0.4 REQUIRED)
 target_link_libraries(my_app PRIVATE dyng::dyng)
 ```
 
 Before 1.0 a minor release may break the API, so the package accepts only a request of its own
-minor version: `find_package(dyng 0.3)` finds 0.3.x (the development versions and release
-candidates included) and refuses 0.2 and 0.4. A build of the 0.2.0 release (the tag `v0.2.0`)
-asks for `find_package(dyng 0.2 REQUIRED)`; this page describes `main`.
+minor version: `find_package(dyng 0.4)` finds 0.4.x (the development versions and release
+candidates included) and refuses 0.3 and 0.5. A build of the 0.3.0 release (the tag `v0.3.0`)
+asks for `find_package(dyng 0.3 REQUIRED)`; this page describes `main`.
 
 Or add the source tree with `add_subdirectory()`; the target name is the same. Everything is in
 namespace `dyng`, and `#include <dyng/dyng.hpp>` includes the whole public API
