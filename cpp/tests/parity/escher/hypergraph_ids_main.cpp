@@ -9,6 +9,7 @@
  *     dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N]
  *                         [--mode by_id|by_content|both] [--no-model] [--no-integrity]
  *                         [--line-graph] [--no-line-graph-oracle] [--apply-only]
+ *                         [--storage escher|slack_csr]
  *                         [--timing FILE] [--sync-stages] [--nvtx]
  *                         [--legacy-generator] [--hg FILE] [--json OUT] [--tmp DIR] <trace>...
  *
@@ -28,6 +29,10 @@
  * 13): FILE, the hypergraph the run loaded, is read with the original's option set
  * (io::hypergraph_read_options::escher_gpu(), hsosp(--seed, --maxcard)) and must give its loaded
  * rows (and, for MOSP_ESCHER, its vertex count and weights).
+ *
+ * --storage slack_csr (MOSP_ESCHER's traces, M11a step 2): the sessions on slack_csr storage, replayed
+ * whole with their incidence edits (ADRs 0085, 0086); escher (the default) stops a session at its
+ * first vertex-kind batch.
  *
  * A trace is a `.cbt` file or a `.cbt.zst` (as dyng_cbst_replay reads them). Prints one line per
  * trace; --json writes a JSON array of the reports. Exit status: 0 every trace matched, 1 a
@@ -53,7 +58,7 @@ int usage() {
   std::fprintf(stderr,
                "usage: dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N] "
                "[--mode by_id|by_content|both] [--no-model] [--no-integrity] [--line-graph] "
-               "[--no-line-graph-oracle] "
+               "[--no-line-graph-oracle] [--storage escher|slack_csr] "
                "[--apply-only] [--timing FILE] [--sync-stages] [--nvtx] [--legacy-generator] "
                "[--hg FILE] [--json OUT] [--tmp DIR] "
                "<trace>...\n");
@@ -92,6 +97,9 @@ int main(int argc, char** argv) {
       opt.line_graph = true;
     } else if (a == "--no-line-graph-oracle") {
       opt.line_graph_oracle = false;
+    } else if (a == "--storage") {
+      opt.storage = value();
+      if (opt.storage != "escher" && opt.storage != "slack_csr") return usage();
     } else if (a == "--apply-only") {
       opt.compare = false;
       opt.model = false;

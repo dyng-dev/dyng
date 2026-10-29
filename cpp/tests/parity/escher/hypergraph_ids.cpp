@@ -644,6 +644,7 @@ class mosp_escher_replay {
     if (hook == "mosp_escher.bulk_load" && phase == "exit") bulk_exit(rec);
     if (hook == "mosp_escher.begin_batch" && phase == "enter") begin_enter(rec);
     if (hook == "mosp_escher.begin_batch" && phase == "exit") begin_exit(rec);
+    if (hook == "mosp_escher.finish_batch" && phase == "enter") finish_enter(rec);
   }
 
  private:
@@ -744,7 +745,15 @@ class mosp_escher_replay {
     }
     // --line-graph: B's sessions keep the line graph (sorted_merge under insert_first), checked
     // against the oracle after the load and every batch (M8b criterion 6).
-    props_.line_graph = opt_.line_graph ? line_graph_policy::sorted_merge : line_graph_policy::none;
+    if (slack()) {
+      // slack_csr storage (ADR 0086): MOSP_ESCHER's line graph is its slack CSR.
+      props_.storage = hypergraph_storage::slack_csr;
+      props_.store_v2h = true;
+      props_.line_graph = opt_.line_graph ? line_graph_policy::slack_csr : line_graph_policy::none;
+    } else {
+      props_.line_graph =
+          opt_.line_graph ? line_graph_policy::sorted_merge : line_graph_policy::none;
+    }
     props_.reuse = id_reuse::insert_first;
     props_.capacity = capacity_policy::mosp_escher(extra);
     // 1.3 - 1.0 is not 0.3 in binary; the preset's 0.3 is the value proven equal (the other
@@ -808,9 +817,29 @@ class mosp_escher_replay {
       out_.mismatch("--hg: the weights drawn by hsosp() differ from B's");
   }
 
+  [[nodiscard]] bool slack() const {
+    return opt_.storage == "slack_csr";
+  }
+
+  // The pair delta of the batch just applied: finishBatch receives every changed pair in both
+  // directions (DynamicHypergraph.hpp:85-92), so 2 x (inserted + deleted) keys.
+  void finish_enter(const tr::record& rec) {
+    if (!keys_pending_) return;
+    keys_pending_ = false;
+    const auto& a = dyng::detail::hypergraph_access::applied(*session_);
+    const auto keys =
+        2 * static_cast<std::int64_t>(a.pairs.inserted_a.size() + a.pairs.deleted_a.size());
+    ++rep_.key_batches;
+    rep_.directed_keys += keys;
+    if (keys != rec.integer("num_directed_keys"))
+      out_.mismatch(keys_where_ + ": " + std::to_string(keys) + " directed delta keys, B's " +
+                    std::to_string(rec.integer("num_directed_keys")));
+  }
+
   void begin_enter(const tr::record& rec) {
     pending_ = false;
     counting_after_stop_ = false;
+    keys_pending_ = false;
     const bool vertex_kind =
         rec.array("vtx_delete.he").count != 0 || rec.array("vtx_insert.he").count != 0;
     // Every vertex-kind batch is counted, and every hyperedge-kind batch that comes after a
@@ -823,13 +852,18 @@ class mosp_escher_replay {
       }
       return;
     }
-    if (vertex_kind) {
-      // A vertex-kind batch (incidence edits, M11): the session stops here.
+    if (vertex_kind && !slack()) {
+      // A vertex-kind batch (incidence edits: slack_csr storage only, HD9): the session stops.
       stopped_ = true;
       ++rep_.stopped_sessions;
       return;
     }
     pending_ = true;
+    vertex_kind_ = vertex_kind;
+    vtx_delete_he_ = in_.ints(rec.array("vtx_delete.he"));
+    vtx_delete_v_ = in_.ints(rec.array("vtx_delete.vertex"));
+    vtx_insert_he_ = in_.ints(rec.array("vtx_insert.he"));
+    vtx_insert_v_ = in_.ints(rec.array("vtx_insert.vertex"));
     he_delete_ = in_.ints(rec.array("he_delete"));
     he_insert_ = read_rows(in_, rec, "he_insert", 0);
     he_weights_ = in_.longs(rec.array("he_insert.weight"));
@@ -859,6 +893,21 @@ class mosp_escher_replay {
       }
       tb.deletions.push_back(static_cast<std::int64_t>(id) - 1);
     }
+    // The incidence edits (B id - 1, vertex), those on a virtual row filtered.
+    for (std::size_t i = 0; i < vtx_delete_he_.size(); ++i) {
+      if (vtx_delete_he_[i] == source_ || vtx_delete_he_[i] == target_) {
+        ++filtered;
+        continue;
+      }
+      tb.removals.emplace_back(static_cast<std::int64_t>(vtx_delete_he_[i]) - 1, vtx_delete_v_[i]);
+    }
+    for (std::size_t i = 0; i < vtx_insert_he_.size(); ++i) {
+      if (vtx_insert_he_[i] == source_ || vtx_insert_he_[i] == target_) {
+        ++filtered;
+        continue;
+      }
+      tb.additions.emplace_back(static_cast<std::int64_t>(vtx_insert_he_[i]) - 1, vtx_insert_v_[i]);
+    }
     rep_.filtered_virtual += filtered;
     tb.insertions = he_insert_;
     for (const long long w : he_weights_) tb.weights.push_back(static_cast<std::int32_t>(w));
@@ -885,20 +934,70 @@ class mosp_escher_replay {
     if (s.inserted_ids != want) out_.mismatch(where + ": inserted_ids differ from finalIds - 1");
     ++rep_.skipped_compared;
     rep_.skipped_ops += rec.integer("skipped_ops");
-    if (s.ignored_deletions + filtered != rec.integer("skipped_ops"))
+    // B's skippedOps: the ignored deletions, the skipped incidence edits and the virtual ops; dynG's
+    // skipped_ops also counts the dropped members (compared below).
+    const std::int64_t skipped_edits = s.skipped_ops - s.ignored_deletions - s.dropped_members;
+    if (s.ignored_deletions + skipped_edits + filtered != rec.integer("skipped_ops"))
       out_.mismatch(where + ": ignored deletions " + std::to_string(s.ignored_deletions) +
-                    " + filtered " + std::to_string(filtered) + " != skippedOps " +
+                    " + skipped edits " + std::to_string(skipped_edits) + " + filtered " +
+                    std::to_string(filtered) + " != skippedOps " +
                     std::to_string(rec.integer("skipped_ops")));
+    rep_.skipped_edits += skipped_edits;
+    rep_.removals += s.deleted_incidences;
+    rep_.additions += s.inserted_incidences;
+    if (vertex_kind_) ++rep_.vertex_batches_replayed;
     std::int64_t raw = 0;
     for (const auto& r : he_insert_) raw += static_cast<std::int64_t>(r.size());
     rep_.dropped_members += s.dropped_members;
     if (s.dropped_members != raw - insert_payload_)
       out_.mismatch(where + ": dropped members " + std::to_string(s.dropped_members) +
                     " != B's deduplicated " + std::to_string(raw - insert_payload_));
-    // B's model: dead_he cleared, the new hyperedges at their final ids.
-    for (const std::int32_t id : in_.ints(rec.array("dead_he")))
+    // B's model: dead_he cleared, the incidence edits (its applyBatch rules, phases 2 and 3,
+    // against the rows after the deletions), the new hyperedges at their final ids.
+    const std::vector<std::int32_t> dead_he = in_.ints(rec.array("dead_he"));
+    std::set<std::int64_t> deleted_now;
+    for (const std::int64_t id : tb.deletions) deleted_now.insert(id);
+    for (const std::int32_t id : dead_he)
       if (id >= 1 && static_cast<std::size_t>(id) <= model_.size())
         model_[static_cast<std::size_t>(id) - 1].clear();
+    std::int64_t model_skipped = 0;
+    const auto edit = [&](std::int64_t id, std::int32_t v, bool add) {
+      if (id < 0 || static_cast<std::size_t>(id) >= model_.size() || deleted_now.count(id) != 0 ||
+          model_[static_cast<std::size_t>(id)].empty() || v < 0 || v >= num_vertices_) {
+        ++model_skipped;
+        return;
+      }
+      auto& row = model_[static_cast<std::size_t>(id)];
+      const auto it = std::lower_bound(row.begin(), row.end(), v);
+      const bool member = it != row.end() && *it == v;
+      if (add ? member : (!member || row.size() == 1)) {
+        ++model_skipped;
+        return;
+      }
+      if (add) {
+        row.insert(it, v);
+      } else {
+        row.erase(it);
+      }
+    };
+    for (const auto& [id, v] : tb.removals) edit(id, v, false);
+    for (const auto& [id, v] : tb.additions) edit(id, v, true);
+    if (model_skipped != skipped_edits)
+      out_.mismatch(where + ": skipped edits " + std::to_string(skipped_edits) +
+                    ", B's rules on its rows " + std::to_string(model_skipped));
+    if (slack()) {
+      const auto& a = dyng::detail::hypergraph_access::applied(*session_);
+      std::vector<std::int64_t> want_dead, got_dead = a.dead_ids;
+      for (const std::int32_t id : dead_he) want_dead.push_back(static_cast<std::int64_t>(id) - 1);
+      std::sort(want_dead.begin(), want_dead.end());
+      std::sort(got_dead.begin(), got_dead.end());
+      ++rep_.dead_compared;
+      if (got_dead != want_dead) out_.mismatch(where + ": the dead ids differ from deadHe - 1");
+      if (opt_.line_graph) {
+        keys_pending_ = true;
+        keys_where_ = where;
+      }
+    }
     for (std::size_t i = 0; i < final_ids.size(); ++i) {
       const auto id = static_cast<std::size_t>(final_ids[i]);
       if (id > model_.size()) model_.resize(id);
@@ -911,11 +1010,15 @@ class mosp_escher_replay {
       out_.mismatch(where + ": B's trace has " + std::to_string(final_weights.size()) +
                     " final weights for " + std::to_string(want.size()) + " final ids");
     for (std::size_t i = 0; i < want.size() && i < final_weights.size(); ++i)
-      if (weights[static_cast<std::size_t>(want[i])] != final_weights[i])
+      if (want[i] < 0 || static_cast<std::size_t>(want[i]) >= weights.size() ||
+          weights[static_cast<std::size_t>(want[i])] != final_weights[i])
         out_.mismatch(where + ": the weight of id " + std::to_string(want[i]) + " differs");
     if (model_lockstep_) {
       const auto expected = model_lockstep_->apply(tb);
       if (expected.ids != s.inserted_ids) out_.mismatch(where + ": the host model gives other ids");
+      if (expected.skipped_edits != skipped_edits)
+        out_.mismatch(where + ": the host model skips " + std::to_string(expected.skipped_edits) +
+                      " edits");
     }
     check(where);
   }
@@ -944,7 +1047,9 @@ class mosp_escher_replay {
   std::map<std::uint32_t, std::string> tree_name_;
   std::map<std::uint32_t, std::int64_t> tree_capacity_;
   bool loading_ = false, stopped_ = false, pending_ = false, awaiting_insert_ = false;
-  bool counting_after_stop_ = false;
+  bool counting_after_stop_ = false, vertex_kind_ = false, keys_pending_ = false;
+  std::string keys_where_;
+  std::vector<std::int32_t> vtx_delete_he_, vtx_delete_v_, vtx_insert_he_, vtx_insert_v_;
   std::uint32_t h2v_tree_ = 0, insert_tree_ = 0;
   std::int64_t h2v_flat_ = 0, h2v_capacity_ = 0, insert_payload_ = 0;
   std::int32_t num_vertices_ = 0;
@@ -966,11 +1071,16 @@ std::string report::to_json() const {
   std::ostringstream os;
   os << "{\"trace\": " << json_string(trace) << ", \"repo\": " << json_string(repo)
      << ", \"backend\": " << json_string(backend) << ", \"threads\": " << threads
-     << ", \"mode\": " << json_string(mode) << ", \"ok\": " << (ok() ? "true" : "false")
-     << ", \"sessions\": " << sessions << ", \"batches\": " << batches
-     << ", \"vertex_batches\": " << vertex_batches << ", \"stopped_sessions\": " << stopped_sessions
+     << ", \"mode\": " << json_string(mode) << ", \"storage\": " << json_string(storage)
+     << ", \"ok\": " << (ok() ? "true" : "false") << ", \"sessions\": " << sessions
+     << ", \"batches\": " << batches << ", \"vertex_batches\": " << vertex_batches
+     << ", \"stopped_sessions\": " << stopped_sessions
      << ", \"hyperedge_batches_after_stop\": " << hyperedge_batches_after_stop
      << ", \"ids_after_stop\": " << ids_after_stop
+     << ", \"vertex_batches_replayed\": " << vertex_batches_replayed
+     << ", \"removals\": " << removals << ", \"additions\": " << additions
+     << ", \"skipped_edits\": " << skipped_edits << ", \"dead_compared\": " << dead_compared
+     << ", \"key_batches\": " << key_batches << ", \"directed_keys\": " << directed_keys
      << ", \"line_graph_oracle_states\": " << line_graph_oracle_states
      << ", \"first_ambiguous_batch\": " << first_ambiguous_batch
      << ", \"ids_compared\": " << ids_compared << ", \"rows_compared\": " << rows_compared
@@ -1014,6 +1124,7 @@ report replay(tr::reader& in, const resources& res, const options& opt, const st
   rep.backend = std::string(to_string(res.get_backend()));
   rep.threads = res.num_threads();
   rep.mode = opt.mode;
+  rep.storage = opt.storage;
   tr::record rec;
   std::unique_ptr<escher_gpu_replay> a;
   std::unique_ptr<mosp_escher_replay> b;

@@ -136,6 +136,14 @@ set_target_properties(dyng_hsosp_replay_tool PROPERTIES OUTPUT_NAME dyng_hsosp_r
 target_link_libraries(dyng_hsosp_replay_tool PRIVATE dyng_hsosp_replay)
 dyng_set_warnings(dyng_hsosp_replay_tool)
 dyng_enable_sanitizers(dyng_hsosp_replay_tool)
+dyng_add_test(
+  NAME dyng_hsosp_replay_tests
+  SOURCES parity/hsosp/hsosp_replay_test.cpp
+  LABELS cpu parity hyper_sssp hypergraph
+  LIBRARIES dyng_hsosp_replay
+)
+target_compile_definitions(dyng_hsosp_replay_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+list(APPEND _dyng_private_tests dyng_hsosp_replay_tests)
 add_executable(dyng_hsosp_oracle parity/hsosp/hsosp_oracle_main.cpp)
 target_link_libraries(dyng_hsosp_oracle PRIVATE dyng_hsosp_dump)
 dyng_set_warnings(dyng_hsosp_oracle)

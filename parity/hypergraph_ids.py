@@ -29,6 +29,13 @@ one std::mt19937_64(--seed of the run); each must equal A's. The record is then
 M8b-legacy-<set>-<backend>[-t<N>].json. --hg FILE (criterion 13): the .hg file the runs loaded is
 read with the original's option set and must give its loaded rows (record M8b-hg-<set>-...).
 
+--storage slack_csr (M11a step 2, ADRs 0085 and 0086; MOSP_ESCHER's sets): its sessions on
+slack_csr storage, replayed whole with their incidence edits (MOSP_ESCHER's skip rules, the host
+model's H2V fills and unfills in lockstep), the dead ids (deadHe - 1) compared after every batch
+and, with --line-graph (line_graph_policy::slack_csr), the directed keys of the pair delta with
+the count MOSP_ESCHER's finishBatch received; stopped_sessions must be 0. The record is then
+M11a-<kind>-slack_csr-<set>-<backend>[-t<N>].json.
+
 --record writes M8b-hypergraph-ids-<set>-<backend>[-t<N>].json (the totals, every case's report
 and the tool's commit). --certificate DIR (M8b step 5) also writes the replay record of the
 release certificate (parity/certify.py, the hypergraph-id schema): parity-<set>-hypergraph_ids-
@@ -66,6 +73,9 @@ SETS = {
     "cbst_trace_escher_gpu_syn1m": "ESCHER-GPU",
     "cbst_trace_mosp_escher_test": "MOSP_ESCHER",
     "cbst_trace_mosp_escher_dblp50k_hyperedge": "MOSP_ESCHER",
+    # Vertex-kind sessions: under escher storage they stop at their first batch; whole on
+    # slack_csr storage (M11a step 2).
+    "cbst_trace_mosp_escher_dblp50k_vertex": "MOSP_ESCHER",
     "committed": "both",
 }
 COMMITTED = [
@@ -80,6 +90,13 @@ TOTALS = (
     "stopped_sessions",
     "hyperedge_batches_after_stop",
     "ids_after_stop",
+    "vertex_batches_replayed",
+    "removals",
+    "additions",
+    "skipped_edits",
+    "dead_compared",
+    "key_batches",
+    "directed_keys",
     "line_graph_oracle_states",
     "ids_compared",
     "rows_compared",
@@ -153,6 +170,8 @@ def run_case(exe: Path, trace: Path, args, tmp: Path) -> dict:
         cmd += ["--threads", str(args.threads)]
     if args.no_model:
         cmd.append("--no-model")
+    if args.storage != "escher":
+        cmd += ["--storage", args.storage]
     if args.line_graph:
         cmd.append("--line-graph")
     if args.no_line_graph_oracle:
@@ -203,6 +222,12 @@ def compare_main(argv: list[str]) -> int:
         help="draw A's hypergraph and batches with generators::legacy and compare them",
     )
     p.add_argument("--hg", type=Path, help="the .hg file the runs loaded (read and compared)")
+    p.add_argument(
+        "--storage",
+        choices=["escher", "slack_csr"],
+        default="escher",
+        help="MOSP_ESCHER's sessions on slack_csr storage, whole with their incidence edits",
+    )
     p.add_argument("--scratch", type=Path, default=cbst_trace_goldens.scratch_default())
     p.add_argument("--exe", type=Path, help="dyng_hypergraph_ids (default: find it in build/)")
     p.add_argument("--jobs", type=int, default=1, help="cases replayed at once")
@@ -224,7 +249,13 @@ def compare_main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         return 2
+    if args.storage == "slack_csr" and args.certificate:
+        print("--certificate: the 0.3 replays only (escher storage)", file=sys.stderr)
+        return 2
     names = [full_name(n) for n in args.set]
+    if args.storage == "slack_csr" and any(SETS.get(n) == "ESCHER-GPU" for n in names):
+        print("--storage slack_csr: MOSP_ESCHER's sets only", file=sys.stderr)
+        return 2
     unknown = [n for n in names if n not in SETS]
     if unknown:
         print(f"unknown sets {unknown}; the sets are {', '.join(SETS)}", file=sys.stderr)
@@ -306,6 +337,15 @@ def compare_main(argv: list[str]) -> int:
                     f"{totals['generated_batches']} drawn batches equal A's "
                     f"({totals['batches']} batches)"
                 )
+        if args.storage == "slack_csr" and n != "committed":
+            # Every session to its end, every vertex-kind batch replayed (criterion 10).
+            if totals["stopped_sessions"] != 0:
+                problems.append(f"{totals['stopped_sessions']} sessions stopped")
+            if totals["vertex_batches_replayed"] != totals["vertex_batches"]:
+                problems.append(
+                    f"{totals['vertex_batches_replayed']} of {totals['vertex_batches']} "
+                    "vertex-kind batches replayed"
+                )
         if args.hg and totals["hg_hyperedges"] == 0:
             problems.append(f"--hg {args.hg}: no hyperedge was compared")
         for r in reports:
@@ -318,6 +358,7 @@ def compare_main(argv: list[str]) -> int:
             "backend": args.backend,
             "threads": args.threads,
             "mode": args.mode,
+            "storage": args.storage,
             "model": not args.no_model,
             "line_graph": args.line_graph,
             "line_graph_oracle": args.line_graph and not args.no_line_graph_oracle,
@@ -359,6 +400,15 @@ def compare_main(argv: list[str]) -> int:
             )
             + (f"{totals['hg_hyperedges']} .hg hyperedges compared, " if args.hg else "")
             + (
+                f"slack_csr: {totals['vertex_batches_replayed']} vertex-kind batches replayed, "
+                f"{totals['removals']} removals + {totals['additions']} additions applied, "
+                f"{totals['skipped_edits']} edits skipped, {totals['dead_compared']} dead-id "
+                f"states, {totals['directed_keys']} delta keys in {totals['key_batches']} "
+                "batches, "
+                if args.storage == "slack_csr"
+                else ""
+            )
+            + (
                 f"by content {totals['content_states_equal']}/{totals['content_states']} states "
                 "with A's live sets, "
                 if totals["content_states"]
@@ -381,7 +431,11 @@ def compare_main(argv: list[str]) -> int:
                 if args.hg
                 else "hypergraph-ids"
             )
-            name = f"M8b-{kind}-{short}-{args.backend}"
+            name = (
+                f"M11a-{kind}-slack_csr-{short}-{args.backend}"
+                if args.storage == "slack_csr"
+                else f"M8b-{kind}-{short}-{args.backend}"
+            )
             if args.threads:
                 name += f"-t{args.threads}"
             (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")

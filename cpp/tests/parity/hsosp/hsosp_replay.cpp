@@ -336,7 +336,8 @@ class session_replay {
     // The weights of the new ids (B's final_weights).
     const auto weights = dyng::test::hyper::host_vector(h_->weights());
     for (std::size_t i = 0; i < want.size() && i < final_weights_.size(); ++i)
-      if (weights[static_cast<std::size_t>(want[i])] != final_weights_[i])
+      if (want[i] < 0 || static_cast<std::size_t>(want[i]) >= weights.size() ||
+          weights[static_cast<std::size_t>(want[i])] != final_weights_[i])
         mismatch(where_ + ": the weight of id " + std::to_string(want[i]) + " differs");
     // The pairs.
     const auto& da = r.ints("pairs.deleted.a");
