@@ -860,8 +860,12 @@ def memory(args: argparse.Namespace) -> int:
                     "gpu_processes": {
                         "foreign": gp.foreign,
                         "samples": len(gp.samples),
-                        "before": gp.samples[0],
-                        "after": gp.samples[-1],
+                        # every sample, so the record shows the sampler saw the reading's own
+                        # process (a sampler that sees nothing would also see no foreign one)
+                        "own_seen_in_samples": sum(
+                            1 for x in gp.samples if any(p["own"] for p in x["processes"])
+                        ),
+                        "all": gp.samples,
                     },
                 }
                 note = "" if counted else f" (NOT COUNTED: foreign processes {gp.foreign})"
