@@ -174,7 +174,6 @@ dyng_add_module(
   NAME hypergraph
   SOURCES
     src/hypergraph/capacity.cpp
-    src/hypergraph/escher/flatten.cpp
     src/hypergraph/escher/store_policy.cpp
     src/hypergraph/hyper_update.cpp
     src/hypergraph/hypergraph.cpp
