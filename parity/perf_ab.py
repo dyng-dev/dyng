@@ -265,6 +265,8 @@ REGION_KEYS = {
     "per_batch",
     "rows",
     "report_sum",
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp (no new key: the summed csv keys and the e2e: keys are timers)
 }
 # A per-batch row: "<region>[b<N>]" (triad_count.toml: update[b1], update[b2], update[b3]).
 BATCH_ROW = re.compile(r"^(?P<region>.+)\[b(?P<batch>[1-9][0-9]*)\]$")
@@ -596,6 +598,8 @@ def load_regions(
         unknown = set(r) - REGION_KEYS
         if unknown:
             raise SystemExit(f"{path}: region {r['name']}: unknown key(s) {sorted(unknown)}")
+        # M10 label_propagation
+        # M11 slack_csr / hyper_sssp
         if backend in HYPERGRAPH_REFERENCES:
             check_summed_original(path, r, known)
         for key in r.get("original_report", []) + r.get("original_report_subtract", []):
@@ -609,11 +613,18 @@ def load_regions(
         if not r.get("port") and not r.get("port_report"):
             raise SystemExit(f"{path}: region {r['name']}: no port stages")
         check_batch_rows(path, r)
+        # M10 label_propagation
+        # M11 slack_csr / hyper_sssp
         if backend in HYPERGRAPH_REFERENCES:
             check_e2e_keys(path, r)
     return regions
 
 
+# The joint region-key specification of 0.4 (reconciled 2026-10-27): each milestone's keys in
+# functions of its own, below its comment; the second merger keeps both.
+# M10 label_propagation
+
+# M11 slack_csr / hyper_sssp
 # --- hyper_sssp's keys (M11's half of the joint key specification; ADR 0080 section 1.7) -------
 
 

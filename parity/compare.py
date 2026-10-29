@@ -388,6 +388,8 @@ def main() -> int:
         import triad_goldens
 
         return triad_goldens.compare_main(sys.argv[2:])
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp
     scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--goldens", type=Path, default=scratch / "goldens" / "sssp")
