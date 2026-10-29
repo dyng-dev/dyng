@@ -85,6 +85,7 @@ void incidence_store::line_graph_delta_of(const std::vector<std::int32_t>& /*ver
                                           const std::vector<std::int64_t>& /*ids*/,
                                           const std::vector<std::int8_t>& /*signs*/,
                                           const std::vector<std::int64_t>& /*inserted_ids*/,
+                                          const touched_rows& /*touched*/,
                                           line_graph_delta& /*out*/) {
   DYNG_FAIL("hypergraph store: the pair delta reached a store without a slack line graph");
 }

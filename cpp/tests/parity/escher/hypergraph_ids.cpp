@@ -826,9 +826,8 @@ class mosp_escher_replay {
   void finish_enter(const tr::record& rec) {
     if (!keys_pending_) return;
     keys_pending_ = false;
-    const auto& a = dyng::detail::hypergraph_access::applied(*session_);
-    const auto keys =
-        2 * static_cast<std::int64_t>(a.pairs.inserted_a.size() + a.pairs.deleted_a.size());
+    const auto& a = dyng::detail::hypergraph_access::pairs(*session_);
+    const auto keys = 2 * static_cast<std::int64_t>(a.inserted_a.size() + a.deleted_a.size());
     ++rep_.key_batches;
     rep_.directed_keys += keys;
     if (keys != rec.integer("num_directed_keys"))

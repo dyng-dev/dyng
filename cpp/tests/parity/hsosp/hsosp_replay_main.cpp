@@ -6,7 +6,7 @@
  *        dumps (M11a criteria 8 and 10; hsosp_replay.hpp). parity/compare.py hyper_sssp --part
  *        delta drives it over the golden set.
  *
- *     dyng_hsosp_replay [--backend sequential|openmp] [--threads N] [--no-oracle]
+ *     dyng_hsosp_replay [--backend sequential|openmp|cuda] [--device D] [--threads N] [--no-oracle]
  *                       [--no-integrity] [--json OUT] <dump.hsd[.zst]>...
  *
  * One line per dump; --json writes a JSON array of the reports. Exit status: 0 every dump
@@ -27,9 +27,10 @@
 namespace {
 
 int usage() {
-  std::fprintf(stderr,
-               "usage: dyng_hsosp_replay [--backend sequential|openmp] [--threads N] "
-               "[--no-oracle] [--no-integrity] [--json OUT] <dump.hsd[.zst]>...\n");
+  std::fprintf(
+      stderr,
+      "usage: dyng_hsosp_replay [--backend sequential|openmp|cuda] [--device D] [--threads N] "
+      "[--no-oracle] [--no-integrity] [--json OUT] <dump.hsd[.zst]>...\n");
   return 2;
 }
 
@@ -38,6 +39,7 @@ int usage() {
 int main(int argc, char** argv) {
   std::string backend = "sequential", json_path;
   int threads = 0;
+  int device = 0;
   dyng::test::hsosp_replay::options opt;
   std::vector<std::string> dumps;
   for (int i = 1; i < argc; ++i) {
@@ -53,6 +55,8 @@ int main(int argc, char** argv) {
       backend = value();
     } else if (a == "--threads") {
       threads = std::atoi(value().c_str());
+    } else if (a == "--device") {
+      device = std::atoi(value().c_str());
     } else if (a == "--no-oracle") {
       opt.oracle = false;
     } else if (a == "--no-integrity") {
@@ -72,6 +76,8 @@ int main(int argc, char** argv) {
       res = dyng::resources::sequential();
     } else if (backend == "openmp") {
       res = dyng::resources::openmp(threads);
+    } else if (backend == "cuda") {
+      res = dyng::resources::cuda(device, {}, threads);
     } else {
       return usage();
     }

@@ -180,8 +180,8 @@ class hyper_count_problem : public hfw::problem_base<derived_t, hfw::family::agg
       f.on_device = false;
     }
     if (!record.edited_ids.empty()) {
-      // The edited hyperedges with their new rows (slack_csr storage, a host backend in 0.4).
-      DYNG_EXPECTS(!ctx.on_cuda(), derived_t::name, ": incidence edits on cuda (M11a step 3)");
+      // The edited hyperedges with their new rows (slack_csr storage; on cuda the host frontier
+      // is uploaded by the count, fake_hyper_kernels.cu).
       fake_hyper_workspace& ws = ws_->get();
       ws.host_ids.assign(record.inserted_ids.begin(), record.inserted_ids.end());
       ws.host_ids.insert(ws.host_ids.end(), record.edited_ids.begin(), record.edited_ids.end());

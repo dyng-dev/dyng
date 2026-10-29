@@ -98,7 +98,6 @@ TEST(HypergraphIds, CommittedTracesGiveTheOriginalsIds) {
 TEST(HypergraphIds, MospEscherSessionsReplayWholeOnSlackCsr) {
   const fs::path path = batches() / "mosp_escher_014-test_h2h_delta.cbt";
   for (const dyng::resources& res : backends()) {
-    if (res.get_backend() == dyng::backend::cuda) continue;  // slack_csr on CUDA: M11a step 3
     SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())) + " (" +
                  std::to_string(res.num_threads()) + " threads)");
     dyng::test::cbst_compare::trace_source source(path.string(),

@@ -198,7 +198,11 @@ dyng_add_module(
     src/hypergraph/escher/locator.cu
     src/hypergraph/escher/payload.cu
     src/hypergraph/escher/unfill.cu
+    src/hypergraph/line_graph/incidence_delta.cu
+    src/hypergraph/line_graph/slack_csr_h2h.cu
     src/hypergraph/line_graph/sorted_merge.cu
+    src/hypergraph/slack_csr/device_store.cu
+    src/hypergraph/slack_csr/slack_csr_store.cu
 )
 
 dyng_add_module(

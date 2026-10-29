@@ -111,6 +111,20 @@ struct line_graph_delta {
   }
 };
 
+/// What a device store's pair delta reads of a batch besides its incidence changes (MOSP_ESCHER's
+/// IncidenceBatch: the touched rows before and after, the touched vertices' lengths after, the
+/// dead ids and the new weights; slack_csr storage, ADR 0089). The pointers are the applied
+/// record's fields; the host stores read their own state instead.
+struct touched_rows {
+  const std::vector<std::int64_t>* ids = nullptr;             ///< the touched ids, sorted, unique
+  const member_rows* pre = nullptr;                           ///< row i: ids[i] before the batch
+  const member_rows* post = nullptr;                          ///< row i: ids[i] after the batch
+  const std::vector<std::int32_t>* vertices = nullptr;        ///< the touched vertices, sorted
+  const std::vector<std::int32_t>* vertex_lengths = nullptr;  ///< their hyperedges after it
+  const std::vector<std::int64_t>* dead_ids = nullptr;     ///< deleted ids the batch did not reuse
+  const std::vector<std::int64_t>* new_weights = nullptr;  ///< the weight of every inserted id
+};
+
 class slack_access;
 
 /// The best-fit id state of a store's H2V tree, independent of the backend (ADR 0041, section
@@ -298,15 +312,27 @@ class incidence_store {
   virtual void begin_line_graph_delta(const std::vector<std::int32_t>& vertices,
                                       const std::vector<std::int64_t>& ids);
   /// @brief After the incidence phases: the pair delta of the batch (incidence_delta), from its
-  /// (vertex, id, sign) changes. Empty when the line graph is not maintained.
+  /// (vertex, id, sign) changes. Empty when the line graph is not maintained. A device store
+  /// keeps the pairs on the device (pairs_on_device()); download_line_graph_delta() copies them.
   /// @param[in] vertices The vertex of every change. @param[in] ids The id of every change.
   /// @param[in] signs -1 or +1. @param[in] inserted_ids The ids the batch inserted.
-  /// @param[out] out The delta.
+  /// @param[in] touched The touched rows (what a device store ships to the device).
+  /// @param[out] out The delta (its counts only, on a device store).
   virtual void line_graph_delta_of(const std::vector<std::int32_t>& vertices,
                                    const std::vector<std::int64_t>& ids,
                                    const std::vector<std::int8_t>& signs,
                                    const std::vector<std::int64_t>& inserted_ids,
-                                   line_graph_delta& out);
+                                   const touched_rows& touched, line_graph_delta& out);
+  /// @brief Whether the last batch's pairs stay on the device (they are copied to the host on
+  /// request). @return false (the host stores give them to the applied record).
+  [[nodiscard]] virtual bool pairs_on_device() const noexcept {
+    return false;
+  }
+  /// @brief Copy the last batch's pair delta from the device (deleted pairs first, increasing).
+  /// Nothing on the host stores. @param[out] out The pairs.
+  virtual void download_line_graph_delta(line_graph_delta& out) const {
+    (void)out;
+  }
   /// @brief The line-graph phase of slack_csr storage: the pair delta applied (any rebuild) and
   /// the weights of the new ids. @param[in] delta The pairs. @param[in] new_ids The inserted ids.
   /// @param[in] new_weights Their weights.

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file hypergraph_slack_test.cpp
- * @brief slack_csr storage and the incidence edits (M11a step 2; ADRs 0085, 0086): the property
- *        matrix, MOSP_ESCHER's skip rules (one test per rule), the phase order, the applied record,
- *        the slack line graph against the oracle after every batch, the order-free pair delta,
- *        the forced CSR-tail rebuild and node-capacity growth, the candidate limit, clones across
- *        the host backends, the views; escher storage keeps refusing incidence edits. Compiled
- *        into the host test executable (sequential, openmp) and, with DYNG_TEST_CUDA=1, into the
- *        CUDA one, where slack_csr is refused until M11a step 3 (a test that step 3 flips).
+ * @brief slack_csr storage and the incidence edits (M11a steps 2 and 3; ADRs 0085, 0086, 0089):
+ *        the property matrix, MOSP_ESCHER's skip rules (one test per rule), the phase order, the
+ *        applied record, the slack line graph against the oracle after every batch, the
+ *        order-free pair delta, the forced CSR-tail rebuild and node-capacity growth, the
+ *        candidate limit, clones across the backends, the views; escher storage keeps refusing
+ *        incidence edits. Compiled into the host test executable (sequential, openmp) and, with
+ *        DYNG_TEST_CUDA=1, into the CUDA one (the CUDA store of M11a step 3).
  */
 #include "hypergraph/capacity.hpp"
 #include "hypergraph/hypergraph_impl.hpp"
@@ -99,14 +99,15 @@ dyng::hyper_apply_summary apply_checked(const resources& res, graph_t& h, const 
   const auto s = h.apply(res, b);
   const auto post = flat(h);
   const auto& a = hypergraph_access::applied(h);
+  const auto& pairs = hypergraph_access::pairs(h);
   EXPECT_TRUE(a.has_slack_record);
   if (h.properties().line_graph != line_graph_policy::none &&
       hypergraph_access::store(h).line_graph_enabled()) {
     const auto want = dyng::testing::line_graph_delta(pre.first, pre.second, post.first,
                                                       post.second, h.num_vertices());
     EXPECT_TRUE(a.has_line_graph_delta);
-    EXPECT_EQ(zip(a.pairs.deleted_a, a.pairs.deleted_b), want.first);
-    EXPECT_EQ(zip(a.pairs.inserted_a, a.pairs.inserted_b), want.second);
+    EXPECT_EQ(zip(pairs.deleted_a, pairs.deleted_b), want.first);
+    EXPECT_EQ(zip(pairs.inserted_a, pairs.inserted_b), want.second);
     EXPECT_EQ(dyng::test::hyper::check_line_graph(h), "");
     const auto* slack = hypergraph_access::slack(h);
     EXPECT_NE(slack, nullptr);
@@ -173,46 +174,49 @@ TEST_P(SlackBackends, ThePropertyMatrix) {
   expect_not_supported(slack, "line_graph_policy::slack_csr");
   slack.line_graph = line_graph_policy::slack_csr;
   slack.store_v2h = false;
-  if (!cuda()) {
-    EXPECT_THROW((void)hgraph::from_hyperedges(res(), list.view(), slack),
-                 dyng::invalid_argument_error);
-  }
+  EXPECT_THROW((void)hgraph::from_hyperedges(res(), list.view(), slack),
+               dyng::invalid_argument_error);
   slack.store_v2h = true;
   for (const auto lg :
        {line_graph_policy::none, line_graph_policy::automatic, line_graph_policy::slack_csr}) {
     slack.line_graph = lg;
-    if (cuda()) {
-      expect_not_supported(slack, "M11a step 3");
-    } else {
-      const hgraph h = hgraph::from_hyperedges(res(), list.view(), slack);
-      EXPECT_EQ(hypergraph_access::store(h).line_graph_enabled(),
-                lg == line_graph_policy::slack_csr);
-      h.check_integrity(res());
-    }
+    const hgraph h = hgraph::from_hyperedges(res(), list.view(), slack);
+    EXPECT_EQ(hypergraph_access::store(h).line_graph_enabled(), lg == line_graph_policy::slack_csr);
+    h.check_integrity(res());
   }
 }
 
-// M11a step 2 is the host side: the CUDA store of slack_csr is step 3's (this test then flips to
-// the CUDA store's own tests).
-TEST_P(SlackBackends, SlackCsrOnCudaArrivesInStep3) {
-  const auto list = list_of(4, rows{{0, 1}, {1, 2}});
-  if (!cuda()) {
-    // A host hypergraph cannot move to cuda with slack_csr storage yet.
-    if (!dyng::backend_available(backend::cuda)) GTEST_SKIP() << "no CUDA in this build";
-    const hgraph h = hgraph::from_hyperedges(res(), list.view(), slack_props());
-    try {
-      (void)h.to_backend(resources::cuda(0));
-      ADD_FAILURE() << "slack_csr moved to cuda";
-    } catch (const dyng::not_supported_error& e) {
-      EXPECT_NE(std::string(e.what()).find("M11a step 3"), std::string::npos) << e.what();
-    }
-    return;
-  }
-  try {
-    (void)hgraph::from_hyperedges(res(), list.view(), slack_props());
-    ADD_FAILURE() << "slack_csr accepted on cuda";
-  } catch (const dyng::not_supported_error& e) {
-    EXPECT_NE(std::string(e.what()).find("M11a step 3"), std::string::npos) << e.what();
+// slack_csr storage on every backend (the CUDA store of M11a step 3, ADR 0089): a hypergraph moves
+// between the host backends and cuda with its ids, rows, weights and line graph, and the same
+// later batch gives the same ids, rows and pairs on both.
+TEST_P(SlackBackends, SlackCsrMovesBetweenTheHostAndCuda) {
+  if (!dyng::backend_available(backend::cuda)) GTEST_SKIP() << "no CUDA in this build";
+  const auto list = list_of(8, rows{{0, 1, 2}, {2, 3}, {4}, {5, 6}});
+  const resources device = resources::cuda(dyng::test::hyper::resources_of(backend::cuda).device());
+  const resources host = dyng::test::hyper::resources_of(backend::sequential);
+  hgraph a = hgraph::from_hyperedges(res(), list.view(), slack_props());
+  batch_t b;
+  b.delete_hyperedge(2);
+  b.insert_incidence(0, 7);
+  b.delete_incidence(1, 3);
+  b.insert_hyperedge({3, 4, 6});
+  (void)a.apply(res(), b.view());
+  for (const resources& to : {device, host}) {
+    hgraph c = a.to_backend(to);
+    EXPECT_EQ(h2v_rows(c), h2v_rows(a));
+    EXPECT_EQ(dyng::test::hyper::h2h_rows(c), dyng::test::hyper::h2h_rows(a));
+    c.check_integrity(to);
+    hgraph d = a.clone(res());
+    batch_t next;
+    next.delete_incidence(0, 7);
+    next.insert_hyperedge({1, 4});
+    next.insert_incidence(3, 2);
+    const auto s1 = apply_checked(to, c, next.view());
+    const auto s2 = apply_checked(res(), d, next.view());
+    EXPECT_EQ(s1.inserted_ids, s2.inserted_ids);
+    EXPECT_EQ(h2v_rows(c), h2v_rows(d));
+    EXPECT_EQ(hypergraph_access::pairs(c).inserted_a, hypergraph_access::pairs(d).inserted_a);
+    EXPECT_EQ(hypergraph_access::pairs(c).deleted_b, hypergraph_access::pairs(d).deleted_b);
   }
 }
 
@@ -266,7 +270,6 @@ class SlackEdits : public SlackBackends {
 };
 
 TEST_P(SlackEdits, AnEditOfADeadOrOutOfRangeIdIsSkipped) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t first;
   first.delete_hyperedge(2);
@@ -282,7 +285,6 @@ TEST_P(SlackEdits, AnEditOfADeadOrOutOfRangeIdIsSkipped) {
 }
 
 TEST_P(SlackEdits, AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t b;
   b.delete_hyperedge(1);
@@ -296,7 +298,6 @@ TEST_P(SlackEdits, AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped) {
 }
 
 TEST_P(SlackEdits, AnOutOfRangeVertexIsSkippedAnOutOfRangeMemberIsRejected) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t b;
   b.insert_incidence(0, 8);  // out of range: skipped
@@ -317,7 +318,6 @@ TEST_P(SlackEdits, AnOutOfRangeVertexIsSkippedAnOutOfRangeMemberIsRejected) {
 }
 
 TEST_P(SlackEdits, RemovingANonMemberIsSkipped) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t b;
   b.delete_incidence(0, 3);  // not a member
@@ -328,7 +328,6 @@ TEST_P(SlackEdits, RemovingANonMemberIsSkipped) {
 }
 
 TEST_P(SlackEdits, ARemovalThatWouldEmptyItsHyperedgeIsSkipped) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t b;
   b.delete_incidence(1, 2);  // {2,3} -> {3}
@@ -342,7 +341,6 @@ TEST_P(SlackEdits, ARemovalThatWouldEmptyItsHyperedgeIsSkipped) {
 }
 
 TEST_P(SlackEdits, AddingAnExistingMemberIsSkipped) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t b;
   b.insert_incidence(3, 5);  // a member
@@ -355,7 +353,6 @@ TEST_P(SlackEdits, AddingAnExistingMemberIsSkipped) {
 // B's phase order: hyperedge deletions, then incidence removals, then additions, then hyperedge
 // insertions (whatever the order in which the batch lists them).
 TEST_P(SlackEdits, ThePhaseOrderIsDeletionsRemovalsAdditionsInsertions) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t b;
   b.insert_incidence(0, 1);  // listed first, but runs after the removal: 1 is no member then
@@ -367,16 +364,15 @@ TEST_P(SlackEdits, ThePhaseOrderIsDeletionsRemovalsAdditionsInsertions) {
   EXPECT_EQ(now[0], (std::vector<std::int32_t>{0, 1, 2}));  // removed, then added back
   EXPECT_EQ(now[3], (std::vector<std::int32_t>{4, 5, 6}));
   // The net change of {0,1,2} is nothing: the pair delta has none of it.
-  const auto& a = hypergraph_access::applied(h);
-  EXPECT_EQ(a.edited_ids, (std::vector<std::int64_t>{0, 3}));
-  EXPECT_EQ(zip(a.pairs.inserted_a, a.pairs.inserted_b), (pair_list{{2, 3}}));  // {4} and {4,5,6}
-  EXPECT_TRUE(a.pairs.deleted_a.empty());
+  EXPECT_EQ(hypergraph_access::applied(h).edited_ids, (std::vector<std::int64_t>{0, 3}));
+  const auto& a = hypergraph_access::pairs(h);
+  EXPECT_EQ(zip(a.inserted_a, a.inserted_b), (pair_list{{2, 3}}));  // {4} and {4,5,6}
+  EXPECT_TRUE(a.deleted_a.empty());
 }
 
 // The record of a batch with every kind of operation: the (vertex, id, sign) changes, the new,
 // recreated and dead ids, the counts.
 TEST_P(SlackEdits, TheAppliedRecord) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   for (const id_reuse reuse : {id_reuse::insert_first, id_reuse::erase_first}) {
     SCOPED_TRACE(std::string(dyng::to_string(reuse)));
     hgraph h = hgraph::from_hyperedges(
@@ -422,7 +418,6 @@ TEST_P(SlackEdits, TheAppliedRecord) {
 // Permuting the operations of each phase (distinct incidences, no removal that could empty a
 // row, distinct deletions) gives the same rows, ids and pairs; one thread or eight give the same.
 TEST_P(SlackEdits, PermutingAPhasesOperationsGivesTheSamePairs) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   std::mt19937_64 rng(3);
   rows initial;
   for (int i = 0; i < 60; ++i) {
@@ -469,16 +464,16 @@ TEST_P(SlackEdits, PermutingAPhasesOperationsGivesTheSamePairs) {
     for (const auto& [id, v] : additions) b.insert_incidence(id, v);
     b.insert_hyperedge({1, 2, 3});
     (void)apply_checked(r, h, b.view());
-    const auto& a = hypergraph_access::applied(h);
+    const auto& a = hypergraph_access::pairs(h);
     if (trial == 0) {
-      first_deleted = zip(a.pairs.deleted_a, a.pairs.deleted_b);
-      first_inserted = zip(a.pairs.inserted_a, a.pairs.inserted_b);
+      first_deleted = zip(a.deleted_a, a.deleted_b);
+      first_inserted = zip(a.inserted_a, a.inserted_b);
       first_rows = h2v_rows(h);
       EXPECT_FALSE(first_deleted.empty());
       EXPECT_FALSE(first_inserted.empty());
     } else {
-      EXPECT_EQ(zip(a.pairs.deleted_a, a.pairs.deleted_b), first_deleted) << trial;
-      EXPECT_EQ(zip(a.pairs.inserted_a, a.pairs.inserted_b), first_inserted) << trial;
+      EXPECT_EQ(zip(a.deleted_a, a.deleted_b), first_deleted) << trial;
+      EXPECT_EQ(zip(a.inserted_a, a.inserted_b), first_inserted) << trial;
       EXPECT_EQ(h2v_rows(h), first_rows) << trial;
     }
   }
@@ -488,7 +483,6 @@ TEST_P(SlackEdits, PermutingAPhasesOperationsGivesTheSamePairs) {
 // delta equals the oracle's, h2h() the rebuilt line graph, the store its integrity checks; the
 // sequential and openmp backends give the same ids, rows and pairs.
 TEST_P(SlackEdits, RandomBatchesKeepTheLineGraphExact) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   for (const id_reuse reuse : {id_reuse::insert_first, id_reuse::erase_first}) {
     for (const auto& capacity :
          {capacity_policy::mosp_escher(512), capacity_policy::escher_gpu(), capacity_policy{}}) {
@@ -535,10 +529,10 @@ TEST_P(SlackEdits, RandomBatchesKeepTheLineGraphExact) {
         ASSERT_EQ(s.inserted_ids, t.inserted_ids) << "batch " << batch;
         ASSERT_EQ(s.skipped_ops, t.skipped_ops) << "batch " << batch;
         ASSERT_EQ(h2v_rows(h), h2v_rows(twin)) << "batch " << batch;
-        const auto& a = hypergraph_access::applied(h);
-        const auto& at = hypergraph_access::applied(twin);
-        ASSERT_EQ(a.pairs.inserted_a, at.pairs.inserted_a) << "batch " << batch;
-        ASSERT_EQ(a.pairs.deleted_b, at.pairs.deleted_b) << "batch " << batch;
+        const auto& a = hypergraph_access::pairs(h);
+        const auto& at = hypergraph_access::pairs(twin);
+        ASSERT_EQ(a.inserted_a, at.inserted_a) << "batch " << batch;
+        ASSERT_EQ(a.deleted_b, at.deleted_b) << "batch " << batch;
         // C9.
         EXPECT_EQ(s.deleted_incidences + s.inserted_incidences +
                       (s.skipped_ops - s.ignored_deletions - s.dropped_members),
@@ -554,7 +548,6 @@ TEST_P(SlackEdits, RandomBatchesKeepTheLineGraphExact) {
 // ---- The slack CSR's paths: the tail rebuild and node-capacity growth ------------------------
 
 TEST_P(SlackEdits, ForcedTailRebuildAndNodeGrowth) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   // Headroom 1.0: the entries fit the initial layout plus 4096 (MOSP_ESCHER's test_h2h_delta
   // pattern on every third configuration); a node capacity of the initial bound: the first new
   // id grows the arrays.
@@ -589,7 +582,6 @@ TEST_P(SlackEdits, ForcedTailRebuildAndNodeGrowth) {
 // More candidates than the limit (INT_MAX, MOSP_ESCHER's; planted lower here) is a capacity_error
 // in the store phase: the hypergraph is poisoned (basic guarantee).
 TEST_P(SlackEdits, MoreCandidatesThanTheLimitIsACapacityError) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   dyng::detail::hyper::slack::knobs knobs;
   knobs.max_candidates = 10;
   rows initial;
@@ -608,7 +600,6 @@ TEST_P(SlackEdits, MoreCandidatesThanTheLimitIsACapacityError) {
 // ---- Views, policies, clones -----------------------------------------------------------------
 
 TEST_P(SlackEdits, AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   const auto list = list_of(8, rows{{0, 1, 2}, {2, 3}, {4}, {5, 6}});
   hgraph a = hgraph::from_hyperedges(
       res(), list.view(), slack_props(id_reuse::insert_first, line_graph_policy::automatic));
@@ -633,7 +624,6 @@ TEST_P(SlackEdits, AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone) {
 }
 
 TEST_P(SlackEdits, TheH2hViewIsSortedOnRequestAndCounted) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   batch_t b;
   b.insert_incidence(2, 0);
@@ -650,7 +640,6 @@ TEST_P(SlackEdits, TheH2hViewIsSortedOnRequestAndCounted) {
 }
 
 TEST_P(SlackEdits, ClonesKeepIdsRowsTheAllocatorAndTheLineGraph) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   whgraph h = whgraph::from_hyperedges(
       res(), list_of<std::int32_t>(8, rows{{0, 1, 2}, {2, 3}, {4}, {5, 6}}, {3, 4, 5, 6}).view(),
       slack_props(id_reuse::insert_first, line_graph_policy::slack_csr,
@@ -683,7 +672,6 @@ TEST_P(SlackEdits, ClonesKeepIdsRowsTheAllocatorAndTheLineGraph) {
 }
 
 TEST_P(SlackEdits, TheStrongGuaranteeOfMalformedEdits) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   const rows before = h2v_rows(h);
   std::vector<std::int64_t> ids{0, 1};
@@ -702,7 +690,6 @@ TEST_P(SlackEdits, TheStrongGuaranteeOfMalformedEdits) {
 }
 
 TEST_P(SlackEdits, TheStagesOfTheCommit) {
-  if (cuda()) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   hgraph h = make();
   dyng::profiler prof;
   resources r = res();

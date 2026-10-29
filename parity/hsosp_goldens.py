@@ -865,7 +865,9 @@ def convert_main(argv: list[str]) -> int:
     p.add_argument("--scratch", type=Path, default=scratch_default())
     p.add_argument("--cases", default="t", help="'t', 'p50' or a comma list (default t)")
     p.add_argument("--exe", type=Path, help="dyng-compat-hsosp (default: find it in build/)")
-    p.add_argument("--backend", choices=["sequential", "openmp"], default="sequential")
+    p.add_argument("--backend", choices=["sequential", "openmp", "cuda"], default="sequential")
+    p.add_argument("--gpu", type=int, default=int(os.environ.get("DYNG_GPU", "1")),
+                   help="--backend cuda: the GPU (default 1, the development GPU)")  # fmt: skip
     p.add_argument("--write-toml", action="store_true", help="record the digests in goldens.toml")
     p.add_argument("--record", type=Path, help="write M11a-hsosp-converted.json here")
     args = p.parse_args(argv)
@@ -1919,6 +1921,10 @@ DELTA_TOTALS = (
     "candidates_differ",
     "csr_rebuilds",
     "b_csr_rebuilds",
+    "mirror_reuploads",
+    "b_mirror_reuploads",
+    "device_layouts_compared",
+    "digest_batches",
     "node_growths",
     "mismatch_count",
 )
@@ -1945,11 +1951,14 @@ def delta_main(args) -> int:
     t, names = select(args.cases)
     cases = ([f"test/{n}" for n, _ in T_CASES] if t else []) + [f"paper/{n}" for n in names]
     digest = [c for c in cases if c.startswith("paper/") and c.split("/", 1)[1] not in P50]
-    if digest:
-        print(
-            f"{digest}: digest cases (their pairs are hashes): the CUDA replay's", file=sys.stderr
-        )
+    if digest and args.backend != "cuda":
+        # HD2's coverage: the host stores replay T and P50; the CUDA store every P configuration
+        # (the replay compares a digest case's pairs by their SHA-256, M11a step 3).
+        print(f"{digest}: digest cases are replayed on cuda only (HD2)", file=sys.stderr)
         return 2
+    env = dict(os.environ)
+    if args.backend == "cuda":
+        env["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     reports = []
     (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=args.scratch / "runs", prefix="hsosp-delta-") as tmp:
@@ -1964,8 +1973,10 @@ def delta_main(args) -> int:
             if args.no_oracle:
                 cmd.append("--no-oracle")
             cmd.append(str(dump))
+            if args.backend == "cuda" and args.gpu == 1:
+                wait_gpu1_quiet()  # every GPU-1 job checks the shared calendar first
             t0 = time.monotonic()
-            r = subprocess.run(cmd, capture_output=True, text=True)
+            r = subprocess.run(cmd, capture_output=True, text=True, env=env)
             if r.returncode not in (0, 1) or not js.is_file():
                 rep = {"ok": False, "error": (r.stderr or r.stdout)[-2000:], "mismatch_count": 1}
             else:
@@ -2016,6 +2027,8 @@ def delta_main(args) -> int:
     if args.record:
         args.record.mkdir(parents=True, exist_ok=True)
         name = f"M11a-hsosp-delta-{args.backend}" + (f"-t{args.threads}" if args.threads else "")
+        if args.cases != "t,p50":
+            name += "-" + re.sub(r"[^a-z0-9]+", "-", args.cases.lower()).strip("-")
         (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
     return 0 if not problems else 1
 
@@ -2042,7 +2055,9 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--list", action="store_true")
     p.add_argument("--part", choices=["delta", "results"])
     p.add_argument("--scratch", type=Path, default=scratch_default())
-    p.add_argument("--backend", choices=["sequential", "openmp"], default="sequential")
+    p.add_argument("--backend", choices=["sequential", "openmp", "cuda"], default="sequential")
+    p.add_argument("--gpu", type=int, default=int(os.environ.get("DYNG_GPU", "1")),
+                   help="--backend cuda: the GPU (default 1, the development GPU)")  # fmt: skip
     p.add_argument("--threads", type=int, default=0, help="openmp threads (0: the default)")
     p.add_argument("--cases", default="t,p50", help="'t', 'p50' or a comma list (default t,p50)")
     p.add_argument("--no-oracle", action="store_true", help="leave out the oracle checks")

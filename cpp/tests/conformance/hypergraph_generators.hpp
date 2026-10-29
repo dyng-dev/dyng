@@ -504,9 +504,9 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
 
   /// The presets: {erase_first, insert_first} x {escher_gpu(), mosp_escher(), the default} under
   /// escher storage, {erase_first, insert_first} x {mosp_escher(), the default} under slack_csr
-  /// storage (0.4; the slack_csr line graph; the host test executable only until the CUDA store
-  /// of M11a step 3), each with require() and kept when the traits accept it (accepts(): an
-  /// algorithm that reads one storage only), and the traits' extras.
+  /// storage (0.4; the slack_csr line graph; every backend, the CUDA store of M11a step 3), each
+  /// with require() and kept when the traits accept it (accepts(): an algorithm that reads one
+  /// storage only), and the traits' extras.
   template <typename traits_t>
   static std::vector<kit_preset<hypergraph_properties>> presets() {
     std::vector<kit_preset<hypergraph_properties>> out;
@@ -527,7 +527,6 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
                              : "default"));
       }
     }
-#if !(defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA)
     for (const id_reuse reuse : {id_reuse::insert_first, id_reuse::erase_first}) {
       for (int c = 0; c < 2; ++c) {
         hypergraph_properties p;
@@ -539,7 +538,6 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
                    (c == 0 ? "mosp_escher()" : "default"));
       }
     }
-#endif
     if constexpr (kit_detail::has_extra_properties<traits_t>::value) {
       int i = 0;
       for (hypergraph_properties p : traits_t::extra_properties()) {

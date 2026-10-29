@@ -67,7 +67,11 @@ struct report {
   std::int64_t candidates_equal = 0;                  ///< batches whose candidate count equals B's
   std::int64_t candidates_differ = 0;                 ///< (informational on the host stores)
   std::int64_t csr_rebuilds = 0, b_csr_rebuilds = 0;  ///< dynG's and B's tail rebuilds
-  std::int64_t node_growths = 0;                      ///< dynG's node-capacity growths
+  std::int64_t mirror_reuploads = 0, b_mirror_reuploads = 0;  ///< the CUDA store's and B's
+  std::int64_t device_layouts_compared =
+      0;                            ///< device builds and batches whose layout was compared
+  std::int64_t digest_batches = 0;  ///< batches whose pairs were compared by digest
+  std::int64_t node_growths = 0;    ///< dynG's node-capacity growths
   std::int64_t mismatch_count = 0;
   std::vector<std::string> mismatches;
   double seconds = 0;
@@ -82,7 +86,7 @@ struct report {
 /**
  * @brief Replays the sessions of one dump (see the file comment).
  * @param[in] records The dump (a paper case with its loaded rows spliced back in).
- * @param[in] res     The backend's resources (sequential or openmp in M11a step 2).
+ * @param[in] res     The backend's resources (sequential, openmp or cuda).
  * @param[in] opt     What to check.
  * @param[in] name    The dump's name for the report.
  * @return The report.

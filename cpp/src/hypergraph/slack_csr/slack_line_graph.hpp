@@ -125,6 +125,10 @@ class slack_line_graph {
   [[nodiscard]] std::int64_t relocations() const noexcept {
     return relocations_;
   }
+  /// @brief Slots taken at the tail by moved rows so far. @return The count.
+  [[nodiscard]] std::int64_t tail_entries() const noexcept {
+    return tail_entries_;
+  }
   /// @brief Node-capacity growths so far. @return The count.
   [[nodiscard]] std::int64_t node_growths() const noexcept {
     return node_growths_;
@@ -157,6 +161,7 @@ class slack_line_graph {
   std::int64_t used_entries_ = 0;
   std::int64_t num_entries_ = 0;
   std::int64_t relocations_ = 0;
+  std::int64_t tail_entries_ = 0;
   std::int64_t node_growths_ = 0;
   std::vector<std::int64_t> row_start_;
   std::vector<std::int32_t> deg_, cap_;

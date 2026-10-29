@@ -79,9 +79,14 @@ struct hyper_applied {
   std::vector<std::int32_t> touched_vertex_lengths;  ///< the hyperedges of touched_vertices[i]
                                                      ///< on G_{t+1}
   /// The pair delta of the line graph (empty while it is not maintained: none, or automatic
-  /// before its first read; has_line_graph_delta says which).
-  hyper::line_graph_delta pairs;
+  /// before its first read; has_line_graph_delta says which). On the CUDA store the pairs stay on
+  /// the device (pairs_on_device; hyper_sssp's engine reads them there, slack_access::last_delta())
+  /// and are copied here on request by hypergraph_access::pairs() (mutable: a cache of the
+  /// committed record; ADR 0089).
+  mutable hyper::line_graph_delta pairs;
   bool has_line_graph_delta = false;         ///< whether `pairs` is the batch's delta
+  bool pairs_on_device = false;              ///< the pairs are on the device (the CUDA store)
+  mutable bool pairs_downloaded = false;     ///< `pairs` holds them (pairs_on_device)
   std::vector<std::int64_t> new_ids;         ///< inserted ids at or above G_t's id bound
   std::vector<std::int64_t> recreated_ids;   ///< inserted ids below G_t's id bound (dead on G_t,
                                              ///< or deleted and reused by the batch)
@@ -307,6 +312,28 @@ struct hypergraph_access {
   template <typename vertex_t, typename weight_t>
   static const hyper_applied& applied(const hypergraph<vertex_t, weight_t>& h) {
     return h.impl().applied;
+  }
+
+  /**
+   * @brief The pair delta of the last batch on the host (slack_csr storage): the applied
+   *        record's, copied from the device once on the CUDA store (ADR 0089).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in] h The hypergraph.
+   * @return The pairs (deleted first; empty when the batch had no pair delta).
+   */
+  template <typename vertex_t, typename weight_t>
+  static const hyper::line_graph_delta& pairs(const hypergraph<vertex_t, weight_t>& h) {
+    const hyper_applied& a = h.impl().applied;
+    if (a.pairs_on_device && !a.pairs_downloaded) {
+      const std::int64_t candidates = a.pairs.candidates;
+      const std::int64_t net = a.pairs.net_changes;
+      h.impl().store->download_line_graph_delta(a.pairs);
+      a.pairs.candidates = candidates;
+      a.pairs.net_changes = net;
+      a.pairs_downloaded = true;
+    }
+    return a.pairs;
   }
 
   /**

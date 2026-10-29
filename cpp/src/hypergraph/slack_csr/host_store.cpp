@@ -349,7 +349,7 @@ void slack_host_store::line_graph_delta_of(const std::vector<std::int32_t>& vert
                                            const std::vector<std::int64_t>& ids,
                                            const std::vector<std::int8_t>& signs,
                                            const std::vector<std::int64_t>& inserted_ids,
-                                           line_graph_delta& out) {
+                                           const touched_rows& /*touched*/, line_graph_delta& out) {
   out.clear();
   if (!line_graph_.load(std::memory_order_acquire)) return;
   // The rows before the batch of every touched id: the kept rows of the deleted and edited ids,
@@ -395,6 +395,12 @@ void slack_host_store::build_line_graph() const {
     lg_.build(exec, rows_, v2h_, max_bound_, nodes, knobs_.entry_headroom, weights_);
   });
   ++line_graph_builds_;
+}
+
+void slack_host_store::build_line_graph_into(slack_line_graph& lg) const {
+  with_exec(threads_, [&](const auto& exec) {
+    lg.build(exec, rows_, v2h_, max_bound_, max_bound_, 1.0, weights_);
+  });
 }
 
 void slack_host_store::finish_line_graph(const line_graph_delta& delta,
@@ -761,6 +767,7 @@ slack_counters slack_host_store::counters() const noexcept {
   slack_counters c;
   c.csr_rebuilds = csr_rebuilds_;
   c.relocations = lg_.relocations();
+  c.tail_entries = lg_.tail_entries();
   c.node_growths = lg_.node_growths();
   c.mirror_reuploads = 0;  // the host store keeps no device mirror
   c.candidates = candidates_;

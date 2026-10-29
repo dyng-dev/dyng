@@ -460,7 +460,6 @@ TEST_P(TriadCount, RequirementsAreCheckedPerPattern) {
 // slack_csr storage (0.4) is refused in compute() and by an update before its commit (HD9; the
 // strong guarantee): triad_count reads the escher storage only.
 TEST_P(TriadCount, SlackCsrStorageIsRefused) {
-  if (GetParam() == backend::cuda) GTEST_SKIP() << "slack_csr on cuda: M11a step 3";
   dyng::hyperedge_list<std::int32_t, dyng::unweighted> list;
   list.num_vertices = 13;
   for (const auto& r : hand_rows) list.add_hyperedge(dyng::host_view(r));

@@ -261,6 +261,7 @@ bool slack_line_graph::apply(const exec_t& exec, const line_graph_delta& delta,
     // any order; the tail overflows (and the CSR is rebuilt) exactly when their sum does not fit.
     std::vector<std::int64_t> new_start(runs.size(), -1);
     std::vector<std::int32_t> new_cap(runs.size(), 0);
+    const std::int64_t tail_before = used_entries_;
     std::int64_t tail = used_entries_;
     bool overflow = false;
     for (std::size_t j = 0; j < runs.size(); ++j) {
@@ -278,6 +279,7 @@ bool slack_line_graph::apply(const exec_t& exec, const line_graph_delta& delta,
                                            new_start.data(), new_cap.data(), row_start_.data(),
                                            deg_.data(), cap_.data(), col_ind_.data()});
     for (const std::int64_t s : new_start) relocations_ += s >= 0 ? 1 : 0;
+    tail_entries_ += tail - tail_before;
   }
   // scatterWeightsKernel: the weights of the new ids.
   for (std::size_t i = 0; i < new_ids.size(); ++i)

@@ -11,6 +11,7 @@
 
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/hypergraph_support.hpp"
+#include "support/sha256.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
@@ -133,7 +134,9 @@ class session_replay {
     detail::hyper::slack::knobs knobs;
     knobs.entry_headroom = as_double(r, "entry_headroom", 1.6);
     knobs.node_capacity = r.i64("max_nodes");
+    device_record_ = &r;
     build(knobs, !r.str("exception").empty(), "session " + std::to_string(session_) + " build");
+    device_record_ = nullptr;
   }
 
   // The container, with B's knobs (its entry headroom and node capacity: the device build); a
@@ -191,7 +194,32 @@ class session_replay {
     if (slack->rows().pair_count != b_pairs_)
       mismatch(where + ": the pair count " + std::to_string(slack->rows().pair_count) +
                " is not h2hPairCount " + std::to_string(b_pairs_));
+    if (device_record_ != nullptr) compare_device(*device_record_, where, "dev.");
     check(where);
+  }
+
+  // On the CUDA store, MOSP_ESCHER's device graph is ported as is (ADR 0089): its node capacity,
+  // entries, tail cursor and live entries, the incidence mirror's capacities and tails, and its
+  // graph_mb scope (DeviceH2H::deviceBytes()) equal the dump's after the build and every batch.
+  void compare_device(const hd::record& r, const std::string& where, const std::string& prefix) {
+    if (res_.get_backend() != backend::cuda || !h_) return;
+    const auto* slack = access::slack(*h_);
+    const detail::hyper::slack_row_view v = slack->rows();
+    const std::pair<const char*, std::int64_t> fields[] = {
+        {"max_nodes", v.node_capacity},    {"num_nodes", v.num_nodes},
+        {"cap_entries", v.cap_entries},    {"used_entries", v.used_entries},
+        {"num_entries", v.num_entries},    {"inc.he_capacity", v.mirror_he_capacity},
+        {"inc.he_tail", v.mirror_he_tail}, {"inc.v_capacity", v.mirror_v_capacity},
+        {"inc.v_tail", v.mirror_v_tail},   {"device_bytes", slack->graph_scope_bytes()},
+    };
+    ++rep_.device_layouts_compared;
+    for (const auto& [name, mine] : fields) {
+      if (!r.has(prefix + name)) continue;
+      if (r.i64(prefix + name) != mine) {
+        mismatch(where + ": the device " + name + " " + std::to_string(mine) + " is not B's " +
+                 std::to_string(r.i64(prefix + name)));
+      }
+    }
   }
 
   void begin_enter(const hd::record& r) {
@@ -289,8 +317,8 @@ class session_replay {
     std::vector<std::int32_t> pre_members;
     if (opt_.oracle) {
       const auto v = h_->h2v();
-      pre_offsets.assign(v.row_ptr.begin(), v.row_ptr.end());
-      pre_members.assign(v.col_ind.begin(), v.col_ind.end());
+      pre_offsets = dyng::test::hyper::host_vector(v.row_ptr);
+      pre_members = dyng::test::hyper::host_vector(v.col_ind);
     }
     const auto before = access::slack(*h_)->counters();
     hyper_apply_summary s;
@@ -303,6 +331,7 @@ class session_replay {
       return;
     }
     const auto& a = access::applied(*h_);
+    const auto& pairs = access::pairs(*h_);
     // Ids.
     std::vector<std::int64_t> want;
     for (const std::int32_t id : final_ids_) want.push_back(static_cast<std::int64_t>(id) - 1);
@@ -340,10 +369,6 @@ class session_replay {
           weights[static_cast<std::size_t>(want[i])] != final_weights_[i])
         mismatch(where_ + ": the weight of id " + std::to_string(want[i]) + " differs");
     // The pairs.
-    const auto& da = r.ints("pairs.deleted.a");
-    const auto& db = r.ints("pairs.deleted.b");
-    const auto& ia = r.ints("pairs.inserted.a");
-    const auto& ib = r.ints("pairs.inserted.b");
     const auto same = [](const std::vector<std::int64_t>& mine,
                          const std::vector<std::int32_t>& b) {
       return mine.size() == b.size() &&
@@ -352,16 +377,47 @@ class session_replay {
              });
     };
     ++rep_.pair_batches;
-    rep_.deleted_pairs += static_cast<std::int64_t>(da.size());
-    rep_.inserted_pairs += static_cast<std::int64_t>(ia.size());
     if (!a.has_line_graph_delta) mismatch(where_ + ": the batch has no pair delta");
-    if (!same(a.pairs.deleted_a, da) || !same(a.pairs.deleted_b, db))
-      mismatch(where_ + ": the deleted pairs differ (" + std::to_string(a.pairs.deleted_a.size()) +
-               " vs " + std::to_string(da.size()) + ")");
-    if (!same(a.pairs.inserted_a, ia) || !same(a.pairs.inserted_b, ib))
-      mismatch(where_ + ": the inserted pairs differ (" +
-               std::to_string(a.pairs.inserted_a.size()) + " vs " + std::to_string(ia.size()) +
-               ")");
+    if (r.has("pairs.sha256")) {
+      // A digest case (ADR 0081): the canonical pairs (each list sorted, int32 little-endian,
+      // the deleted list first) by their SHA-256 and counts.
+      ++rep_.digest_batches;
+      rep_.deleted_pairs += r.i64("pairs.deleted.a.count");
+      rep_.inserted_pairs += r.i64("pairs.inserted.a.count");
+      test::sha256 h;
+      for (int list = 0; list < 2; ++list) {
+        const auto& x = list == 0 ? pairs.deleted_a : pairs.inserted_a;
+        const auto& y = list == 0 ? pairs.deleted_b : pairs.inserted_b;
+        std::vector<std::pair<std::int64_t, std::int64_t>> sorted;
+        for (std::size_t i = 0; i < x.size(); ++i) sorted.emplace_back(x[i], y[i]);
+        std::sort(sorted.begin(), sorted.end());
+        std::vector<std::int32_t> flat;
+        for (const auto& [u, w] : sorted) {
+          flat.push_back(static_cast<std::int32_t>(u));
+          flat.push_back(static_cast<std::int32_t>(w));
+        }
+        h.update_le(flat);
+      }
+      if (static_cast<std::int64_t>(pairs.deleted_a.size()) != r.i64("pairs.deleted.a.count") ||
+          static_cast<std::int64_t>(pairs.inserted_a.size()) != r.i64("pairs.inserted.a.count") ||
+          h.hex() != r.str("pairs.sha256"))
+        mismatch(where_ + ": the pairs' digest differs (" + std::to_string(pairs.deleted_a.size()) +
+                 " + " + std::to_string(pairs.inserted_a.size()) + " pairs)");
+    } else {
+      const auto& da = r.ints("pairs.deleted.a");
+      const auto& db = r.ints("pairs.deleted.b");
+      const auto& ia = r.ints("pairs.inserted.a");
+      const auto& ib = r.ints("pairs.inserted.b");
+      rep_.deleted_pairs += static_cast<std::int64_t>(da.size());
+      rep_.inserted_pairs += static_cast<std::int64_t>(ia.size());
+      if (!same(pairs.deleted_a, da) || !same(pairs.deleted_b, db))
+        mismatch(where_ + ": the deleted pairs differ (" + std::to_string(pairs.deleted_a.size()) +
+                 " vs " + std::to_string(da.size()) + ")");
+      if (!same(pairs.inserted_a, ia) || !same(pairs.inserted_b, ib))
+        mismatch(where_ + ": the inserted pairs differ (" +
+                 std::to_string(pairs.inserted_a.size()) + " vs " + std::to_string(ia.size()) +
+                 ")");
+    }
     const auto* slack = access::slack(*h_);
     if (slack->rows().pair_count != r.i64("h2h_pair_count"))
       mismatch(where_ + ": the pair count " + std::to_string(slack->rows().pair_count) +
@@ -371,7 +427,23 @@ class session_replay {
         1;
     rep_.csr_rebuilds += after.csr_rebuilds - before.csr_rebuilds;
     rep_.b_csr_rebuilds += r.i64("bt.csr_rebuilt");
+    rep_.mirror_reuploads += after.mirror_reuploads - before.mirror_reuploads;
+    rep_.b_mirror_reuploads += r.i64("bt.mirror_reuploads");
     rep_.node_growths += after.node_growths - before.node_growths;
+    if (res_.get_backend() == backend::cuda) {
+      // The CUDA store is B's device graph: its candidates, rebuilds and mirror re-uploads are
+      // B's on every batch (M11a criterion 10).
+      if (after.candidates != r.i64("bt.candidates"))
+        mismatch(where_ + ": candidates " + std::to_string(after.candidates) + " != B's " +
+                 std::to_string(r.i64("bt.candidates")));
+      if (after.csr_rebuilds - before.csr_rebuilds != r.i64("bt.csr_rebuilt"))
+        mismatch(where_ + ": csrRebuilt differs");
+      if (after.mirror_reuploads - before.mirror_reuploads != r.i64("bt.mirror_reuploads"))
+        mismatch(where_ + ": mirrorReuploads " +
+                 std::to_string(after.mirror_reuploads - before.mirror_reuploads) + " != B's " +
+                 std::to_string(r.i64("bt.mirror_reuploads")));
+      compare_device(r, where_, "dev.");
+    }
     // The rows B recorded (every row, or the touched ones), dead ones empty, and their weights.
     const auto& ids = r.ints("rows.ids");
     const auto& offsets = r.longs("rows.offsets");
@@ -415,10 +487,10 @@ class session_replay {
       const auto want_delta = dyng::testing::line_graph_delta(
           pre_offsets, pre_members, post_offsets, post_members, h_->num_vertices());
       std::vector<std::pair<std::int64_t, std::int64_t>> got_deleted, got_inserted;
-      for (std::size_t i = 0; i < a.pairs.deleted_a.size(); ++i)
-        got_deleted.emplace_back(a.pairs.deleted_a[i], a.pairs.deleted_b[i]);
-      for (std::size_t i = 0; i < a.pairs.inserted_a.size(); ++i)
-        got_inserted.emplace_back(a.pairs.inserted_a[i], a.pairs.inserted_b[i]);
+      for (std::size_t i = 0; i < pairs.deleted_a.size(); ++i)
+        got_deleted.emplace_back(pairs.deleted_a[i], pairs.deleted_b[i]);
+      for (std::size_t i = 0; i < pairs.inserted_a.size(); ++i)
+        got_inserted.emplace_back(pairs.inserted_a[i], pairs.inserted_b[i]);
       if (got_deleted != want_delta.first || got_inserted != want_delta.second)
         mismatch(where_ + ": the pairs differ from testing::line_graph_delta");
       const std::string problems = dyng::test::hyper::check_line_graph(*h_);
@@ -451,6 +523,7 @@ class session_replay {
   std::vector<std::int64_t> rows_offsets_, weights_, final_weights_;
   std::vector<std::int32_t> rows_values_, final_ids_, dead_he_;
   wbatch batch_;
+  const hd::record* device_record_ = nullptr;  // the device_build record of build()
 };
 
 }  // namespace
@@ -470,7 +543,10 @@ std::string report::to_json() const {
      << ", \"hyper_sssp_weight_limit\": " << hyper_sssp_weight_limit
      << ", \"oracle_states\": " << oracle_states << ", \"candidates_equal\": " << candidates_equal
      << ", \"candidates_differ\": " << candidates_differ << ", \"csr_rebuilds\": " << csr_rebuilds
-     << ", \"b_csr_rebuilds\": " << b_csr_rebuilds << ", \"node_growths\": " << node_growths
+     << ", \"b_csr_rebuilds\": " << b_csr_rebuilds << ", \"mirror_reuploads\": " << mirror_reuploads
+     << ", \"b_mirror_reuploads\": " << b_mirror_reuploads
+     << ", \"device_layouts_compared\": " << device_layouts_compared
+     << ", \"digest_batches\": " << digest_batches << ", \"node_growths\": " << node_growths
      << ", \"seconds\": " << seconds << ", \"mismatch_count\": " << mismatch_count
      << ", \"mismatches\": [";
   for (std::size_t i = 0; i < mismatches.size(); ++i)

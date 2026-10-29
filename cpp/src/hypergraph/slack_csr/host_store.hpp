@@ -95,7 +95,7 @@ class slack_host_store final : public incidence_store, public slack_access {
                            const std::vector<std::int64_t>& ids,
                            const std::vector<std::int8_t>& signs,
                            const std::vector<std::int64_t>& inserted_ids,
-                           line_graph_delta& out) override;
+                           const touched_rows& touched, line_graph_delta& out) override;
   void finish_line_graph(const line_graph_delta& delta, const std::vector<std::int64_t>& new_ids,
                          const std::vector<std::int64_t>& new_weights) override;
   void set_node_weights(const std::vector<std::int64_t>& by_id) override;
@@ -119,6 +119,27 @@ class slack_host_store final : public incidence_store, public slack_access {
   /// @brief The allocator (tests). @return It.
   [[nodiscard]] const id_allocator& allocator() const noexcept {
     return alloc_;
+  }
+  /// @brief The rows by id (the device store's host model, ADR 0089). @return They.
+  [[nodiscard]] const std::vector<std::vector<std::int32_t>>& rows_by_id() const noexcept {
+    return rows_;
+  }
+  /// @brief The hyperedges of every vertex, sorted. @return They.
+  [[nodiscard]] const std::vector<std::vector<std::int64_t>>& v2h_by_vertex() const noexcept {
+    return v2h_;
+  }
+  /// @brief The weights by id that the line graph keeps. @return They.
+  [[nodiscard]] const std::vector<std::int64_t>& node_weights() const noexcept {
+    return weights_;
+  }
+  /// @brief The line graph of the rows (MOSP_ESCHER's HostHypergraph::lineGraph: the sorted
+  /// neighbours of every id below the largest bound so far) into `lg`, on the store's host threads
+  /// (the device store's build and its rebuild after a tail overflow, ADR 0089).
+  /// @param[out] lg The line graph (no headroom).
+  void build_line_graph_into(slack_line_graph& lg) const;
+  /// @brief The largest id bound so far (the line graph's nodes). @return It.
+  [[nodiscard]] std::int64_t max_bound() const noexcept {
+    return max_bound_;
   }
 
  private:

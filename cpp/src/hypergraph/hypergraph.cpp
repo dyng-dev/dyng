@@ -18,6 +18,7 @@
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/incidence_model.hpp"
 #include "hypergraph/instantiate.hpp"
+#include "hypergraph/slack_csr/device_store.hpp"
 #include "hypergraph/slack_csr/host_store.hpp"
 #include "hypergraph/transaction.hpp"
 #include "util/allocation.hpp"
@@ -143,15 +144,6 @@ void set_home(impl_t& impl, const resources& res) {
   impl.home_device = res.get_backend() == backend::cuda ? res.device() : -1;
 }
 
-/// slack_csr storage on the cuda backend arrives with the CUDA store (M11a step 3).
-[[noreturn]] void refuse_cuda_slack_csr(const char* what) {
-  throw not_supported_error(detail::concat_message(
-      "dyng: ", what,
-      ": hypergraph_storage::slack_csr on the cuda backend arrives in M11a step 3 (an "
-      "intermediate state of the 0.4 development branch); use a host backend (sequential, "
-      "openmp) or hypergraph_storage::escher"));
-}
-
 /// The weights by id as the slack line graph keeps them (int64; 1 for an unweighted hypergraph).
 template <typename weight_t>
 std::vector<std::int64_t> node_weights_of(const std::vector<weight_t>& weights, std::int64_t n) {
@@ -170,7 +162,9 @@ std::unique_ptr<detail::hyper::incidence_store> store_from_snapshot(
     const resources& res, const detail::hyper::store_snapshot& snapshot,
     const hypergraph_properties& props, const detail::hyper::slack::knobs& knobs) {
   if (props.storage == hypergraph_storage::slack_csr) {
-    if (res.get_backend() == backend::cuda) refuse_cuda_slack_csr("hypergraph::clone");
+    if (res.get_backend() == backend::cuda) {
+      return detail::hyper::make_slack_device_store(res, snapshot, props.capacity, knobs);
+    }
     return std::make_unique<detail::hyper::slack_host_store>(res, snapshot, props.capacity, knobs);
   }
   if (res.get_backend() == backend::cuda) {
@@ -239,10 +233,7 @@ hypergraph<vertex_t, weight_t> hypergraph_access::build(
                 "hypergraph supports vertex_t = std::int32_t in this release");
   detail::hyper::validate_properties(props);
   const bool slack = props.storage == hypergraph_storage::slack_csr;
-  if (slack) {
-    detail::hyper::validate_knobs(knobs);
-    if (res.get_backend() == backend::cuda) refuse_cuda_slack_csr("hypergraph::from_hyperedges");
-  }
+  if (slack) detail::hyper::validate_knobs(knobs);
   DYNG_EXPECTS(hyperedges.num_vertices >= 0, "hypergraph::from_hyperedges: num_vertices ",
                static_cast<std::int64_t>(hyperedges.num_vertices), " is negative");
   auto impl = std::make_unique<impl_type>();
@@ -264,9 +255,15 @@ hypergraph<vertex_t, weight_t> hypergraph_access::build(
                    "hypergraph::from_hyperedges", rows, dropped);
     impl->weights = checked_weights(weights.view(), rows.size(), "hypergraph::from_hyperedges");
     if (slack) {
-      // slack_csr: MOSP_ESCHER's host incidence model, its ids and its slack CSR (ADR 0086).
-      impl->store = std::make_unique<detail::hyper::slack_host_store>(
-          res, static_cast<std::int32_t>(hyperedges.num_vertices), rows, props.capacity, knobs);
+      // slack_csr: MOSP_ESCHER's host incidence model, its ids and its slack CSR (ADR 0086); on
+      // cuda the device graph over the same host model (ADR 0089).
+      if (res.get_backend() == backend::cuda) {
+        impl->store = detail::hyper::make_slack_device_store(
+            res, static_cast<std::int32_t>(hyperedges.num_vertices), rows, props.capacity, knobs);
+      } else {
+        impl->store = std::make_unique<detail::hyper::slack_host_store>(
+            res, static_cast<std::int32_t>(hyperedges.num_vertices), rows, props.capacity, knobs);
+      }
       impl->store->set_node_weights(node_weights_of(impl->weights, rows.size()));
     } else if (res.get_backend() != backend::cuda) {
       impl->store = std::make_unique<detail::hyper::incidence_model>(
@@ -503,6 +500,23 @@ std::unique_ptr<incidence_store> make_escher_store(const resources& /*res*/,
 std::unique_ptr<incidence_store> make_escher_store(const resources& /*res*/,
                                                    const store_snapshot& /*snapshot*/,
                                                    const capacity_policy& /*capacity*/) {
+  throw not_supported_error(
+      "dyng: the cuda backend is not built (configure with "
+      "DYNG_ENABLE_CUDA=ON)");
+}
+std::unique_ptr<incidence_store> make_slack_device_store(const resources& /*res*/,
+                                                         std::int32_t /*num_vertices*/,
+                                                         const member_rows& /*rows*/,
+                                                         const capacity_policy& /*capacity*/,
+                                                         const slack::knobs& /*knobs*/) {
+  throw not_supported_error(
+      "dyng: the cuda backend is not built (configure with "
+      "DYNG_ENABLE_CUDA=ON)");
+}
+std::unique_ptr<incidence_store> make_slack_device_store(const resources& /*res*/,
+                                                         const store_snapshot& /*snapshot*/,
+                                                         const capacity_policy& /*capacity*/,
+                                                         const slack::knobs& /*knobs*/) {
   throw not_supported_error(
       "dyng: the cuda backend is not built (configure with "
       "DYNG_ENABLE_CUDA=ON)");
@@ -928,75 +942,94 @@ void hyper_transaction<vertex_t, weight_t>::commit_slack_csr(hyper_applied& appl
     }
     add(rows, ids, +1);
   }
+  // The rest of the applied record (what hyper_sssp reads; no new virtual on the participant),
+  // before the pair delta, which ships its touched rows to a device store.
   {
+    const scoped_stage stage(res, "hypergraph.apply.incidence");
+    applied.inserted_ids = ids;
+    if (state.home == backend::cuda && !ids.empty()) {
+      applied.inserted_ids_device = buffer<std::int64_t>(res, ids.size());
+      copy<std::int64_t>(res, host_view(applied.inserted_ids), applied.inserted_ids_device.view());
+    }
+    applied.deleted_ids = live_deletions;
+    applied.has_slack_record = true;
+    applied.edited_ids = staged_.edited_ids;
+    {
+      std::int64_t id_end = std::max(store.id_bound(), staged_.id_bound);
+      for (const std::int64_t id : ids) id_end = std::max(id_end, id + 1);
+      state.touched_ids.begin(static_cast<std::size_t>(id_end));
+      for (const std::int64_t id : live_deletions) state.touched_ids.mark(id);
+      for (const std::int64_t id : ids) state.touched_ids.mark(id);
+      for (const std::int64_t id : staged_.edited_ids) state.touched_ids.mark(id);
+      state.touched_ids.take_sorted(applied.touched_hyperedges);
+      state.touched_vertices.begin(static_cast<std::size_t>(store.num_vertices()));
+      for (const std::int32_t v : pre_vertices) state.touched_vertices.mark(v);
+      state.touched_vertices.take_sorted(applied.touched_vertices);
+    }
+    // The touched rows before (G_t: the deleted and edited rows; an inserted id was not live) and
+    // after the batch, and the touched vertices' lengths after it.
+    {
+      std::vector<std::pair<std::int64_t, std::int64_t>> where;  // (id, -1 - deletion | edit)
+      where.reserve(live_deletions.size() + staged_.edited_ids.size());
+      for (std::size_t i = 0; i < live_deletions.size(); ++i)
+        where.emplace_back(live_deletions[i], -1 - static_cast<std::int64_t>(i));
+      for (std::size_t i = 0; i < staged_.edited_ids.size(); ++i)
+        where.emplace_back(staged_.edited_ids[i], static_cast<std::int64_t>(i));
+      std::sort(where.begin(), where.end());
+      auto& pre = applied.touched_pre_rows;
+      pre.clear();
+      for (const std::int64_t id : applied.touched_hyperedges) {
+        const auto it = std::lower_bound(where.begin(), where.end(),
+                                         std::pair<std::int64_t, std::int64_t>{id, INT64_MIN});
+        if (it != where.end() && it->first == id) {
+          const hyper::member_rows& from =
+              it->second < 0 ? applied.deleted_members : staged_.edited_pre_rows;
+          const auto r = static_cast<std::size_t>(it->second < 0 ? -1 - it->second : it->second);
+          pre.members.insert(pre.members.end(), from.members.begin() + from.offsets[r],
+                             from.members.begin() + from.offsets[r + 1]);
+        }
+        pre.offsets.push_back(static_cast<std::int64_t>(pre.members.size()));
+      }
+      store.read_rows(applied.touched_hyperedges, applied.touched_post_rows);
+      store.slack()->vertex_lengths(applied.touched_vertices, applied.touched_vertex_lengths);
+    }
+    {
+      std::vector<std::int64_t> inserted = ids;
+      std::sort(inserted.begin(), inserted.end());
+      for (const std::int64_t id : ids) {
+        (id >= staged_.id_bound ? applied.new_ids : applied.recreated_ids).push_back(id);
+      }
+      for (const std::int64_t id : live_deletions)
+        if (!std::binary_search(inserted.begin(), inserted.end(), id))
+          applied.dead_ids.push_back(id);
+    }
+  }
+  std::vector<std::int64_t> new_weights(ids.size(), 1);
+  if constexpr (!is_unweighted_v<weight_t>) {
+    for (std::size_t i = 0; i < ids.size(); ++i)
+      new_weights[i] = static_cast<std::int64_t>(staged_.weights[i]);
+  }
+  {
+    // The pair delta of the line graph (a device store ships the touched rows of the record).
     const scoped_stage stage(res, "hypergraph.apply.translate");
     applied.has_line_graph_delta = store.line_graph_enabled();
+    hyper::touched_rows touched;
+    touched.ids = &applied.touched_hyperedges;
+    touched.pre = &applied.touched_pre_rows;
+    touched.post = &applied.touched_post_rows;
+    touched.vertices = &applied.touched_vertices;
+    touched.vertex_lengths = &applied.touched_vertex_lengths;
+    touched.dead_ids = &applied.dead_ids;
+    touched.new_weights = &new_weights;
     store.line_graph_delta_of(applied.incidence_delta.vertices, applied.incidence_delta.ids,
-                              applied.incidence_delta.signs, ids, applied.pairs);
+                              applied.incidence_delta.signs, ids, touched, applied.pairs);
+    applied.pairs_on_device = applied.has_line_graph_delta && store.pairs_on_device();
   }
   {
     const scoped_stage stage(res, "hypergraph.apply.line_graph");
-    std::vector<std::int64_t> new_weights(ids.size(), 1);
-    if constexpr (!is_unweighted_v<weight_t>) {
-      for (std::size_t i = 0; i < ids.size(); ++i)
-        new_weights[i] = static_cast<std::int64_t>(staged_.weights[i]);
-    }
     store.finish_line_graph(applied.pairs, ids, new_weights);
   }
-  // The rest of the applied record (what hyper_sssp reads; no new virtual on the participant).
   const scoped_stage stage(res, "hypergraph.apply.incidence");
-  applied.inserted_ids = ids;
-  applied.deleted_ids = live_deletions;
-  applied.has_slack_record = true;
-  applied.edited_ids = staged_.edited_ids;
-  {
-    std::int64_t id_end = std::max(store.id_bound(), staged_.id_bound);
-    for (const std::int64_t id : ids) id_end = std::max(id_end, id + 1);
-    state.touched_ids.begin(static_cast<std::size_t>(id_end));
-    for (const std::int64_t id : live_deletions) state.touched_ids.mark(id);
-    for (const std::int64_t id : ids) state.touched_ids.mark(id);
-    for (const std::int64_t id : staged_.edited_ids) state.touched_ids.mark(id);
-    state.touched_ids.take_sorted(applied.touched_hyperedges);
-    state.touched_vertices.begin(static_cast<std::size_t>(store.num_vertices()));
-    for (const std::int32_t v : pre_vertices) state.touched_vertices.mark(v);
-    state.touched_vertices.take_sorted(applied.touched_vertices);
-  }
-  // The touched rows before (G_t: the deleted and edited rows; an inserted id was not live) and
-  // after the batch, and the touched vertices' lengths after it.
-  {
-    std::vector<std::pair<std::int64_t, std::int64_t>> where;  // (id, -1 - deletion | edit)
-    where.reserve(live_deletions.size() + staged_.edited_ids.size());
-    for (std::size_t i = 0; i < live_deletions.size(); ++i)
-      where.emplace_back(live_deletions[i], -1 - static_cast<std::int64_t>(i));
-    for (std::size_t i = 0; i < staged_.edited_ids.size(); ++i)
-      where.emplace_back(staged_.edited_ids[i], static_cast<std::int64_t>(i));
-    std::sort(where.begin(), where.end());
-    auto& pre = applied.touched_pre_rows;
-    pre.clear();
-    for (const std::int64_t id : applied.touched_hyperedges) {
-      const auto it = std::lower_bound(where.begin(), where.end(),
-                                       std::pair<std::int64_t, std::int64_t>{id, INT64_MIN});
-      if (it != where.end() && it->first == id) {
-        const hyper::member_rows& from =
-            it->second < 0 ? applied.deleted_members : staged_.edited_pre_rows;
-        const auto r = static_cast<std::size_t>(it->second < 0 ? -1 - it->second : it->second);
-        pre.members.insert(pre.members.end(), from.members.begin() + from.offsets[r],
-                           from.members.begin() + from.offsets[r + 1]);
-      }
-      pre.offsets.push_back(static_cast<std::int64_t>(pre.members.size()));
-    }
-    store.read_rows(applied.touched_hyperedges, applied.touched_post_rows);
-    store.slack()->vertex_lengths(applied.touched_vertices, applied.touched_vertex_lengths);
-  }
-  {
-    std::vector<std::int64_t> inserted = ids;
-    std::sort(inserted.begin(), inserted.end());
-    for (const std::int64_t id : ids) {
-      (id >= staged_.id_bound ? applied.new_ids : applied.recreated_ids).push_back(id);
-    }
-    for (const std::int64_t id : live_deletions)
-      if (!std::binary_search(inserted.begin(), inserted.end(), id)) applied.dead_ids.push_back(id);
-  }
   applied.inserted_incidences = static_cast<std::int64_t>(staged_.addition_ids.size());
   applied.deleted_incidences = static_cast<std::int64_t>(staged_.removal_ids.size());
   applied.skipped_incidence_edits = staged_.skipped_incidence_edits;
