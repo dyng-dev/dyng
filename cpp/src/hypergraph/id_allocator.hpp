@@ -196,6 +196,7 @@ class id_allocator {
  private:
   struct slot {
     key_state state = key_state::absent;
+    bool overflow_tail = false;      // its tail is an overflow segment (a key of tails_)
     std::int32_t length = 0;         // slots of the first segment, terminator included
     std::int32_t count = 0;          // values of the row
     std::int32_t tail_capacity = 0;  // usable slots of the tail segment
@@ -207,6 +208,10 @@ class id_allocator {
   void fill_impl(const std::vector<std::int32_t>& keys, const std::vector<std::int32_t>& prefix,
                  const std::vector<std::int32_t>& values, bool allow_compact);
   slot& at(std::int64_t key);
+  void set_dead_bit(std::int64_t key);
+  void clear_dead_bit(std::int64_t key) noexcept;
+  template <typename f_t>
+  void for_each_dead_key(f_t&& f) const;
 
   escher::store_policy policy_;
   std::string name_;
@@ -223,6 +228,10 @@ class id_allocator {
   std::array<std::int64_t, 3> unfill_paths_{};
   // The values of the tail segment of every row whose tail is an overflow segment of a fill.
   std::unordered_map<std::int64_t, std::vector<std::int32_t>> tails_;
+  // The deleted keys as a bitset (bit k: key k is a deleted slot), so that an insert finds them
+  // in key order without a pass over every key (M11a step 3: that pass and the rebuild's took
+  // about 10 ms of a 50K hyperedge batch on coauth-DBLP; the same keys, in the same order).
+  std::vector<std::uint64_t> dead_bits_;
 };
 
 }  // namespace dyng::detail::hyper

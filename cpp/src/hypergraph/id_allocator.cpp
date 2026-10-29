@@ -19,6 +19,8 @@
  */
 #include "hypergraph/id_allocator.hpp"
 
+#include "util/prefetch.hpp"
+
 #include <dyng/core/error.hpp>
 
 #include <algorithm>
@@ -60,6 +62,30 @@ void record_paths(const std::vector<std::int64_t>& sizes, std::array<std::int64_
 
 id_allocator::id_allocator(escher::store_policy policy, std::int64_t capacity, std::string name)
     : policy_(std::move(policy)), name_(std::move(name)), slots_(1), capacity_(capacity) {}
+
+void id_allocator::set_dead_bit(std::int64_t key) {
+  const auto word = static_cast<std::size_t>(key) >> 6;
+  if (dead_bits_.size() <= word) dead_bits_.resize(word + 1, 0);
+  dead_bits_[word] |= std::uint64_t{1} << (static_cast<std::uint64_t>(key) & 63U);
+}
+
+void id_allocator::clear_dead_bit(std::int64_t key) noexcept {
+  const auto word = static_cast<std::size_t>(key) >> 6;
+  if (word < dead_bits_.size())
+    dead_bits_[word] &= ~(std::uint64_t{1} << (static_cast<std::uint64_t>(key) & 63U));
+}
+
+template <typename f_t>
+void id_allocator::for_each_dead_key(f_t&& f) const {
+  for (std::size_t word = 0; word < dead_bits_.size(); ++word) {
+    std::uint64_t bits = dead_bits_[word];
+    while (bits != 0) {
+      const int bit = lowest_bit(bits);
+      bits &= bits - 1;
+      f(static_cast<std::int64_t>(word << 6) + bit);
+    }
+  }
+}
 
 id_allocator::slot& id_allocator::at(std::int64_t key) {
   if (static_cast<std::size_t>(key) >= slots_.size()) {
@@ -109,10 +135,12 @@ void id_allocator::construct(const std::vector<std::int32_t>& counts) {
   dead_ = 0;
   bump_ = total;
   tails_.clear();
+  dead_bits_.clear();
 }
 
 void id_allocator::restore(const allocator_state& state) {
   slots_.assign(1, slot{});
+  dead_bits_.clear();
   live_ = 0;
   dead_ = 0;
   max_key_ = 0;
@@ -127,6 +155,7 @@ void id_allocator::restore(const allocator_state& state) {
       ++live_;
     } else {
       ++dead_;
+      set_dead_bit(state.keys[i]);
     }
     max_key_ = std::max<std::int64_t>(max_key_, state.keys[i]);
   }
@@ -139,6 +168,7 @@ void id_allocator::restore(const allocator_state& state) {
     tails_[state.tail_keys[i]].assign(
         state.tail_values.begin() + static_cast<std::ptrdiff_t>(state.tail_offsets[i]),
         state.tail_values.begin() + static_cast<std::ptrdiff_t>(state.tail_offsets[i + 1]));
+    at(state.tail_keys[i]).overflow_tail = true;
   }
 }
 
@@ -216,6 +246,7 @@ std::int64_t id_allocator::compact() {
   ensure_capacity(total);  // nothing has changed when this throws
   for (std::int64_t key = 1; key <= max_key_; ++key) {
     slot& s = slots_[static_cast<std::size_t>(key)];
+    s.overflow_tail = false;
     if (s.state == key_state::live) {
       s.length = static_cast<std::int32_t>(padded4(s.count));
       s.tail_capacity = s.length - 1;
@@ -233,12 +264,19 @@ std::int64_t id_allocator::compact() {
 
 void id_allocator::erase(const std::vector<std::int32_t>& keys) {
   // ESCHER-GPU's deleteCBST: a found node is marked available; its key and slot stay.
-  for (const std::int32_t key : keys) {
+  for (std::size_t i = 0; i < keys.size(); ++i) {
+    const std::int32_t key = keys[i];
+    if (i + 16 < keys.size() && static_cast<std::size_t>(keys[i + 16]) < slots_.size())
+      prefetch_read(&slots_[static_cast<std::size_t>(keys[i + 16])]);
     if (state_of(key) == key_state::live) {
-      slots_[static_cast<std::size_t>(key)].state = key_state::dead;
+      slot& s = slots_[static_cast<std::size_t>(key)];
+      s.state = key_state::dead;
       --live_;
       ++dead_;
-      tails_.erase(key);  // a reused slot is rewritten from its first slot; a compaction empties it
+      set_dead_bit(key);
+      // A reused slot is rewritten from its first slot; a compaction empties it.
+      if (s.overflow_tail) tails_.erase(key);
+      s.overflow_tail = false;
     }
   }
 }
@@ -258,11 +296,8 @@ std::vector<std::int32_t> id_allocator::insert(const std::vector<std::int32_t>& 
     // capacities (a slot of `length` slots holds length - 1 values).
     std::vector<std::int32_t> dead_keys;
     dead_keys.reserve(static_cast<std::size_t>(num_dead));
-    for (std::int64_t key = 1; key <= max_key_; ++key) {
-      if (slots_[static_cast<std::size_t>(key)].state == key_state::dead) {
-        dead_keys.push_back(static_cast<std::int32_t>(key));
-      }
-    }
+    for_each_dead_key(
+        [&](std::int64_t key) { dead_keys.push_back(static_cast<std::int32_t>(key)); });
     const std::size_t d = dead_keys.size();
     std::vector<std::int64_t> slot_capacity(d);
     for (std::size_t j = 0; j < d; ++j) {
@@ -306,6 +341,7 @@ std::vector<std::int32_t> id_allocator::insert(const std::vector<std::int32_t>& 
       s.count = counts[item];
       s.tail_capacity = s.length - 1;
       s.occupancy = counts[item];
+      clear_dead_bit(key);
       --dead_;
       ++live_;
       keys[item] = key;
@@ -342,16 +378,15 @@ std::vector<std::int32_t> id_allocator::insert(const std::vector<std::int32_t>& 
     bump_ += surplus_slots;
     // The rebuild: the deleted slots that were not reused are dropped; the surplus rows get the
     // keys after the last surviving (live) key, in item order.
-    std::int64_t last_live = 0;
-    for (std::int64_t key = 1; key <= max_key_; ++key) {
+    for_each_dead_key([&](std::int64_t key) {
       slot& s = slots_[static_cast<std::size_t>(key)];
-      if (s.state == key_state::dead) {
-        s = slot{};
-        tails_.erase(key);
-      } else if (s.state == key_state::live) {
-        last_live = key;
-      }
-    }
+      if (s.overflow_tail) tails_.erase(key);
+      s = slot{};
+    });
+    dead_bits_.clear();
+    std::int64_t last_live = max_key_;
+    while (last_live > 0 && slots_[static_cast<std::size_t>(last_live)].state != key_state::live)
+      --last_live;
     dead_ = 0;
     std::int64_t next = last_live + 1;
     for (const std::size_t i : surplus) {
@@ -394,12 +429,13 @@ void id_allocator::fill_impl(const std::vector<std::int32_t>& keys,
   std::vector<std::int64_t> taken(keys.size(), 0), segment(keys.size(), 0);
   std::int64_t total = 0;
   for (std::size_t i = 0; i < keys.size(); ++i) {
+    if (i + 16 < keys.size()) prefetch_read(&slots_[static_cast<std::size_t>(keys[i + 16])]);
     slot& s = slots_[static_cast<std::size_t>(keys[i])];
     const std::int32_t occupancy = std::min(std::max(s.occupancy, 0), s.tail_capacity);
     const std::int64_t room = s.tail_capacity - occupancy;
     const std::int64_t fit = std::min<std::int64_t>(counts[i], room);
     // The values that fit go to the tail segment (kept only when it is an overflow segment).
-    const auto tail = tails_.find(keys[i]);
+    const auto tail = s.overflow_tail ? tails_.find(keys[i]) : tails_.end();
     if (tail != tails_.end()) {
       tail->second.insert(tail->second.end(),
                           values.begin() + static_cast<std::ptrdiff_t>(begin_of(i)),
@@ -445,6 +481,7 @@ void id_allocator::fill_impl(const std::vector<std::int32_t>& keys,
       s.tail_capacity = static_cast<std::int32_t>(segment[i] - 1);
       s.occupancy = static_cast<std::int32_t>(counts[i] - taken[i]);
       // The overflow segment is the row's tail now: its values are the rest of the item.
+      s.overflow_tail = true;
       tails_[keys[i]].assign(values.begin() + static_cast<std::ptrdiff_t>(begin_of(i) + taken[i]),
                              values.begin() + static_cast<std::ptrdiff_t>(prefix[i]));
     }
@@ -469,6 +506,8 @@ void id_allocator::remove_values(const std::vector<std::int32_t>& keys,
   record_paths(sizes, unfill_paths_);
   std::vector<std::int32_t> removed;
   for (std::size_t i = 0; i < keys.size(); ++i) {
+    if (i + 16 < keys.size() && static_cast<std::size_t>(keys[i + 16]) < slots_.size())
+      prefetch_read(&slots_[static_cast<std::size_t>(keys[i + 16])]);
     if (state_of(keys[i]) != key_state::live) continue;
     slot& s = slots_[static_cast<std::size_t>(keys[i])];
     const std::int64_t begin = i == 0 ? 0 : prefix[i - 1];
@@ -482,7 +521,7 @@ void id_allocator::remove_values(const std::vector<std::int32_t>& keys,
     if (!removed.empty()) removed.pop_back();
 #endif
     s.count -= static_cast<std::int32_t>(removed.size());
-    const auto tail = tails_.find(keys[i]);
+    const auto tail = s.overflow_tail ? tails_.find(keys[i]) : tails_.end();
     if (tail == tails_.end()) {
       // One segment: its tail is the whole row (unfill_segment and unfillRowSerial agree).
       s.occupancy = s.count;
@@ -520,6 +559,18 @@ std::vector<std::string> id_allocator::check() const {
     }
   }
   if (live != live_ || dead != dead_) problems.push_back("the live or dead counters are wrong");
+  for (std::size_t key = 1; key < slots_.size(); ++key) {
+    const bool bit =
+        (key >> 6) < dead_bits_.size() && ((dead_bits_[key >> 6] >> (key & 63U)) & 1U) != 0;
+    if (bit != (slots_[key].state == key_state::dead)) {
+      problems.push_back("the dead-key set disagrees with key " + std::to_string(key));
+      break;
+    }
+    if (slots_[key].overflow_tail != (tails_.count(static_cast<std::int64_t>(key)) != 0)) {
+      problems.push_back("the overflow-tail flag disagrees with key " + std::to_string(key));
+      break;
+    }
+  }
   if (top != max_key_) problems.push_back("the largest key is wrong");
   if (lengths > bump_) problems.push_back("the slots exceed the bump pointer");
   if (bump_ > capacity_) problems.push_back("the bump pointer exceeds the capacity");
