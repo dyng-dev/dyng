@@ -5,7 +5,8 @@
 (O's) goldens (M10a step 3 on; ADRs 0069-0073; the author's decisions AD5-AD7 and C8 of
 2026-10-28).
 
-    compare.py label_propagation container --exe REPLAY [--cases ...] [--json F]
+    compare.py label_propagation container --exe REPLAY [--backend sequential|cuda] [--cases ...]
+                                           [--json F]
     compare.py label_propagation trace --exe COMPAT [--backend sequential] [--cases ...] [--json F]
     compare.py label_propagation oracle-port --exe COMPAT [--backend sequential] [--json F]
     compare.py label_propagation determinism --exe COMPAT [--backend sequential] [--json F]
@@ -159,7 +160,16 @@ def cmd_container(args: argparse.Namespace) -> int:
         with tempfile.TemporaryDirectory(prefix="lp-container-", dir=runs_dir()) as t:
             trace = decompressed(root / "cases" / case.name / "trace.dlt.zst", Path(t))
             p = subprocess.run(
-                [str(args.exe), "container", "--trace", str(trace), "--threads", str(args.threads)],
+                [
+                    str(args.exe),
+                    "container",
+                    "--trace",
+                    str(trace),
+                    "--threads",
+                    str(args.threads),
+                    "--backend",
+                    args.backend,
+                ],
                 capture_output=True,
                 text=True,
             )
@@ -168,7 +178,7 @@ def cmd_container(args: argparse.Namespace) -> int:
         out = json.loads(p.stdout)
         good = p.returncode == 0 and out["equal"]
         ok = ok and good
-        results.append({"case": case.name, **out})
+        results.append({"case": case.name, "backend": args.backend, **out})
         print(
             f"{case.name}: {'exact' if good else 'DIFFERENT'} ({out['compared']} fields, "
             f"{out['mismatched']} mismatched, inputs {out['inputs']}; {out['seconds']:.1f} s)"
@@ -449,6 +459,7 @@ def main(argv: list[str] | None = None) -> int:
     cp = sub.add_parser("container")
     cp.add_argument("--exe", type=Path, required=True, help="dyng_lp_replay")
     cp.add_argument("--threads", type=int, default=8)
+    cp.add_argument("--backend", choices=["sequential", "cuda"], default="sequential")
     cp.add_argument("--cases", type=names)
     cp.add_argument("--json", type=Path)
     tp = sub.add_parser("trace")

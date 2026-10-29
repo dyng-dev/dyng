@@ -201,7 +201,9 @@ class graph {
    * net_effect()); a batch's edges are appended to the rows of both endpoints in batch order and
    * never move (rows are not compacted: a deleted vertex keeps its entries, and the entries
    * pointing to it stay, skipped by every reader). An append past a row's capacity is refused
-   * with capacity_error before anything changes. num_vertices() is the capacity; num_edges()
+   * with capacity_error before anything changes (with CUDA resources the rows are built and kept
+   * on the device, and the capacity is checked there: see apply(); ADR 0074). num_vertices() is
+   * the capacity; num_edges()
    * counts the entries whose endpoints are both active (an undirected edge twice, as for compact
    * rows).
    *
@@ -287,7 +289,10 @@ class graph {
    * apply() after reserve() allocates new arrays and the reserved capacity is released. It gives
    * no guarantee against reallocation until the resident apply replaces the port (invariant I9
    * exempts the port until then; docs/developer/framework.md, "Budgets"). A slotted graph's
-   * storage is fixed by with_capacity(): reserve() checks the argument and changes nothing.
+   * storage is fixed by with_capacity(): reserve() checks the argument and, for a slotted graph
+   * whose rows are on the device (CUDA resources; ADR 0074), sizes the device scratch of vertex
+   * batches of up to `edge_capacity` edges, so that applying them allocates no append scratch;
+   * otherwise it changes nothing.
    * @param[in] res           Execution resources.
    * @param[in] edge_capacity Expected maximum number of stored edges.
    * @throws invalid_argument_error if `edge_capacity` is negative or the graph was moved from.
@@ -395,7 +400,8 @@ class graph {
    *         the weights do not match num_weights(), a semantics rule says error, or an array must
    *         be copied and the copy policy is copy_policy::error.
    * @throws capacity_error         if the edge count after the batch does not fit edge_t, or
-   *         (row_layout::slotted) an append would pass the end of its row.
+   *         (row_layout::slotted) an append would pass the end of its row (on CUDA found on the
+   *         device: the graph is poisoned, see below).
    * @throws not_supported_error    for vertex insertions or deletions on compact rows (they need
    *         with_capacity() and batch_semantics::net_effect()), and for edge deletions on slotted
    *         rows.
@@ -404,7 +410,8 @@ class graph {
    * @sync
    * @guarantee Strong: the batch is validated and the next state is built completely before it
    *            replaces the current one, so a throwing apply() leaves the graph (storage, version,
-   *            state identity) unchanged.
+   *            state identity) unchanged. Basic for a row overflow of slotted rows on CUDA (the
+   *            batch is applied, the graph poisoned).
    *
    * **Vertex batches (row_layout::slotted, batch_semantics::net_effect(); ADR 0069).** Every
    * check runs before anything changes: an id or edge endpoint outside [0, num_vertices()), an
@@ -416,6 +423,16 @@ class graph {
    * appends (in batch order, both directions, each edge whose endpoints are active after the
    * batch; the others are counted in apply_summary::dropped_insertions). The labels are not kept
    * by the graph: an algorithm's result keeps them (label_propagation's seed labels).
+   *
+   * **Vertex batches on CUDA (ADR 0074).** A slotted graph built with CUDA resources keeps its
+   * rows on the device (LabelPropagation-CUDA's device graph): with CUDA resources of its device,
+   * the checks above run on the host first, then the batch is copied to the device (from pinned
+   * host memory directly) and applied there (a stable radix sort of the half-edges keeps the batch
+   * order), and the host copy of the rows is stale until something reads it (view(), to_csr(),
+   * check_integrity() and clone() download it once). The one check made on the device instead is
+   * the row capacity: an append past the end of a row is dropped and raises capacity_error after
+   * the batch was applied (the basic guarantee), and the graph is poisoned: every later apply()
+   * raises capacity_error, and check_integrity() reports it.
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
 

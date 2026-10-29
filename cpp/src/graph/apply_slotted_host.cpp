@@ -132,7 +132,8 @@ void expect_slotted_properties(const graph_properties& props) {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void build_slotted(std::int64_t n, array_view<const edge_t> capacity, int num_weights,
-                   csr<vertex_t, edge_t, weight_t>& slots, slotted_rows<vertex_t, edge_t>& rows) {
+                   csr<vertex_t, edge_t, weight_t>& slots, slotted_rows<vertex_t, edge_t>& rows,
+                   bool fill_slots) {
   DYNG_EXPECTS(n >= 0, "graph::with_capacity: a negative vertex capacity ", n);
   DYNG_EXPECTS(capacity.size() == static_cast<std::size_t>(n),
                "graph::with_capacity: ", capacity.size(), " row capacities for ", n, " vertices");
@@ -160,8 +161,13 @@ void build_slotted(std::int64_t n, array_view<const edge_t> capacity, int num_we
   for (std::size_t v = 0; v < nn; ++v) {
     slots.row_ptr[v + 1] = static_cast<edge_t>(slots.row_ptr[v] + capacity[v]);
   }
-  slots.col_ind.assign(m, vertex_t{-1});
-  slots.weights.assign(m * static_cast<std::size_t>(num_weights), weight_t{});
+  if (fill_slots) {
+    slots.col_ind.assign(m, vertex_t{-1});
+    slots.weights.assign(m * static_cast<std::size_t>(num_weights), weight_t{});
+  } else {
+    slots.col_ind.clear();
+    slots.weights.clear();
+  }
   rows.row_end.assign(slots.row_ptr.begin(), slots.row_ptr.end() - 1);
   rows.status.assign(nn, vertex_status::inactive);
   rows.live_entries = 0;
@@ -174,7 +180,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void normalize_vertex_batch(const csr<vertex_t, edge_t, weight_t>& slots,
                             const slotted_rows<vertex_t, edge_t>& rows,
                             const edge_batch_view<vertex_t, weight_t>& batch,
-                            normalized_batch<vertex_t>& out) {
+                            normalized_batch<vertex_t>& out, bool check_capacity) {
   out.vertex_step = false;
   const std::int64_t n = slots.num_vertices();
   const std::size_t num_edges = batch.insert_src.size();
@@ -259,8 +265,10 @@ void normalize_vertex_batch(const csr<vertex_t, edge_t, weight_t>& slots,
            rows.status[static_cast<std::size_t>(v)] == vertex_status::active;
   };
   std::vector<std::uint32_t>& counts = rows.counts;
-  const count_guard<vertex_t> clear_counts(counts, batch.insert_src, batch.insert_dst);
-  for (std::size_t e = 0; e < num_edges; ++e) {
+  const count_guard<vertex_t> clear_counts(
+      counts, check_capacity ? batch.insert_src : array_view<const vertex_t>(),
+      check_capacity ? batch.insert_dst : array_view<const vertex_t>());
+  for (std::size_t e = 0; check_capacity && e < num_edges; ++e) {
     const vertex_t u = batch.insert_src[e];
     const vertex_t v = batch.insert_dst[e];
     if (active_after(u) && active_after(v)) {
@@ -268,7 +276,7 @@ void normalize_vertex_batch(const csr<vertex_t, edge_t, weight_t>& slots,
       count_append(counts[static_cast<std::size_t>(v)]);
     }
   }
-  for (std::size_t e = 0; e < num_edges; ++e) {
+  for (std::size_t e = 0; check_capacity && e < num_edges; ++e) {
     for (const vertex_t w : {batch.insert_src[e], batch.insert_dst[e]}) {
       const auto ww = static_cast<std::size_t>(w);
       const auto used = static_cast<std::int64_t>(rows.row_end[ww] - slots.row_ptr[ww]);
@@ -387,6 +395,44 @@ apply_summary apply_vertex_batch_host(csr<vertex_t, edge_t, weight_t>& slots,
   summary.inserted_vertices = static_cast<std::int64_t>(normalized.inserted_vertices.size());
   summary.deleted_vertices = static_cast<std::int64_t>(normalized.deleted_vertices.size());
   summary.num_vertices_after = slots.num_vertices();
+  return summary;
+}
+
+template <typename vertex_t, typename edge_t>
+apply_summary apply_vertex_states_host(slotted_rows<vertex_t, edge_t>& rows,
+                                       array_view<const vertex_t> deleted,
+                                       const normalized_batch<vertex_t>& normalized,
+                                       apply_delta<vertex_t>* delta) {
+  DYNG_EXPECTS(normalized.vertex_step, "apply (slotted, device): Step 0 of this batch is missing");
+  apply_summary summary;
+  if (delta != nullptr) {
+    delta->num_weights = 1;
+    delta->weight_increased.clear();
+    delta->delete_src.clear();
+    delta->delete_dst.clear();
+    delta->insert_src.clear();
+    delta->insert_dst.clear();
+    delta->insert_index.clear();
+    delta->inserted_vertices = normalized.inserted_vertices;
+    delta->inserted_labels = normalized.inserted_labels;
+    delta->deleted_vertices = normalized.deleted_vertices;
+    delta->edges_on_device = true;
+  }
+  // As apply_vertex_batch_host(): Del_eff leaves, every listed id ends deleted, Ins_eff arrives.
+  for (const vertex_t v : normalized.deleted_vertices) {
+    rows.status[static_cast<std::size_t>(v)] = vertex_status::deleted;
+    --rows.active_vertices;
+  }
+  for (const vertex_t v : deleted) {
+    rows.status[static_cast<std::size_t>(v)] = vertex_status::deleted;
+  }
+  for (const vertex_t v : normalized.inserted_vertices) {
+    rows.status[static_cast<std::size_t>(v)] = vertex_status::active;
+    ++rows.active_vertices;
+  }
+  summary.inserted_vertices = static_cast<std::int64_t>(normalized.inserted_vertices.size());
+  summary.deleted_vertices = static_cast<std::int64_t>(normalized.deleted_vertices.size());
+  summary.num_vertices_after = static_cast<std::int64_t>(rows.status.size());
   return summary;
 }
 
@@ -528,10 +574,10 @@ std::string slotted_integrity_violation(const csr<vertex_t, edge_t, weight_t>& s
 
 #define DYNG_INSTANTIATE_SLOTTED(V, E, W)                                                       \
   template void build_slotted<V, E, W>(std::int64_t, array_view<const E>, int, csr<V, E, W>&,   \
-                                       slotted_rows<V, E>&);                                    \
+                                       slotted_rows<V, E>&, bool);                              \
   template void normalize_vertex_batch<V, E, W>(const csr<V, E, W>&, const slotted_rows<V, E>&, \
                                                 const edge_batch_view<V, W>&,                   \
-                                                normalized_batch<V>&);                          \
+                                                normalized_batch<V>&, bool);                    \
   template apply_summary apply_vertex_batch_host<V, E, W>(                                      \
       csr<V, E, W>&, slotted_rows<V, E>&, const edge_batch_view<V, W>&,                         \
       const normalized_batch<V>&, apply_delta<V>*);                                             \
@@ -543,5 +589,12 @@ DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SLOTTED)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_SLOTTED)
 DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(DYNG_INSTANTIATE_SLOTTED)
 #undef DYNG_INSTANTIATE_SLOTTED
+
+template apply_summary apply_vertex_states_host<std::int32_t, std::int32_t>(
+    slotted_rows<std::int32_t, std::int32_t>&, array_view<const std::int32_t>,
+    const normalized_batch<std::int32_t>&, apply_delta<std::int32_t>*);
+template apply_summary apply_vertex_states_host<std::int32_t, std::int64_t>(
+    slotted_rows<std::int32_t, std::int64_t>&, array_view<const std::int32_t>,
+    const normalized_batch<std::int32_t>&, apply_delta<std::int32_t>*);
 
 }  // namespace dyng::detail

@@ -133,9 +133,16 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
       }
     }
   }
+  // A device apply of slotted rows whose report no participant settled (ADR 0074): one
+  // synchronization, its counts, and its errors (after a participant's own error, that one).
   if (first_error) {
+    try {
+      graph_access::finish_device_apply(res, g, summary);
+    } catch (...) {  // NOLINT(bugprone-empty-catch): the participant's error is the one thrown
+    }
     std::rethrow_exception(first_error);
   }
+  graph_access::finish_device_apply(res, g, summary);
   return summary;
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("dyng::update (", g.num_vertices(), " vertices, ", g.num_edges(),

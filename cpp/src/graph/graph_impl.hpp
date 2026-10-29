@@ -11,6 +11,7 @@
 #pragma once
 
 #include "graph/device_graph.hpp"
+#include "graph/device_slotted.hpp"
 #include "graph/normalized_batch.hpp"
 #include "graph/slotted_rows.hpp"
 
@@ -27,6 +28,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -79,6 +81,9 @@ struct apply_delta {
   std::vector<vertex_t> inserted_vertices;     ///< as_net_effect: Ins_eff, in list order
   std::vector<std::int8_t> inserted_labels;    ///< as_net_effect: the seed label of each (-1)
   std::vector<vertex_t> deleted_vertices;      ///< as_net_effect: Del_eff, in list order
+  /// as_net_effect on the device (ADR 0074): the appended edges were not listed (insert_src,
+  /// insert_dst and insert_index are empty); the device copy of the batch holds them.
+  bool edges_on_device = false;
 };
 
 /**
@@ -183,8 +188,79 @@ class graph_impl {
   using device_type = device_graph<vertex_t, edge_t, weight_t>;
 
   /// row_layout::slotted (with_capacity()): the row ends, vertex states and counts next to the
-  /// slot storage, which is the host CSR (host_edges()); empty for compact rows (ADR 0069).
-  slotted_rows<vertex_t, edge_t> slotted;
+  /// slot storage, which is the host CSR (host_edges()); empty for compact rows (ADR 0069). On
+  /// the CUDA backend (ADR 0074) the states, the counts and the slot ranges (host_storage()'s
+  /// row_ptr) stay current on the host; the row ends and the slots are downloaded with the host
+  /// CSR. Mutable: settle_slotted() updates the counts from a const context.
+  mutable slotted_rows<vertex_t, edge_t> slotted;
+
+  /// The device copy type of slotted rows.
+  using slotted_device_type = device_slotted<vertex_t, edge_t, weight_t>;
+
+  /**
+   * @brief Whether the slotted rows of this graph live on the device for `res`: a slotted CUDA
+   *        graph with 32-bit vertex ids and `res` a CUDA handle of its device (ADR 0074).
+   * @param[in] res The resources of the call.
+   * @return true if graph_access::normalize() and apply() take the device path.
+   */
+  [[nodiscard]] bool slotted_on_device(const resources& res) const noexcept;
+
+  /**
+   * @brief The resident device copy of the slotted rows, uploaded from the host state on first
+   *        use (thread-safe), e.g. after clone(res) to CUDA.
+   *
+   * Precondition: slotted_on_device(res).
+   * @param[in] res Resources of the CUDA backend (the graph's device).
+   * @return The device copy (the caller mutates it only in mutating calls).
+   */
+  slotted_device_type& slotted_device(const resources& res) const;
+
+  /**
+   * @brief Whether a device copy of the slotted rows exists.
+   * @return true once with_capacity() on CUDA built it or slotted_device() uploaded it.
+   */
+  [[nodiscard]] bool has_slotted_device() const noexcept {
+    return slotted_device_ != nullptr;
+  }
+
+  /**
+   * @brief Install a device copy built directly by with_capacity() on CUDA: the host slots are
+   *        stale (they were never filled) until something reads them.
+   * @param[in] d The device copy.
+   */
+  void adopt_slotted_device(std::unique_ptr<slotted_device_type> d) noexcept;
+
+  /**
+   * @brief After a device apply: the host copy of the rows (row ends and slots) is stale.
+   */
+  void mark_slotted_host_stale() noexcept {
+    host_current_.store(false, std::memory_order_release);
+  }
+
+  /**
+   * @brief Drop the device copy of the slotted rows after a host apply changed them (only in
+   *        mutating calls; the host CSR must be current).
+   */
+  void drop_slotted_device() noexcept {
+    slotted_device_.reset();
+  }
+
+  /**
+   * @brief The host CSR as it is, without a download: of a slotted graph on the device its
+   *        row_ptr (the slot ranges) and num_weights are current, its columns and weights not.
+   * @return The host storage.
+   */
+  [[nodiscard]] const csr_type& host_storage() const noexcept {
+    return out_;
+  }
+
+  /**
+   * @brief Read the report of a pending device apply (precondition: the stream it was enqueued
+   *        on was synchronized since): update the live entries, poison the graph on an overflow.
+   *        No-op without a pending apply.
+   * @return The report (all zero without a pending apply).
+   */
+  device_slotted_settled settle_slotted() const;
 
   /**
    * @brief Whether the rows are slotted.
@@ -314,6 +390,8 @@ class graph_impl {
   mutable std::mutex device_mutex_;                   ///< serializes the upload
   mutable std::atomic<bool> device_built_{false};     ///< device_ matches the current state
   mutable std::atomic<bool> device_in_built_{false};  ///< device_ has its in-edges
+  mutable std::unique_ptr<slotted_device_type> slotted_device_;  ///< slotted rows on the device
+  mutable std::mutex slotted_device_mutex_;                      ///< serializes its upload
 };
 
 /**
@@ -375,6 +453,57 @@ struct graph_access {
   static void normalize(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
                         const edge_batch_view<vertex_t, weight_t>& batch,
                         normalized_batch<vertex_t>& out);
+
+  /**
+   * @brief Finish a device apply of a slotted graph (ADR 0074): if its report is still pending,
+   *        synchronize the stream of `res` and settle it; then complete `summary` (the appended
+   *        and dropped insertions) and throw what the device recorded.
+   *
+   * graph::apply() and run_update() call it after the commit (an algorithm that settled the
+   * report after its own first synchronization leaves nothing pending: no extra synchronization).
+   * @tparam vertex_t Vertex id type.
+   * @tparam edge_t   Edge offset type.
+   * @tparam weight_t Weight type.
+   * @param[in]     res     Execution resources.
+   * @param[in]     g       The graph.
+   * @param[in,out] summary The commit's summary.
+   * @throws capacity_error if an append overflowed its row (the graph is poisoned);
+   *         invalid_argument_error for a re-insertion or an endpoint out of range found on the
+   *         device (the graph is poisoned too).
+   */
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  static void finish_device_apply(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+                                  apply_summary& summary);
+
+  /**
+   * @brief Settle the report of a pending device apply without a synchronization (the caller
+   *        synchronized the stream since the commit; label_propagation after its first
+   *        synchronization), and describe its errors.
+   * @tparam vertex_t Vertex id type.
+   * @tparam edge_t   Edge offset type.
+   * @tparam weight_t Weight type.
+   * @param[in]  g      The graph.
+   * @param[out] detail Receives a description of the recorded error (empty if none).
+   * @return The report (all zero without a pending apply).
+   */
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  static device_slotted_settled settle_device_apply(const graph<vertex_t, edge_t, weight_t>& g,
+                                                    std::string& detail);
+
+  /**
+   * @brief The resident device copy of a slotted CUDA graph (label_propagation's CUDA engine
+   *        reads its rows, states and current batch).
+   * @tparam vertex_t Vertex id type.
+   * @tparam edge_t   Edge offset type.
+   * @tparam weight_t Weight type.
+   * @param[in] res Resources of the CUDA backend (the graph's device).
+   * @param[in] g   A slotted graph built with CUDA resources.
+   * @return The device copy, valid until the graph changes.
+   * @throws invalid_argument_error if the rows of `g` are not on the device for `res`.
+   */
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  static const device_slotted<vertex_t, edge_t, weight_t>& slotted_device(
+      const resources& res, const graph<vertex_t, edge_t, weight_t>& g);
 
   /**
    * @brief The host out-edges alone (never builds the in-edges; downloads a stale host copy of a

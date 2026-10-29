@@ -87,12 +87,15 @@ void expect_slotted_properties(const graph_properties& props);
  * @param[in]  num_weights 1 (0 for weight_t = unweighted).
  * @param[out] slots       The slot storage.
  * @param[out] rows        The row ends (empty rows), the states (inactive) and the scratch.
+ * @param[in]  fill_slots  Whether to allocate and clear the slot columns and weights (false: the
+ *                         rows are built on the device, ADR 0074; the host slots stay empty).
  * @throws invalid_argument_error if the sizes or a capacity are wrong.
  * @throws capacity_error         if the sum of the capacities does not fit edge_t.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void build_slotted(std::int64_t n, array_view<const edge_t> capacity, int num_weights,
-                   csr<vertex_t, edge_t, weight_t>& slots, slotted_rows<vertex_t, edge_t>& rows);
+                   csr<vertex_t, edge_t, weight_t>& slots, slotted_rows<vertex_t, edge_t>& rows,
+                   bool fill_slots = true);
 
 /**
  * @brief Step 0 of batch_semantics::net_effect() against G_t: every check of a vertex batch
@@ -107,15 +110,39 @@ void build_slotted(std::int64_t n, array_view<const edge_t> capacity, int num_we
  * @param[in]  rows  The row ends and states of G_t.
  * @param[in]  batch The batch (host memory).
  * @param[out] out   Receives the net effect (its vectors are resized).
+ * @param[in]  check_capacity Whether to refuse an append past the end of its row here (the host
+ *                   apply; the device apply records it on the device instead, ADR 0074, and
+ *                   needs no host row ends).
  * @throws invalid_argument_error for a malformed batch or a contract violation (see graph::apply).
  * @throws not_supported_error    for edge deletions.
- * @throws capacity_error         if an append would pass the end of its row.
+ * @throws capacity_error         if an append would pass the end of its row (only with
+ *                                `check_capacity`; the device apply checks it on the device).
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void normalize_vertex_batch(const csr<vertex_t, edge_t, weight_t>& slots,
                             const slotted_rows<vertex_t, edge_t>& rows,
                             const edge_batch_view<vertex_t, weight_t>& batch,
-                            normalized_batch<vertex_t>& out);
+                            normalized_batch<vertex_t>& out, bool check_capacity = true);
+
+/**
+ * @brief The host part of the device apply of a vertex batch (ADR 0074): the vertex states and
+ *        the active count (as apply_vertex_batch_host() changes them; the device copy changes the
+ *        rows and counts the live entries), and the applied record without the edge lists.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @param[in,out] rows       The states and counts (row_end is not touched).
+ * @param[in]     deleted    The batch's deletions.
+ * @param[in]     normalized Its Step 0.
+ * @param[out]    delta      The applied record (may be nullptr): Ins_eff with its labels, Del_eff,
+ *                           edges_on_device set.
+ * @return The counters of the batch (the edge counts are completed when the report is settled).
+ * @throws out_of_memory_error if the record cannot be allocated (before anything changes).
+ */
+template <typename vertex_t, typename edge_t>
+apply_summary apply_vertex_states_host(slotted_rows<vertex_t, edge_t>& rows,
+                                       array_view<const vertex_t> deleted,
+                                       const normalized_batch<vertex_t>& normalized,
+                                       apply_delta<vertex_t>* delta);
 
 /**
  * @brief Apply a batch whose Step 0 is `normalized` to the slotted storage (in place): the

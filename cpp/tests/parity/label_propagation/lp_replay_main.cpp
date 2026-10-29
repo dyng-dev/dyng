@@ -16,7 +16,7 @@
  *       Replays O's own batches (run_begin / batch_data; in the digest mode the generator's, after
  *       checking their digests) through lp_host_model and compares every predicted field with
  *       the trace's records; also checks the generator's tau against the trace's.
- *   dyng_lp_replay container --trace <trace.dlt> [--threads T]
+ *   dyng_lp_replay container --trace <trace.dlt> [--threads T] [--backend sequential|cuda]
  *       M10a step 3 (ADR 0069): O's own batches (as for model) applied to
  *       graph::with_capacity() with slotted rows and batch_semantics::net_effect() (the library's
  *       host apply), and after every batch the graph's row ends, slot columns and value bits and
@@ -399,7 +399,13 @@ int run_container(const args& a) {
   props.order = dyng::row_order::append;
   props.parallel_edges = dyng::multi_edges::allow;
   props.semantics = dyng::batch_semantics::net_effect();
-  const dyng::resources res = dyng::resources::sequential();
+  // --backend cuda: the device apply of ADR 0074 (the rows are downloaded for the comparison).
+  const std::string backend = a.kv.count("backend") != 0 ? a.get("backend") : "sequential";
+  if (backend != "sequential" && backend != "cuda") {
+    throw std::runtime_error("--backend: sequential or cuda");
+  }
+  const dyng::resources res =
+      backend == "cuda" ? dyng::resources::cuda(0) : dyng::resources::sequential();
   const std::vector<std::int32_t>& cap = capacity;
   auto g = dyng::graph<std::int32_t, std::int32_t, float>::with_capacity(
       res, static_cast<std::int32_t>(n), dyng::host_view(cap), props);
