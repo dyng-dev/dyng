@@ -35,6 +35,19 @@ target_compile_features(dyng-compat-escher PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-escher)
 dyng_enable_sanitizers(dyng-compat-escher)
 
+# MOSP_ESCHER@4b86159's H-SOSP dumps (the golden set hyper_sssp_mosp_escher) as .hg / .dgb files
+# per session, and their replay through dyng::hypergraph on slack_csr storage (M11a step 2). The
+# dump reader is the parity side's (cpp/tests/parity/hsosp).
+add_executable(
+  dyng-compat-hsosp hsosp/hsosp_compat.cpp
+                    "${PROJECT_SOURCE_DIR}/cpp/tests/parity/hsosp/hsosp_dump.cpp"
+)
+target_include_directories(dyng-compat-hsosp PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests")
+target_link_libraries(dyng-compat-hsosp PRIVATE dyng::dyng dyng::testing)
+target_compile_features(dyng-compat-hsosp PRIVATE cxx_std_17)
+dyng_set_warnings(dyng-compat-hsosp)
+dyng_enable_sanitizers(dyng-compat-hsosp)
+
 if(DYNG_BUILD_TESTS)
   # The committed ESCHER-GPU traces converted to .hg / .dgb and replayed on every backend.
   set(_escher_backends sequential)
@@ -68,6 +81,30 @@ if(DYNG_BUILD_TESTS)
                             SKIP_RETURN_CODE 77
       )
     endforeach()
+  endforeach()
+endif()
+
+if(DYNG_BUILD_TESTS)
+  # The committed H-SOSP dump converted twice (the same bytes) and every session replayed on the
+  # host backends (slack_csr storage: the cuda backend takes it in M11a step 3).
+  set(_hsosp_backends sequential)
+  if(DYNG_ENABLE_OPENMP)
+    list(APPEND _hsosp_backends openmp)
+  endif()
+  foreach(_backend IN LISTS _hsosp_backends)
+    set(_test compat_hsosp.dgb.test_hsosp_matches_dijkstra.${_backend})
+    add_test(
+      NAME ${_test}
+      COMMAND
+        ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-hsosp>
+        -DDUMP=${PROJECT_SOURCE_DIR}/cpp/tests/data/goldens/hyper_sssp/test_hsosp_matches_dijkstra.hsd
+        -DBACKEND=${_backend} -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_test} -P
+        ${CMAKE_CURRENT_SOURCE_DIR}/hsosp/convert_twice_and_replay.cmake
+    )
+    set_tests_properties(
+      ${_test} PROPERTIES LABELS "cpu;hypergraph;io;compat;hyper_sssp" ENVIRONMENT
+                          "${DYNG_TEST_ENVIRONMENT}"
+    )
   endforeach()
 endif()
 

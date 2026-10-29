@@ -13,6 +13,7 @@
     hsosp_goldens.py crosscheck             B's own cross-checks (make test, --verify all, CSVs)
     hsosp_goldens.py oracle                 the oracle go/no-go (dyng_hsosp_oracle)
     hsosp_goldens.py subset                 the committed subset for hosted CI
+    hsosp_goldens.py convert [--cases SEL]  dyng-compat-hsosp to-dgb twice, replayed (M11a step 2)
 
 The set `hyper_sssp_mosp_escher` ($DYNG_SCRATCH/goldens/hyper_sssp/mosp_escher) is recorded by the
 H-SOSP dump of the recording twins of the PATCHED scratch copy (parity/exporters/hsosp; the
@@ -786,6 +787,7 @@ def toml_section(out: Path, result: dict) -> str:
         f'"{p.stem.split(".")[0]}" = {{ sha256 = "{sha256_file(p)}" }}\n'
         for p in sorted((out / "loads").glob("*.hsd.zst"))
     )
+    converted = converted_section()
     return (
         f"[sets.{SET}]\n"
         f'reference = "{REFERENCE}"\n'
@@ -810,7 +812,144 @@ def toml_section(out: Path, result: dict) -> str:
         + loads
         + f"\n[sets.{SET}.cases]\n"
         + "".join(rows)
+        + converted
     )
+
+
+# --- dyng-compat-hsosp to-dgb (M11a step 2, ADRs 0085 and 0086) -----------------------------------
+
+CONVERTED_HEADER = (
+    f"\n[sets.{SET}.converted]\n"
+    "# dyng-compat-hsosp to-dgb of every case (hsosp_goldens.py convert): converted twice with the\n"
+    "# same bytes and every session replayed by id; sha256 is the SHA-256 of the sorted\n"
+    '# "<sha256>  <file>" lines of the converted files (.s<k>.hg / .dgb / .txt).\n'
+)
+
+
+def converted_section(path: Path = REPO / "parity" / "goldens.toml") -> str:
+    """The [sets.<SET>.converted] table as goldens.toml has it (kept by a new export)."""
+    doc = tomllib.loads(path.read_text()) if path.is_file() else {}
+    rows = doc.get("sets", {}).get(SET, {}).get("converted", {})
+    if not rows:
+        return ""
+    return CONVERTED_HEADER + "".join(
+        f'"{case}" = {{ sessions = {r["sessions"]}, files = {r["files"]}, sha256 = "{r["sha256"]}" }}\n'
+        for case, r in sorted(rows.items())
+    )
+
+
+def find_compat_hsosp() -> Path | None:
+    """dyng-compat-hsosp: $DYNG_COMPAT_HSOSP, else the first build tree that has it."""
+    env = os.environ.get("DYNG_COMPAT_HSOSP")
+    if env:
+        return Path(env)
+    for preset in ("release", "cpu-only", "parity", "dev", "release-cuda", "dev-cuda"):
+        exe = REPO / "build" / preset / "tools" / "compat" / "dyng-compat-hsosp"
+        if exe.is_file():
+            return exe
+    return None
+
+
+def convert_main(argv: list[str]) -> int:
+    """Every selected case converted twice with dyng-compat-hsosp to-dgb (the same bytes), every
+    converted session replayed (`dyng-compat-hsosp replay`: the expected ids and B's skipped
+    counts), and the digests of the converted files; --write-toml records them in the
+    [sets.<SET>.converted] table of parity/goldens.toml, and then a second run must give them."""
+    p = argparse.ArgumentParser(prog="hsosp_goldens.py convert")
+    p.add_argument("--scratch", type=Path, default=scratch_default())
+    p.add_argument("--cases", default="t", help="'t', 'p50' or a comma list (default t)")
+    p.add_argument("--exe", type=Path, help="dyng-compat-hsosp (default: find it in build/)")
+    p.add_argument("--backend", choices=["sequential", "openmp"], default="sequential")
+    p.add_argument("--write-toml", action="store_true", help="record the digests in goldens.toml")
+    p.add_argument("--record", type=Path, help="write M11a-hsosp-converted.json here")
+    args = p.parse_args(argv)
+    exe = args.exe or find_compat_hsosp()
+    if exe is None or not exe.is_file():
+        print("dyng-compat-hsosp not found: build the target dyng-compat-hsosp", file=sys.stderr)
+        return 2
+    out = set_dir(args.scratch)
+    if not (out / "MANIFEST.sha256").is_file():
+        print(f"no goldens under {out}; skipping", file=sys.stderr)
+        return 77
+    t, names = select(args.cases)
+    cases = ([f"test/{n}" for n, _ in T_CASES] if t else []) + [f"paper/{n}" for n in names]
+    digest = [c for c in cases if c.startswith("paper/") and c.split("/", 1)[1] not in P50]
+    if digest:
+        print(f"{digest}: digest cases have no rows to convert", file=sys.stderr)
+        return 2
+    known = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
+    known = known.get("sets", {}).get(SET, {}).get("converted", {})
+    rows: dict[str, dict] = {}
+    problems: list[str] = []
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    for case in cases:
+        with tempfile.TemporaryDirectory(dir=args.scratch / "runs", prefix="hsosp-convert-") as tmp:
+            tmp_dir = Path(tmp)
+            dump = out / case / "dump.hsd.zst"
+            if case.startswith("paper/"):
+                dump = splice_load(out, case, tmp_dir)
+            stem = case.split("/", 1)[1]
+            digests = []
+            for run in ("a", "b"):
+                (tmp_dir / run).mkdir()
+                subprocess.run(
+                    [str(exe), "to-dgb", str(dump), str(tmp_dir / run / stem)],
+                    check=True,
+                    capture_output=True,
+                )
+                lines = sorted(
+                    f"{sha256_file(f)}  {f.name}" for f in sorted((tmp_dir / run).iterdir())
+                )
+                digests.append(lines)
+            if digests[0] != digests[1]:
+                problems.append(f"{case}: the two conversions differ")
+            sessions = sorted((tmp_dir / "a").glob("*.dgb"))
+            for dgb in sessions:
+                proc = subprocess.run(
+                    [str(exe), "replay", str(dgb.with_suffix("")), "--backend", args.backend],
+                    capture_output=True,
+                    text=True,
+                )
+                if proc.returncode != 0:
+                    problems.append(f"{case} {dgb.name}: {(proc.stderr or proc.stdout).strip()}")
+            sha = hashlib.sha256("".join(x + "\n" for x in digests[0]).encode()).hexdigest()
+            rows[case] = {"sessions": len(sessions), "files": len(digests[0]), "sha256": sha}
+            if case in known and not args.write_toml and known[case].get("sha256") != sha:
+                problems.append(f"{case}: digest {sha} != goldens.toml {known[case].get('sha256')}")
+            print(f"{case}: {len(sessions)} sessions, {len(digests[0])} files, {sha[:16]}")
+    if args.write_toml and not problems:
+        merged = {**known, **rows}
+        text = (REPO / "parity" / "goldens.toml").read_text()
+        block = CONVERTED_HEADER + "".join(
+            f'"{c}" = {{ sessions = {r["sessions"]}, files = {r["files"]}, sha256 = "{r["sha256"]}" }}\n'
+            for c, r in sorted(merged.items())
+        )
+        # The old table out, the new one after the set's last subtable.
+        text = re.sub(
+            rf"\n\[sets\.{SET}\.converted\]\n.*?(?=\n\[sets\.|\Z)", "", text, flags=re.S
+        )
+        here = text.find(f"[sets.{SET}]")
+        later = re.compile(rf"^\[sets\.(?!{SET}[\].])", re.M).search(text, here)
+        at = later.start() if later else len(text)
+        text = text[:at].rstrip("\n") + "\n" + block + ("\n" + text[at:] if later else "")
+        (REPO / "parity" / "goldens.toml").write_text(text)
+        print(f"wrote [sets.{SET}.converted] ({len(merged)} cases)")
+    if args.record:
+        args.record.mkdir(parents=True, exist_ok=True)
+        doc = {
+            "record": "dyng-compat-hsosp to-dgb of the cases, twice, every session replayed by id",
+            "backend": args.backend,
+            "commit": git_head(),
+            "passed": not problems,
+            "cases": rows,
+            "problems": problems,
+        }
+        (args.record / "M11a-hsosp-converted.json").write_text(json.dumps(doc, indent=1) + "\n")
+    for pr in problems[:20]:
+        print("  " + pr)
+    print("convert: " + ("OK" if not problems else "FAILED"))
+    return 0 if not problems else 1
+
 
 
 def write_toml(section: str) -> None:
@@ -1734,6 +1873,7 @@ COMMANDS = {
     "crosscheck": crosscheck_main,
     "oracle": oracle_main,
     "subset": subset_main,
+    "convert": convert_main,
 }
 
 
