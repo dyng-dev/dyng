@@ -28,8 +28,8 @@ enum class hypergraph_storage : std::uint8_t {
   slack_csr,  ///< MOSP_ESCHER's H-SOSP storage (0.4): sorted rows with the ids of the ESCHER
               ///< store's best-fit reuse, the incidence edits (hyperedge_batch's
               ///< delete_incidence / insert_incidence: on this storage only in 0.4) and the
-              ///< slack line graph; needs store_v2h. In 0.4.0.dev0 the sequential and openmp
-              ///< backends (the cuda backend raises not_supported_error until its store lands)
+              ///< slack line graph; needs store_v2h. Every backend (the cuda store keeps the
+              ///< slack line graph and the incidence mirror on the device)
 };
 
 /**

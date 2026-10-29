@@ -33,8 +33,9 @@ gave (`stats.batch.inserted_ids`). A result whose update fails after the commit 
 the others are still updated; an error before the commit changes nothing.
 
 **0.4** (declared in 0.3, so 0.4 adds behaviour, not declarations): `hypergraph_storage::
-slack_csr` and `line_graph_policy::slack_csr` (MOSP_ESCHER's H-SOSP storage and line graph; the
-CPU backends in 0.4.0.dev0, the cuda backend refuses it until its store lands) and the incidence
+slack_csr` and `line_graph_policy::slack_csr` (MOSP_ESCHER's H-SOSP storage and line graph, on
+every backend: the cuda store keeps the slack line graph and the incidence mirror on the device,
+the host incidence model and the ids on the host, as MOSP_ESCHER does) and the incidence
 edits of a batch (`hyperedge_batch::delete_incidence()` / `insert_incidence()` and their
 accessors, the `*_incidence_*` arrays of the view), applied on slack_csr storage after the
 deletions and before the insertions, with MOSP_ESCHER's skip rules; escher storage keeps raising
