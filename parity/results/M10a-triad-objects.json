@@ -1,0 +1,73 @@
+{
+ "a": "/home/sskg8/Projects/dyng-work/m10-builds/b0-parity-cuda",
+ "b": "/home/sskg8/Projects/dyng-work/m10-builds/head-parity-cuda",
+ "date": "2026-10-29T21:18:59Z",
+ "files": [
+  {
+   "file": "builtin_ops.cpp.o",
+   "identical": true,
+   "sha256_a": "156dc8e29bbe4ce0c57dfdc513583a090fb5633abc05b4902faf31f66bff67a0",
+   "sha256_b": "156dc8e29bbe4ce0c57dfdc513583a090fb5633abc05b4902faf31f66bff67a0"
+  },
+  {
+   ".nv_fatbin_equal_after_renaming": false,
+   ".rodata_equal_after_renaming": true,
+   "device_elf_equal_but_line_table_mtimes": true,
+   "file": "cuda.cu.o",
+   "host_disassembly_equal_after_renaming": true,
+   "identical": false,
+   "ptx_equal": true,
+   "resource_usage_equal": true,
+   "same_size": true,
+   "sass_equal": true,
+   "sha256_a": "184cded1502ad06c6e2e1c41ba6cd4142a28881b84891a46d918ac27c16b6827",
+   "sha256_b": "4816cccabf1dc87a2ac0591f9722ecf112a9295a278a778ef7c10ae7d98b66e0",
+   "symbols_differing": 2,
+   "symbols_differing_after_renaming": [],
+   "why_bytes_differ": "nvcc's per-compile tmpxft_<pid> symbol names and the -lineinfo line table's source-file modification times (the source copy was rewritten between the builds)"
+  },
+  {
+   ".nv_fatbin_equal_after_renaming": false,
+   ".rodata_equal_after_renaming": true,
+   "device_elf_equal_but_line_table_mtimes": true,
+   "file": "engine/counters.cu.o",
+   "host_disassembly_equal_after_renaming": true,
+   "identical": false,
+   "ptx_equal": true,
+   "resource_usage_equal": true,
+   "same_size": true,
+   "sass_equal": true,
+   "sha256_a": "ee5c75b038c22e04a0d93629ca5f85a04c0835f4869753f6503a0980d12b21e2",
+   "sha256_b": "ae1c63e27319a642bed009c4fcf2493803c6dfff75b387411f1efceef00c5919",
+   "symbols_differing": 2,
+   "symbols_differing_after_renaming": [],
+   "why_bytes_differ": "nvcc's per-compile tmpxft_<pid> symbol names and the -lineinfo line table's source-file modification times (the source copy was rewritten between the builds)"
+  },
+  {
+   "file": "local_patterns.cpp.o",
+   "identical": true,
+   "sha256_a": "1d5f41cabadf0ccc3ae1fb46c8d3f4e51766f9b9748b2dff8bc23aa6f1c4ed65",
+   "sha256_b": "1d5f41cabadf0ccc3ae1fb46c8d3f4e51766f9b9748b2dff8bc23aa6f1c4ed65"
+  },
+  {
+   "file": "openmp.cpp.o",
+   "identical": true,
+   "sha256_a": "574d1a05ada4d4c0486f8145886d8f4088098bfd4c9a96d31c7ed4250abe2cab",
+   "sha256_b": "574d1a05ada4d4c0486f8145886d8f4088098bfd4c9a96d31c7ed4250abe2cab"
+  },
+  {
+   "file": "sequential.cpp.o",
+   "identical": true,
+   "sha256_a": "e874c36c4fe62830d5c96034d8a3ae587d51de2061a37f2f8da5eb521c3f515e",
+   "sha256_b": "e874c36c4fe62830d5c96034d8a3ae587d51de2061a37f2f8da5eb521c3f515e"
+  },
+  {
+   "file": "triad_count.cpp.o",
+   "identical": true,
+   "sha256_a": "4d3447608fe12ae34b3719c9a637d4a33196c0964b760ed4610cec56ed6a7448",
+   "sha256_b": "4d3447608fe12ae34b3719c9a637d4a33196c0964b760ed4610cec56ed6a7448"
+  }
+ ],
+ "schema": 1,
+ "what": "triad_count's object files, b2b1524 (B0) against the step's library (2fa0f27), parity-cuda, the same source path (the M11a criterion 20 method)"
+}

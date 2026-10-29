@@ -89,10 +89,26 @@ graph headers (appended fields and members), and one guard call in `sssp.cpp`, `
 
 ### 4. The ADR 0024 reading (B0 = `b2b1524` against the final library of this step)
 
-Filled in by the reading below (section "Reading"); each algorithm and backend in its own
-exclusive window of at most 2 h, logged through `dyng-work/tools/locklog.py`; bar 1.02 on every
-gated region; a sub-region above the bar from code placement only takes the D14 path (GOVERNANCE.md,
-open-decision sub-block `M10 (AD)`); a whole gated region above 1.02 is a STOP.
+Each algorithm and backend in its own exclusive window of at most 2 h, logged through
+`dyng-work/tools/locklog.py`; bar 1.02 on every gated region; a sub-region above the bar from code
+placement only takes the D14 path (GOVERNANCE.md, open-decision sub-block `M10 (AD)`); a whole
+gated region above 1.02 is a STOP unless it comes from code placement only.
+
+**Reading** (2026-10-29, 36 windows; `parity/results/M10a.md` section 10.5, records
+`parity/results/M10a-ab-b0-*.json`): `b2b1524` against `2fa0f27`, both `parity-cuda`, with the
+step's command forms (17 heap layouts, 51 rounds, 34 for road_usa and cycle_count; 85 layouts /
+170 rounds for the OpenMP local10k updates) and rule 3's longer readings (170 rounds on OpenMP,
+102 on CUDA). Every gated region of mosp (CUDA and OpenMP), of sssp CUDA and of cycle_count's
+kernels and updates is within 1.02 (`compute` 0.946-1.010, `sosp_update` 0.942-1.017 by ADR 0024's
+mode rule, sssp CUDA `apply` 0.952-1.020, every `end_to_end` of sssp and mosp 0.980-1.008). Above
+the bar by 0.1 %: sssp OpenMP roadNet-PA safe50k `apply` 1.021 (170 rounds) and cycle_count CUDA
+Twitch `update_end_to_end` 1.021 / `static_end_to_end` 1.020 (102 rounds). Both are located
+stage by stage (`graph.apply` and `graph.transpose`; `graph.build`, +26 ms) to functions whose
+machine code is identical in both libraries at other alignments, and the same source pair reads
+0.79-0.99 when built without CUDA and 0.98-1.00 with the JCC-erratum mitigation flags on both
+sides (`M10a-ab-b0-diagnosis.json`): code placement only. They take the D14 path (listed for the
+author in `M10 (AD)`); nothing was changed to move them (no alignment flag, the decision of
+2026-10-08 and docs/roadmap.md).
 
 ## Consequences
 
