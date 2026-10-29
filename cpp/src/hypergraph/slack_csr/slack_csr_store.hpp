@@ -180,6 +180,7 @@ struct device_delta {
  * re-upload with more capacity.
  */
 struct device_incidence {
+  cudaStream_t stream = nullptr;  ///< dynG: the store's stream (every operation on it)
   int max_nodes = 0;
   int num_vertices = 0;
   // Hyperedge -> vertices (node-indexed).
@@ -301,10 +302,11 @@ struct device_incidence::scratch_arrays {
 
 /** Resident device h2h graph. Node index = heId - 1. */
 struct device_h2h {
-  int max_nodes = 0;           ///< capacity of the node-indexed arrays
-  int num_nodes = 0;           ///< nodes in use ( == host max_id() )
-  long long cap_entries = 0;   ///< capacity of col_ind
-  long long used_entries = 0;  ///< host mirror of the tail cursor
+  cudaStream_t stream = nullptr;  ///< dynG: the store's stream (every operation on it)
+  int max_nodes = 0;              ///< capacity of the node-indexed arrays
+  int num_nodes = 0;              ///< nodes in use ( == host max_id() )
+  long long cap_entries = 0;      ///< capacity of col_ind
+  long long used_entries = 0;     ///< host mirror of the tail cursor
 
   long long* d_row_start = nullptr;
   int* d_deg = nullptr;

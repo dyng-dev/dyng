@@ -62,6 +62,29 @@ cudaStream_t stream_of(const resources& res) {
   return static_cast<cudaStream_t>(res.stream().get());
 }
 
+// Makes the stream of `waiter` wait for the work queued so far on the stream of `signaller` (an
+// event; nothing when both name the same stream on the same device): the store works on the stream
+// of the resources it was built with, an apply joins its own resources' stream at the start and the
+// end of the store phase (as the escher store, escher_store.cu).
+void order_streams(const resources& signaller, const resources& waiter) {
+  if (signaller.stream().get() == waiter.stream().get() && signaller.device() == waiter.device())
+    return;
+  cudaEvent_t event = nullptr;
+  {
+    const scoped_device guard(signaller.device());
+    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+    const cudaError_t recorded = cudaEventRecord(event, stream_of(signaller));
+    if (recorded != cudaSuccess) {
+      (void)cudaEventDestroy(event);
+      DYNG_CUDA_TRY(recorded);
+    }
+  }
+  const scoped_device guard(waiter.device());
+  const cudaError_t waited = cudaStreamWaitEvent(stream_of(waiter), event, 0);
+  (void)cudaEventDestroy(event);
+  DYNG_CUDA_TRY(waited);
+}
+
 class slack_device_store final : public incidence_store, public slack_access {
  public:
   slack_device_store(const resources& res, std::unique_ptr<slack_host_store> host,
@@ -69,7 +92,11 @@ class slack_device_store final : public incidence_store, public slack_access {
       : res_(res),
         host_(std::move(host)),
         knobs_(knobs),
-        threads_(resources_access::host_threads(res)) {}
+        threads_(resources_access::host_threads(res)) {
+    // Every operation of the device graph on the store's stream.
+    dev_.stream = stream_of(res_);
+    dev_.inc.stream = stream_of(res_);
+  }
 
   [[nodiscard]] std::unique_ptr<incidence_store> clone(const resources& res) const override {
     const scoped_device guard(res.device());
@@ -92,13 +119,11 @@ class slack_device_store final : public incidence_store, public slack_access {
   }
 
   void wait_for(const resources& res) override {
-    // c1: the transplanted code runs on the legacy default stream.
-    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res)));
+    order_streams(res, res_);
   }
 
   void signal_to(const resources& res) override {
-    (void)res;
-    DYNG_CUDA_TRY(cudaStreamSynchronize(cudaStreamLegacy));
+    order_streams(res_, res);
   }
 
   [[nodiscard]] std::int64_t id_bound() const noexcept override {
@@ -221,8 +246,10 @@ class slack_device_store final : public incidence_store, public slack_access {
     const std::size_t total = static_cast<std::size_t>(dd.num_del) + dd.num_ins;
     std::vector<std::int32_t> pairs(2 * total);
     if (total > 0) {
-      DYNG_CUDA_TRY(
-          cudaMemcpy(pairs.data(), dd.d_pairs, sizeof(int2) * total, cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(pairs.data(), dd.d_pairs, sizeof(int2) * total,
+                                    cudaMemcpyDeviceToHost, stream_of(res_)));
+      DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
+      note_host_sync();
     }
     for (std::size_t i = 0; i < total; ++i) {
       const bool deleted = i < static_cast<std::size_t>(dd.num_del);
@@ -252,8 +279,8 @@ class slack_device_store final : public incidence_store, public slack_access {
       tail_entries_ += dev_.used_entries - used_before;
     }
     if (dd.num_dead > 0) {
-      zero_dead_degrees_kernel<<<slack::grid_for(dd.num_dead, block_size), block_size>>>(
-          dd.d_ids + dd.num_new, dd.num_dead, dev_.d_deg);
+      zero_dead_degrees_kernel<<<slack::grid_for(dd.num_dead, block_size), block_size, 0,
+                                 stream_of(res_)>>>(dd.d_ids + dd.num_new, dd.num_dead, dev_.d_deg);
       DYNG_CUDA_TRY(cudaGetLastError());
     }
 #if defined(DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS)
@@ -685,15 +712,19 @@ class slack_device_store final : public incidence_store, public slack_access {
     std::vector<long long> w(static_cast<std::size_t>(dev_.max_nodes), 0);
     const auto& by_id = host_->node_weights();
     for (std::size_t i = 0; i < by_id.size() && i < w.size(); ++i) w[i] = by_id[i];
-    DYNG_CUDA_TRY(
-        cudaMemcpy(dev_.d_node_w, w.data(), sizeof(long long) * w.size(), cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(dev_.d_node_w, w.data(), sizeof(long long) * w.size(),
+                                  cudaMemcpyHostToDevice, stream_of(res_)));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));  // `w` is a local
+    note_host_sync();
   }
 
   template <typename value_t>
   void download(const value_t* device, std::vector<value_t>& out) const {
-    if (!out.empty())
-      DYNG_CUDA_TRY(
-          cudaMemcpy(out.data(), device, sizeof(value_t) * out.size(), cudaMemcpyDeviceToHost));
+    if (out.empty()) return;
+    DYNG_CUDA_TRY(cudaMemcpyAsync(out.data(), device, sizeof(value_t) * out.size(),
+                                  cudaMemcpyDeviceToHost, stream_of(res_)));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
+    note_host_sync();
   }
 
   // A view's array on the device (the copy completes before the view is handed out:

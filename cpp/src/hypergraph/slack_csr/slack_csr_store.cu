@@ -12,6 +12,7 @@
  * (M11a, ADR 0089; the layout rules are described in
  * cpp/src/hypergraph/slack_csr/slack_layout.hpp).
  */
+#include "core/budget_counters.hpp"
 #include "hypergraph/slack_csr/slack_csr_store.hpp"
 
 #include <cub/cub.cuh>
@@ -36,9 +37,10 @@ void grow(T*& ptr, long long& cap, long long n) {
 }
 
 template <class T>
-void upload(T* dst, const std::vector<T>& src) {
+void upload(T* dst, const std::vector<T>& src, cudaStream_t stream) {
   if (!src.empty())
-    DYNG_CUDA_TRY(cudaMemcpy(dst, src.data(), sizeof(T) * src.size(), cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(
+        cudaMemcpyAsync(dst, src.data(), sizeof(T) * src.size(), cudaMemcpyHostToDevice, stream));
 }
 
 }  // namespace
@@ -156,11 +158,12 @@ void upload_he_rows(device_incidence& di, const host_hypergraph& hg, double grow
   if (di.d_he_val) DYNG_CUDA_TRY(cudaFree(di.d_he_val));
   DYNG_CUDA_TRY(cudaMalloc(&di.d_he_val, sizeof(int) * capacity));
   di.he_capacity = capacity;
-  upload(di.d_he_val, val);
+  upload(di.d_he_val, val, di.stream);
   // The free tail is zeroed too (rows move there with slack).
-  DYNG_CUDA_TRY(cudaMemset(di.d_he_val + cursor, 0, sizeof(int) * (capacity - cursor)));
-  upload(di.d_he_off, di.he_off);
-  upload(di.d_he_len, len);
+  DYNG_CUDA_TRY(
+      cudaMemsetAsync(di.d_he_val + cursor, 0, sizeof(int) * (capacity - cursor), di.stream));
+  upload(di.d_he_off, di.he_off, di.stream);
+  upload(di.d_he_len, len, di.stream);
 }
 
 // (Re)uploads the vertex rows (0-based node indices) from the host.
@@ -186,11 +189,12 @@ void upload_vertex_rows(device_incidence& di, const host_hypergraph& hg, double 
   if (di.d_v_val) DYNG_CUDA_TRY(cudaFree(di.d_v_val));
   DYNG_CUDA_TRY(cudaMalloc(&di.d_v_val, sizeof(int) * capacity));
   di.v_capacity = capacity;
-  upload(di.d_v_val, val);
+  upload(di.d_v_val, val, di.stream);
   // The free tail is zeroed too (rows move there with slack).
-  DYNG_CUDA_TRY(cudaMemset(di.d_v_val + cursor, 0, sizeof(int) * (capacity - cursor)));
-  upload(di.d_v_off, di.v_off);
-  upload(di.d_v_len, len);
+  DYNG_CUDA_TRY(
+      cudaMemsetAsync(di.d_v_val + cursor, 0, sizeof(int) * (capacity - cursor), di.stream));
+  upload(di.d_v_off, di.v_off, di.stream);
+  upload(di.d_v_len, len, di.stream);
 }
 
 void device_incidence::build(const host_hypergraph& hg, int nodes, double headroom) {
@@ -200,7 +204,7 @@ void device_incidence::build(const host_hypergraph& hg, int nodes, double headro
   DYNG_CUDA_TRY(cudaMalloc(&d_he_off, sizeof(long long) * max_nodes));
   DYNG_CUDA_TRY(cudaMalloc(&d_he_len, sizeof(int) * max_nodes));
   DYNG_CUDA_TRY(cudaMalloc(&d_touched_idx, sizeof(int) * max_nodes));
-  DYNG_CUDA_TRY(cudaMemset(d_touched_idx, 0xff, sizeof(int) * max_nodes));
+  DYNG_CUDA_TRY(cudaMemsetAsync(d_touched_idx, 0xff, sizeof(int) * max_nodes, stream));
   DYNG_CUDA_TRY(cudaMalloc(&d_v_off, sizeof(long long) * std::max(1, num_vertices)));
   DYNG_CUDA_TRY(cudaMalloc(&d_v_len, sizeof(int) * std::max(1, num_vertices)));
   DYNG_CUDA_TRY(cudaMalloc(&d_post_len, sizeof(int) * std::max(1, num_vertices)));
@@ -210,10 +214,13 @@ void device_incidence::build(const host_hypergraph& hg, int nodes, double headro
 }
 
 long long incidence_mirror_mismatches(const device_incidence& di, const host_hypergraph& hg) {
-  auto download = [](auto* src, long long n, auto& dst) {
+  auto download = [&di](auto* src, long long n, auto& dst) {
     dst.resize(static_cast<std::size_t>(n));
     if (n > 0)
-      DYNG_CUDA_TRY(cudaMemcpy(dst.data(), src, sizeof(dst[0]) * n, cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(
+          cudaMemcpyAsync(dst.data(), src, sizeof(dst[0]) * n, cudaMemcpyDeviceToHost, di.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(di.stream));
+    note_host_sync();
   };
   std::vector<long long> off;
   std::vector<int> len, val;

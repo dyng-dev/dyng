@@ -33,6 +33,7 @@
  * single-threaded on a host copy of the whole line graph, emulating every
  * op with +/-1 counts in a hash map.)
  */
+#include "core/budget_counters.hpp"
 #include "hypergraph/slack_csr/slack_csr_store.hpp"
 #include "util/device_error_flags.cuh"
 
@@ -62,9 +63,10 @@ void grow(T*& ptr, long long& cap, long long n) {
 }
 
 template <class T>
-void upload(T* dst, const std::vector<T>& src) {
+void upload(T* dst, const std::vector<T>& src, cudaStream_t stream) {
   if (!src.empty())
-    DYNG_CUDA_TRY(cudaMemcpy(dst, src.data(), sizeof(T) * src.size(), cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(
+        cudaMemcpyAsync(dst, src.data(), sizeof(T) * src.size(), cudaMemcpyHostToDevice, stream));
 }
 
 int bits_for(long long n) {
@@ -296,7 +298,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   device_incidence::scratch_arrays& sc = *di.scratch;
   device_delta& dd = dev.delta;
   const int block = 256;
-  DYNG_CUDA_TRY(cudaMemset(dev.d_error, 0, sizeof(std::uint32_t)));  // dynG: the error word
+  DYNG_CUDA_TRY(
+      cudaMemsetAsync(dev.d_error, 0, sizeof(std::uint32_t), dev.stream));  // dynG: the error word
   // dynG: the batch's counts are int32 on the device.
   if (inc.inc_key.size() > static_cast<std::size_t>(INT_MAX) ||
       inc.touched.size() >= static_cast<std::size_t>(INT_MAX) ||
@@ -336,15 +339,15 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   grow(sc.post_vals, sc.val_cap2, static_cast<long long>(inc.post_vals.size()));
   grow(sc.t_verts, sc.tv_cap, n_tv);
   grow(sc.t_vert_len, sc.tv_cap2, n_tv);
-  upload(sc.inc_keys, keys);
-  upload(sc.signs, inc.inc_sign);
-  upload(sc.touched, touched0);
-  upload(sc.pre_off, inc.pre_off);
-  upload(sc.post_off, inc.post_off);
-  upload(sc.pre_vals, inc.pre_vals);
-  upload(sc.post_vals, inc.post_vals);
-  upload(sc.t_verts, inc.touched_vertices);
-  upload(sc.t_vert_len, inc.touched_vertex_len);
+  upload(sc.inc_keys, keys, dev.stream);
+  upload(sc.signs, inc.inc_sign, dev.stream);
+  upload(sc.touched, touched0, dev.stream);
+  upload(sc.pre_off, inc.pre_off, dev.stream);
+  upload(sc.post_off, inc.post_off, dev.stream);
+  upload(sc.pre_vals, inc.pre_vals, dev.stream);
+  upload(sc.post_vals, inc.post_vals, dev.stream);
+  upload(sc.t_verts, inc.touched_vertices, dev.stream);
+  upload(sc.t_vert_len, inc.touched_vertex_len, dev.stream);
 
   // ---- 1. net sign per (vertex, hyperedge) -------------------------------
   int n_uniq = 0;
@@ -353,16 +356,21 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
     cub::DoubleBuffer<u64> k(sc.inc_keys, sc.inc_keys_alt);
     cub::DoubleBuffer<int> s(sc.signs, sc.signs_alt);
     std::size_t b1 = 0, b2 = 0;
-    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortPairs(nullptr, b1, k, s, n_inc, 0, end_bit));
+    DYNG_CUDA_TRY(
+        cub::DeviceRadixSort::SortPairs(nullptr, b1, k, s, n_inc, 0, end_bit, dev.stream));
     DYNG_CUDA_TRY(cub::DeviceReduce::ReduceByKey(nullptr, b2, sc.inc_keys, sc.uniq, sc.signs,
-                                                 sc.net, sc.counts, ::cuda::std::plus<int>(),
-                                                 n_inc));
+                                                 sc.net, sc.counts, ::cuda::std::plus<int>(), n_inc,
+                                                 dev.stream));
     sc.reserve_temp(std::max(b1, b2));
-    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortPairs(sc.temp, sc.temp_cap, k, s, n_inc, 0, end_bit));
+    DYNG_CUDA_TRY(
+        cub::DeviceRadixSort::SortPairs(sc.temp, sc.temp_cap, k, s, n_inc, 0, end_bit, dev.stream));
     DYNG_CUDA_TRY(cub::DeviceReduce::ReduceByKey(sc.temp, sc.temp_cap, k.Current(), sc.uniq,
                                                  s.Current(), sc.net, sc.counts,
-                                                 ::cuda::std::plus<int>(), n_inc));
-    DYNG_CUDA_TRY(cudaMemcpy(sc.host_counts, sc.counts, sizeof(int), cudaMemcpyDeviceToHost));
+                                                 ::cuda::std::plus<int>(), n_inc, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts, sc.counts, sizeof(int), cudaMemcpyDeviceToHost,
+                                  dev.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
+    note_host_sync();
     n_uniq = sc.host_counts[0];
   }
 
@@ -370,18 +378,22 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   long long total0 = 0, total1 = 0;
   if (n_uniq > 0) {
     if (n_tv > 0)
-      scatter_int_kernel<<<grid_for(n_tv, block), block>>>(sc.t_verts, sc.t_vert_len, n_tv,
-                                                           di.d_post_len);
-    count_candidates_kernel<<<grid_for(n_uniq, block), block>>>(sc.uniq, sc.net, n_uniq, di.d_v_len,
-                                                                di.d_post_len, sc.cnt0, sc.cnt1);
+      scatter_int_kernel<<<grid_for(n_tv, block), block, 0, dev.stream>>>(sc.t_verts, sc.t_vert_len,
+                                                                          n_tv, di.d_post_len);
+    count_candidates_kernel<<<grid_for(n_uniq, block), block, 0, dev.stream>>>(
+        sc.uniq, sc.net, n_uniq, di.d_v_len, di.d_post_len, sc.cnt0, sc.cnt1);
     std::size_t b = 0;
-    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, b, sc.cnt0, sc.off0, n_uniq));
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, b, sc.cnt0, sc.off0, n_uniq, dev.stream));
     sc.reserve_temp(b);
-    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.cnt0, sc.off0, n_uniq));
-    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.cnt1, sc.off1, n_uniq));
-    totals_kernel<<<1, 1>>>(sc.off0, sc.cnt0, sc.off1, sc.cnt1, n_uniq, sc.totals);
     DYNG_CUDA_TRY(
-        cudaMemcpy(sc.host_totals, sc.totals, sizeof(long long) * 2, cudaMemcpyDeviceToHost));
+        cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.cnt0, sc.off0, n_uniq, dev.stream));
+    DYNG_CUDA_TRY(
+        cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.cnt1, sc.off1, n_uniq, dev.stream));
+    totals_kernel<<<1, 1, 0, dev.stream>>>(sc.off0, sc.cnt0, sc.off1, sc.cnt1, n_uniq, sc.totals);
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_totals, sc.totals, sizeof(long long) * 2,
+                                  cudaMemcpyDeviceToHost, dev.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
+    note_host_sync();
     total0 = sc.host_totals[0];
     total1 = sc.host_totals[1];
   }
@@ -391,7 +403,7 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
 
   // ---- 3. pass 0, update the vertex -> hyperedge mirror, pass 1 ----------
   if (n_uniq > 0) {
-    emit_candidates_kernel<<<grid_for(32LL * n_uniq, block), block>>>(
+    emit_candidates_kernel<<<grid_for(32LL * n_uniq, block), block, 0, dev.stream>>>(
         sc.uniq, sc.net, n_uniq, di.d_v_off, di.d_v_len, di.d_v_val, sc.off0, 0, sc.cand);
     DYNG_CUDA_TRY(cudaGetLastError());
 
@@ -423,32 +435,35 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
       if (n_r > 0) {
         grow(sc.reloc_verts, sc.r_cap, n_r);
         grow(sc.reloc_off, sc.r_cap2, n_r);
-        upload(sc.reloc_verts, reloc_v);
-        upload(sc.reloc_off, reloc_off);
-        relocate_rows_kernel<<<grid_for(32LL * n_r, block), block>>>(
+        upload(sc.reloc_verts, reloc_v, dev.stream);
+        upload(sc.reloc_off, reloc_off, dev.stream);
+        relocate_rows_kernel<<<grid_for(32LL * n_r, block), block, 0, dev.stream>>>(
             sc.reloc_verts, sc.reloc_off, n_r, di.d_v_off, di.d_v_len, di.d_v_val);
       }
       // Vertex segments of the sorted net changes.
       auto verts = thrust::make_transform_iterator(sc.uniq, high_word());
       std::size_t b = 0;
       DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(nullptr, b, verts, sc.seg_vert, sc.seg_len,
-                                                       sc.counts + 1, n_uniq));
+                                                       sc.counts + 1, n_uniq, dev.stream));
       sc.reserve_temp(b);
-      DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(sc.temp, sc.temp_cap, verts, sc.seg_vert,
-                                                       sc.seg_len, sc.counts + 1, n_uniq));
-      DYNG_CUDA_TRY(
-          cudaMemcpy(sc.host_counts + 1, sc.counts + 1, sizeof(int), cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(
+          sc.temp, sc.temp_cap, verts, sc.seg_vert, sc.seg_len, sc.counts + 1, n_uniq, dev.stream));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 1, sc.counts + 1, sizeof(int),
+                                    cudaMemcpyDeviceToHost, dev.stream));
+      DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
+      note_host_sync();
       const int n_seg = sc.host_counts[1];
       b = 0;
-      DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, b, sc.seg_len, sc.seg_off, n_seg));
-      sc.reserve_temp(b);
       DYNG_CUDA_TRY(
-          cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.seg_len, sc.seg_off, n_seg));
-      apply_vertex_rows_kernel<<<grid_for(32LL * n_seg, block), block>>>(
+          cub::DeviceScan::ExclusiveSum(nullptr, b, sc.seg_len, sc.seg_off, n_seg, dev.stream));
+      sc.reserve_temp(b);
+      DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.seg_len, sc.seg_off,
+                                                  n_seg, dev.stream));
+      apply_vertex_rows_kernel<<<grid_for(32LL * n_seg, block), block, 0, dev.stream>>>(
           sc.seg_off, sc.seg_len, n_seg, sc.uniq, sc.net, di.d_v_off, di.d_v_len, di.d_v_val,
           dev.d_error);
     }
-    emit_candidates_kernel<<<grid_for(32LL * n_uniq, block), block>>>(
+    emit_candidates_kernel<<<grid_for(32LL * n_uniq, block), block, 0, dev.stream>>>(
         sc.uniq, sc.net, n_uniq, di.d_v_off, di.d_v_len, di.d_v_val, sc.off1, total0, sc.cand);
     DYNG_CUDA_TRY(cudaGetLastError());
   }
@@ -465,50 +480,63 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
     const int n = static_cast<int>(n_cand);
     cub::DoubleBuffer<u64> k(sc.cand, sc.cand_alt);
     std::size_t b1 = 0, b2 = 0, b3 = 0;
-    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(nullptr, b1, k, n));
-    DYNG_CUDA_TRY(cub::DeviceSelect::Unique(nullptr, b2, sc.cand, sc.cand_alt, sc.counts + 2, n));
+    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(nullptr, b1, k, n, 0,
+                                                 static_cast<int>(sizeof(u64) * 8), dev.stream));
+    DYNG_CUDA_TRY(
+        cub::DeviceSelect::Unique(nullptr, b2, sc.cand, sc.cand_alt, sc.counts + 2, n, dev.stream));
     grow(sc.cls, sc.cls_cap, n_cand);
     grow(sc.selected, sc.sel_cap, n_cand);
     DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(nullptr, b3, sc.cand,
                                              thrust::make_transform_iterator(sc.cls, is_deleted()),
-                                             sc.selected, sc.counts + 3, n));
+                                             sc.selected, sc.counts + 3, n, dev.stream));
     sc.reserve_temp(std::max({b1, b2, b3}));
-    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(sc.temp, sc.temp_cap, k, n));
+    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(sc.temp, sc.temp_cap, k, n, 0,
+                                                 static_cast<int>(sizeof(u64) * 8), dev.stream));
     u64* sorted = k.Current();
     u64* uniq = k.Alternate();
-    DYNG_CUDA_TRY(cub::DeviceSelect::Unique(sc.temp, sc.temp_cap, sorted, uniq, sc.counts + 2, n));
-    DYNG_CUDA_TRY(
-        cudaMemcpy(sc.host_counts + 2, sc.counts + 2, sizeof(int), cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cub::DeviceSelect::Unique(sc.temp, sc.temp_cap, sorted, uniq, sc.counts + 2, n,
+                                            dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 2, sc.counts + 2, sizeof(int),
+                                  cudaMemcpyDeviceToHost, dev.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
+    note_host_sync();
     const int n_pairs = sc.host_counts[2];
 
     if (n_t > 0)
-      set_index_kernel<<<grid_for(n_t, block), block>>>(sc.touched, n_t, di.d_touched_idx);
-    classify_pairs_kernel<<<grid_for(n_pairs, block), block>>>(
+      set_index_kernel<<<grid_for(n_t, block), block, 0, dev.stream>>>(sc.touched, n_t,
+                                                                       di.d_touched_idx);
+    classify_pairs_kernel<<<grid_for(n_pairs, block), block, 0, dev.stream>>>(
         uniq, n_pairs, di.d_touched_idx, sc.pre_off, sc.pre_vals, sc.post_off, sc.post_vals,
         di.d_he_off, di.d_he_len, di.d_he_val, sc.cls);
     DYNG_CUDA_TRY(cudaGetLastError());
     if (n_t > 0)
-      reset_index_kernel<<<grid_for(n_t, block), block>>>(sc.touched, n_t, di.d_touched_idx);
+      reset_index_kernel<<<grid_for(n_t, block), block, 0, dev.stream>>>(sc.touched, n_t,
+                                                                         di.d_touched_idx);
 
     // Deleted pairs first, then inserted ones.
     dd.reserve(n_pairs, 0);
     DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(sc.temp, sc.temp_cap, uniq,
                                              thrust::make_transform_iterator(sc.cls, is_deleted()),
-                                             sc.selected, sc.counts + 3, n_pairs));
-    DYNG_CUDA_TRY(
-        cudaMemcpy(sc.host_counts + 3, sc.counts + 3, sizeof(int), cudaMemcpyDeviceToHost));
+                                             sc.selected, sc.counts + 3, n_pairs, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 3, sc.counts + 3, sizeof(int),
+                                  cudaMemcpyDeviceToHost, dev.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
+    note_host_sync();
     num_del = sc.host_counts[3];
     if (num_del > 0)
-      keys_to_pairs_kernel<<<grid_for(num_del, block), block>>>(sc.selected, num_del, dd.d_pairs);
+      keys_to_pairs_kernel<<<grid_for(num_del, block), block, 0, dev.stream>>>(sc.selected, num_del,
+                                                                               dd.d_pairs);
     DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(sc.temp, sc.temp_cap, uniq,
                                              thrust::make_transform_iterator(sc.cls, is_inserted()),
-                                             sc.selected, sc.counts + 3, n_pairs));
-    DYNG_CUDA_TRY(
-        cudaMemcpy(sc.host_counts + 3, sc.counts + 3, sizeof(int), cudaMemcpyDeviceToHost));
+                                             sc.selected, sc.counts + 3, n_pairs, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 3, sc.counts + 3, sizeof(int),
+                                  cudaMemcpyDeviceToHost, dev.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
+    note_host_sync();
     num_ins = sc.host_counts[3];
     if (num_ins > 0)
-      keys_to_pairs_kernel<<<grid_for(num_ins, block), block>>>(sc.selected, num_ins,
-                                                                dd.d_pairs + num_del);
+      keys_to_pairs_kernel<<<grid_for(num_ins, block), block, 0, dev.stream>>>(
+          sc.selected, num_ins, dd.d_pairs + num_del);
     DYNG_CUDA_TRY(cudaGetLastError());
   }
 
@@ -535,8 +563,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
       upload_he_rows(di, hg, 1.5);
       ++reuploads;
     } else {
-      upload(sc.he_write_off, write_off);
-      write_he_rows_kernel<<<grid_for(32LL * n_t, block), block>>>(
+      upload(sc.he_write_off, write_off, dev.stream);
+      write_he_rows_kernel<<<grid_for(32LL * n_t, block), block, 0, dev.stream>>>(
           sc.touched, sc.he_write_off, n_t, sc.post_off, sc.post_vals, di.d_he_off, di.d_he_len,
           di.d_he_val);
       DYNG_CUDA_TRY(cudaGetLastError());
@@ -549,8 +577,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   for (int id : inc.new_he) ids.push_back(id - 1);
   for (int id : inc.dead_he) ids.push_back(id - 1);
   dd.reserve(0, static_cast<long long>(ids.size()));
-  upload(dd.d_ids, ids);
-  upload(dd.d_new_w, inc.new_w);
+  upload(dd.d_ids, ids, dev.stream);
+  upload(dd.d_new_w, inc.new_w, dev.stream);
   dd.num_del = num_del;
   dd.num_ins = num_ins;
   dd.num_new = static_cast<int>(inc.new_he.size());
