@@ -24,6 +24,8 @@ triad_count against ESCHER-GPU@abcf9b2 (parity/cbst_perf.py, hypergraph_perf.py,
     parity/perf_ab.py run --baseline-exe <earlier dynG build> --baseline-label <commit> --exe ...
     parity/perf_ab.py mosp --backend openmp|cuda --exe <parity build>/dyng-compat-mosp [--gpu 0]
                           [--runs 21] [--graph roadNet-CA] [-k K] [--pref p1,..,pK] [--json ...]
+    parity/perf_ab.py mosp --baseline-exe <earlier dynG build> --baseline-label <commit>
+                          --layouts 17 --exe ...
     parity/perf_ab.py prepare --graph roadNet-CA-K4 --widen roadNet-CA:4
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
@@ -62,7 +64,9 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          with the same arguments and read through the same profiler stages as side B. The
          correctness guards stay (byte-identical outputs, equal invalidated counters); the region
          ratios are the change of the refactor and are reported, not gated. The record's
-         "reference" names the baseline (--baseline-label).
+         "reference" names the baseline (--baseline-label). `mosp` takes the same three options
+         (M10a; ADR 0024's reading of mosp): side A is then `<baseline> --mosp`, both sides write
+         their outputs and get the round's --timing file of --layouts N.
 
 --backend cuda compares dynG's cuda backend (`dyng-compat-mosp --backend cuda`, parity-cuda
          preset) with the UNPATCHED MOSP-CUDA@e220ee2 (bin/mosp) on the same prepared inputs,
@@ -1959,12 +1963,25 @@ def mosp_options(args: argparse.Namespace) -> list:
     return out
 
 
+def mosp_baseline(args: argparse.Namespace) -> Path | None:
+    """`mosp --baseline-exe`: the earlier dynG build of side A (checked), or None."""
+    baseline = getattr(args, "baseline_exe", None)
+    if baseline is None:
+        return None
+    baseline = baseline.resolve()
+    if not baseline.is_file():
+        raise SystemExit(f"--baseline-exe {baseline} does not exist")
+    return baseline
+
+
 def mosp_ab(args: argparse.Namespace) -> int:
     """The MOSP update of dynG (`dyng-compat-mosp --mosp`) against the unpatched original
     (`bin/mosp` of MOSP-OpenMP@c352151 or MOSP-CUDA@e220ee2), A/B/A/B under the perf lock (GPU
     clocks locked on cuda), both sides writing every output file as the original's bench/run.sh
     does; regions from parity/timed_regions/mosp.toml: "(a) compute" and "(b) end to end" gated,
-    the per-objective updates, the combined step and the path costs reported."""
+    the per-objective updates, the combined step and the path costs reported. With
+    --baseline-exe (M10a; ADR 0024) side A is an earlier dynG build's `dyng-compat-mosp --mosp`
+    instead, read through the same stages over --layouts heap layouts, nothing gated."""
     regions = load_regions(args.backend, MOSP_REGION_MAP, ("compute", "end_to_end"))
     keys = report_keys(regions)
     reference = REFERENCES[args.backend]
@@ -1981,11 +1998,20 @@ def mosp_ab(args: argparse.Namespace) -> int:
     env, port_args = run_env(args)
     if args.backend == "cuda" and args.cuda_engine != "automatic":
         port_args = [*port_args, "--cuda-engine", args.cuda_engine]
-    build_reference(reference["name"])
-    ref = reference_copy(reference["name"])
-    marker = ref / ".dyng-reference"
-    side_a = [ref / "bin" / "mosp"]
+    baseline = mosp_baseline(args)
+    if baseline is not None:
+        # Side A is an earlier dynG build (ADR 0024: dynG against dynG), read through the same
+        # profiler stages as side B; the ratios are reported, not gated.
+        regions = [dict(r, gate="none") for r in regions]
+        ref, marker = baseline.parent, baseline.parent / ".no-reference-marker"
+        side_a = [baseline, "--mosp", *port_args]
+    else:
+        build_reference(reference["name"])
+        ref = reference_copy(reference["name"])
+        marker = ref / ".dyng-reference"
+        side_a = [ref / "bin" / "mosp"]
     side_b = [exe, "--mosp", *port_args]
+    side_a_name = args.baseline_label if baseline is not None else "original"
     extra = mosp_options(args)
     batches = batch_list(args)
     results, failures = {}, []
@@ -2018,14 +2044,25 @@ def mosp_ab(args: argparse.Namespace) -> int:
                     r = 0
                     while r < args.runs:
                         before = os.getloadavg()[0]
-                        timing = work / "timing.csv"
+                        timing = (
+                            layout_timing(work, "timing", args, r)
+                            if baseline is not None
+                            else work / "timing.csv"
+                        )
                         # Both write their outputs (bench/run.sh), into a directory deleted after
                         # the run, outside the timed program (or neither: --no-output).
                         out_a = ["--no-output"] if args.no_output else ["--out", work / "A"]
                         out_b = ["--no-output"] if args.no_output else ["--out", work / "B"]
-                        log_a, win_a = monitor.run([*side_a, *common, *out_a], env)
-                        clear(work / "A")
-                        orig = parse_original(log_a, k, keys)
+                        if baseline is not None:
+                            log_a, win_a = monitor.run(
+                                [*side_a, *common, *out_a, "--timing", timing], env
+                            )
+                            clear(work / "A")
+                            orig = with_engine_stage(parse_port(log_a, timing, k), k)
+                        else:
+                            log_a, win_a = monitor.run([*side_a, *common, *out_a], env)
+                            clear(work / "A")
+                            orig = parse_original(log_a, k, keys)
                         log_b, win_b = monitor.run(
                             [*side_b, *common, *out_b, "--timing", timing], env
                         )
@@ -2046,11 +2083,21 @@ def mosp_ab(args: argparse.Namespace) -> int:
                                 f"{orig['invalidated']} != port {port['invalidated']}"
                             )
                         compute = next(x for x in regions if x["name"] == "compute")
+                        a_ms = (
+                            port_value(orig, compute, None)
+                            if baseline is not None
+                            else original_value(orig, compute, None)
+                        )
+                        a_e2e = (
+                            stage_sum(orig, ["total.end_to_end"])
+                            if baseline is not None
+                            else orig["report"]["end_to_end_ms"]
+                        )
                         print(
-                            f"{batch} round {r}/{args.runs}: (a) original "
-                            f"{original_value(orig, compute, None):.1f} ms, port "
-                            f"{port_value(port, compute, None):.1f} ms; (b) original "
-                            f"{orig['report']['end_to_end_ms']:.0f} ms, port "
+                            f"{batch} round {r}/{args.runs}: (a) {side_a_name} "
+                            f"{a_ms:.1f} ms, port "
+                            f"{port_value(port, compute, None):.1f} ms; (b) {side_a_name} "
+                            f"{a_e2e:.0f} ms, port "
                             f"{stage_sum(port, ['total.end_to_end']):.0f} ms; foreign CPU "
                             f"{win_a['foreign_cpu_cores']:.2f} / {win_b['foreign_cpu_cores']:.2f}"
                             " cores" + gpu_note(window),
@@ -2062,12 +2109,13 @@ def mosp_ab(args: argparse.Namespace) -> int:
                     k,
                     args.runs,
                     loads,
+                    a_value=port_value if baseline is not None else None,
                     monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
                 )
     finally:
         with contextlib.suppress(OSError):
             subprocess.run(["rm", "-rf", str(work)], check=False)
-    report(results)
+    report(results, labels=(args.baseline_label, "dynG") if baseline is not None else None)
     exceeded = [
         f"{b}: {e['region']} {e['ratio']:.3f} > {e['gate']:.2f}"
         for b, res in results.items()
@@ -2483,6 +2531,33 @@ def memory(args: argparse.Namespace) -> int:
     return 0
 
 
+def add_mosp_baseline_options(r: argparse.ArgumentParser) -> None:
+    """`mosp`'s dynG-against-dynG options (M10a; ADR 0024's reading of mosp): side A is an
+    earlier dynG build's `dyng-compat-mosp --mosp`, read through the same profiler stages as side
+    B, over N heap layouts; the options of `run`, added to `mosp` without changing `run`."""
+    r.add_argument(
+        "--baseline-exe",
+        type=Path,
+        help="replace side A (the original's bin/mosp) by an earlier dynG build's "
+        "dyng-compat-mosp, run as `--mosp` and read through the same profiler stages (ADR 0024: "
+        "dynG against dynG); the ratios are reported, not gated",
+    )
+    r.add_argument(
+        "--baseline-label",
+        default="baseline",
+        help="the name of side A in the report with --baseline-exe (e.g. a commit)",
+    )
+    r.add_argument(
+        "--layouts",
+        type=int,
+        default=1,
+        metavar="N",
+        help="with --baseline-exe: cycle the rounds through N heap layouts (the --timing file "
+        "name grows by 8 characters per layout, the same on both sides; as `run --layouts`); 1 "
+        "(the default) reads one layout",
+    )
+
+
 def main() -> int:
     if sys.argv[1:2] == ["cycle_count"]:  # cycle_count against CycleEnumeration-GPU
         sys.path.insert(0, str(REPO / "parity"))
@@ -2606,6 +2681,8 @@ def main() -> int:
                 help="run the port as dyng-compat-mosp --mosp (the whole MOSP update, the "
                 "original's scope; M7) instead of the K sssp updates",
             )
+        if command == "mosp":
+            add_mosp_baseline_options(r)
         if command in ("engines", "mosp"):
             r.add_argument(
                 "--lock-clocks",

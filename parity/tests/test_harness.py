@@ -890,6 +890,132 @@ def test_perf_ab_mosp_help() -> None:
     assert "--pref" in proc.stdout and "--objectives" in proc.stdout
 
 
+def test_perf_ab_mosp_takes_a_dyng_baseline() -> None:
+    """M10a (ADR 0024's mosp reading): `perf_ab.py mosp` gains `run`'s dynG-against-dynG options
+    (--baseline-exe, --baseline-label, --layouts); --layouts still needs --baseline-exe."""
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity" / "perf_ab.py", "mosp", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    for option in ("--baseline-exe", "--baseline-label", "--layouts", "--lock-clocks"):
+        assert option in proc.stdout
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity/perf_ab.py", "mosp", "--exe", "x", "--layouts", "3"],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode != 0 and "--baseline-exe" in proc.stderr
+    # `run` is unchanged: it still has its own options.
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity" / "perf_ab.py", "run", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert "--baseline-exe" in proc.stdout and "--layouts" in proc.stdout
+
+
+def test_perf_ab_mosp_baseline_reads_both_sides_through_the_port_stages(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """`mosp --baseline-exe A --layouts 3`: side A is `A --mosp`, both sides get the same
+    --timing file of the round's layout and are read through the port's stages; no gate binds."""
+    import argparse
+    import contextlib
+
+    perf = load("parity/perf_ab.py")
+    k = 3
+    baseline = tmp_path / "b0" / "dyng-compat-mosp"
+    exe = tmp_path / "new" / "dyng-compat-mosp"
+    for f in (baseline, exe):
+        f.parent.mkdir(parents=True)
+        f.write_text("")
+    calls: list[list[str]] = []
+
+    def outputs(out: Path) -> None:
+        for o in range(k):
+            for f in ("distancesUpdated.txt", "SSSPTreeUpdated.txt"):
+                (out / f"obj{o}").mkdir(parents=True, exist_ok=True)
+                (out / f"obj{o}" / f).write_text("same\n")
+        (out / "combinedGraph").mkdir(parents=True, exist_ok=True)
+        for f in perf.MOSP_COMBINED:
+            (out / "combinedGraph" / f).write_text("same\n")
+
+    def fake_run_one(cmd: list, env: dict) -> str:
+        cmd = [str(c) for c in cmd]
+        outputs(Path(cmd[cmd.index("--out") + 1]))
+        return ""
+
+    class FakeMonitor:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc) -> bool:
+            return False
+
+        def run(self, cmd: list, env: dict):
+            cmd = [str(c) for c in cmd]
+            calls.append(cmd)
+            side_a = cmd[0] == str(baseline)
+            ms = 10.0 if side_a else 10.1
+            rows = ["kind,name,value"]
+            rows += [f"stage,sssp.identify_affected,{ms}" for _ in range(k + 1)]
+            rows += [f"stage,{s},1.0" for s in ("sssp.seed", "sssp.loop", "sssp.finalize")] * (
+                k + 1
+            )
+            rows += ["stage,mosp.combine,0.5", "stage,mosp.combined_sssp,2.0"]
+            rows += ["stage,mosp.finalize,0.1", "stage,mosp.path_costs,3.0"]
+            rows += ["stage,total.end_to_end,900.0"]
+            rows += [f"counter,sssp.invalidated.obj{o},{o + 7}" for o in range(k)]
+            Path(cmd[cmd.index("--timing") + 1]).write_text("\n".join(rows) + "\n")
+            if "--out" in cmd:
+                outputs(Path(cmd[cmd.index("--out") + 1]))
+            return "threads=28\n", {"reasons": [], "foreign_cpu_cores": 0.0}
+
+    monkeypatch.setattr(perf, "check_port_build", lambda args: (args.exe, {"preset": "parity"}))
+    monkeypatch.setattr(perf, "bench_inputs", lambda graph: (tmp_path / "data", k))
+    monkeypatch.setattr(perf, "hash_inputs", lambda data: [])
+    monkeypatch.setattr(perf, "run_env", lambda args: ({}, ["--threads", "28"]))
+    monkeypatch.setattr(perf, "run_one", fake_run_one)
+    monkeypatch.setattr(perf, "MachineMonitor", FakeMonitor)
+    monkeypatch.setattr(perf, "perf_lock", lambda *a, **kw: contextlib.nullcontext())
+    monkeypatch.setattr(perf, "SCRATCH", tmp_path)
+    (tmp_path / "runs").mkdir()
+
+    def build_reference(name: str) -> None:
+        raise AssertionError("the original is not built for a dynG-against-dynG A/B")
+
+    monkeypatch.setattr(perf, "build_reference", build_reference)
+    record = tmp_path / "rec.json"
+    args = argparse.Namespace(
+        backend="openmp", exe=exe, gpu=0, graph="roadNet-CA", batches="safe50k", runs=5,
+        threads=28, json=record, env=[], no_lock=True, lock_timeout=10.0,
+        allow_non_parity_build=False, max_foreign_cpu=1.5, keep_contaminated=False,
+        objectives=0, pref="", cuda_engine="automatic", no_output=False, lock_clocks="none",
+        baseline_exe=baseline, baseline_label="B0", layouts=3, enforce_gates=False,
+    )  # fmt: skip
+    assert perf.mosp_ab(args) == 0
+    sides_a = [c for c in calls if c[0] == str(baseline)]
+    sides_b = [c for c in calls if c[0] == str(exe)]
+    assert len(sides_a) == len(sides_b) == 5
+    assert all(c[1] == "--mosp" for c in sides_a + sides_b)
+    timings = [c[c.index("--timing") + 1] for c in calls]
+    # A and B of a round share the round's layout; rounds cycle through 3 layouts.
+    assert timings[0::2] == timings[1::2]
+    assert [len(Path(t).name) for t in timings[0::2]] == [10, 18, 26, 10, 18]
+    doc = json.loads(record.read_text())
+    assert doc["reference"]["label"] == "B0" and doc["algorithm"] == "mosp"
+    assert doc["protocol"]["layouts"].startswith("3 heap layouts")
+    regions = {e["region"]: e for e in doc["results"]["safe50k"]["regions"]}
+    assert "gate" not in regions["compute"]  # reported, not gated
+    assert regions["compute"]["original_ms"] == pytest.approx(3 * 13.0 + 0.5 + 2.0 + 0.1)
+    assert regions["compute"]["port_ms"] == pytest.approx(3 * 13.1 + 0.5 + 2.0 + 0.1)
+
+
 def test_hypergraph_region_map_loads() -> None:
     """parity/timed_regions/hypergraph.toml (M8a, written before the port) passes the strict
     loader: every original timer is one perf_ab.py knows, every region names port stages."""
