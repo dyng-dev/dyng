@@ -741,6 +741,8 @@ def set_algorithm(name: str, spec: dict) -> str:
         return "triad_count"
     if kind == "cbst_trace":
         return "cbst"
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp
     return "cycle_count" if name.startswith("cycle_count") else name.removesuffix("_scale")
 
 
@@ -844,6 +846,8 @@ def golden_suites(
             entry["required"] = "from 0.3 on (the triad_count replays of M9a)"
             out.append(entry)
             continue
+        # M10 label_propagation
+        # M11 slack_csr / hyper_sssp
         missing = [b for b in REQUIRED_REPLAYS.get(name, []) if b not in covered]
         if missing:
             problems.append(f"golden set {name}: no replay on {', '.join(missing)}")
@@ -873,6 +877,8 @@ def golden_suites(
                             "--certificate <results>)"
                         )
                         entry["passed"] = False
+        # M10 label_propagation
+        # M11 slack_csr / hyper_sssp
         if entry["kind"] == "cbst_trace":
             # The CBST trace goldens (M8a): replays of the dynG store under the original's preset
             # and dynG's default are required (CBST_REQUIRED_PRESETS).

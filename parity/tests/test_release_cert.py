@@ -656,6 +656,8 @@ def _replays(cert, results: Path, commit: str) -> None:
                 _hypergraph_id_record(results, name, spec, commit, backend, mode)
     # ESCHER-GPU's triad goldens (M9a, from 0.3): every backend of the coverage table, both modes.
     _triad_replays(cert, results, commit)
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp
 
 
 TRIAD_SET = "triad_count_escher_gpu"
