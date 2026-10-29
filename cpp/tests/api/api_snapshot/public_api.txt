@@ -384,6 +384,7 @@
   #include <dyng/dynamic_bfs.hpp>
   #include <dyng/generators/hypergraphs.hpp>
   #include <dyng/generators/legacy.hpp>
+  #include <dyng/generators/vertex_arrival.hpp>
   #include <dyng/graph/apply_summary.hpp>
   #include <dyng/graph/csr.hpp>
   #include <dyng/graph/edge_batch.hpp>
@@ -570,6 +571,31 @@
       escher_batch_generator(std::mt19937_64 &rng, const escher_batch_options &opt)
       template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const resources &res, const hypergraph< vertex_t, weight_t > &h)
       template <typename weight_t = unweighted, typename vertex_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const escher_host_model< vertex_t > &model)
+
+[dyng/generators/vertex_arrival.hpp] tracked
+  struct dyng::generators::vertex_arrival_options
+      std::int64_t total_vertices = 50000
+      std::int32_t average_degree = 5
+      std::int32_t num_batches = 10
+      std::uint32_t seed = 42
+      float ground_truth_fraction = 0.01F
+      float deleted_fraction = 0.09F
+  template <typename vertex_t> struct dyng::generators::vertex_arrival_batch
+      std::vector< vertex_t > insert_vertices
+      std::vector< std::int8_t > insert_vertex_labels
+      std::vector< vertex_t > edge_sources
+      std::vector< vertex_t > edge_destinations
+      std::vector< float > edge_weights
+      std::vector< vertex_t > delete_vertices
+  template <typename vertex_t, typename edge_t> struct dyng::generators::vertex_arrival_stream
+      csr< vertex_t, edge_t, float > graph
+      std::vector< std::int8_t > true_labels
+      std::vector< vertex_arrival_batch< vertex_t > > batches
+      std::vector< edge_t > row_capacity
+      float similarity_threshold = 0.5F
+      std::size_t max_batch_vertices = 0
+      std::size_t max_batch_edges = 0
+  template <typename vertex_t = std::int32_t, typename edge_t = std::int32_t> [[nodiscard]] vertex_arrival_stream< vertex_t, edge_t > dyng::generators::legacy::dynlp_vertex_arrival_stream(const resources &res, const vertex_arrival_options &opt)
 
 [dyng/graph/apply_summary.hpp] frozen
   struct dyng::apply_summary
@@ -1249,6 +1275,36 @@
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const csr_view< vertex_t, edge_t, weight_t > &out, vertex_t source, int objective=0)
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, int objective=0)
 
+[dyng/testing/harmonic_solution.hpp] tracked
+  struct dyng::testing::harmonic_options
+      double relative_tolerance = 1e-12
+      std::int64_t max_iterations = 100000
+      int num_threads = 1
+  struct dyng::testing::harmonic_result
+      std::vector< double > solution
+      std::vector< std::uint8_t > determined
+      bool converged = false
+      double relative_residual = 0.0
+      std::int64_t iterations = 0
+      std::int64_t num_seeds = 0
+      std::int64_t num_unlabelled = 0
+      std::int64_t num_determined = 0
+      std::int64_t num_excluded = 0
+  template <typename edge_t> [[nodiscard]] harmonic_result dyng::testing::harmonic_solution(const std::vector< edge_t > &row_ptr, const std::vector< std::int32_t > &col_ind, const std::vector< float > &weights, const std::vector< std::uint8_t > &present, const std::vector< std::int8_t > &seed_labels, const harmonic_options &opt={})
+  struct dyng::testing::label_error
+      std::int64_t compared = 0
+      std::int64_t excluded = 0
+      double mean = 0.0
+      double max = 0.0
+      std::int64_t flips = 0
+  [[nodiscard]] label_error dyng::testing::label_error_against(const std::vector< float > &labels, const harmonic_result &f, const std::vector< std::uint8_t > &present, const std::vector< std::int8_t > &seed_labels)
+  struct dyng::testing::class_agreement
+      std::int64_t compared = 0
+      std::int64_t flips = 0
+      std::int64_t flips_beyond_margin = 0
+      double largest_flip_distance = 0.0
+  [[nodiscard]] class_agreement dyng::testing::class_agreement_with(const std::vector< float > &labels, const harmonic_result &f, const std::vector< std::uint8_t > &present, const std::vector< std::int8_t > &seed_labels, double margin)
+
 [dyng/testing/line_graph_oracle.hpp] tracked
   struct dyng::testing::line_graph_rows
       std::vector< std::int64_t > offsets {0}
@@ -1256,6 +1312,44 @@
       [[nodiscard]] std::int64_t num_ids() const noexcept
       [[nodiscard]] std::vector< std::int64_t > row(std::int64_t id) const
   [[nodiscard]] line_graph_rows dyng::testing::rebuild_line_graph(const std::vector< std::int64_t > &h2v_offsets, const std::vector< std::int32_t > &h2v_members, std::int32_t num_vertices)
+
+[dyng/testing/lp_host_model.hpp] tracked
+  struct dyng::testing::lp_model_batch
+      std::vector< std::int32_t > insert_vertices
+      std::vector< std::int8_t > insert_labels
+      std::vector< std::int32_t > delete_vertices
+      std::vector< std::int32_t > edge_sources
+      std::vector< std::int32_t > edge_destinations
+      std::vector< float > edge_weights
+  struct dyng::testing::lp_model_report
+      std::vector< std::int32_t > inserted
+      std::vector< std::int32_t > deleted
+      std::vector< std::int32_t > affected
+      std::vector< std::int32_t > sparsified
+      std::int32_t num_components = 0
+      std::vector< std::int32_t > component_of_inserted
+      std::vector< std::uint64_t > w0
+      std::vector< std::uint64_t > w1
+      std::vector< float > initial_labels
+      std::int64_t appended = 0
+      std::int64_t dropped_absent = 0
+      std::int64_t dropped_overflow = 0
+  class dyng::testing::lp_host_model
+      enum class vertex_state : std::uint8_t { inactive = 0, active = 1, deleted = 2 }
+      explicit lp_host_model(const std::vector< std::int64_t > &row_capacity)
+      lp_model_report apply(const lp_model_batch &batch, float tau)
+      [[nodiscard]] std::int32_t num_vertices() const noexcept
+      [[nodiscard]] const std::vector< vertex_state > & states() const noexcept
+      [[nodiscard]] const std::vector< std::uint8_t > & present() const noexcept
+      [[nodiscard]] const std::vector< std::uint8_t > & previously_present() const noexcept
+      [[nodiscard]] const std::vector< std::int8_t > & seed_labels() const noexcept
+      [[nodiscard]] const std::vector< std::int64_t > & row_ptr() const noexcept
+      [[nodiscard]] const std::vector< std::int64_t > & row_end() const noexcept
+      [[nodiscard]] const std::vector< std::int32_t > & slot_columns() const noexcept
+      [[nodiscard]] const std::vector< float > & slot_weights() const noexcept
+      [[nodiscard]] std::int32_t row_overflow_flag() const noexcept
+      [[nodiscard]] std::int32_t reinserted_flag() const noexcept
+      [[nodiscard]] static float average_weight(const std::vector< std::int32_t > &col_ind, const std::vector< float > &weights)
 
 [dyng/testing/mosp_oracle.hpp] tracked
   template <typename vertex_t> [[nodiscard]] csr< vertex_t, std::int64_t, std::int32_t > dyng::testing::combined_graph_reference(const std::vector< std::vector< vertex_t > > &parents, vertex_t source, const std::vector< std::int32_t > &preferences={})
@@ -1285,6 +1379,14 @@
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, triad_pattern pattern, const triad_reference_options &options={})
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_removed(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_added(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
+
+[dyng/testing/union_find.hpp] tracked
+  class dyng::testing::union_find
+      explicit union_find(std::int64_t size)
+      [[nodiscard]] std::int64_t size() const noexcept
+      std::int64_t find(std::int64_t x)
+      bool unite(std::int64_t a, std::int64_t b)
+      bool same(std::int64_t a, std::int64_t b)
 
 [dyng/triad_count.hpp] frozen
   enum class dyng::triad_count::pattern : std::uint8_t { h_motif, stathyper_type1, stathyper_type2, stathyper_type3 }

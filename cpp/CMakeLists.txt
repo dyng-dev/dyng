@@ -281,6 +281,19 @@ target_compile_features(dyng_testing_line_graph_oracle PRIVATE cxx_std_17)
 set_target_properties(dyng_testing_line_graph_oracle PROPERTIES POSITION_INDEPENDENT_CODE ON)
 dyng_set_warnings(dyng_testing_line_graph_oracle)
 dyng_enable_sanitizers(dyng_testing_line_graph_oracle)
+# The label_propagation oracles (M10a, ADR 0068): harmonic_solution, union_find (header-only) and
+# lp_host_model, in the standard library only (std::thread for harmonic_solution's optional
+# threads), checked to share nothing with label_propagation or the container
+# (label_propagation_oracles_isolation).
+add_library(
+  dyng_testing_label_propagation OBJECT src/testing/harmonic_solution.cpp
+                                        src/testing/lp_host_model.cpp
+)
+target_include_directories(dyng_testing_label_propagation PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_compile_features(dyng_testing_label_propagation PRIVATE cxx_std_17)
+set_target_properties(dyng_testing_label_propagation PROPERTIES POSITION_INDEPENDENT_CODE ON)
+dyng_set_warnings(dyng_testing_label_propagation)
+dyng_enable_sanitizers(dyng_testing_label_propagation)
 # The triad oracle (M9a, criterion 4): ESCHER-GPU's CPU reference algorithm with its own class map,
 # the standard library and OpenMP only, checked to share nothing with triad_count, its engines or
 # the container (triad_reference_isolation).
@@ -301,6 +314,7 @@ add_library(
   src/testing/mosp_oracle.cpp
   $<TARGET_OBJECTS:dyng_testing_cbst_model>
   $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+  $<TARGET_OBJECTS:dyng_testing_label_propagation>
   $<TARGET_OBJECTS:dyng_testing_triad_reference>
 )
 add_library(dyng::testing ALIAS dyng_testing)

@@ -312,6 +312,25 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(line_graph_oracle_isolation PROPERTIES LABELS "cpu;hypergraph")
+  # The label_propagation oracles (M10a criterion 7, ADR 0068): harmonic_solution and
+  # lp_host_model (with the header-only union_find) include nothing of cpp/src or of an algorithm
+  # and reference no dynG symbol: they link the standard library only.
+  foreach(_lp_oracle harmonic_solution lp_host_model)
+    add_test(
+      NAME label_propagation_oracles_isolation_${_lp_oracle}
+      COMMAND
+        "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+        -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/${_lp_oracle}.cpp
+        -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/${_lp_oracle}.hpp
+        -DALLOWED=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/union_find.hpp
+        "-DOBJECT=$<FILTER:$<TARGET_OBJECTS:dyng_testing_label_propagation>,INCLUDE,${_lp_oracle}>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+    )
+    set_tests_properties(
+      label_propagation_oracles_isolation_${_lp_oracle}
+      PROPERTIES LABELS "cpu;testing;label_propagation"
+    )
+  endforeach()
   # The triad oracle (M9a criterion 4, ADR 0049): ESCHER-GPU's CPU reference algorithm with its own
   # class map, sharing no code with triad_count, its engines or the container. The preprocessor
   # runs with the flags the build compiles it with (OpenMP, the target's definitions).
@@ -1178,7 +1197,7 @@ endif()
 
 dyng_add_test(
   NAME dyng_testing_tests
-  SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp
+  SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp testing/lp_oracles_test.cpp
   LABELS cpu testing
   LIBRARIES dyng::testing
 )
