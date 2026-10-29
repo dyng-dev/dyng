@@ -64,6 +64,20 @@ std::string_view to_string(hyperedge_batch_mix mix) noexcept {
       return "limits";
     case hyperedge_batch_mix::empty:
       return "empty";
+    case hyperedge_batch_mix::incidence_removals:
+      return "incidence_removals";
+    case hyperedge_batch_mix::incidence_additions:
+      return "incidence_additions";
+    case hyperedge_batch_mix::incidence_mixed:
+      return "incidence_mixed";
+    case hyperedge_batch_mix::incidence_emptying:
+      return "incidence_emptying";
+    case hyperedge_batch_mix::incidence_same_batch:
+      return "incidence_same_batch";
+    case hyperedge_batch_mix::incidence_repeats:
+      return "incidence_repeats";
+    case hyperedge_batch_mix::incidence_out_of_range:
+      return "incidence_out_of_range";
   }
   return "unknown";
 }
@@ -240,6 +254,27 @@ hyperedge_batch<vertex_t, weight_t> random_hyperedge_batch(vertex_t num_vertices
                          draw_weight<weight_t>(rng, opt.min_weight, opt.max_weight));
   };
   const auto fresh_random = [&] { fresh(draw(rng, opt.min_cardinality, opt.max_cardinality)); };
+  // The incidence edits of one live hyperedge: a random member removed (only from a row of 2 or
+  // more members; false otherwise), a random vertex that is not a member added (none if every
+  // vertex is a member).
+  const auto remove_one = [&](std::int64_t id) {
+    const std::vector<vertex_t> members = row(id);
+    if (members.size() < 2) return false;
+    out.delete_incidence(id, members[static_cast<std::size_t>(
+                                 draw(rng, 0, static_cast<std::int64_t>(members.size()) - 1))]);
+    return true;
+  };
+  const auto add_one = [&](std::int64_t id) {
+    const std::vector<vertex_t> members = row(id);
+    if (static_cast<std::int64_t>(members.size()) >= n) return;
+    for (;;) {
+      const auto v = static_cast<vertex_t>(draw(rng, 0, n - 1));
+      if (!std::binary_search(members.begin(), members.end(), v)) {
+        out.insert_incidence(id, v);
+        return;
+      }
+    }
+  };
   if (n == 0 || opt.mix == hyperedge_batch_mix::empty) {
     return out;  // no vertex: only the empty batch
   }
@@ -352,6 +387,99 @@ hyperedge_batch<vertex_t, weight_t> random_hyperedge_batch(vertex_t num_vertices
     }
     case hyperedge_batch_mix::empty:
       break;
+    // ---- incidence edits (0.4): drawn after every hyperedge mix's stream, so those are unchanged
+    case hyperedge_batch_mix::incidence_removals:
+      for (const std::int64_t id : take(num_live)) {
+        if (static_cast<std::int64_t>(out.delete_incidence_hyperedge().size()) >= k) break;
+        remove_one(id);
+      }
+      break;
+    case hyperedge_batch_mix::incidence_additions:
+      for (const std::int64_t id : take(k)) add_one(id);
+      break;
+    case hyperedge_batch_mix::incidence_mixed: {
+      for (const std::int64_t id : take((k + 1) / 2)) out.delete_hyperedge(id);
+      std::int64_t removals = 0;
+      for (const std::int64_t id : take(num_live)) {
+        if (removals < (k + 1) / 2) {
+          removals += remove_one(id) ? 1 : 0;
+        } else if (static_cast<std::int64_t>(out.insert_incidence_hyperedge().size()) <
+                   (k + 1) / 2) {
+          add_one(id);
+        } else {
+          break;
+        }
+      }
+      for (std::int64_t i = 0; i < (k + 1) / 2; ++i) fresh_random();
+      break;
+    }
+    case hyperedge_batch_mix::incidence_emptying:
+      for (const std::int64_t id : take(std::min<std::int64_t>(k, 2))) {
+        for (const vertex_t v : row(id)) out.delete_incidence(id, v);
+      }
+      fresh_random();
+      break;
+    case hyperedge_batch_mix::incidence_same_batch: {
+      const std::vector<std::int64_t> gone = take(std::min<std::int64_t>(k, 2));
+      for (const std::int64_t id : gone) out.delete_hyperedge(id);
+      for (const std::int64_t id : gone) {
+        const std::vector<vertex_t> members = row(id);
+        out.delete_incidence(id, members.front());
+        out.insert_incidence(id, static_cast<vertex_t>(draw(rng, 0, n - 1)));
+      }
+      out.insert_incidence(bound, 0);
+      out.delete_incidence(bound, 0);
+      for (const std::int64_t id : take(2)) {
+        if (out.delete_incidence_hyperedge().size() < gone.size() + 2) {
+          if (!remove_one(id)) add_one(id);
+        } else {
+          add_one(id);
+        }
+      }
+      fresh_random();
+      fresh_random();
+      break;
+    }
+    case hyperedge_batch_mix::incidence_repeats: {
+      const std::vector<std::int64_t> pool = take(num_live);
+      std::size_t used = 0;
+      for (; used < pool.size(); ++used) {
+        const std::int64_t id = pool[used];
+        if (row(id).size() >= 2) {
+          const vertex_t v = row(id).back();
+          out.delete_incidence(id, v);
+          out.delete_incidence(id, v);  // no member any more: skipped
+          ++used;
+          break;
+        }
+      }
+      if (used < pool.size()) {
+        const std::int64_t id = pool[used];
+        const std::vector<vertex_t> members = row(id);
+        for (std::int64_t tries = 0; tries < 4 * n; ++tries) {
+          const auto v = static_cast<vertex_t>(draw(rng, 0, n - 1));
+          if (std::find(members.begin(), members.end(), v) != members.end()) continue;
+          out.insert_incidence(id, v);
+          out.insert_incidence(id, v);  // a member by then: skipped
+          break;
+        }
+        out.insert_incidence(id, members.front());  // a member: skipped
+      }
+      break;
+    }
+    case hyperedge_batch_mix::incidence_out_of_range: {
+      const std::vector<std::int64_t> some = take(1);
+      if (!some.empty()) {
+        out.insert_incidence(some.front(), static_cast<vertex_t>(-1));
+        out.delete_incidence(some.front(), static_cast<vertex_t>(n));
+        out.insert_incidence(some.front(), static_cast<vertex_t>(n));
+      }
+      out.insert_incidence(-1, 0);
+      out.delete_incidence(bound, 0);
+      out.insert_incidence(std::numeric_limits<std::int64_t>::max(), 0);
+      for (const std::int64_t id : take(1)) add_one(id);
+      break;
+    }
   }
   return out;
 }

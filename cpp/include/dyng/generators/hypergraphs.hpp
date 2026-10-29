@@ -86,6 +86,22 @@ enum class hyperedge_batch_mix : std::uint8_t {
                  ///< INT64_MIN, INT64_MAX and the id bound, insertions {0, n - 1}, {n - 1} and
                  ///< {0} (with the smallest and the largest weight)
   empty,         ///< no operation
+  // The incidence edits (0.4; they apply to hypergraph_storage::slack_csr, escher storage refuses
+  // them). A drawn hyperedge is a live one, in the order of the shuffle; an edit's skip rules are
+  // hypergraph::apply()'s (an edit names the state before the batch).
+  incidence_removals,    ///< one member removed from each of k live hyperedges of 2 or more members
+  incidence_additions,   ///< one vertex that is not a member added to each of k live hyperedges
+  incidence_mixed,       ///< (k + 1) / 2 live hyperedges deleted, (k + 1) / 2 removals and
+                         ///< (k + 1) / 2 additions on other live hyperedges, (k + 1) / 2 fresh ones
+  incidence_emptying,    ///< every member of min(k, 2) live hyperedges removed (the last removal of
+                         ///< each is skipped: a hyperedge keeps a member), one fresh insertion
+  incidence_same_batch,  ///< min(k, 2) live hyperedges deleted and edited (both skipped), edits of
+                         ///< the id bound (an id the batch may insert: skipped), one removal and
+                         ///< one addition on other live hyperedges, two fresh insertions
+  incidence_repeats,     ///< the same removal twice and the same addition twice on live
+                         ///< hyperedges (each second one skipped), and an addition of a member
+  incidence_out_of_range,  ///< edits of vertex -1 and n on a live hyperedge, of ids -1, the bound
+                           ///< and INT64_MAX (all skipped), and one valid addition
 };
 
 /**
