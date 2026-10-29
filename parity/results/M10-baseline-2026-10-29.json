@@ -19556,11 +19556,11 @@
       }
      }
     },
-    "window": "nsys-peak-original 2026-10-29T03:48:33Z-03:52:46Z (no foreign process seen in any sample; the record of this first window keeps only the first and last sample)"
+    "window": "nsys-peak-original 2026-10-29T03:48:33Z-03:52:46Z (no foreign process in any sample; this first window's record keeps only the first and last sample of each reading)"
    },
    {
     "date": "2026-10-29T04:08:31Z",
-    "date_end": "2026-10-29T04:12:49Z",
+    "date_end": "2026-10-29T04:36:14Z",
     "protocol": {
      "gpu": 1,
      "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
@@ -19596,7 +19596,7 @@
        "--output",
        "<scratch>"
       ],
-      "counted": false,
+      "counted": true,
       "peak_live_bytes": 63183398,
       "peak_live_mib": 60.3,
       "peak_in": [
@@ -19677,20 +19677,7 @@
       ],
       "footprint_peak_mib": 60.3,
       "gpu_processes": {
-       "foreign": [
-        {
-         "pid": 1948596,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/test_hsosp_matches_dijkstra",
-         "used_memory": "264 MiB",
-         "own": false
-        },
-        {
-         "pid": 1949239,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/test_hsosp_scale",
-         "used_memory": "450 MiB",
-         "own": false
-        }
-       ],
+       "foreign": [],
        "samples": 2,
        "own_seen_in_samples": 0
       }
@@ -19717,7 +19704,7 @@
        "--output",
        "<scratch>"
       ],
-      "counted": false,
+      "counted": true,
       "peak_live_bytes": 61183390,
       "peak_live_mib": 58.3,
       "peak_in": [
@@ -19798,14 +19785,7 @@
       ],
       "footprint_peak_mib": 58.3,
       "gpu_processes": {
-       "foreign": [
-        {
-         "pid": 1949239,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/test_hsosp_scale",
-         "used_memory": "470 MiB",
-         "own": false
-        }
-       ],
+       "foreign": [],
        "samples": 2,
        "own_seen_in_samples": 0
       }
@@ -19915,15 +19895,9 @@
       "gpu_processes": {
        "foreign": [
         {
-         "pid": 1948596,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/test_hsosp_matches_dijkstra",
-         "used_memory": "264 MiB",
-         "own": false
-        },
-        {
-         "pid": 1948596,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/test_hsosp_matches_dijkstra",
-         "used_memory": "264 MiB",
+         "pid": 2656922,
+         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-2/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
+         "used_memory": "870 MiB",
          "own": false
         }
        ],
@@ -19953,7 +19927,7 @@
        "--output",
        "<scratch>"
       ],
-      "counted": false,
+      "counted": true,
       "peak_live_bytes": 6129870,
       "peak_live_mib": 5.8,
       "peak_in": [
@@ -20034,20 +20008,7 @@
       ],
       "footprint_peak_mib": 5.8,
       "gpu_processes": {
-       "foreign": [
-        {
-         "pid": 1948596,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/test_hsosp_matches_dijkstra",
-         "used_memory": "264 MiB",
-         "own": false
-        },
-        {
-         "pid": 1948596,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/test_hsosp_matches_dijkstra",
-         "used_memory": "264 MiB",
-         "own": false
-        }
-       ],
+       "foreign": [],
        "samples": 2,
        "own_seen_in_samples": 0
       }
@@ -20306,7 +20267,7 @@
        "--output",
        "<scratch>"
       ],
-      "counted": false,
+      "counted": true,
       "peak_live_bytes": 631824130,
       "peak_live_mib": 602.6,
       "peak_in": [
@@ -20387,39 +20348,8 @@
       ],
       "footprint_peak_mib": 602.6,
       "gpu_processes": {
-       "foreign": [
-        {
-         "pid": 1949590,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospStress",
-         "used_memory": "260 MiB",
-         "own": false
-        },
-        {
-         "pid": 1949879,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
-         "used_memory": "496 MiB",
-         "own": false
-        },
-        {
-         "pid": 1949879,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
-         "used_memory": "498 MiB",
-         "own": false
-        },
-        {
-         "pid": 1949879,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
-         "used_memory": "610 MiB",
-         "own": false
-        },
-        {
-         "pid": 1949879,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
-         "used_memory": "610 MiB",
-         "own": false
-        }
-       ],
-       "samples": 5,
+       "foreign": [],
+       "samples": 4,
        "own_seen_in_samples": 2
       }
      },
@@ -20445,7 +20375,7 @@
        "--output",
        "<scratch>"
       ],
-      "counted": false,
+      "counted": true,
       "peak_live_bytes": 611824122,
       "peak_live_mib": 583.5,
       "peak_in": [
@@ -20526,26 +20456,7 @@
       ],
       "footprint_peak_mib": 583.5,
       "gpu_processes": {
-       "foreign": [
-        {
-         "pid": 1949879,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
-         "used_memory": "610 MiB",
-         "own": false
-        },
-        {
-         "pid": 1949879,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
-         "used_memory": "470 MiB",
-         "own": false
-        },
-        {
-         "pid": 1950225,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/hsospBench",
-         "used_memory": "228 MiB",
-         "own": false
-        }
-       ],
+       "foreign": [],
        "samples": 4,
        "own_seen_in_samples": 1
       }
@@ -20572,7 +20483,7 @@
        "--output",
        "<scratch>"
       ],
-      "counted": false,
+      "counted": true,
       "peak_live_bytes": 1273917914,
       "peak_live_mib": 1214.9,
       "peak_in": [
@@ -20597,14 +20508,7 @@
       ],
       "footprint_peak_mib": 1214.9,
       "gpu_processes": {
-       "foreign": [
-        {
-         "pid": 1950449,
-         "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched/bin/stressTest",
-         "used_memory": "262 MiB",
-         "own": false
-        }
-       ],
+       "foreign": [],
        "samples": 3,
        "own_seen_in_samples": 1
       }
@@ -20662,69 +20566,69 @@
       }
      }
     },
-    "window": "nsys-peak-original 2026-10-29T04:08:31Z-04:12:50Z (the other track ran GPU-1 jobs during the window: the readings with a foreign process are not counted; the peaks equal the first window's)"
+    "window": "nsys-peak-original 04:08:31-04:12:50Z, nsys-peak-original-retake 04:34:59-04:35:59Z and nsys-peak-original-retake2 04:36:09-04:36:14Z (2026-10-29; --skip-existing keeps each counted reading): the other track started GPU-1 jobs during these windows, and every reading with a foreign process in a sample is not counted; 50k damped was not counted in any of them and counts from the first window"
    }
   ],
   "peak_by_case": {
    "500k/damped/original": {
     "peak_live_bytes": 63183398,
     "peak_live_mib": 60.3,
-    "counted_readings": 1,
-    "all_equal": true
+    "counted_readings": 2,
+    "all_readings_equal": true
    },
    "500k/inplace/original": {
     "peak_live_bytes": 61183390,
     "peak_live_mib": 58.3,
-    "counted_readings": 1,
-    "all_equal": true
+    "counted_readings": 2,
+    "all_readings_equal": true
    },
    "50k/damped/original": {
     "peak_live_bytes": 6329878,
     "peak_live_mib": 6.0,
     "counted_readings": 1,
-    "all_equal": true
+    "all_readings_equal": true
    },
    "50k/inplace/original": {
     "peak_live_bytes": 6129870,
     "peak_live_mib": 5.8,
-    "counted_readings": 1,
-    "all_equal": true
+    "counted_readings": 2,
+    "all_readings_equal": true
    },
    "50m/damped/original": {
     "peak_live_bytes": 6173940142,
     "peak_live_mib": 5887.9,
     "counted_readings": 2,
-    "all_equal": true
+    "all_readings_equal": true
    },
    "50m/inplace/original": {
     "peak_live_bytes": 5973940134,
     "peak_live_mib": 5697.2,
     "counted_readings": 2,
-    "all_equal": true
+    "all_readings_equal": true
    },
    "5m/damped/original": {
     "peak_live_bytes": 631824130,
     "peak_live_mib": 602.6,
-    "counted_readings": 1,
-    "all_equal": true
+    "counted_readings": 2,
+    "all_readings_equal": true
    },
    "5m/inplace/original": {
     "peak_live_bytes": 611824122,
     "peak_live_mib": 583.5,
-    "counted_readings": 1,
-    "all_equal": true
+    "counted_readings": 2,
+    "all_readings_equal": true
    },
    "5m1/damped/original": {
     "peak_live_bytes": 1273917914,
     "peak_live_mib": 1214.9,
-    "counted_readings": 1,
-    "all_equal": true
+    "counted_readings": 2,
+    "all_readings_equal": true
    },
    "5m1/inplace/original": {
     "peak_live_bytes": 1253917906,
     "peak_live_mib": 1195.8,
     "counted_readings": 2,
-    "all_equal": true
+    "all_readings_equal": true
    }
   }
  }
