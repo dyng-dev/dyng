@@ -42,7 +42,10 @@ add_executable(
   dyng-compat-hsosp hsosp/hsosp_compat.cpp
                     "${PROJECT_SOURCE_DIR}/cpp/tests/parity/hsosp/hsosp_dump.cpp"
 )
-target_include_directories(dyng-compat-hsosp PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests")
+# The bench sets MOSP_ESCHER's capacities through the internal knobs of slack_csr storage
+# (detail::hypergraph_access::build, ADR 0086) and reads the device pairs of the applied record.
+target_include_directories(dyng-compat-hsosp PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests"
+                                                     "${PROJECT_SOURCE_DIR}/cpp/src")
 target_link_libraries(dyng-compat-hsosp PRIVATE dyng::dyng dyng::testing)
 target_compile_features(dyng-compat-hsosp PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-hsosp)
@@ -85,11 +88,15 @@ if(DYNG_BUILD_TESTS)
 endif()
 
 if(DYNG_BUILD_TESTS)
-  # The committed H-SOSP dump converted twice (the same bytes) and every session replayed on the
-  # host backends (slack_csr storage: the cuda backend takes it in M11a step 3).
+  # The committed H-SOSP dump converted twice (the same bytes) and every session replayed on every
+  # backend with the slack_csr line graph (the ids, B's skips, the pairs against
+  # testing::line_graph_delta, check_integrity(); the CUDA store from M11a step 3).
   set(_hsosp_backends sequential)
   if(DYNG_ENABLE_OPENMP)
     list(APPEND _hsosp_backends openmp)
+  endif()
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _hsosp_backends cuda)
   endif()
   foreach(_backend IN LISTS _hsosp_backends)
     set(_test compat_hsosp.dgb.test_hsosp_matches_dijkstra.${_backend})
@@ -101,9 +108,13 @@ if(DYNG_BUILD_TESTS)
         -DBACKEND=${_backend} -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_test} -P
         ${CMAKE_CURRENT_SOURCE_DIR}/hsosp/convert_twice_and_replay.cmake
     )
-    set_tests_properties(
-      ${_test} PROPERTIES LABELS "cpu;hypergraph;io;compat;hyper_sssp" ENVIRONMENT
-                          "${DYNG_TEST_ENVIRONMENT}"
+    if(_backend STREQUAL "cuda")
+      set(_labels "gpu;hypergraph;io;compat;hyper_sssp")
+    else()
+      set(_labels "cpu;hypergraph;io;compat;hyper_sssp")
+    endif()
+    set_tests_properties(${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT
+                                             "${DYNG_TEST_ENVIRONMENT}"
     )
   endforeach()
 endif()
