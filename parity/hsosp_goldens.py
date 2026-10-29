@@ -820,8 +820,8 @@ def toml_section(out: Path, result: dict) -> str:
 
 CONVERTED_HEADER = (
     f"\n[sets.{SET}.converted]\n"
-    "# dyng-compat-hsosp to-dgb of every case (hsosp_goldens.py convert): converted twice with the\n"
-    "# same bytes and every session replayed by id; sha256 is the SHA-256 of the sorted\n"
+    "# dyng-compat-hsosp to-dgb of every case (hsosp_goldens.py convert): converted twice\n"
+    "# with the same bytes and every session replayed by id; sha256 is the SHA-256 of the sorted\n"
     '# "<sha256>  <file>" lines of the converted files (.s<k>.hg / .dgb / .txt).\n'
 )
 
@@ -832,8 +832,14 @@ def converted_section(path: Path = REPO / "parity" / "goldens.toml") -> str:
     rows = doc.get("sets", {}).get(SET, {}).get("converted", {})
     if not rows:
         return ""
-    return CONVERTED_HEADER + "".join(
-        f'"{case}" = {{ sessions = {r["sessions"]}, files = {r["files"]}, sha256 = "{r["sha256"]}" }}\n'
+    return CONVERTED_HEADER + converted_rows(rows)
+
+
+def converted_rows(rows: dict) -> str:
+    """The rows of the [sets.<SET>.converted] table, sorted by case."""
+    return "".join(
+        f'"{case}" = {{ sessions = {r["sessions"]}, files = {r["files"]}, '
+        f'sha256 = "{r["sha256"]}" }}\n'
         for case, r in sorted(rows.items())
     )
 
@@ -920,14 +926,9 @@ def convert_main(argv: list[str]) -> int:
     if args.write_toml and not problems:
         merged = {**known, **rows}
         text = (REPO / "parity" / "goldens.toml").read_text()
-        block = CONVERTED_HEADER + "".join(
-            f'"{c}" = {{ sessions = {r["sessions"]}, files = {r["files"]}, sha256 = "{r["sha256"]}" }}\n'
-            for c, r in sorted(merged.items())
-        )
+        block = CONVERTED_HEADER + converted_rows(merged)
         # The old table out, the new one after the set's last subtable.
-        text = re.sub(
-            rf"\n\[sets\.{SET}\.converted\]\n.*?(?=\n\[sets\.|\Z)", "", text, flags=re.S
-        )
+        text = re.sub(rf"\n\[sets\.{SET}\.converted\]\n.*?(?=\n\[sets\.|\Z)", "", text, flags=re.S)
         here = text.find(f"[sets.{SET}]")
         later = re.compile(rf"^\[sets\.(?!{SET}[\].])", re.M).search(text, here)
         at = later.start() if later else len(text)
@@ -949,7 +950,6 @@ def convert_main(argv: list[str]) -> int:
         print("  " + pr)
     print("convert: " + ("OK" if not problems else "FAILED"))
     return 0 if not problems else 1
-
 
 
 def write_toml(section: str) -> None:

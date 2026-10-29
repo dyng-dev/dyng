@@ -1853,8 +1853,8 @@ sequential.by_key = ["test", "paper/dblp_vertex_50000"]
 "test/09-hsospBench_real_vertex" = { sessions = 1, batches = 3, digest_mode = false, sha256 = "f841cb09292ff5cf2da36d552be7aa8a1732fe569660a30bd108d20db2d4363e" }
 
 [sets.hyper_sssp_mosp_escher.converted]
-# dyng-compat-hsosp to-dgb of every case (hsosp_goldens.py convert): converted twice with the
-# same bytes and every session replayed by id; sha256 is the SHA-256 of the sorted
+# dyng-compat-hsosp to-dgb of every case (hsosp_goldens.py convert): converted twice
+# with the same bytes and every session replayed by id; sha256 is the SHA-256 of the sorted
 # "<sha256>  <file>" lines of the converted files (.s<k>.hg / .dgb / .txt).
 "paper/dblp_hyperedge_50000" = { sessions = 1, files = 3, sha256 = "45c676ffd45fd3b584dadf1c8dee09ee8339d302b81140c9ef5aa3ac7b8a6dc4" }
 "paper/dblp_vertex_50000" = { sessions = 1, files = 3, sha256 = "3a10450e0dbc9caea8029993a6f1f48a84f76e2aa90f31c927b777cacdf66f50" }
