@@ -1,0 +1,71 @@
+{
+ "record": "M11a step 2: the checks of the step's final tree (before the records commit)",
+ "tree": "9c41ad9 plus the records commit",
+ "ci_check_sh": {
+  "cpu-only ctest -L cpu": "1375/1375 passed",
+  "dev ctest -L cpu": "1410/1410 passed",
+  "other steps": "passed except precommit (ruff E501 in ci/provenance_check.py), fixed in 9c41ad9; DYNG_CHECK_ONLY='precommit format' then passed"
+ },
+ "openmp_off": "cpu-only with DYNG_ENABLE_OPENMP=OFF: built, ctest -L cpu 1196/1196 passed",
+ "fortified": "cpu-only -D_FORTIFY_SOURCE=3 with DYNG_BUILD_PYTHON=ON: built, 0 warnings",
+ "clang18_syntax": {
+  "dev database": "569 files, 0 failures",
+  "python bindings": "19 files, 0 failures"
+ },
+ "gcc13": "GCC 13.4.0 (conda package cache, libstdc++ 13 headers, system glibc) -O2 -D_FORTIFY_SOURCE=3 -Werror over the dev database: 566 of 569 compile; the 3 failures are -Wmismatched-new-delete in test files unchanged since the base b2b1524 (graph/allocation_failure_test.cpp, io/fuzz_regression_test.cpp, algorithms/mosp/mosp_allocation_failure_test.cpp)",
+ "sanitizers": {
+  "asan (ASan+UBSan)": "ctest -L cpu -LE slow 1267/1267 passed",
+  "tsan-openmp": "Clang 18.1.8 wrapper, Archer = dyng-clang's libarcher.so.bak (DYNG_ARCHER_LIBRARY): 1267/1267 passed"
+ },
+ "escher_storage_id_replays_0_3": {
+  "committed-openmp-t8": {
+   "passed": true,
+   "sessions": 11,
+   "batches": 14,
+   "stopped_sessions": 8,
+   "equal_to_committed_M8b_totals": true
+  },
+  "committed-sequential-t8": {
+   "passed": true,
+   "sessions": 11,
+   "batches": 14,
+   "stopped_sessions": 8,
+   "equal_to_committed_M8b_totals": true
+  },
+  "escher_gpu_test-openmp-t8": {
+   "passed": true,
+   "sessions": 75,
+   "batches": 180,
+   "stopped_sessions": 0,
+   "equal_to_committed_M8b_totals": true
+  },
+  "escher_gpu_test-sequential-t8": {
+   "passed": true,
+   "sessions": 75,
+   "batches": 180,
+   "stopped_sessions": 0,
+   "equal_to_committed_M8b_totals": true
+  },
+  "mosp_escher_test-openmp-t8": {
+   "passed": true,
+   "sessions": 153,
+   "batches": 129,
+   "stopped_sessions": 96,
+   "equal_to_committed_M8b_totals": true
+  },
+  "mosp_escher_test-sequential-t8": {
+   "passed": true,
+   "sessions": 153,
+   "batches": 129,
+   "stopped_sessions": 96,
+   "equal_to_committed_M8b_totals": true
+  }
+ },
+ "triad_goldens_make_test": {
+  "seq": "triad_count sequential both oracle: 60/60 cases passed (16 s)",
+  "omp": "triad_count openmp:8 both oracle: 60/60 cases passed (15 s)",
+  "seq-alg": "triad_count sequential both algorithm: 60/60 cases passed (226 s)",
+  "omp-alg": "triad_count openmp:8 both algorithm: 60/60 cases passed (46 s)"
+ },
+ "gpu1_job": "dyng_hypergraph_cuda_tests (dev-cuda), after locklog.py quiet-ok M11a carried-host-incidence-slack, nvidia-smi -i 1 empty before: 75 tests, 58 passed, 17 skipped (slack_csr on cuda, M11a step 3); SlackBackends.SlackCsrOnCudaArrivesInStep3/cuda passed"
+}

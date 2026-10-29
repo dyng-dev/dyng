@@ -52,6 +52,42 @@ Before 0.1.0 anything may change.
 - Changed (internal): a batch of a weighted hypergraph updates the weights by id in place, in
   O(batch), instead of copying all of them (O(id bound)) per batch; the guarantees of `apply()`
   are unchanged (ADR 0088).
+- Added (api-change: documentation of the frozen hypergraph headers): **`slack_csr` storage**
+  (`hypergraph_storage::slack_csr`, `line_graph_policy::slack_csr`; the property matrix of HD9,
+  decided by the author on 2026-10-28) on the sequential and OpenMP backends: MOSP_ESCHER's host
+  incidence model, the best-fit ids of its ESCHER H2V tree, and its slack CSR line graph (slots
+  with headroom, swap-remove deletions, appended insertions, relocations, a rebuild when the tail
+  is full) kept from every batch's pair delta, computed inside the commit from the incidence
+  changes, exact and independent of the order of the operations (ADR 0086). `h2h()` sorts each
+  row on request; `overlaps` is empty. The cuda backend refuses slack_csr storage until M11a step
+  3, the Python layer until M11b (`NotSupportedError`).
+- Added (api-change: documented behaviour of `apply()`): **incidence edits** on slack_csr storage
+  (`hyperedge_batch::delete_incidence` / `insert_incidence`): applied after the batch's
+  deletions and before its insertions, in MOSP_ESCHER's order, an edit that cannot apply skipped
+  and counted in `skipped_ops`, the summary's `inserted_incidences` / `deleted_incidences`
+  filled; escher storage keeps refusing them (`not_supported_error`, the message names
+  slack_csr); `id_reuse` documents the store order of both values with edits (ADR 0085).
+- Changed (api-change: documented behaviour): `triad_count` and the experimental
+  `count_local_patterns` refuse slack_csr storage (`not_supported_error`, strong guarantee; HD9).
+- Added (api-change: appended enumerators, HD12): seven incidence-edit mixes of
+  `generators::hyperedge_batch_mix` (`incidence_removals`, `incidence_additions`,
+  `incidence_mixed`, `incidence_emptying`, `incidence_same_batch`, `incidence_repeats`,
+  `incidence_out_of_range`); every 0.3 stream is unchanged (ADR 0085).
+- Added (api-change: `batch_io`, HD10): the batch files hold incidence edits: `.dgt` `-i h v` /
+  `+i h v` (reserved by version 1 for 0.4) and the `.dgb` flag `batch_file_flags::incidence_edits`
+  (bit 3, format version 1 kept), with `known_graph` and `known_hypergraph` (`known` is their
+  union); the writers set the flag only when a batch needs it, so every 0.3 file is written byte
+  for byte as before; `batch_writer::write` raises `invalid_argument_error` (was
+  `not_supported_error`) for an edit in a file opened without the flag, and the text writers
+  write edits instead of refusing them. A 0.3 reader refuses the new files (ADR 0087).
+- Internal: the id allocator models ESCHER's H2V fills and unfills (the tail occupancy), in
+  lockstep with `testing::cbst_host_model` and MOSP_ESCHER's recorded trees (ADR 0085).
+- Conformance kit: the hypergraph axis gains the slack_csr presets and the incidence mixes, with
+  a `test_traits::accepts` hook for algorithms that take some storages only.
+- Parity harness: MOSP_ESCHER's sessions are replayed whole on slack_csr storage, its
+  vertex-kind batches included (`dyng_hsosp_replay`, `parity/compare.py hyper_sssp --part delta`;
+  `dyng_hypergraph_ids --storage slack_csr`); `dyng-compat-hsosp to-dgb` converts the H-SOSP
+  dumps to `.hg` / `.dgb` files (`tools/compat/hsosp`; the digests in `parity/goldens.toml`).
 
 ## [0.3.0] - 2026-10-29
 
