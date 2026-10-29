@@ -13,6 +13,7 @@
  * cpp/src/hypergraph/slack_csr/slack_layout.hpp).
  */
 #include "hypergraph/slack_csr/slack_csr_store.hpp"
+#include "util/device_error_flags.cuh"
 
 #include <cub/cub.cuh>
 #include <thrust/iterator/transform_iterator.h>
@@ -20,7 +21,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <limits>
-#include <stdexcept>
 
 namespace dyng::detail::hyper::slack {
 
@@ -67,7 +67,7 @@ __global__ void apply_rows_warp_kernel(int n_rows, const int* rows, const int* r
                                        const int* row_len, const unsigned long long* keys,
                                        long long* row_start, int* deg, int* cap, int* col_ind,
                                        unsigned long long* tail_cursor, long long cap_entries,
-                                       int* overflow_flag) {
+                                       int* overflow_flag, std::uint32_t* error) {
   const int warp = (blockIdx.x * blockDim.x + threadIdx.x) >> 5;
   const int lane = threadIdx.x & 31;
   if (warp >= n_rows) return;
@@ -92,6 +92,9 @@ __global__ void apply_rows_warp_kernel(int n_rows, const int* rows, const int* r
     if (pos >= 0) {
       if (lane == 0) col_ind[base + pos] = col_ind[base + d - 1];
       --d;
+    } else if (lane == 0) {
+      // dynG: a deleted pair the row does not hold (a broken invariant of the device graph).
+      raise_device_error(error, device_error::internal);
     }
     __syncwarp();
   }
@@ -143,12 +146,15 @@ void build_csr(device_h2h& dev, const host_hypergraph& hg, const line_graph_csr&
                double entry_headroom) {
   const int m = hg.max_id();
   if (m > max_nodes) {
-    throw std::runtime_error("build_device_h2h: max_nodes too small for current hypergraph");
+    throw capacity_error("dyng: hypergraph: " + std::to_string(m) +
+                         " ids exceed the node capacity " + std::to_string(max_nodes) +
+                         " of the slack_csr line graph");
   }
   // !(x >= 1) also rejects NaN. Below 1 the col_ind capacity is smaller
   // than the row layout and the host fill below overran its vector.
   if (!(entry_headroom >= 1.0)) {
-    throw std::invalid_argument("build_device_h2h: entry_headroom must be >= 1");
+    throw invalid_argument_error(
+        "dyng: hypergraph: the slack_csr line graph's entry headroom must be at least 1");
   }
   dev.free();
   dev.max_nodes = max_nodes;
@@ -185,28 +191,28 @@ void build_csr(device_h2h& dev, const host_hypergraph& hg, const line_graph_csr&
     }
   }
 
-  HSOSP_CUDA_CHECK(cudaMalloc(&dev.d_row_start, sizeof(long long) * max_nodes));
-  HSOSP_CUDA_CHECK(cudaMalloc(&dev.d_deg, sizeof(int) * max_nodes));
-  HSOSP_CUDA_CHECK(cudaMalloc(&dev.d_cap, sizeof(int) * max_nodes));
-  HSOSP_CUDA_CHECK(cudaMalloc(&dev.d_col_ind, sizeof(int) * dev.cap_entries));
-  HSOSP_CUDA_CHECK(cudaMalloc(&dev.d_node_w, sizeof(long long) * max_nodes));
-  HSOSP_CUDA_CHECK(cudaMalloc(&dev.d_tail_cursor, sizeof(unsigned long long)));
-  HSOSP_CUDA_CHECK(cudaMalloc(&dev.d_overflow_flag, sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_row_start, sizeof(long long) * max_nodes));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_deg, sizeof(int) * max_nodes));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_cap, sizeof(int) * max_nodes));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_col_ind, sizeof(int) * dev.cap_entries));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_node_w, sizeof(long long) * max_nodes));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_tail_cursor, sizeof(unsigned long long)));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_overflow_flag, sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&dev.d_error, sizeof(std::uint32_t)));
+  DYNG_CUDA_TRY(cudaMemset(dev.d_error, 0, sizeof(std::uint32_t)));
 
-  HSOSP_CUDA_CHECK(cudaMemcpy(dev.d_row_start, row_start.data(), sizeof(long long) * max_nodes,
-                              cudaMemcpyHostToDevice));
-  HSOSP_CUDA_CHECK(
-      cudaMemcpy(dev.d_deg, deg.data(), sizeof(int) * max_nodes, cudaMemcpyHostToDevice));
-  HSOSP_CUDA_CHECK(
-      cudaMemcpy(dev.d_cap, cap.data(), sizeof(int) * max_nodes, cudaMemcpyHostToDevice));
-  HSOSP_CUDA_CHECK(cudaMemcpy(dev.d_col_ind, col_ind.data(), sizeof(int) * dev.cap_entries,
-                              cudaMemcpyHostToDevice));
-  HSOSP_CUDA_CHECK(cudaMemcpy(dev.d_node_w, node_w.data(), sizeof(long long) * max_nodes,
-                              cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpy(dev.d_row_start, row_start.data(), sizeof(long long) * max_nodes,
+                           cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpy(dev.d_deg, deg.data(), sizeof(int) * max_nodes, cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpy(dev.d_cap, cap.data(), sizeof(int) * max_nodes, cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpy(dev.d_col_ind, col_ind.data(), sizeof(int) * dev.cap_entries,
+                           cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpy(dev.d_node_w, node_w.data(), sizeof(long long) * max_nodes,
+                           cudaMemcpyHostToDevice));
   unsigned long long tc = static_cast<unsigned long long>(cursor);
-  HSOSP_CUDA_CHECK(
+  DYNG_CUDA_TRY(
       cudaMemcpy(dev.d_tail_cursor, &tc, sizeof(unsigned long long), cudaMemcpyHostToDevice));
-  HSOSP_CUDA_CHECK(cudaMemset(dev.d_overflow_flag, 0, sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(dev.d_overflow_flag, 0, sizeof(int)));
 }
 
 /**
@@ -223,12 +229,14 @@ bool apply_delta_pairs(device_h2h& dev) {
   dd.num_sorted_keys = 0;
   if (n_pairs > 0) {
     const long long n_keys = 2 * n_pairs;
-    if (n_keys > std::numeric_limits<int>::max())
-      throw std::runtime_error("applyBatch: batch too large");
+    if (n_keys > std::numeric_limits<int>::max()) {
+      throw capacity_error("dyng: hypergraph: a batch of " + std::to_string(n_pairs) +
+                           " line-graph pair changes exceeds the int32 counts of the CSR apply");
+    }
     dd.reserve_keys(n_keys);
     expand_delta_keys_kernel<<<grid_for(n_pairs, block), block>>>(
         dd.d_pairs, dd.num_del, static_cast<int>(n_pairs), dd.d_keys);
-    HSOSP_CUDA_CHECK(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
 
     // Only the bits up to the row index take part in the sort.
     int row_bits = 1;
@@ -239,40 +247,47 @@ bool apply_delta_pairs(device_h2h& dev) {
     auto rows_in =
         thrust::make_transform_iterator(static_cast<const unsigned long long*>(nullptr), key_row());
     std::size_t sort_bytes = 0, rle_bytes = 0, scan_bytes = 0;
-    HSOSP_CUDA_CHECK(cub::DeviceRadixSort::SortKeys(nullptr, sort_bytes, keys, n, 0, end_bit));
-    HSOSP_CUDA_CHECK(cub::DeviceRunLengthEncode::Encode(nullptr, rle_bytes, rows_in, dd.d_rows,
-                                                        dd.d_row_len, dd.d_num_rows, n));
-    HSOSP_CUDA_CHECK(
+    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(nullptr, sort_bytes, keys, n, 0, end_bit));
+    DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(nullptr, rle_bytes, rows_in, dd.d_rows,
+                                                     dd.d_row_len, dd.d_num_rows, n));
+    DYNG_CUDA_TRY(
         cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes, dd.d_row_len, dd.d_row_off, n));
     dd.reserve_temp(std::max({sort_bytes, rle_bytes, scan_bytes}));
-    HSOSP_CUDA_CHECK(cub::DeviceRadixSort::SortKeys(dd.d_temp, dd.temp_bytes, keys, n, 0, end_bit));
+    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(dd.d_temp, dd.temp_bytes, keys, n, 0, end_bit));
     const unsigned long long* sorted = keys.Current();
     dd.d_sorted_keys = sorted;
     dd.num_sorted_keys = n_keys;
     auto rows = thrust::make_transform_iterator(sorted, key_row());
-    HSOSP_CUDA_CHECK(cub::DeviceRunLengthEncode::Encode(dd.d_temp, dd.temp_bytes, rows, dd.d_rows,
-                                                        dd.d_row_len, dd.d_num_rows, n));
+    DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(dd.d_temp, dd.temp_bytes, rows, dd.d_rows,
+                                                     dd.d_row_len, dd.d_num_rows, n));
     int n_rows = 0;
-    HSOSP_CUDA_CHECK(cudaMemcpy(&n_rows, dd.d_num_rows, sizeof(int), cudaMemcpyDeviceToHost));
-    HSOSP_CUDA_CHECK(cub::DeviceScan::ExclusiveSum(dd.d_temp, dd.temp_bytes, dd.d_row_len,
-                                                   dd.d_row_off, n_rows));
+    DYNG_CUDA_TRY(cudaMemcpy(&n_rows, dd.d_num_rows, sizeof(int), cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(dd.d_temp, dd.temp_bytes, dd.d_row_len,
+                                                dd.d_row_off, n_rows));
     apply_rows_warp_kernel<<<grid_for(32LL * n_rows, block), block>>>(
         n_rows, dd.d_rows, dd.d_row_off, dd.d_row_len, sorted, dev.d_row_start, dev.d_deg,
-        dev.d_cap, dev.d_col_ind, dev.d_tail_cursor, dev.cap_entries, dev.d_overflow_flag);
-    HSOSP_CUDA_CHECK(cudaGetLastError());
+        dev.d_cap, dev.d_col_ind, dev.d_tail_cursor, dev.cap_entries, dev.d_overflow_flag,
+        dev.d_error);
+    DYNG_CUDA_TRY(cudaGetLastError());
   }
   if (dd.num_new > 0) {
     scatter_weights_kernel<<<grid_for(dd.num_new, block), block>>>(dd.d_ids, dd.d_new_w, dd.num_new,
                                                                    dev.d_node_w);
-    HSOSP_CUDA_CHECK(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
   }
 
   int overflow = 0;
-  HSOSP_CUDA_CHECK(cudaMemcpy(&overflow, dev.d_overflow_flag, sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaMemcpy(&overflow, dev.d_overflow_flag, sizeof(int), cudaMemcpyDeviceToHost));
   unsigned long long tc = 0;
-  HSOSP_CUDA_CHECK(
+  DYNG_CUDA_TRY(
       cudaMemcpy(&tc, dev.d_tail_cursor, sizeof(unsigned long long), cudaMemcpyDeviceToHost));
   dev.used_entries = static_cast<long long>(tc);
+  std::uint32_t error = 0;
+  DYNG_CUDA_TRY(cudaMemcpy(&error, dev.d_error, sizeof(std::uint32_t), cudaMemcpyDeviceToHost));
+  if (error != 0)
+    throw_device_errors(
+        error, "hypergraph::apply (slack_csr)",
+        "a deleted pair the device line graph or its incidence mirror does not hold");
   return overflow == 0;
 }
 
@@ -281,11 +296,11 @@ std::vector<std::vector<int>> download_rows(const device_h2h& dev, int m) {
   std::vector<int> deg(m);
   std::vector<int> col_ind(static_cast<std::size_t>(dev.cap_entries));
   if (m > 0) {
-    HSOSP_CUDA_CHECK(cudaMemcpy(row_start.data(), dev.d_row_start, sizeof(long long) * m,
-                                cudaMemcpyDeviceToHost));
-    HSOSP_CUDA_CHECK(cudaMemcpy(deg.data(), dev.d_deg, sizeof(int) * m, cudaMemcpyDeviceToHost));
-    HSOSP_CUDA_CHECK(cudaMemcpy(col_ind.data(), dev.d_col_ind, sizeof(int) * dev.cap_entries,
-                                cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cudaMemcpy(row_start.data(), dev.d_row_start, sizeof(long long) * m,
+                             cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cudaMemcpy(deg.data(), dev.d_deg, sizeof(int) * m, cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cudaMemcpy(col_ind.data(), dev.d_col_ind, sizeof(int) * dev.cap_entries,
+                             cudaMemcpyDeviceToHost));
   }
   std::vector<std::vector<int>> rows(m);
   for (int i = 0; i < m; ++i) {

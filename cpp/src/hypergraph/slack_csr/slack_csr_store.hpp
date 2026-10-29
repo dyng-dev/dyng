@@ -28,25 +28,19 @@
  */
 
 #include "hypergraph/slack_csr/slack_layout.hpp"
+#include "util/cuda_check.hpp"
+#include "util/device_error_flags.hpp"
+
+#include <dyng/core/error.hpp>
 
 #include <cuda_runtime.h>
 
 #include <cstddef>
 #include <cstdint>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace dyng::detail::hyper::slack {
-
-#define HSOSP_CUDA_CHECK(call)                                                                    \
-  do {                                                                                            \
-    cudaError_t err__ = (call);                                                                   \
-    if (err__ != cudaSuccess) {                                                                   \
-      throw std::runtime_error(std::string("CUDA error: ") + cudaGetErrorString(err__) + " at " + \
-                               __FILE__ + ":" + std::to_string(__LINE__));                        \
-    }                                                                                             \
-  } while (0)
 
 // dynG (transplant hunk): the host incidence model, its line graph and the batch's incidence
 // changes as the transplanted code reads them (MOSP_ESCHER's HostHypergraph, LineGraphCSR and
@@ -271,10 +265,10 @@ struct device_incidence::scratch_arrays {
   std::size_t temp_cap = 0;
 
   scratch_arrays() {
-    HSOSP_CUDA_CHECK(cudaMalloc(&totals, sizeof(long long) * 2));
-    HSOSP_CUDA_CHECK(cudaMalloc(&counts, sizeof(int) * 4));
-    HSOSP_CUDA_CHECK(cudaMallocHost(&host_totals, sizeof(long long) * 2));
-    HSOSP_CUDA_CHECK(cudaMallocHost(&host_counts, sizeof(int) * 4));
+    DYNG_CUDA_TRY(cudaMalloc(&totals, sizeof(long long) * 2));
+    DYNG_CUDA_TRY(cudaMalloc(&counts, sizeof(int) * 4));
+    DYNG_CUDA_TRY(cudaMallocHost(&host_totals, sizeof(long long) * 2));
+    DYNG_CUDA_TRY(cudaMallocHost(&host_counts, sizeof(int) * 4));
   }
   ~scratch_arrays() {
     for (void* p : {static_cast<void*>(inc_keys),     static_cast<void*>(inc_keys_alt),
@@ -292,16 +286,16 @@ struct device_incidence::scratch_arrays {
                     static_cast<void*>(t_vert_len),   static_cast<void*>(reloc_verts),
                     static_cast<void*>(reloc_off),    static_cast<void*>(totals),
                     static_cast<void*>(counts),       temp})
-      if (p) cudaFree(p);
-    if (host_totals) cudaFreeHost(host_totals);
-    if (host_counts) cudaFreeHost(host_counts);
+      if (p) DYNG_CUDA_TRY_NO_THROW(cudaFree(p));
+    if (host_totals) DYNG_CUDA_TRY_NO_THROW(cudaFreeHost(host_totals));
+    if (host_counts) DYNG_CUDA_TRY_NO_THROW(cudaFreeHost(host_counts));
   }
 
   void reserve_temp(std::size_t bytes) {
     if (bytes <= temp_cap) return;
-    if (temp) cudaFree(temp);
+    if (temp) DYNG_CUDA_TRY(cudaFree(temp));
     temp_cap = bytes + bytes / 2 + 4096;
-    HSOSP_CUDA_CHECK(cudaMalloc(&temp, temp_cap));
+    DYNG_CUDA_TRY(cudaMalloc(&temp, temp_cap));
   }
 };
 
@@ -319,6 +313,10 @@ struct device_h2h {
   long long* d_node_w = nullptr;
   unsigned long long* d_tail_cursor = nullptr;
   int* d_overflow_flag = nullptr;
+  /// dynG: the sticky device error word (PLAN 4.7.3) of the delta and the CSR apply: a deletion
+  /// that finds no entry is a broken invariant (device_error::internal), read with the overflow
+  /// flag.
+  std::uint32_t* d_error = nullptr;
   long long num_entries = 0;  ///< live adjacency entries (2 x pairs)
 
   device_delta delta;    ///< last applied batch delta
@@ -344,7 +342,7 @@ struct device_h2h {
  * @param max_nodes      node capacity; must cover every id the run will see.
  * @param entry_headroom col_ind capacity = initial slack entries *
  *                      entry_headroom (+4096); growth room for relocations.
- *                      Must be >= 1 (std::invalid_argument otherwise).
+ *                      Must be >= 1 (invalid_argument_error otherwise).
  */
 void build_device_h2h(device_h2h& dev, const host_hypergraph& hg, const line_graph_csr& lg,
                       int max_nodes, double entry_headroom);
