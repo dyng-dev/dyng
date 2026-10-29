@@ -90,7 +90,7 @@ table.push_back(algorithm_info{
     maturity_level::experimental,
     determinism::tolerance,
     oracle_kind::reference,
-    {backend::sequential},
+    {backend::sequential, backend::cuda},
     {"dynlp2026"},
 });
 #endif

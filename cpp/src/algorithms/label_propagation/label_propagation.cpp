@@ -10,6 +10,7 @@
  *        framework's enactors, the hooks of the problem (problem.hpp), the stage trace (trace.hpp)
  *        and the explicit instantiations (ADRs 0071-0073).
  */
+#include "algorithms/label_propagation/fused.hpp"
 #include "algorithms/label_propagation/problem.hpp"
 #include "algorithms/label_propagation/trace.hpp"
 #include "core/budget_counters.hpp"
@@ -21,6 +22,7 @@
 #include "framework/views.hpp"
 #include "graph/graph_impl.hpp"
 
+#include <dyng/config.hpp>
 #include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
@@ -29,6 +31,7 @@
 #include <dyng/update.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cfenv>
 #include <cmath>
 #include <cstddef>
@@ -59,10 +62,9 @@ std::uint64_t round_to_u64(double x) {
   return static_cast<std::uint64_t>(r);
 }
 
-/// Whether the backend `b` is one of label_propagation's (its manifest: sequential; cuda from
-/// M10a step 4).
+/// Whether the backend `b` is one of label_propagation's (its manifest: sequential and cuda).
 bool implemented(backend b) {
-  return b == backend::sequential;
+  return b == backend::sequential || b == backend::cuda;
 }
 
 /// Throws not_supported_error unless the backend of `res` is label_propagation's and built (the
@@ -74,9 +76,60 @@ void expect_backend(const resources& res, const char* function) {
   }
   throw not_supported_error(concat_message(
       "dyng: ", function, ": the ", to_string(b),
-      " backend is not available for label_propagation (its backends: sequential and cuda; cuda "
-      "arrives in M10a step 4, and there is no OpenMP backend in 0.4); use "
-      "dyng::resources::sequential() (Python: dyng.Resources(\"sequential\"))"));
+      " backend is not available for label_propagation (its backends: sequential and cuda; there "
+      "is no OpenMP backend in 0.4); use dyng::resources::sequential() (Python: "
+      "dyng.Resources(\"sequential\")) or dyng::resources::cuda()"));
+}
+
+/// Throws invalid_argument_error unless the result lives where `res` runs (its labels on the host
+/// for the host backends, on the device of `res` for cuda).
+template <typename vertex_t>
+void expect_result_placement(const label_propagation_state<vertex_t>& st, const resources& res,
+                             const char* function) {
+  const bool on_cuda = res.get_backend() == backend::cuda;
+  if (on_cuda && st.cuda == nullptr) {
+    throw invalid_argument_error(concat_message(
+        "dyng: ", function,
+        ": the result belongs to the host backends but the resources are cuda; move it with "
+        "result.clone(res)"));
+  }
+  if (!on_cuda && st.cuda != nullptr) {
+    throw invalid_argument_error(
+        concat_message("dyng: ", function, ": the result is resident on CUDA device ",
+                       st.cuda->device, " but the resources are ", to_string(res.get_backend()),
+                       "; move it with result.clone(res)"));
+  }
+  if (on_cuda && st.cuda->device != res.device()) {
+    throw invalid_argument_error(concat_message(
+        "dyng: ", function, ": the result is resident on CUDA device ", st.cuda->device,
+        " but the resources use device ", res.device(), "; move it with result.clone(res)"));
+  }
+}
+
+/// Throws not_supported_error for options::cuda_engine = engine::operators on CUDA (the operators
+/// engine of label_propagation arrives in M10b).
+void expect_cuda_engine(const label_propagation::options& opt, const resources& res,
+                        const char* function) {
+  if (res.get_backend() == backend::cuda && opt.cuda_engine == engine::operators) {
+    throw not_supported_error(concat_message(
+        "dyng: ", function,
+        ": label_propagation has no operators engine on CUDA in this release (it arrives in M10b); "
+        "use engine::fused or engine::automatic"));
+  }
+}
+
+/// The propagation queues' capacities from the row capacities (createPropagationWorkspace).
+template <typename edge_t>
+std::array<int, lp_cuda::num_degree_bins> bin_capacities(const std::vector<edge_t>& row_ptr) {
+  std::array<int, lp_cuda::num_degree_bins> c{};
+  const std::size_t n = row_ptr.empty() ? 0 : row_ptr.size() - 1;
+  c[lp_cuda::bin_small] = static_cast<int>(n);
+  for (std::size_t v = 0; v < n; ++v) {
+    const int top = lp_cuda::degree_bin_of(static_cast<std::int64_t>(row_ptr[v + 1] - row_ptr[v]));
+    c[lp_cuda::bin_medium] += top >= lp_cuda::bin_medium ? 1 : 0;
+    c[lp_cuda::bin_large] += top >= lp_cuda::bin_large ? 1 : 0;
+  }
+  return c;
 }
 
 /// Throws stale_result_error for a poisoned result.
@@ -243,9 +296,13 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::begin_update(framewo
   framework::expect_current_result("label_propagation::update", state_->version,
                                    state_->graph_state, graph);
   expect_options(state_->opt, "label_propagation::update");
-  DYNG_EXPECTS(state_->labels.size() == static_cast<std::size_t>(graph.num_vertices()),
-               "label_propagation::update: the result has ", state_->labels.size(),
-               " labels but the graph has ", graph.num_vertices(), " vertices");
+  expect_result_placement(*state_, ctx.res(), "label_propagation::update");
+  expect_cuda_engine(state_->opt, ctx.res(), "label_propagation::update");
+  const std::size_t labels =
+      state_->cuda != nullptr ? static_cast<std::size_t>(state_->cuda->n) : state_->labels.size();
+  DYNG_EXPECTS(labels == static_cast<std::size_t>(graph.num_vertices()),
+               "label_propagation::update: the result has ", labels, " labels but the graph has ",
+               graph.num_vertices(), " vertices");
   DYNG_EXPECTS(batch.normalized != nullptr && batch.normalized->vertex_step,
                "label_propagation::update: the framework's Step 0 of the vertex batch is missing");
   batch_ = &batch.edges;
@@ -256,6 +313,18 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::before_apply(
     framework::context& ctx, old_graph g, const requested& batch, frontier_type& /*frontier*/) {
   const container_type& graph = g.get();
   const normalized_batch<vertex_t>& step0 = *batch.normalized;
+  if (ctx.chosen_engine() == engine::fused) {
+    // The fused CUDA engine (ADR 0075): the affected flags cleared and launchMarkDeletions on the
+    // device rows of G_t (Step 0 uploaded the batch).
+    if (!cuda_ws_) {
+      cuda_ws_.emplace(ctx.lease_workspace<lp_cuda::workspace>());
+    }
+    lp_cuda::before_apply(ctx.res(), graph, *state_->cuda, cuda_ws_->get(),
+                          static_cast<std::int64_t>(state_->reserved_vertices),
+                          static_cast<std::int64_t>(state_->reserved_edges),
+                          state_->opt.update_schedule == label_propagation::schedule::damped);
+    return;
+  }
   label_propagation_workspace& ws =
       workspace(ctx, graph, step0.inserted_vertices.size(), batch.edges.num_insertions());
   std::fill(ws.affected.begin(), ws.affected.end(), std::uint8_t{0});
@@ -277,6 +346,9 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::resume(framework::co
                                                                    new_graph g,
                                                                    const applied& applied) {
   applied_ = &applied;
+  if (ctx.chosen_engine() == engine::fused) {
+    return;  // the fused engine's workspace was leased and sized in before_apply
+  }
   label_propagation_workspace& ws = workspace(ctx, g.get(), applied.delta.inserted_vertices.size(),
                                               applied.delta.insert_src.size());
   ws.before.assign(state_->labels.begin(), state_->labels.end());
@@ -624,6 +696,109 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::end_update(
   framework::stamp_result(state_->version, state_->graph_state, g.get());
   ++state_->updates;
   ws_.reset();
+  cuda_ws_.reset();
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+framework::budget label_propagation_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
+    framework::context& ctx) const noexcept {
+  if (!ctx.on_cuda()) {
+    return framework::budget::steady_state(0);
+  }
+  return cuda_syncs_ < 0 ? framework::budget::unchecked()
+                         : framework::budget::steady_state(cuda_syncs_);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+engine label_propagation_problem<vertex_t, edge_t, weight_t>::select_engine(
+    framework::context& ctx) const noexcept {
+  return ctx.on_cuda() ? state_->opt.cuda_engine : engine::automatic;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void label_propagation_problem<vertex_t, edge_t, weight_t>::enact_fused(framework::context& ctx,
+                                                                        new_graph g,
+                                                                        const applied& applied,
+                                                                        stats_type& stats) {
+  const container_type& graph = g.get();
+  const label_propagation::options& opt = state_->opt;
+  const apply_delta<vertex_t>& delta = applied.delta;
+  // The batch's seeds join the result (the host copy of the seed labels; the device classes are
+  // set by the engine).
+  for (std::size_t i = 0; i < delta.inserted_vertices.size(); ++i) {
+    if (delta.inserted_labels[i] >= 0) {
+      state_->seeds[static_cast<std::size_t>(delta.inserted_vertices[i])] =
+          delta.inserted_labels[i];
+    }
+  }
+  lp_cuda::batch_args a;
+  // tau: the published one, or the average weight of the current graph's live entries (the
+  // host sum of the sequential backend, over the downloaded rows: bitwise the same).
+  a.tau =
+      opt.similarity_threshold ? *opt.similarity_threshold : average_live_weight(host_rows(graph));
+  a.delta = opt.tolerance;
+  a.max_iterations = static_cast<int>(std::min<std::int64_t>(opt.max_iterations, 2147483647));
+  a.damped = opt.update_schedule == label_propagation::schedule::damped;
+  a.fallback = opt.on_iteration_limit == label_propagation::on_limit::fallback_recompute;
+  a.batch_stamp = static_cast<int>(state_->updates + 1);
+  a.batch_no = static_cast<int>(state_->updates);
+  a.inserted = delta.inserted_vertices.data();
+  a.num_inserted = delta.inserted_vertices.size();
+  a.host_seeds = state_->seeds.data();
+  a.num_deleted = static_cast<std::int32_t>(batch_ == nullptr ? 0 : batch_->delete_vertices.size());
+  const lp_cuda::batch_result r =
+      lp_cuda::after_commit(ctx.res(), graph, *state_->cuda, cuda_ws_->get(), a);
+  cuda_syncs_ = lp_trace::writer::get() != nullptr ? -1 : r.host_syncs;
+  stats.batch.inserted_edges = r.appended;
+  stats.batch.dropped_insertions = r.dropped;
+  if (r.graph_errors != 0) {
+    ctx.raise_device_error(r.graph_errors, r.error_detail);  // thrown after this hook
+  }
+  stats.affected = r.affected;
+  stats.iterations = r.propagation.iterations;
+  stats.frontier_visits = r.propagation.frontier_visits;
+  stats.components = r.components;
+  stats.sparsified_edges = r.sparsified;
+  stats.initial_frontier = r.propagation.initial_frontier;
+  stats.converged = !r.capped || r.recomputed;
+  stats.fallback_used = r.recomputed;
+  if (profiler* p = ctx.res().get_profiler()) {
+    // The original's prof:: counters (cc.hookRounds, prop.persistentIterations).
+    p->add_counter("label_propagation.hook_rounds", r.hook_rounds);
+    p->add_counter("label_propagation.persistent_iterations", r.propagation.persistent_iterations);
+    if (r.recomputed) {
+      p->add_counter("label_propagation.irlp_iterations", r.irlp_iterations);
+    }
+  }
+  if (r.capped && opt.on_iteration_limit == label_propagation::on_limit::error) {
+    throw convergence_error(concat_message(
+        "dyng: label_propagation::update: the propagation did not converge in ", opt.max_iterations,
+        " iteration(s) (options.max_iterations); raise the cap, or choose on_limit::report or "
+        "on_limit::fallback_recompute"));
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void label_propagation_problem<vertex_t, edge_t, weight_t>::compute_fused(framework::context& ctx,
+                                                                          new_graph g,
+                                                                          stats_type& /*stats*/) {
+  const label_propagation::options& opt = state_->opt;
+  auto cuda = std::make_shared<lp_cuda::state>();
+  bool capped = false;
+  const int iterations = lp_cuda::compute(
+      ctx.res(), g.get(), state_->seeds.data(), opt.tolerance,
+      static_cast<int>(std::min<std::int64_t>(opt.max_iterations, 2147483647)), *cuda, capped);
+  if (profiler* p = ctx.res().get_profiler()) {
+    p->add_counter("label_propagation.irlp_iterations", iterations);  // results.csv
+  }
+  if (capped && opt.on_iteration_limit != label_propagation::on_limit::report) {
+    throw convergence_error(concat_message(
+        "dyng: label_propagation::compute: IrLP did not converge in ", opt.max_iterations,
+        " iteration(s) (options.max_iterations); raise the cap, or choose on_limit::report"));
+  }
+  state_->cuda = std::move(cuda);
+  state_->labels.clear();  // on the device (state::labels)
+  state_->stamp.clear();
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -657,6 +832,10 @@ result<vertex_t>::~result() = default;
 template <typename vertex_t>
 array_view<const float> result<vertex_t>::labels() const {
   const auto& st = detail::checked(impl_.get(), "label_propagation::result::labels");
+  if (st.cuda != nullptr) {
+    return array_view<const float>(st.cuda->labels.data(), static_cast<std::size_t>(st.cuda->n),
+                                   memory_space::device, st.cuda->device);
+  }
   return host_view(st.labels);
 }
 
@@ -685,14 +864,35 @@ std::uint64_t result<vertex_t>::graph_version() const noexcept {
 
 template <typename vertex_t>
 memory_space result<vertex_t>::space() const noexcept {
-  return memory_space::host;
+  return impl_ != nullptr && impl_->cuda != nullptr ? memory_space::device : memory_space::host;
 }
 
 template <typename vertex_t>
 result<vertex_t> result<vertex_t>::clone(const resources& res) const {
   const auto& st = detail::checked(impl_.get(), "label_propagation::result::clone");
   detail::expect_backend(res, "label_propagation::result::clone");
-  return result(std::make_unique<detail::label_propagation_state<vertex_t>>(st));
+  auto copy = std::make_unique<detail::label_propagation_state<vertex_t>>(st);
+  const bool to_cuda = res.get_backend() == backend::cuda;
+  if (to_cuda) {
+    auto cuda = std::make_shared<detail::lp_cuda::state>();
+    if (st.cuda != nullptr) {
+      detail::lp_cuda::copy_state(res, *st.cuda, *cuda);
+    } else {
+      int capacity[detail::lp_cuda::num_degree_bins] = {st.bin_capacity[0], st.bin_capacity[1],
+                                                        st.bin_capacity[2]};
+      detail::lp_cuda::upload_state(res, static_cast<std::int64_t>(st.labels.size()), capacity,
+                                    st.seeds.data(), st.labels.data(), st.stamp.data(), st.next_tag,
+                                    *cuda);
+    }
+    copy->cuda = std::move(cuda);
+    copy->labels.clear();
+    copy->stamp.clear();
+  } else if (st.cuda != nullptr) {
+    detail::lp_cuda::download_state(*st.cuda, copy->labels, copy->stamp);
+    copy->next_tag = st.cuda->next_tag;
+    copy->cuda = nullptr;
+  }
+  return result(std::move(copy));
 }
 
 template <typename vertex_t>
@@ -703,6 +903,15 @@ void result<vertex_t>::reserve(const resources& res, std::size_t max_batch_verti
   st.reserved_vertices = std::max(st.reserved_vertices, max_batch_vertices);
   st.reserved_edges = std::max(st.reserved_edges, max_batch_edges);
   // The pooled workspace of `res`, sized now (the original's setup sizes its buffers once).
+  if (res.get_backend() == backend::cuda) {
+    detail::expect_result_placement(st, res, "label_propagation::result::reserve");
+    auto lease =
+        detail::resources_access::workspaces(res).template acquire<detail::lp_cuda::workspace>(res);
+    lease->reserve(
+        res, st.cuda->n, st.cuda->capacity, static_cast<std::int64_t>(st.reserved_vertices),
+        static_cast<std::int64_t>(st.reserved_edges), st.opt.update_schedule == schedule::damped);
+    return;
+  }
   auto lease = detail::resources_access::workspaces(res)
                    .template acquire<detail::label_propagation_workspace>(res);
   lease->reserve(st.labels.size(), st.reserved_vertices, st.reserved_edges);
@@ -722,6 +931,7 @@ label_propagation::result<vertex_t> label_propagation_compute(
   graph_access::expect_placement_any_layout(res, g, "label_propagation::compute");
   expect_graph(g, "label_propagation::compute");
   expect_options(opt, "label_propagation::compute");
+  expect_cuda_engine(opt, res, "label_propagation::compute");
   const host_input<vertex_t> seeds_in(res, seed_vertices,
                                       "label_propagation::compute: seed_vertices");
   const host_input<std::int8_t> labels_in(res, seed_labels,
@@ -731,7 +941,12 @@ label_propagation::result<vertex_t> label_propagation_compute(
   DYNG_EXPECTS(sv.size() == sl.size(), "label_propagation::compute: ", sv.size(),
                " seed vertices but ", sl.size(), " seed labels");
   const auto n = static_cast<std::size_t>(g.num_vertices());
-  const lp_rows<edge_t> rows = host_rows(g);
+  // The states only (current on the host also when the rows are on the device: no download).
+  const auto& gi = graph_access::impl(g);
+  const auto active = [&gi](vertex_t v) {
+    return !gi.is_slotted() ||
+           gi.slotted.status[static_cast<std::size_t>(v)] == vertex_status::active;
+  };
   auto st = std::make_unique<label_propagation_state<vertex_t>>();
   st->opt = opt;
   st->seeds.assign(n, -1);
@@ -741,7 +956,7 @@ label_propagation::result<vertex_t> label_propagation_compute(
                  " (vertex ", v, ") is out of range [0, ", n, ")");
     DYNG_EXPECTS(sl[i] == 0 || sl[i] == 1, "label_propagation::compute: seed ", i, " (vertex ", v,
                  ") has the label ", static_cast<int>(sl[i]), "; a seed's class is 0 or 1");
-    DYNG_EXPECTS(rows.active(v), "label_propagation::compute: seed ", i, " (vertex ", v,
+    DYNG_EXPECTS(active(v), "label_propagation::compute: seed ", i, " (vertex ", v,
                  ") is not an active vertex of the graph");
     DYNG_EXPECTS(st->seeds[static_cast<std::size_t>(v)] < 0, "label_propagation::compute: vertex ",
                  v, " is listed twice among the seeds");
@@ -749,6 +964,7 @@ label_propagation::result<vertex_t> label_propagation_compute(
   }
   st->labels.assign(n, 0.5F);
   st->stamp.assign(n, 0);
+  st->bin_capacity = bin_capacities(graph_access::impl(g).host_storage().row_ptr);
   const framework::hook_stages& names = framework::stages_of<problem_t>();
   scoped_stage stage(res, names.compute);
   problem_t p(*st);
@@ -802,3 +1018,68 @@ DYNG_INSTANTIATE_LABEL_PROPAGATION(std::int64_t)
 namespace dyng::label_propagation {
 template class result<std::int32_t>;
 }  // namespace dyng::label_propagation
+
+#if !DYNG_HAS_CUDA
+// Without CUDA the fused engine does not exist: the backend check refuses cuda resources first
+// (backend_available), so these are never reached.
+namespace dyng::detail::lp_cuda {
+namespace {
+[[noreturn]] void no_cuda() {
+  throw not_supported_error(
+      "dyng: label_propagation: the cuda backend is not built (configure with "
+      "DYNG_ENABLE_CUDA=ON)");
+}
+}  // namespace
+void workspace::reserve(const resources& /*res*/, std::int64_t /*n*/,
+                        const int (& /*capacity*/)[num_degree_bins], std::int64_t /*inserted*/,
+                        std::int64_t /*edges*/, bool /*damped*/) {
+  no_cuda();
+}
+std::size_t workspace::bytes() const noexcept {
+  return 0;
+}
+std::size_t irlp_workspace::bytes() const noexcept {
+  return 0;
+}
+void copy_state(const resources& /*res*/, const state& /*in*/, state& /*out*/) {
+  no_cuda();
+}
+void upload_state(const resources& /*res*/, std::int64_t /*n*/,
+                  const int (& /*capacity*/)[num_degree_bins], const std::int8_t* /*seeds*/,
+                  const float* /*labels*/, const std::int64_t* /*stamp*/, std::int64_t /*next_tag*/,
+                  state& /*out*/) {
+  no_cuda();
+}
+void download_state(const state& /*in*/, std::vector<float>& /*labels*/,
+                    std::vector<std::int64_t>& /*stamp*/) {
+  no_cuda();
+}
+template <typename edge_t>
+void before_apply(const resources& /*res*/, const graph<std::int32_t, edge_t, float>& /*g*/,
+                  const state& /*st*/, workspace& /*ws*/, std::int64_t /*inserted*/,
+                  std::int64_t /*edges*/, bool /*damped*/) {
+  no_cuda();
+}
+template <typename edge_t>
+batch_result after_commit(const resources& /*res*/, const graph<std::int32_t, edge_t, float>& /*g*/,
+                          state& /*st*/, workspace& /*ws*/, const batch_args& /*a*/) {
+  no_cuda();
+}
+template <typename edge_t>
+int compute(const resources& /*res*/, const graph<std::int32_t, edge_t, float>& /*g*/,
+            const std::int8_t* /*seeds*/, float /*delta*/, int /*max_iterations*/, state& /*st*/,
+            bool& /*capped*/) {
+  no_cuda();
+}
+#define DYNG_INSTANTIATE_LP_CUDA_STUBS(E)                                                       \
+  template void before_apply<E>(const resources&, const graph<std::int32_t, E, float>&,         \
+                                const state&, workspace&, std::int64_t, std::int64_t, bool);    \
+  template batch_result after_commit<E>(const resources&, const graph<std::int32_t, E, float>&, \
+                                        state&, workspace&, const batch_args&);                 \
+  template int compute<E>(const resources&, const graph<std::int32_t, E, float>&,               \
+                          const std::int8_t*, float, int, state&, bool&);
+DYNG_INSTANTIATE_LP_CUDA_STUBS(std::int32_t)
+DYNG_INSTANTIATE_LP_CUDA_STUBS(std::int64_t)
+#undef DYNG_INSTANTIATE_LP_CUDA_STUBS
+}  // namespace dyng::detail::lp_cuda
+#endif

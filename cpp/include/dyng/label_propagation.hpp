@@ -107,7 +107,10 @@ struct options {
   std::int64_t max_iterations = 100000;
   on_limit on_iteration_limit = on_limit::report;  ///< see on_limit
   schedule update_schedule = schedule::in_place;   ///< the published rule by default
-  engine cuda_engine = engine::automatic;  ///< the CUDA engine (the fused port; M10a step 4)
+  /// The CUDA engine: engine::automatic or engine::fused (the verbatim port of the original's
+  /// pipeline, bitwise the original's damped labels; ADR 0075); engine::operators arrives in M10b
+  /// (not_supported_error until then). Ignored on the host backends.
+  engine cuda_engine = engine::automatic;
 };
 
 /**
@@ -174,7 +177,8 @@ class result {
 
   /**
    * @brief The labels.
-   * @return One label per vertex in [0, 1] (memory space(): host on the host backends): a seed's
+   * @return One label per vertex in [0, 1] (memory space(): host on the host backends, the
+   *         device of the result's resources on cuda): a seed's
    *         class exactly (0 or 1); a deleted vertex keeps its last label; a vertex that never
    *         entered the graph 0.5 (after compute(): every vertex that is not active 0.5). Valid
    *         until the next update() of this result.
@@ -217,7 +221,7 @@ class result {
 
   /**
    * @brief The memory space of the labels.
-   * @return memory_space::host on the host backends.
+   * @return memory_space::host on the host backends, memory_space::device on cuda.
    */
   [[nodiscard]] memory_space space() const noexcept;
 
@@ -332,7 +336,7 @@ namespace dyng::label_propagation {
  * first batch).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
- * @param[in] res           Execution resources (sequential; cuda from M10a step 4; OpenMP is not
+ * @param[in] res           Execution resources (sequential or cuda; OpenMP is not
  *                          a backend of label_propagation in 0.4).
  * @param[in] g             An undirected graph with float weights: row_layout::slotted (the
  *                          published setup; compute() on graph::with_capacity()'s empty graph gives
@@ -352,7 +356,7 @@ namespace dyng::label_propagation {
  *         on_limit::error or on_limit::fallback_recompute (compute() is the recomputation).
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
- * @backends sequential (cuda from M10a step 4)
+ * @backends sequential, cuda (IrLP's kernel verbatim: per snapshot bitwise the original's)
  * @determinism Bitwise per backend and build (Jacobi from fixed starting labels).
  * @paper DynLP (ICS 2026): `dyng::citation("label_propagation")`, key dynlp2026 in
  *        docs/references.bib; IrLP is the paper's baseline.
@@ -390,7 +394,8 @@ template <typename vertex_t, typename edge_t>
  * 0.5.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
- * @param[in]     res   Execution resources (sequential; cuda from M10a step 4).
+ * @param[in]     res   Execution resources (sequential or cuda, the result's backend: a result
+ *                      moves between them with result::clone()).
  * @param[in,out] g     The graph: undirected, float weights, row_layout::slotted with
  *                      batch_semantics::net_effect() (graph::with_capacity()). The batch is
  *                      applied to it and its version increases by one.
@@ -402,9 +407,12 @@ template <typename vertex_t, typename edge_t>
  * @throws invalid_argument_error if the batch breaks the input contract (graph::apply(): an id or
  *         endpoint out of range, an id listed twice or inserted a second time, a labelled vertex
  *         deleted in the same batch, labels that do not match the insertions), or `g` is not
- *         undirected; nothing is changed.
+ *         undirected, or `r` belongs to another backend or device than `res` (move it with
+ *         result::clone()); nothing is changed.
  * @throws capacity_error         if an edge does not fit into its row (an edge delivered twice, or
- *         not of the graph the capacities were made for); nothing is changed.
+ *         not of the graph the capacities were made for); nothing is changed on the host
+ *         backends; on cuda the overflow is found on the device after the batch was applied (the
+ *         graph is poisoned and `r` unusable; graph::apply()).
  * @throws not_supported_error    if `g` does not have row_layout::slotted, the batch deletes edges,
  *         or the backend of `res` is not available for label_propagation (OpenMP in 0.4: use
  *         dyng.Resources("sequential")).
@@ -412,7 +420,8 @@ template <typename vertex_t, typename edge_t>
  *         applied: `r` is left unusable).
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
- * @backends sequential (cuda from M10a step 4)
+ * @backends sequential, cuda (the fused engine: the original's pipeline on the resources' one
+ *           stream, the graph's rows resident on the device; ADR 0075)
  * @determinism schedule::damped: bitwise per backend and build. schedule::in_place: the sequential
  *              backend is deterministic (it updates each half-sweep in vertex order); on CUDA a
  *              tolerance (the published rule is not reproducible). The deterministic stages

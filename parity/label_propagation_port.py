@@ -442,11 +442,371 @@ def cmd_determinism(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+# --- damped (AD6: the fused engine's byte parity) -------------------------------------------------
+
+# Every field the golden trace holds for a batch, including the propagation's (the labels' bits,
+# the counts, the tags): the fused engine reproduces all of them.
+FUSED_TRACE_FIELDS = {
+    **TRACE_FIELDS,
+    "connected_components": [*TRACE_FIELDS["connected_components"], "hook_rounds"],
+    "propagation_begin": [*TRACE_FIELDS["propagation_begin"], "labels", "next_tag"],
+    "propagation_end": [
+        "iterations",
+        "frontier_visits",
+        "persistent_iterations",
+        "next_tag",
+        "labels",
+    ],
+}
+RESULT_COLUMNS = ("iterations", "frontier_visits", "components", "accuracy")
+
+
+def build_preset(exe: Path) -> dict:
+    """The preset and the CUDA flags of the build that holds `exe` (its CMakeCache.txt)."""
+    for d in [exe.parent, *exe.parents]:
+        cache = d / "CMakeCache.txt"
+        if cache.exists():
+            out = {"build": str(d)}
+            for line in cache.read_text().splitlines():
+                for key in (
+                    "CMAKE_BUILD_TYPE",
+                    "CMAKE_CUDA_FLAGS_RELEASE",
+                    "DYNG_CUDA_ARCHITECTURES",
+                ):
+                    if line.startswith(key + ":"):
+                        out[key] = line.split("=", 1)[1]
+            return out
+    return {}
+
+
+def parity_cuda_preset(preset: dict) -> bool:
+    """Whether the build is the parity-cuda preset (Release, -O3 -fmad=true, sm_86)."""
+    flags = preset.get("CMAKE_CUDA_FLAGS_RELEASE", "")
+    return (
+        preset.get("CMAKE_BUILD_TYPE") == "Release"
+        and "-O3" in flags
+        and "-fmad=true" in flags
+        and preset.get("DYNG_CUDA_ARCHITECTURES") == "86"
+    )
+
+
+def results_columns(csv_text: str) -> list[dict]:
+    lines = [x for x in csv_text.splitlines() if x]
+    head = lines[0].split(",")
+    return [
+        {k: v for k, v in zip(head, row.split(","), strict=False) if k in RESULT_COLUMNS}
+        for row in lines[1:]
+    ]
+
+
+def cmd_damped(args: argparse.Namespace) -> int:
+    """compare.py label_propagation damped --config cuda-fused: P+ (AD6)."""
+    preset = build_preset(args.exe)
+    if args.config == "cuda-fused" and not parity_cuda_preset(preset):
+        raise g.GoldenError(f"the cuda-fused replay needs a parity-cuda build, got {preset}")
+    damped_root = g.set_dir(g.scratch() / "goldens", "damped")
+    trace_root = g.set_dir(g.scratch() / "goldens", "trace")
+    results, ok = [], True
+    for case in select(g.P_CASES, args.cases):
+        import time
+
+        gold = damped_root / "cases" / case.name
+        expected = json.loads((gold / "results.json").read_text())
+        with tempfile.TemporaryDirectory(prefix="lp-damped-", dir=runs_dir()) as t:
+            tmp = Path(t)
+            t0 = time.monotonic()
+            # The timed-like run: the labels' bytes, the per-batch bits, results.csv.
+            argv = [*case.argv(tmp / "out"), "--backend", "cuda", "--label-dump", str(tmp / "d")]
+            run_compat(args.exe, argv, clean_env())
+            labels = (tmp / "out" / "dynlp_labels.txt").read_bytes()
+            bits = (tmp / "d" / "labels.f32").read_bytes()
+            mine = results_columns((tmp / "out" / "results.csv").read_text())
+            checks = {}
+            gold_labels = g.zstd_read(gold / "dynlp_labels.txt.zst")
+            checks["dynlp_labels.txt"] = labels == gold_labels
+            n = case.n
+            if case.digest:
+                want = json.loads((gold / "label_bits.json").read_text())
+                got = [
+                    g.sha256_bytes(bits[i * 4 * n : (i + 1) * 4 * n])
+                    for i in range(len(bits) // (4 * n))
+                ]
+                checks["label_bits"] = got == want
+            else:
+                checks["label_bits"] = bits == g.zstd_read(gold / "label_bits.bin.zst")
+            theirs = [{k: b[k] for k in RESULT_COLUMNS} for b in expected["batches"]]
+            checks["results.csv"] = mine == theirs
+            # The traced run: every field of every batch (the trace synchronizes per stage).
+            env = clean_env(**({"DYNG_DYNLP_TRACE_DIGEST": "1"} if case.digest else {}))
+            argv = [*case.argv(tmp / "out2"), "--backend", "cuda", "--trace", str(tmp / "t")]
+            run_compat(args.exe, argv, env)
+            ours = dlt.read(tmp / "t" / f"{args.exe.name}.dlt")
+            golden = dlt.read(decompressed(trace_root / "cases" / case.name / "trace.dlt.zst", tmp))
+            saved = dict(TRACE_FIELDS)
+            TRACE_FIELDS.clear()
+            TRACE_FIELDS.update(FUSED_TRACE_FIELDS)
+            try:
+                compared, mismatches = compare_traces(ours, golden)
+            finally:
+                TRACE_FIELDS.clear()
+                TRACE_FIELDS.update(saved)
+            checks["trace"] = not mismatches and ours.digest_mode == golden.digest_mode
+            seconds = time.monotonic() - t0
+        good = all(checks.values())
+        ok = ok and good
+        results.append(
+            {
+                "case": case.name,
+                "checks": checks,
+                "trace_fields": compared,
+                "trace_mismatches": mismatches[:20],
+                "results_mine": mine if not checks["results.csv"] else "equal",
+                "seconds": round(seconds, 1),
+                "equal": good,
+            }
+        )
+        print(
+            f"{case.name}: {'identical' if good else 'DIFFERENT'} {checks} ({compared} trace "
+            f"fields; {seconds:.1f} s)" + (f": {mismatches[:3]}" if mismatches else ""),
+            flush=True,
+        )
+    if args.json:
+        g.write_json(
+            args.json,
+            {
+                "schema": 1,
+                "what": "the fused CUDA engine's damped byte parity on P+ (AD6; criterion 12): "
+                "dynlp_labels.txt bytes against unpatched O, the per-batch label bits against the "
+                "twin's, the results.csv columns iterations, frontier_visits, components and "
+                "accuracy, and every field of the stage trace",
+                "reference": g.REFERENCE,
+                "commit": g.COMMIT,
+                "config": args.config,
+                "build": preset,
+                "date": g.now(),
+                "equal": ok,
+                "cases": results,
+            },
+        )
+    print(f"damped ({args.config}):", "PASSED" if ok else "FAILED")
+    return 0 if ok else 1
+
+
+# --- irlp (compute() on CUDA: IrLP's bits and iterations per snapshot) ----------------------------
+
+
+def cmd_irlp(args: argparse.Namespace) -> int:
+    root = g.set_dir(g.scratch() / "goldens", "irlp")
+    results, ok = [], True
+    for case in g.IRLP_CASES:
+        gold = root / "cases" / case.name
+        expected = json.loads((gold / "irlp.json").read_text())
+        with tempfile.TemporaryDirectory(prefix="lp-irlp-", dir=runs_dir()) as t:
+            tmp = Path(t)
+            argv = [
+                *case.argv(tmp / "out"),
+                "--backend",
+                args.backend,
+                "--label-dump",
+                str(tmp / "d"),
+            ]
+            run_compat(args.exe, argv, clean_env())
+            bits = (tmp / "d" / "irlp.f32").read_bytes()
+            csv = (tmp / "out" / "results.csv").read_text().splitlines()
+            irlp_labels = (tmp / "out" / "irlp_labels.txt").read_bytes()
+        head = csv[0].split(",")
+        rows = [dict(zip(head, r.split(","), strict=False)) for r in csv[1:] if r]
+        n = case.n
+        snaps = [bits[i * 4 * n : (i + 1) * 4 * n] for i in range(len(bits) // (4 * n))]
+        per = []
+        for s in expected["snapshots"]:
+            i = s["snapshot"]
+            per.append(
+                {
+                    "snapshot": i,
+                    "bits_equal": i < len(snaps) and g.sha256_bytes(snaps[i]) == s["labels_sha256"],
+                    "iterations_equal": i < len(rows)
+                    and int(rows[i]["irlp_iterations"]) == int(s["iterations"]),
+                    "agreement": rows[i]["accuracy_vs_irlp"] if i < len(rows) else None,
+                }
+            )
+        labels_equal = irlp_labels == g.zstd_read(gold / "irlp_labels.txt.zst")
+        good = all(x["bits_equal"] and x["iterations_equal"] for x in per) and labels_equal
+        ok = ok and good
+        results.append(
+            {"case": case.name, "snapshots": per, "irlp_labels.txt": labels_equal, "equal": good}
+        )
+        print(
+            f"{case.name}: {'identical' if good else 'DIFFERENT'} "
+            f"({sum(x['bits_equal'] for x in per)}/{len(per)} snapshots' bits, "
+            f"{sum(x['iterations_equal'] for x in per)} iterations, irlp_labels.txt "
+            f"{'equal' if labels_equal else 'different'})",
+            flush=True,
+        )
+    if args.json:
+        g.write_json(
+            args.json,
+            {
+                "schema": 1,
+                "what": "compute() (IrLP) on CUDA against the twin's per-snapshot bits and "
+                "iterations (criterion 12)",
+                "reference": g.REFERENCE,
+                "commit": g.COMMIT,
+                "backend": args.backend,
+                "build": build_preset(args.exe),
+                "date": g.now(),
+                "equal": ok,
+                "cases": results,
+            },
+        )
+    print(f"irlp ({args.backend}):", "PASSED" if ok else "FAILED")
+    return 0 if ok else 1
+
+
+# --- inplace (AD5: the calibrated cloud, frozen in parity/goldens.toml) --------------------------
+
+
+def frozen_inplace() -> dict:
+    """The thresholds and the iteration envelope frozen in parity/goldens.toml (AD5)."""
+    import tomllib
+
+    doc = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
+    return doc["sets"]["label_propagation_inplace"]
+
+
+def patched_copy() -> Path:
+    out = subprocess.check_output(
+        [
+            str(REPO / "parity" / "build_reference.sh"),
+            "--variant",
+            "patched",
+            "--print-dir",
+            g.REFERENCE,
+        ],
+        text=True,
+    )
+    return Path(out.strip().splitlines()[-1])
+
+
+def cmd_inplace(args: argparse.Namespace) -> int:
+    frozen = frozen_inplace()
+    rule = frozen["rule"]
+    root = g.set_dir(g.scratch() / "goldens", "inplace")
+    trace_root = g.set_dir(g.scratch() / "goldens", "trace")
+    copy = patched_copy()
+    results, ok = [], True
+    sizes = args.cases or list(g.CALIBRATION["cases"])
+    for size in sizes:
+        case = g.Case(size, schedule="inplace")
+        th = frozen["thresholds"][case.name]
+        d = root / "runs" / case.name
+        refs = [
+            g.parse_labels(g.run_record(d, f"gpu1-run-{i:02d}")["labels"])
+            for i in range(int(rule["n_gpu1"]))
+        ]
+        status = g.status_of(case, copy, 1)
+        mask = status == g.VERTEX_ACTIVE
+        runs = []
+        for k in range(args.runs):
+            with tempfile.TemporaryDirectory(prefix="lp-inplace-", dir=runs_dir()) as t:
+                tmp = Path(t)
+                run_compat(args.exe, [*case.argv(tmp / "out"), "--backend", "cuda"], clean_env())
+                labels = g.parse_labels((tmp / "out" / "dynlp_labels.txt").read_bytes())
+                cols = g.results_columns((tmp / "out" / "results.csv").read_text())
+            pairs = [g.pair_stats(labels, r, mask) for r in refs]
+            within = [
+                p["mean"] <= th["t_mean"]
+                and p["max"] <= th["t_max"]
+                and p["flips"] <= th["t_flips"]
+                for p in pairs
+            ]
+            iterations = [int(x["iterations"]) for x in cols]
+            components = [int(x["components"]) for x in cols]
+            its = g.iterations_inside(th, iterations)
+            good_run = all(within) and its["within"] and components == list(th["components"])
+            runs.append(
+                {
+                    "run": k,
+                    "largest": {
+                        "mean": max(p["mean"] for p in pairs),
+                        "max": max(p["max"] for p in pairs),
+                        "flips": max(p["flips"] for p in pairs),
+                    },
+                    "labels_within_every_reference": all(within),
+                    "iterations": iterations,
+                    "iteration_check": its,
+                    "components_exact": components == list(th["components"]),
+                    "within": good_run,
+                }
+            )
+        # The deterministic stages (components, G', the initial labels and the initial frontier)
+        # do not depend on the schedule: one traced run against the damped trace golden.
+        dcase = g.Case(size, digest=size == "5m")
+        with tempfile.TemporaryDirectory(prefix="lp-inplace-trace-", dir=runs_dir()) as t:
+            tmp = Path(t)
+            env = clean_env(**({"DYNG_DYNLP_TRACE_DIGEST": "1"} if dcase.digest else {}))
+            argv = [*case.argv(tmp / "out"), "--backend", "cuda", "--trace", str(tmp / "t")]
+            run_compat(args.exe, argv, env)
+            ours = dlt.read(tmp / "t" / f"{args.exe.name}.dlt")
+            golden = dlt.read(
+                decompressed(trace_root / "cases" / dcase.name / "trace.dlt.zst", tmp)
+            )
+            compared, mismatches = compare_traces(ours, golden)
+        good = all(r["within"] for r in runs) and not mismatches and len(runs) >= 3
+        ok = ok and good
+        results.append(
+            {
+                "case": case.name,
+                "thresholds": {k: th[k] for k in ("t_mean", "t_max", "t_flips")},
+                "envelope": {k: th[k] for k in ("iterations_lo", "iterations_hi",
+                                                "iterations_sum_lo", "iterations_sum_hi")},
+                "vertices_compared": int(mask.sum()),
+                "runs": runs,
+                "deterministic_trace": {"compared": compared, "mismatches": mismatches[:20]},
+                "within": good,
+            }
+        )  # fmt: skip
+        print(
+            f"{case.name}: {'within' if good else 'OUTSIDE'} ({len(runs)} runs; largest mean "
+            f"{max(r['largest']['mean'] for r in runs):.3e} of {th['t_mean']:.3e}, flips "
+            f"{max(r['largest']['flips'] for r in runs)} of {th['t_flips']}; iterations "
+            f"{[r['iteration_check']['sum'] for r in runs]} in [{th['iterations_sum_lo']}, "
+            f"{th['iterations_sum_hi']}]; trace {compared} fields, {len(mismatches)} mismatched)",
+            flush=True,
+        )
+    if args.json:
+        g.write_json(
+            args.json,
+            {
+                "schema": 1,
+                "what": "CUDA in_place against the frozen calibration (AD5 as decided on "
+                "2026-10-28 "
+                "and 2026-10-29; criterion 13): every port run against every one of the N GPU-1 "
+                "reference runs within T_mean, T_max and T_flips over the vertices ACTIVE and not "
+                "ground truth after the last batch, the per-batch iterations and their sum inside "
+                "the frozen envelope, the components exact; the deterministic stages (components, "
+                "G', the initial labels, the initial frontier) against the trace golden",
+                "reference": g.REFERENCE,
+                "commit": g.COMMIT,
+                "build": build_preset(args.exe),
+                "gpu": "GPU 1 (default clocks)",
+                "date": g.now(),
+                "within": ok,
+                "cases": results,
+            },
+        )
+    print("inplace (cuda):", "PASSED" if ok else "FAILED")
+    return 0 if ok else 1
+
+
 COMMANDS = {
     "container": cmd_container,
     "trace": cmd_trace,
     "oracle-port": cmd_oracle_port,
     "determinism": cmd_determinism,
+    "damped": cmd_damped,
+    "irlp": cmd_irlp,
+    "inplace": cmd_inplace,
 }
 
 
@@ -477,6 +837,20 @@ def main(argv: list[str] | None = None) -> int:
     dp.add_argument("--exe", type=Path, required=True, help="dyng-compat-dynlp")
     dp.add_argument("--backend", choices=["sequential", "cuda"], default="sequential")
     dp.add_argument("--json", type=Path)
+    fp = sub.add_parser("damped")
+    fp.add_argument("--exe", type=Path, required=True, help="dyng-compat-dynlp (parity-cuda)")
+    fp.add_argument("--config", choices=["cuda-fused"], default="cuda-fused")
+    fp.add_argument("--cases", type=names)
+    fp.add_argument("--json", type=Path)
+    ip = sub.add_parser("irlp")
+    ip.add_argument("--exe", type=Path, required=True, help="dyng-compat-dynlp")
+    ip.add_argument("--backend", choices=["cuda"], default="cuda")
+    ip.add_argument("--json", type=Path)
+    np_ = sub.add_parser("inplace")
+    np_.add_argument("--exe", type=Path, required=True, help="dyng-compat-dynlp")
+    np_.add_argument("--runs", type=int, default=3)
+    np_.add_argument("--cases", type=names, help="sizes of I (default: all four)")
+    np_.add_argument("--json", type=Path)
     args = ap.parse_args(argv)
     try:
         return COMMANDS[args.command](args)

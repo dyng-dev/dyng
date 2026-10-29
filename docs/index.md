@@ -31,7 +31,7 @@ algorithms of the table are planned for later releases.
 | {doc}`dynamic_bfs <algorithms/dynamic_bfs>` | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | {doc}`triangle_delta <algorithms/triangle_delta>` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | {doc}`triad_count <algorithms/triad_count>` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | ESCHER / ESCHER+ |
-| {doc}`label_propagation <algorithms/label_propagation>` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential | experimental | DynLP (ICS 2026) |
+| {doc}`label_propagation <algorithms/label_propagation>` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | experimental | DynLP (ICS 2026) |
 | `hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | planned (0.4) | H-SOSP (IA3 2026) |
 <!-- regen:algorithms end -->
 

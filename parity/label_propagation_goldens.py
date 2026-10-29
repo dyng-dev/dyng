@@ -1641,7 +1641,16 @@ def export_main(argv: list[str] | None = None) -> int:
 
 
 REPLAY_COMMANDS = ("generator", "model", "check-runs", "oracle", "margin", "subset")
-PORT_COMMANDS = ("container", "trace", "oracle-port", "determinism")
+PORT_COMMANDS = (
+    "container",
+    "trace",
+    "oracle-port",
+    "determinism",
+    "damped",
+    "irlp",
+    "inplace",
+    "hub",
+)
 
 
 def compare_main(argv: list[str] | None = None) -> int:

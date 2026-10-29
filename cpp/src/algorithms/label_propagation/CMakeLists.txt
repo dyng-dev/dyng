@@ -13,6 +13,13 @@ dyng_add_algorithm(
   label_propagation.cpp
   sequential.cpp
   trace.cpp
+  CUDA_SOURCES
+  sparsify.cu
+  components.cu
+  label_init.cu
+  propagation.cu
+  irlp.cu
+  cuda.cu
   FAST_MATH
 )
 if(TARGET dyng_label_propagation)

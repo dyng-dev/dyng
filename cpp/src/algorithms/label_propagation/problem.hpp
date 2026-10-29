@@ -34,6 +34,7 @@
  */
 #pragma once
 
+#include "algorithms/label_propagation/fused.hpp"
 #include "framework/budgets.hpp"
 #include "framework/composition.hpp"
 #include "framework/context.hpp"
@@ -50,8 +51,10 @@
 #include <dyng/graph/graph_view.hpp>
 #include <dyng/label_propagation.hpp>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -76,6 +79,13 @@ struct label_propagation_state {
   /// The reservation of reserve(): per-batch workspaces sized for these batches.
   std::size_t reserved_vertices = 0;
   std::size_t reserved_edges = 0;  ///< see reserved_vertices
+  /// The propagation queues' capacities from the graph's row capacities (computed by compute() on
+  /// every backend, so a result can move to CUDA; fused.hpp's state::capacity).
+  std::array<int, lp_cuda::num_degree_bins> bin_capacity{};
+  /// The run-wide device state of a CUDA result (ADR 0075), nullptr on the host backends: there the
+  /// labels, seeds' classes and stamps live in the vectors above; on CUDA in it (`labels` and
+  /// `stamp` are empty; `seeds` stays current on the host).
+  std::shared_ptr<lp_cuda::state> cuda;
 };
 
 /// Access to the state of a result.
@@ -289,11 +299,27 @@ class label_propagation_problem final
   [[nodiscard]] bool reads_prepared_graph() const noexcept {
     return false;
   }
-  /// The budget of the algorithm phase (invariant I9): nothing allocated once reserved, no host
-  /// synchronization on the host backend.
-  [[nodiscard]] framework::budget algorithm_budget(framework::context& /*ctx*/) const noexcept {
-    return framework::budget::steady_state(0);
+  /// The budget of the algorithm phase (invariant I9): nothing allocated once reserved; no host
+  /// synchronization on the host backend, and on CUDA the run-dependent ones the fused engine
+  /// counted (one per Shiloach-Vishkin round and the components' read, one per head iteration
+  /// and per persistent launch of the propagation, the final read of the stats), unchecked while
+  /// the stage trace downloads the stages.
+  [[nodiscard]] framework::budget algorithm_budget(framework::context& ctx) const noexcept;
+
+  // ---- the engines ----
+
+  /// The engine of the call: options::cuda_engine on CUDA (the fused engine; there is no
+  /// operators engine on CUDA before M10b), the host engine (operators) elsewhere.
+  [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
+  /// Whether the fused engine runs here: on CUDA.
+  [[nodiscard]] bool fused_available(framework::context& ctx) const noexcept {
+    return ctx.on_cuda();
   }
+  /// label_propagation.enact_fused: the rest of the batch on CUDA (fused.hpp's after_commit), the
+  /// graph's report, the stats.
+  void enact_fused(framework::context& ctx, new_graph g, const applied& applied, stats_type& stats);
+  /// label_propagation.enact_fused of compute(): IrLP on CUDA.
+  void compute_fused(framework::context& ctx, new_graph g, stats_type& stats);
 
   // ---- Step 1a ----
 
@@ -333,6 +359,8 @@ class label_propagation_problem final
   const label_propagation::result<vertex_t>* target_ = nullptr;
   bool computing_ = false;
   std::optional<workspace_pool::lease<label_propagation_workspace>> ws_;
+  std::optional<workspace_pool::lease<lp_cuda::workspace>> cuda_ws_;  ///< the fused engine's
+  std::int64_t cuda_syncs_ = -1;  ///< the fused engine's host synchronizations (-1: unchecked)
   const edge_batch_view<vertex_t, weight_t>* batch_ = nullptr;  ///< the requested batch
   const applied* applied_ = nullptr;                            ///< what the commit did
   float tau_ = 0.5F;                                            ///< tau of this update

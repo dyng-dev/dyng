@@ -34,15 +34,22 @@
  * diagnostic run), and --check (dyng::testing's oracles after every batch, untimed: the harmonic
  * solution's mean error at most 2000 delta, no PCG skip, seeds exact and labels in [0, 1]; exit
  * status 1 if one fails). The per-batch times are also written to dyng_times.csv (time_ms, the
- * update's time: CUDA events on the resources' stream on cuda, host wall time on sequential, and
- * host_ms, the host wall time of the call).
+ * update's time: a pair of CUDA events on the resources' stream around the call on cuda, host wall
+ * time on sequential, and host_ms, the host wall time of the call). On cuda the batch arrays are
+ * copied once into pinned host memory before the batch loop (the original page-locks its batch
+ * vectors), the graph's device scratch is reserved for the largest batch, and the labels are
+ * copied back into pinned memory after the timer; no profiler is attached to the timed calls
+ * unless --profile or --sync-stages asks for one (its CUDA events would synchronize every stage).
  *
  * The tool includes installed public headers only (dyng/<name>.hpp, dyng/generators/<name>,
  * dyng/testing/<name>); a test checks its includes and CI builds it against an install tree.
  */
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/backend.hpp>
+#include <dyng/core/buffer.hpp>
+#include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
@@ -69,9 +76,17 @@
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <vector>
+
+// The CUDA-event time of each update() (AD2): the tool's own pair of events on the resources'
+// stream (the runtime's header and library, not dynG's; CMake defines DYNG_COMPAT_CUDA_EVENTS
+// when CUDA is built).
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+#include <cuda_runtime.h>
+#endif
 
 namespace {
 
@@ -549,6 +564,139 @@ const dyng::stage_sample* last_sample(const dyng::profiler& p, const std::string
   return nullptr;
 }
 
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+/// Page-lock (or release) one vector (dynLP.cu's pinVector).
+template <typename value_t>
+bool pin_vector(const std::vector<value_t>& v, bool pin) {
+  if (v.empty()) {
+    return true;
+  }
+  void* ptr = const_cast<value_t*>(v.data());  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+  return (pin ? cudaHostRegister(ptr, v.size() * sizeof(value_t), cudaHostRegisterDefault)
+              : cudaHostUnregister(ptr)) == cudaSuccess;
+}
+#endif
+
+/// The batches' arrays as the original passes them: page-locked in place on cuda (pinBatches),
+/// so that their copies are asynchronous; the views say so (memory_space::pinned_host).
+class batch_views {
+ public:
+  using stream_type = dyng::generators::vertex_arrival_stream<std::int32_t, std::int32_t>;
+  batch_views(const stream_type& s, bool pin) : stream_(s) {
+    views_.reserve(s.batches.size());
+    for (const auto& b : s.batches) {
+      views_.push_back(b.view());
+    }
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+    if (pin) {
+      bool ok = true;
+      for (auto& v : views_) {
+        const auto pinned = [](auto view) {
+          return decltype(view)(view.data(), view.size(), dyng::memory_space::pinned_host);
+        };
+        v.insert_vertices = pinned(v.insert_vertices);
+        v.insert_vertex_labels = pinned(v.insert_vertex_labels);
+        v.delete_vertices = pinned(v.delete_vertices);
+        v.insert_src = pinned(v.insert_src);
+        v.insert_dst = pinned(v.insert_dst);
+        v.insert_weights = pinned(v.insert_weights);
+      }
+      for (const auto& b : s.batches) {
+        ok = pin_vector(b.insert_vertices, true) && pin_vector(b.insert_vertex_labels, true) &&
+             pin_vector(b.delete_vertices, true) && pin_vector(b.edge_sources, true) &&
+             pin_vector(b.edge_destinations, true) && pin_vector(b.edge_weights, true) && ok;
+      }
+      if (!ok) {
+        throw std::runtime_error("could not page-lock the batches (cudaHostRegister)");
+      }
+      pinned_ = true;
+    }
+#else
+    (void)pin;
+#endif
+  }
+  batch_views(const batch_views&) = delete;
+  batch_views& operator=(const batch_views&) = delete;
+  ~batch_views() {
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+    if (pinned_) {
+      for (const auto& b : stream_.batches) {
+        (void)pin_vector(b.insert_vertices, false);
+        (void)pin_vector(b.insert_vertex_labels, false);
+        (void)pin_vector(b.delete_vertices, false);
+        (void)pin_vector(b.edge_sources, false);
+        (void)pin_vector(b.edge_destinations, false);
+        (void)pin_vector(b.edge_weights, false);
+      }
+    }
+#endif
+  }
+  [[nodiscard]] const dyng::edge_batch_view<std::int32_t, float>& operator[](std::size_t b) const {
+    return views_[b];
+  }
+
+ private:
+  const stream_type& stream_;
+  std::vector<dyng::edge_batch_view<std::int32_t, float>> views_;
+  bool pinned_ = false;
+};
+
+/// The device time of one call on the resources' stream: a pair of CUDA events around it (the
+/// original's batchStart / batchEnd); 0 without CUDA.
+class event_timer {
+ public:
+  explicit event_timer(bool on) : on_(on) {
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+    if (on_ && (cudaEventCreate(&start_) != cudaSuccess || cudaEventCreate(&end_) != cudaSuccess)) {
+      throw std::runtime_error("could not create the CUDA events");
+    }
+#endif
+  }
+  event_timer(const event_timer&) = delete;
+  event_timer& operator=(const event_timer&) = delete;
+  ~event_timer() {
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+    if (on_) {
+      (void)cudaEventDestroy(start_);
+      (void)cudaEventDestroy(end_);
+    }
+#endif
+  }
+  void start(const dyng::resources& res) {
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+    if (on_) {
+      (void)cudaEventRecord(start_, static_cast<cudaStream_t>(res.stream().get()));
+    }
+#else
+    (void)res;
+#endif
+  }
+  /// Record the end, wait for it, and return the elapsed device time in ms.
+  float stop(const dyng::resources& res) {
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+    if (on_) {
+      float ms = 0.0F;
+      if (cudaEventRecord(end_, static_cast<cudaStream_t>(res.stream().get())) != cudaSuccess ||
+          cudaEventSynchronize(end_) != cudaSuccess ||
+          cudaEventElapsedTime(&ms, start_, end_) != cudaSuccess) {
+        throw std::runtime_error("the CUDA events of the batch failed");
+      }
+      return ms;
+    }
+#else
+    (void)res;
+#endif
+    return 0.0F;
+  }
+
+ private:
+  bool on_;
+#if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
+  cudaEvent_t start_ = nullptr;
+  cudaEvent_t end_ = nullptr;
+#endif
+};
+
 int run(const config& c) {
   const bool cuda_built = dyng::backend_available(dyng::backend::cuda);
   const std::string backend = c.backend.empty() ? (cuda_built ? "cuda" : "sequential") : c.backend;
@@ -567,9 +715,13 @@ int run(const config& c) {
                                    : dyng::resources::sequential();
   dyng::profiler_options popt;
   popt.sync_stages = c.sync_stages;
-  popt.cuda_events = backend == "cuda";
+  popt.cuda_events = backend == "cuda" && (c.profile || c.sync_stages);
   dyng::profiler profiler(popt);
-  res.attach_profiler(&profiler);
+  // The diagnostic profiler (--profile, --sync-stages) stays attached; otherwise only the
+  // evaluation's IrLP call has one (for its iteration counter), and the timed calls none.
+  const bool diagnostics = c.profile || c.sync_stages;
+  dyng::profiler counters;
+  res.attach_profiler(diagnostics ? &profiler : nullptr);
   if (!ensure_directory(c.output_dir)) {
     return 1;
   }
@@ -618,6 +770,17 @@ int run(const config& c) {
   auto labels = lp::compute(res, g, dyng::array_view<const std::int32_t>(),
                             dyng::array_view<const std::int8_t>(), opt);
   labels.reserve(res, stream.max_batch_vertices, stream.max_batch_edges);
+  // The device scratch of the batches (the original sizes it from the whole run's batches).
+  g.reserve(res, static_cast<std::int32_t>(stream.max_batch_edges));
+  const bool on_cuda = backend == "cuda";
+  const batch_views views(stream, on_cuda);
+  event_timer timer(on_cuda);
+  // The labels after each batch, on the host (pinned on cuda: the original's h_labels).
+  dyng::buffer<float> pinned_labels =
+      on_cuda ? dyng::buffer<float>(
+                    n, res.stream(),
+                    dyng::memory_resource_ref(dyng::default_pinned_host_memory_resource()))
+              : dyng::buffer<float>();
   std::cout << "Running DynLP...\n\n";
   std::vector<batch_result> results(stream.batches.size());
   std::vector<float> host_labels(n, 0.5F);
@@ -636,6 +799,8 @@ int run(const config& c) {
     }
   }
   bool checks_passed = true;
+  std::vector<dyng::vertex_status> status(n, dyng::vertex_status::inactive);
+  std::vector<std::uint8_t> deleted_in_batch(n, 0);
   for (std::size_t b = 0; b < stream.batches.size(); ++b) {
     const auto& batch = stream.batches[b];
     if (c.verbose) {
@@ -649,22 +814,48 @@ int run(const config& c) {
     }
     batch_result& r = results[b];
     // --- Timed: one update() ---
+    timer.start(res);
     const auto t0 = std::chrono::steady_clock::now();
-    const lp::stats st = lp::update(res, g, batch.view(), labels);
-    res.synchronize();
+    const lp::stats st = lp::update(res, g, views[b], labels);
+    const float device_ms = timer.stop(res);
     r.host_ms = ms_since(t0);
-    const dyng::stage_sample* sample = last_sample(profiler, "label_propagation.update");
-    r.time_ms = backend == "cuda" && sample != nullptr ? static_cast<float>(sample->device_ms)
-                                                       : static_cast<float>(r.host_ms);
+    const dyng::stage_sample* sample =
+        diagnostics ? last_sample(profiler, "label_propagation.update") : nullptr;
+    r.time_ms = on_cuda ? (sample != nullptr && sample->device_ms > 0.0
+                               ? static_cast<float>(sample->device_ms)
+                               : device_ms)
+                        : static_cast<float>(r.host_ms);
     r.iterations = st.iterations;
     r.frontier_visits = st.frontier_visits;
     r.components = st.components;
     // --- Evaluation (after the timer) ---
     const auto e0 = std::chrono::steady_clock::now();
     const dyng::array_view<const float> view = labels.labels();
-    std::memcpy(host_labels.data(), view.data(), n * sizeof(float));
-    const auto gv = g.view();
-    r.accuracy = accuracy(host_labels.data(), stream.true_labels, gv.status, labels.seed_labels());
+    if (on_cuda) {
+      // e1.D2H.labels: one copy into pinned memory, then the host copy of the run's vector.
+      dyng::copy(res, view,
+                 dyng::array_view<float>(pinned_labels.data(), n, dyng::memory_space::pinned_host));
+      res.synchronize();
+      std::memcpy(host_labels.data(), pinned_labels.data(), n * sizeof(float));
+    } else {
+      std::memcpy(host_labels.data(), view.data(), n * sizeof(float));
+    }
+    // The states of the vertices after the batch, kept by the tool as the original's host pass
+    // keeps h_vertexStatus (Del deleted, then Ins \ Del active), so the evaluation reads no rows.
+    for (const std::int32_t v : batch.delete_vertices) {
+      deleted_in_batch[static_cast<std::size_t>(v)] = 1;
+    }
+    for (const std::int32_t v : batch.insert_vertices) {
+      if (deleted_in_batch[static_cast<std::size_t>(v)] == 0) {
+        status[static_cast<std::size_t>(v)] = dyng::vertex_status::active;
+      }
+    }
+    for (const std::int32_t v : batch.delete_vertices) {
+      deleted_in_batch[static_cast<std::size_t>(v)] = 0;
+      status[static_cast<std::size_t>(v)] = dyng::vertex_status::deleted;
+    }
+    const dyng::array_view<const dyng::vertex_status> gv_status = dyng::host_view(status);
+    r.accuracy = accuracy(host_labels.data(), stream.true_labels, gv_status, labels.seed_labels());
     r.eval_ms = static_cast<float>(ms_since(e0));
     if (dump != nullptr && std::fwrite(host_labels.data(), sizeof(float), n, dump) != n) {
       std::cout << "Error: could not write the label dump\n";
@@ -675,12 +866,16 @@ int run(const config& c) {
       std::vector<std::int8_t> seed_classes;
       const auto seeds = labels.seed_labels();
       for (std::size_t v = 0; v < n; ++v) {
-        if (gv.status[v] == dyng::vertex_status::active && seeds[v] >= 0) {
+        if (gv_status[v] == dyng::vertex_status::active && seeds[v] >= 0) {
           seed_vertices.push_back(static_cast<std::int32_t>(v));
           seed_classes.push_back(seeds[v]);
         }
       }
-      const std::int64_t counted = profiler.counter(irlp_counter);
+      dyng::profiler& counting = diagnostics ? profiler : counters;
+      if (!diagnostics) {
+        res.attach_profiler(&counters);
+      }
+      const std::int64_t counted = counting.counter(irlp_counter);
       const auto i0 = std::chrono::steady_clock::now();
       const std::vector<std::int32_t>& sv = seed_vertices;
       const std::vector<std::int8_t>& sc = seed_classes;
@@ -688,16 +883,24 @@ int run(const config& c) {
       res.synchronize();
       r.irlp_time_ms = static_cast<float>(ms_since(i0));
       const auto il = irlp.labels();
-      std::memcpy(irlp_labels.data(), il.data(), n * sizeof(float));
-      r.irlp_iterations = profiler.counter(irlp_counter) - counted;
+      if (dyng::is_host_accessible(il.space())) {
+        std::memcpy(irlp_labels.data(), il.data(), n * sizeof(float));
+      } else {
+        dyng::copy(res, il, dyng::array_view<float>(irlp_labels.data(), n));
+        res.synchronize();
+      }
+      r.irlp_iterations = counting.counter(irlp_counter) - counted;
+      if (!diagnostics) {
+        res.attach_profiler(nullptr);
+      }
       if (irlp_dump != nullptr &&
           std::fwrite(irlp_labels.data(), sizeof(float), n, irlp_dump) != n) {
         std::cout << "Error: could not write the IrLP label dump\n";
         return 1;
       }
-      r.irlp_accuracy = accuracy(irlp_labels.data(), stream.true_labels, gv.status, seeds);
+      r.irlp_accuracy = accuracy(irlp_labels.data(), stream.true_labels, gv_status, seeds);
       r.accuracy_vs_irlp =
-          class_agreement(host_labels.data(), irlp_labels.data(), gv.status, seeds);
+          class_agreement(host_labels.data(), irlp_labels.data(), gv_status, seeds);
     }
     if (c.check) {
       checks_passed = check_batch(c, stream, g, labels, host_labels, b) && checks_passed;
