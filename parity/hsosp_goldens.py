@@ -1108,7 +1108,12 @@ def datasets_main(argv: list[str]) -> int:
                 got = sha256_file(o) if r.returncode == 0 else None
                 lines = sum(1 for _ in open(o)) if got else None
                 record["entries"].setdefault(f"{archive} -> hg", []).append(
-                    {"converter": label, "sha256": got, "lines": lines, "stderr": r.stderr.strip()}
+                    {
+                        "converter": label,
+                        "sha256": got,
+                        "lines": lines,
+                        "stderr": r.stderr.strip().replace(str(args.scratch), "$DYNG_SCRATCH"),
+                    }
                 )
                 print(
                     f"{archive} via {label}: {got} ({lines} lines; "
