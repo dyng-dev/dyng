@@ -82,6 +82,11 @@ slack_host_store::slack_host_store(const resources& res, std::int32_t num_vertic
       knobs_(knobs),
       alloc_(to_store_policy(capacity), 0) {
   const std::int64_t n = rows.size();
+  if (n > knobs.max_ids) {
+    throw capacity_error("dyng: hypergraph: " + std::to_string(n) + " hyperedges exceed " +
+                         std::to_string(knobs.max_ids) +
+                         " (the int32 node ids of the slack_csr line graph)");
+  }
   std::vector<std::int32_t> counts(static_cast<std::size_t>(n));
   std::int64_t size = 0;
   for (std::int64_t i = 0; i < n; ++i) {
@@ -226,6 +231,14 @@ void slack_host_store::insert(const member_rows& rows, std::vector<std::int64_t>
         rows.offsets[static_cast<std::size_t>(i) + 1] - rows.offsets[static_cast<std::size_t>(i)]);
   }
   const std::vector<std::int32_t> keys = alloc_.insert(counts);
+  if (alloc_.max_key() > knobs_.max_ids) {
+    // In the store phase (the hypergraph is poisoned): MOSP_ESCHER throws at the same point
+    // (DynamicHypergraph::beginBatch, "adopted hyperedge id out of range").
+    throw capacity_error("dyng: hypergraph: the batch's ids reach " +
+                         std::to_string(alloc_.max_key()) + ", more than " +
+                         std::to_string(knobs_.max_ids) +
+                         " (the int32 node ids of the slack_csr line graph)");
+  }
   rows_.resize(static_cast<std::size_t>(alloc_.max_key()));
   max_bound_ = std::max<std::int64_t>(max_bound_, alloc_.max_key());
   ids.resize(static_cast<std::size_t>(n));
@@ -392,14 +405,15 @@ void slack_host_store::build_line_graph() const {
   const container_scope container;  // the container's own work (budgets, I9)
   const std::int64_t nodes = std::max(planned_node_capacity(max_bound_), lg_.node_capacity());
   with_exec(threads_, [&](const auto& exec) {
-    lg_.build(exec, rows_, v2h_, max_bound_, nodes, knobs_.entry_headroom, weights_);
+    lg_.build(exec, rows_, v2h_, max_bound_, nodes, knobs_.entry_headroom, weights_,
+              knobs_.max_entries);
   });
   ++line_graph_builds_;
 }
 
 void slack_host_store::build_line_graph_into(slack_line_graph& lg) const {
   with_exec(threads_, [&](const auto& exec) {
-    lg.build(exec, rows_, v2h_, max_bound_, max_bound_, 1.0, weights_);
+    lg.build(exec, rows_, v2h_, max_bound_, max_bound_, 1.0, weights_, knobs_.max_entries);
   });
 }
 

@@ -113,7 +113,14 @@ __global__ void count_candidates_kernel(const u64* inc, const int* net, int n, c
   const int v = static_cast<int>(inc[i] >> 32);
   const bool changed = net[i] != 0;
   cnt0[i] = changed ? v_len[v] : 0;
+#if defined(DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS)
+  // MUTATION (PLAN 8.4; M11a criterion 16 #8, the CUDA store; MOSP_ESCHER CHANGES.md:493-494):
+  // the post-batch candidate pass is dropped.
+  (void)post_len;
+  cnt1[i] = 0;
+#else
   cnt1[i] = changed ? post_len[v] : 0;
+#endif
 }
 
 __global__ void totals_kernel(const long long* off0, const long long* cnt0, const long long* off1,
@@ -481,9 +488,11 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
           sc.seg_off.data(), sc.seg_len.data(), n_seg, sc.uniq.data(), sc.net.data(),
           di.d_v_off.data(), di.d_v_len.data(), di.d_v_val.data(), dev.d_error.data());
     }
+#if !defined(DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS)
     emit_candidates_kernel<<<grid_for(32LL * n_uniq, block), block, 0, dev.stream>>>(
         sc.uniq.data(), sc.net.data(), n_uniq, di.d_v_off.data(), di.d_v_len.data(),
         di.d_v_val.data(), sc.off1.data(), total0, sc.cand.data());
+#endif
     DYNG_CUDA_TRY(cudaGetLastError());
   }
 

@@ -18,6 +18,7 @@
 #include "hypergraph/line_graph/incidence_delta.hpp"
 #include "hypergraph/slack_csr/slack_layout.hpp"
 
+#include <climits>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -39,14 +40,15 @@ class slack_line_graph {
    * @param[in] node_capacity  The node-indexed arrays' size (>= num_nodes).
    * @param[in] entry_headroom The entry headroom (>= 1).
    * @param[in] weights        The weight of every id below num_nodes (others keep theirs).
+   * @param[in] max_entries    The largest entry capacity (2^31 - 1: the int32 counts).
    * @throws invalid_argument_error for an entry headroom below 1 or NaN.
-   * @throws capacity_error if the entries exceed 2^31 - 1 (the int32 offsets of the device).
+   * @throws capacity_error if the entry capacity exceeds max_entries.
    */
   template <typename exec_t>
   void build(const exec_t& exec, const std::vector<std::vector<std::int32_t>>& rows,
              const std::vector<std::vector<std::int64_t>>& v2h, std::int64_t num_nodes,
              std::int64_t node_capacity, double entry_headroom,
-             const std::vector<std::int64_t>& weights);
+             const std::vector<std::int64_t>& weights, std::int64_t max_entries = INT_MAX);
 
   /**
    * @brief Apply a batch's pair delta (applyDeltaPairs / applyRowsWarp): every row's deletions

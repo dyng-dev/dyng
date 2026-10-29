@@ -97,6 +97,11 @@ void validate_knobs(const slack::knobs& k) {
                k.node_capacity);
   DYNG_EXPECTS(k.max_candidates >= 0,
                "hypergraph: the slack_csr candidate limit must be >= 0, got ", k.max_candidates);
+  DYNG_EXPECTS(k.max_ids >= 1 && k.max_ids <= INT_MAX,
+               "hypergraph: the slack_csr id limit must be in [1, 2^31 - 1], got ", k.max_ids);
+  DYNG_EXPECTS(k.max_entries >= 1 && k.max_entries <= INT_MAX,
+               "hypergraph: the slack_csr entry limit must be in [1, 2^31 - 1], got ",
+               k.max_entries);
 }
 
 std::int64_t payload_limit(const capacity_policy& c) noexcept {

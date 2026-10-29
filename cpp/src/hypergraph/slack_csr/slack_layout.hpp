@@ -76,6 +76,13 @@ struct knobs {
   /// The largest candidate pair count of one batch's line-graph delta (deriveDelta refuses more
   /// than INT_MAX); lowered by the planted-limit test.
   std::int64_t max_candidates = INT_MAX;
+  /// The largest id bound (the line graph's int32 node ids, MOSP_ESCHER's int hyperedge ids): a
+  /// batch whose ids pass it is a capacity_error; lowered by the over-limit test.
+  std::int64_t max_ids = INT_MAX;
+  /// The largest entry count of the line graph and the incidence mirror's value arrays (their
+  /// int32 counts): a build, rebuild or re-upload past it is a capacity_error; lowered by the
+  /// over-limit test.
+  std::int64_t max_entries = INT_MAX;
 };
 
 }  // namespace dyng::detail::hyper::slack

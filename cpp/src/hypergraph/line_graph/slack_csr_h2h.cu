@@ -83,7 +83,13 @@ __global__ void apply_rows_warp_kernel(int n_rows, const int* rows, const int* r
   int nd = 0;
   for (int k = lane; k < len; k += 32) nd += ((keys[off + k] >> 32) & 1ull) ? 0 : 1;
   for (int o = 16; o > 0; o >>= 1) nd += __shfl_xor_sync(0xffffffffu, nd, o);
-  for (int k = 0; k < nd; ++k) {
+  int deletions = nd;
+#if defined(DYNG_MUTATION_HSOSP_CSR_SKIPS_LAST_DELETION)
+  // MUTATION (PLAN 8.4; M11a criterion 16 #3, the CUDA store): the CSR apply skips the last
+  // deletion of each row.
+  if (deletions > 0) --deletions;
+#endif
+  for (int k = 0; k < deletions; ++k) {
     const int v = static_cast<int>(keys[off + k] & 0xffffffffu);
     int pos = -1;
     for (int e0 = 0; e0 < d && pos < 0; e0 += 32) {

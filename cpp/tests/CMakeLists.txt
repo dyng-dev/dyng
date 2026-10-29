@@ -426,6 +426,7 @@ dyng_add_test(
   SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
           hypergraph/hypergraph_store_test.cpp hypergraph/hypergraph_line_graph_test.cpp
           hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
+          hypergraph/hypergraph_slack_overflow_test.cpp
   LABELS cpu hypergraph
   LIBRARIES dyng_cbst_compare
 )
@@ -444,6 +445,7 @@ if(DYNG_ENABLE_CUDA)
     SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
             hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
             hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
+            hypergraph/hypergraph_slack_overflow_test.cpp
             framework/fake_hyper_kernels.cu
             hypergraph/stream_probe_kernels.cu
     LABELS gpu hypergraph
@@ -1109,6 +1111,7 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       hypergraph/hypergraph_store_test.cpp
       hypergraph/hypergraph_line_graph_test.cpp
       hypergraph/hypergraph_slack_test.cpp
+      hypergraph/hypergraph_slack_overflow_test.cpp
       parity/escher/hypergraph_ids_test.cpp
       parity/escher/hypergraph_ids.cpp
       parity/escher/allocator_lockstep_test.cpp
@@ -1159,6 +1162,42 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       hypergraph.mutation.${_name} PROPERTIES LABELS "cpu;mutation;hypergraph" ENVIRONMENT
                                               "${DYNG_TEST_ENVIRONMENT}"
     )
+    # The CUDA twins of M11a's sites (criterion 16, M11a step 3): the same mutant library against
+    # the slack_csr suites on cuda (#3 and #8 have their own CUDA sites in the device graph, #7 in
+    # the CUDA store, #4 the host model the CUDA store shares).
+    if(DYNG_ENABLE_CUDA AND (_name STREQUAL "control" OR _name MATCHES "^hsosp_"))
+      set(_cuda_exe dyng_hypergraph_cuda_mutant_${_name}_tests)
+      add_executable(
+        ${_cuda_exe} hypergraph/hypergraph_slack_test.cpp
+                     hypergraph/hypergraph_slack_overflow_test.cpp
+                     $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
+                     $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+      )
+      target_compile_features(${_cuda_exe} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_cuda_exe} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                             "${PROJECT_SOURCE_DIR}/cpp/src" "${CMAKE_CURRENT_SOURCE_DIR}"
+      )
+      target_compile_definitions(${_cuda_exe} PRIVATE DYNG_TEST_CUDA=1)
+      if(_define)
+        target_compile_definitions(${_cuda_exe} PRIVATE ${_define}=1)
+      endif()
+      dyng_set_warnings(${_cuda_exe})
+      dyng_set_cuda_options(${_cuda_exe})
+      dyng_mutant_cuda_architectures(${_cuda_exe})
+      target_link_libraries(
+        ${_cuda_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      add_test(NAME hypergraph.mutation.cuda.${_name}
+               COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_cuda_exe}> -DEXPECT=${_expect}
+                       -DNAME=hypergraph.cuda.${_name} "-DFILTER=*/cuda" -P
+                       "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+      )
+      set_tests_properties(
+        hypergraph.mutation.cuda.${_name} PROPERTIES LABELS "gpu;mutation;hypergraph" ENVIRONMENT
+                                                     "${DYNG_TEST_ENVIRONMENT}"
+      )
+    endif()
   endforeach()
 endif()
 

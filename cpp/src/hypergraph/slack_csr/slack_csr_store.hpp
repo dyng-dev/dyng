@@ -41,6 +41,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -204,6 +205,8 @@ struct device_incidence {
   struct scratch_arrays;
   std::unique_ptr<scratch_arrays> scratch;
   const resources* res = nullptr;  ///< dynG: the store's resources (every array from them)
+  /// dynG: the largest value capacity of either mirror (the int32 counts; knobs.max_entries).
+  long long max_entries = std::numeric_limits<int>::max();
 
   device_incidence();
   ~device_incidence();

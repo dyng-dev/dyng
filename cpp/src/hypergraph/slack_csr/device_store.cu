@@ -43,6 +43,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -101,6 +102,7 @@ class slack_device_store final : public incidence_store, public slack_access {
     // Every array of the device graph from the store's resources (buffers).
     dev_.res = &res_;
     dev_.inc.res = &res_;
+    dev_.inc.max_entries = knobs_.max_entries;
   }
 
   [[nodiscard]] std::unique_ptr<incidence_store> clone(const resources& res) const override {
@@ -189,11 +191,7 @@ class slack_device_store final : public incidence_store, public slack_access {
     if (!line_graph_.load(std::memory_order_acquire)) return;
     const scoped_device guard(res_.device());
     const std::int64_t bound = host_->max_bound();
-    if (bound > dev_.max_nodes) {
-      throw capacity_error("dyng: hypergraph: " + std::to_string(bound) +
-                           " ids exceed the node capacity " + std::to_string(dev_.max_nodes) +
-                           " of the slack_csr line graph");
-    }
+    if (bound > dev_.max_nodes) grow_nodes(bound);  // dynG (MOSP_ESCHER throws)
     // MOSP_ESCHER's IncidenceBatch (hyperedge ids 1-based).
     slack::incidence_batch& inc = inc_;
     const std::size_t n = vertices.size();
@@ -279,6 +277,7 @@ class slack_device_store final : public incidence_store, public slack_access {
       const scoped_stage stage(res_, "hypergraph.apply.line_graph.rebuild");
       slack_line_graph lg;
       host_line_graph(lg);
+      check_entries(lg, knobs_.entry_headroom);
       slack::build_csr(dev_, host_model(), csr_of(lg), dev_.max_nodes, knobs_.entry_headroom);
       ++csr_rebuilds_;
     } else {
@@ -329,6 +328,7 @@ class slack_device_store final : public incidence_store, public slack_access {
     const std::int64_t nodes = planned_node_capacity(host_->max_bound());
     // MOSP_ESCHER's buildDeviceH2H: the CSR and the incidence mirror, both with the entry
     // headroom.
+    check_entries(lg, knobs_.entry_headroom);
     slack::build_device_h2h(dev_, host_model(), csr_of(lg), static_cast<int>(nodes),
                             knobs_.entry_headroom);
     pair_count_ = dev_.num_entries / 2;
@@ -723,12 +723,64 @@ class slack_device_store final : public incidence_store, public slack_access {
     std::int64_t nodes = knobs_.node_capacity >= needed
                              ? knobs_.node_capacity
                              : needed + std::max<std::int64_t>(1024, needed / 8);
-    if (nodes > INT_MAX) nodes = std::max<std::int64_t>(needed, INT_MAX);
-    if (nodes > INT_MAX) {
-      throw capacity_error("dyng: hypergraph: " + std::to_string(needed) +
-                           " ids exceed the int32 node ids of the slack_csr line graph");
+    const std::int64_t limit = std::min<std::int64_t>(knobs_.max_ids, INT_MAX);
+    if (nodes > limit) nodes = std::max(needed, limit);
+    if (nodes > limit) {
+      throw capacity_error("dyng: hypergraph: " + std::to_string(needed) + " ids exceed " +
+                           std::to_string(limit) +
+                           " (the int32 node ids of the slack_csr line graph)");
     }
     return nodes;
+  }
+
+  // The CSR's entry capacity of a build or rebuild (MOSP_ESCHER's buildCsr: max(cursor, cursor x
+  // headroom) + 4096) within the int32 counts, before anything is allocated.
+  void check_entries(const slack_line_graph& lg, double headroom) const {
+    const std::int64_t capacity = slack::entry_capacity(lg.used_entries(), headroom);
+    if (capacity > knobs_.max_entries) {
+      throw capacity_error("dyng: hypergraph: the slack_csr line graph needs " +
+                           std::to_string(capacity) + " entries, more than " +
+                           std::to_string(knobs_.max_entries) +
+                           " (the int32 counts of its entries)");
+    }
+  }
+
+  // The node arrays grown by half (at least to `needed`; dynG's capacity rule, ADR 0089: MOSP_ESCHER
+  // throws "node capacity exceeded"): the CSR's row starts, degrees, slots and weights, the
+  // mirror's hyperedge offsets and lengths and its touched index, kept; the new nodes have no row.
+  void grow_nodes(std::int64_t needed) {
+    const std::int64_t limit = std::min<std::int64_t>(knobs_.max_ids, INT_MAX);
+    std::int64_t to = std::max<std::int64_t>(needed, dev_.max_nodes + dev_.max_nodes / 2);
+    to = std::min(to, limit);
+    if (needed > to) {
+      throw capacity_error("dyng: hypergraph: " + std::to_string(needed) + " ids exceed " +
+                           std::to_string(limit) +
+                           " (the int32 node ids of the slack_csr line graph)");
+    }
+    const auto old_n = static_cast<std::size_t>(dev_.max_nodes);
+    const auto new_n = static_cast<std::size_t>(to);
+    const auto grow = [&](auto& b, int fill) {
+      using value_t = typename std::remove_reference_t<decltype(b)>::value_type;
+      buffer<value_t> next(res_, new_n);
+      if (old_n > 0)
+        DYNG_CUDA_TRY(cudaMemcpyAsync(next.data(), b.data(), old_n * sizeof(value_t),
+                                      cudaMemcpyDeviceToDevice, stream_of(res_)));
+      DYNG_CUDA_TRY(cudaMemsetAsync(next.data() + old_n, fill, (new_n - old_n) * sizeof(value_t),
+                                    stream_of(res_)));
+      b = std::move(next);
+    };
+    grow(dev_.d_row_start, 0);
+    grow(dev_.d_deg, 0);
+    grow(dev_.d_cap, 0);
+    grow(dev_.d_node_w, 0);
+    grow(dev_.inc.d_he_off, 0);
+    grow(dev_.inc.d_he_len, 0);
+    grow(dev_.inc.d_touched_idx, 0xff);  // -1: no touched slot
+    dev_.inc.he_off.resize(new_n, 0);
+    dev_.inc.he_cap.resize(new_n, 0);
+    dev_.max_nodes = static_cast<int>(to);
+    dev_.inc.max_nodes = static_cast<int>(to);
+    ++node_growths_;
   }
 
   void upload_node_weights() {

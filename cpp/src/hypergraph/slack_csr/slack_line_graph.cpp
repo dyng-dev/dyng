@@ -151,7 +151,8 @@ template <typename exec_t>
 void slack_line_graph::build(const exec_t& exec, const std::vector<std::vector<std::int32_t>>& rows,
                              const std::vector<std::vector<std::int64_t>>& v2h,
                              std::int64_t num_nodes, std::int64_t node_capacity,
-                             double entry_headroom, const std::vector<std::int64_t>& weights) {
+                             double entry_headroom, const std::vector<std::int64_t>& weights,
+                             std::int64_t max_entries) {
   // !(x >= 1) also rejects NaN (buildCsr).
   DYNG_EXPECTS(entry_headroom >= 1.0,
                "hypergraph: the slack_csr line graph's entry headroom must "
@@ -183,10 +184,10 @@ void slack_line_graph::build(const exec_t& exec, const std::vector<std::vector<s
     entries += d;
   }
   const std::int64_t capacity = slack::entry_capacity(cursor, entry_headroom);
-  if (capacity > INT_MAX) {
+  if (capacity > max_entries) {
     throw capacity_error("dyng: hypergraph: the slack_csr line graph needs " +
-                         std::to_string(capacity) +
-                         " entries, more than the int32 offsets of its rows (2^31 - 1)");
+                         std::to_string(capacity) + " entries, more than " +
+                         std::to_string(max_entries) + " (the int32 counts of its entries)");
   }
   std::vector<std::int32_t> col_ind(static_cast<std::size_t>(capacity), 0);
   exec.for_each(chunks, copy_chunk{bound.data(), arena.data(), row_start.data(), degree.data(),
@@ -370,7 +371,7 @@ std::int64_t slack_line_graph::bytes() const noexcept {
   template void slack_line_graph::build<EXEC>(                                                    \
       const EXEC&, const std::vector<std::vector<std::int32_t>>&,                                 \
       const std::vector<std::vector<std::int64_t>>&, std::int64_t, std::int64_t, double,          \
-      const std::vector<std::int64_t>&);                                                          \
+      const std::vector<std::int64_t>&, std::int64_t);                                            \
   template bool slack_line_graph::apply<EXEC>(const EXEC&, const line_graph_delta&, std::int64_t, \
                                               const std::vector<std::int64_t>&,                   \
                                               const std::vector<std::int64_t>&);

@@ -569,7 +569,8 @@ TEST_P(SlackEdits, ForcedTailRebuildAndNodeGrowth) {
   }
   const auto c = slack->counters();
   EXPECT_GT(c.csr_rebuilds, 0);
-  EXPECT_GT(c.relocations, 0);
+  // Rows moved to the tail (the host store counts them; the CUDA store counts the tail's slots).
+  EXPECT_GT(cuda() ? c.tail_entries : c.relocations, 0);
   EXPECT_GT(c.node_growths, 0);
   EXPECT_GT(slack->rows().node_capacity, 30);
   // The headroom knob refuses less than 1 (and NaN), as MOSP_ESCHER's buildCsr.

@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <string>
 #include <vector>
 
 namespace dyng::detail::hyper::slack {
@@ -98,6 +99,11 @@ void upload_he_rows(device_incidence& di, const host_hypergraph& hg, double grow
   }
   di.he_tail = cursor;
   const long long capacity = std::max(cursor, static_cast<long long>(cursor * growth)) + 64;
+  if (capacity > di.max_entries) {  // dynG: the int32 counts of the mirror (never a wrap)
+    throw capacity_error("dyng: hypergraph: the incidence mirror needs " +
+                         std::to_string(capacity) + " values, more than " +
+                         std::to_string(di.max_entries) + " (the int32 counts of its rows)");
+  }
   std::vector<int> val(static_cast<std::size_t>(cursor), 0);
   for (int id = 1; id <= m; ++id)
     std::copy(hg.he_verts[id - 1].begin(), hg.he_verts[id - 1].end(),
@@ -129,6 +135,11 @@ void upload_vertex_rows(device_incidence& di, const host_hypergraph& hg, double 
   }
   di.v_tail = cursor;
   const long long capacity = std::max(cursor, static_cast<long long>(cursor * growth)) + 64;
+  if (capacity > di.max_entries) {  // dynG: the int32 counts of the mirror (never a wrap)
+    throw capacity_error("dyng: hypergraph: the incidence mirror needs " +
+                         std::to_string(capacity) + " values, more than " +
+                         std::to_string(di.max_entries) + " (the int32 counts of its rows)");
+  }
   std::vector<int> val(static_cast<std::size_t>(cursor), 0);
   for (int v = 0; v < n; ++v)
     for (std::size_t k = 0; k < hg.v2h[v].size(); ++k)
