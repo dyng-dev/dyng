@@ -14,8 +14,10 @@
 #include "core/budget_counters.hpp"
 #include "core/resources_access.hpp"
 #include "hypergraph/capacity.hpp"
+#include "hypergraph/host_team.hpp"
 #include "hypergraph/line_graph/incidence_delta.hpp"
 #include "operators/execution.hpp"
+#include "util/prefetch.hpp"
 #include "util/region_exceptions.hpp"
 
 #include <dyng/config.hpp>
@@ -98,6 +100,9 @@ slack_host_store::slack_host_store(const resources& res, std::int32_t num_vertic
   // capacity of the policy).
   alloc_ = id_allocator(to_store_policy(capacity), initial_payload(capacity, size));
   alloc_.construct(counts);
+  // Room for the planned ids (the node capacity of the knobs): the first batches' inserts do not
+  // move every row (MOSP_ESCHER's heVerts.resize does; M11a step 3).
+  rows_.reserve(static_cast<std::size_t>(std::max<std::int64_t>(n, knobs.node_capacity)));
   rows_.resize(static_cast<std::size_t>(n));
   for (std::int64_t i = 0; i < n; ++i) {
     rows_[static_cast<std::size_t>(i)].assign(
@@ -211,16 +216,22 @@ void slack_host_store::read_rows(const std::vector<std::int64_t>& ids, member_ro
 void slack_host_store::vertex_lengths(const std::vector<std::int32_t>& vertices,
                                       std::vector<std::int32_t>& out) const {
   out.resize(vertices.size());
-  for (std::size_t i = 0; i < vertices.size(); ++i)
+  for (std::size_t i = 0; i < vertices.size(); ++i) {
+    if (i + 16 < vertices.size()) prefetch_read(&v2h_[static_cast<std::size_t>(vertices[i + 16])]);
     out[i] = static_cast<std::int32_t>(v2h_[static_cast<std::size_t>(vertices[i])].size());
+  }
 }
 
 void slack_host_store::erase(const std::vector<std::int64_t>& ids) {
   std::vector<std::int32_t> keys(ids.size());
   for (std::size_t i = 0; i < ids.size(); ++i) keys[i] = static_cast<std::int32_t>(ids[i] + 1);
   alloc_.erase(keys);
-  for (const std::int64_t id : ids)
-    std::vector<std::int32_t>().swap(rows_[static_cast<std::size_t>(id)]);
+  // Cleared, its capacity kept for a later reuse of the id (MOSP_ESCHER's heVerts[id - 1].clear();
+  // freeing every deleted row cost about 5 ms of a 50K batch on coauth-DBLP, M11a step 3).
+  for (std::size_t i = 0; i < ids.size(); ++i) {
+    if (i + 16 < ids.size()) prefetch_read(&rows_[static_cast<std::size_t>(ids[i + 16])]);
+    rows_[static_cast<std::size_t>(ids[i])].clear();
+  }
 }
 
 void slack_host_store::insert(const member_rows& rows, std::vector<std::int64_t>& ids) {
@@ -252,83 +263,107 @@ void slack_host_store::insert(const member_rows& rows, std::vector<std::int64_t>
 }
 
 void slack_host_store::v2h_remove(const grouped_incidences& g) {
-  if (g.empty()) return;
-  const auto groups = static_cast<std::int64_t>(g.vertices.size());
-  const int threads = threads_;
-  const bool parallel = threads > 1 && groups > 1024;
-  (void)threads;
-  (void)parallel;
-#if DYNG_HAS_OPENMP
-#pragma omp parallel for num_threads(threads) if (parallel) schedule(dynamic, 64)
-#endif
-  for (std::int64_t k = 0; k < groups; ++k) {
-    auto& row = v2h_[static_cast<std::size_t>(g.vertices[static_cast<std::size_t>(k)])];
-    const std::int32_t begin = k == 0 ? 0 : g.prefix[static_cast<std::size_t>(k) - 1];
-    for (std::int32_t i = begin; i < g.prefix[static_cast<std::size_t>(k)]; ++i) {
-      // lower_bound and erase of int64 values: nothing allocates or throws.
-      const auto it = std::lower_bound(row.begin(), row.end(), g.ids[static_cast<std::size_t>(i)]);
-      if (it != row.end() && *it == g.ids[static_cast<std::size_t>(i)]) row.erase(it);
+  // The rows are unsorted (MOSP_ESCHER's removeValue: the first occurrence swap-removed).
+  for (std::size_t k = 0; k < g.vertices.size(); ++k) {
+    auto& row = v2h_[static_cast<std::size_t>(g.vertices[k])];
+    const std::int32_t begin = k == 0 ? 0 : g.prefix[k - 1];
+    for (std::int32_t i = begin; i < g.prefix[k]; ++i) {
+      const auto it = std::find(row.begin(), row.end(), g.ids[static_cast<std::size_t>(i)]);
+      if (it != row.end()) {
+        *it = row.back();
+        row.pop_back();
+      }
     }
   }
 }
 
 void slack_host_store::v2h_append(const grouped_incidences& g) {
-  if (g.empty()) return;
-  const auto groups = static_cast<std::int64_t>(g.vertices.size());
-  const int threads = threads_;
-  const bool parallel = threads > 1 && groups > 1024;
-  (void)threads;
+  for (std::size_t k = 0; k < g.vertices.size(); ++k) {
+    auto& row = v2h_[static_cast<std::size_t>(g.vertices[k])];
+    const std::int32_t begin = k == 0 ? 0 : g.prefix[k - 1];
+    for (std::int32_t i = begin; i < g.prefix[k]; ++i)
+      row.push_back(g.ids[static_cast<std::size_t>(i)]);
+  }
+}
+
+void slack_host_store::v2h_apply(const std::vector<std::uint64_t>& by_vertex,
+                                 const std::vector<std::size_t>& group_start,
+                                 const std::int64_t* ids, const std::int8_t* signs,
+                                 std::vector<std::int32_t>& lengths) {
+  // MOSP_ESCHER's HostHypergraph::applyBatch: per incidence the swap-remove of the first
+  // occurrence (removeValue), or a push_back, in the batch's order; a vertex's incidences are
+  // independent of another's, so the vertices are edited in parallel (M11a step 3, ADR 0089).
+  const std::size_t groups = group_start.empty() ? 0 : group_start.size() - 1;
+  lengths.resize(groups);
+  const auto num_groups = static_cast<std::int64_t>(groups);
+  const int team = host_team(threads_, num_groups);  // host_team.hpp
+  const bool parallel = team > 1;
   (void)parallel;
-  // A row's insert allocates: its exception is carried out of the region (ADR 0061).
+  (void)team;
+  // A push_back allocates: its exception is carried out of the region (ADR 0061).
   region_exceptions errors;
 #if DYNG_HAS_OPENMP
-#pragma omp parallel for num_threads(threads) if (parallel) schedule(dynamic, 64)
+#pragma omp parallel for num_threads(team) if (parallel) schedule(static, 256)
 #endif
-  for (std::int64_t k = 0; k < groups; ++k) {
+  for (std::int64_t g = 0; g < num_groups; ++g) {
     errors.run([&] {
-      auto& row = v2h_[static_cast<std::size_t>(g.vertices[static_cast<std::size_t>(k)])];
-      const std::int32_t begin = k == 0 ? 0 : g.prefix[static_cast<std::size_t>(k) - 1];
-      for (std::int32_t i = begin; i < g.prefix[static_cast<std::size_t>(k)]; ++i) {
-        const std::int64_t id = g.ids[static_cast<std::size_t>(i)];
-        row.insert(std::lower_bound(row.begin(), row.end(), id), id);
+      const std::size_t b = group_start[static_cast<std::size_t>(g)];
+      auto& row = v2h_[static_cast<std::size_t>(by_vertex[b] >> 32)];
+      for (std::size_t i = b; i < group_start[static_cast<std::size_t>(g) + 1]; ++i) {
+        const auto k = static_cast<std::size_t>(by_vertex[i] & 0xffffffffULL);
+        if (signs[k] > 0) {
+          row.push_back(ids[k]);
+          continue;
+        }
+        const auto it = std::find(row.begin(), row.end(), ids[k]);
+        if (it != row.end()) {
+          *it = row.back();
+          row.pop_back();
+        }
       }
+      lengths[static_cast<std::size_t>(g)] = static_cast<std::int32_t>(row.size());
     });
   }
   errors.rethrow();
 }
 
-void slack_host_store::h2v_remove(const grouped_members& g) {
-  if (g.empty()) return;
-  // MOSP_ESCHER's H2V unfill (its values are the vertices + 1, as its CBST keeps them).
-  std::vector<std::int32_t> keys(g.ids.size()), values(g.members.size());
-  for (std::size_t i = 0; i < g.ids.size(); ++i) keys[i] = static_cast<std::int32_t>(g.ids[i] + 1);
-  for (std::size_t i = 0; i < g.members.size(); ++i) values[i] = g.members[i] + 1;
-  alloc_.remove_values(keys, g.prefix, values);
-  for (std::size_t k = 0; k < g.ids.size(); ++k) {
-    auto& row = rows_[static_cast<std::size_t>(g.ids[k])];
-    for (std::int32_t i = k == 0 ? 0 : g.prefix[k - 1]; i < g.prefix[k]; ++i) {
-      const auto it =
-          std::lower_bound(row.begin(), row.end(), g.members[static_cast<std::size_t>(i)]);
-      if (it != row.end() && *it == g.members[static_cast<std::size_t>(i)]) row.erase(it);
-    }
-  }
-}
-
-void slack_host_store::h2v_append(const grouped_members& g) {
-  if (g.empty()) return;
-  // MOSP_ESCHER's H2V fill: an overflow segment for what does not fit a row's tail; a fill that
+void slack_host_store::h2v_edit(const grouped_members& removals, const grouped_members& additions,
+                                const std::vector<std::int64_t>& ids, const member_rows& post) {
+  // MOSP_ESCHER's H2V unfill, then its H2V fill (its values are the vertices + 1, as its CBST
+  // keeps them): a fill puts what does not fit a row's tail into an overflow segment; one that
   // does not fit the payload compacts first (and, under mosp_escher, then fails).
-  std::vector<std::int32_t> keys(g.ids.size()), values(g.members.size());
-  for (std::size_t i = 0; i < g.ids.size(); ++i) keys[i] = static_cast<std::int32_t>(g.ids[i] + 1);
-  for (std::size_t i = 0; i < g.members.size(); ++i) values[i] = g.members[i] + 1;
-  alloc_.append(keys, g.prefix, values);
-  for (std::size_t k = 0; k < g.ids.size(); ++k) {
-    auto& row = rows_[static_cast<std::size_t>(g.ids[k])];
-    for (std::int32_t i = k == 0 ? 0 : g.prefix[k - 1]; i < g.prefix[k]; ++i) {
-      const std::int32_t v = g.members[static_cast<std::size_t>(i)];
-      row.insert(std::lower_bound(row.begin(), row.end(), v), v);
+  const auto model = [&](const grouped_members& g, bool fill) {
+    if (g.empty()) return;
+    std::vector<std::int32_t> keys(g.ids.size()), values(g.members.size());
+    for (std::size_t i = 0; i < g.ids.size(); ++i)
+      keys[i] = static_cast<std::int32_t>(g.ids[i] + 1);
+    for (std::size_t i = 0; i < g.members.size(); ++i) values[i] = g.members[i] + 1;
+    if (fill) {
+      alloc_.append(keys, g.prefix, values);
+    } else {
+      alloc_.remove_values(keys, g.prefix, values);
     }
+  };
+  model(removals, false);
+  model(additions, true);
+  // The rows after the edits (Step 0 evaluated them), in parallel: each id its own row.
+  const auto n = static_cast<std::int64_t>(ids.size());
+  const int team = host_team(threads_, n);  // host_team.hpp
+  const bool parallel = team > 1;
+  (void)parallel;
+  (void)team;
+  region_exceptions errors;  // an assign may allocate
+#if DYNG_HAS_OPENMP
+#pragma omp parallel for num_threads(team) if (parallel) schedule(static, 256)
+#endif
+  for (std::int64_t i = 0; i < n; ++i) {
+    errors.run([&] {
+      const auto k = static_cast<std::size_t>(i);
+      rows_[static_cast<std::size_t>(ids[k])].assign(post.members.begin() + post.offsets[k],
+                                                     post.members.begin() + post.offsets[k + 1]);
+    });
   }
+  errors.rethrow();
 }
 
 void slack_host_store::update_line_graph(const std::vector<std::int64_t>& /*deleted*/,
@@ -388,7 +423,7 @@ void slack_host_store::line_graph_delta_of(const std::vector<std::int32_t>& vert
   rows.pre_v2h_offsets = &pre_v2h_offsets_;
   rows.pre_v2h_ids = &pre_v2h_ids_;
   rows.post_v2h = &v2h_;
-  with_exec(threads_, [&](const auto& exec) {
+  with_exec(host_team_size(threads_), [&](const auto& exec) {  // the host team
     incidence_delta(exec, keys, rows, knobs_.max_candidates, out);
   });
   candidates_ = out.candidates;
@@ -404,7 +439,7 @@ std::int64_t slack_host_store::planned_node_capacity(std::int64_t needed) const 
 void slack_host_store::build_line_graph() const {
   const container_scope container;  // the container's own work (budgets, I9)
   const std::int64_t nodes = std::max(planned_node_capacity(max_bound_), lg_.node_capacity());
-  with_exec(threads_, [&](const auto& exec) {
+  with_exec(host_team_size(threads_), [&](const auto& exec) {  // host_team.hpp
     lg_.build(exec, rows_, v2h_, max_bound_, nodes, knobs_.entry_headroom, weights_,
               knobs_.max_entries);
   });
@@ -412,7 +447,7 @@ void slack_host_store::build_line_graph() const {
 }
 
 void slack_host_store::build_line_graph_into(slack_line_graph& lg) const {
-  with_exec(threads_, [&](const auto& exec) {
+  with_exec(host_team_size(threads_), [&](const auto& exec) {  // host_team.hpp
     lg.build(exec, rows_, v2h_, max_bound_, max_bound_, 1.0, weights_, knobs_.max_entries);
   });
 }
@@ -426,7 +461,8 @@ void slack_host_store::finish_line_graph(const line_graph_delta& delta,
   if (!line_graph_.load(std::memory_order_acquire)) return;
   if (max_bound_ > lg_.node_capacity()) lg_.grow_nodes(max_bound_);
   bool applied = false;
-  with_exec(threads_, [&](const auto& exec) {
+  // The host team (host_team.hpp).
+  with_exec(host_team_size(threads_), [&](const auto& exec) {
     applied = lg_.apply(exec, delta, max_bound_, new_ids, new_weights);
   });
   if (!applied) {
@@ -646,7 +682,15 @@ void slack_host_store::check_integrity() const {
     }
   }
   if (live != alloc_.live()) problems.push_back("the live count is wrong");
-  if (transposed != v2h_) problems.push_back("v2h is not the transpose of h2v");
+  for (std::size_t v = 0; v < v2h_.size() && v < transposed.size(); ++v) {
+    std::vector<std::int64_t> row = v2h_[v];  // unsorted: compared as a multiset
+    std::sort(row.begin(), row.end());
+    if (row != transposed[v]) {
+      problems.push_back("v2h is not the transpose of h2v (vertex " + std::to_string(v) + ")");
+      break;
+    }
+  }
+  if (v2h_.size() != transposed.size()) problems.push_back("v2h has the wrong vertex count");
   if (max_bound_ < alloc_.max_key()) problems.push_back("the node count is below the bound");
   if (line_graph_.load(std::memory_order_acquire)) {
     // The slack CSR against the incidence lists (MOSP_ESCHER's checks: the device rows against
@@ -744,9 +788,12 @@ void slack_host_store::v2h_view(array_view<const std::int64_t>& row_ptr,
       for (std::size_t v = 0; v < v2h_.size(); ++v)
         ptr[v + 1] = ptr[v] + static_cast<std::int64_t>(v2h_[v].size());
       std::vector<std::int64_t> cols(static_cast<std::size_t>(ptr.back()));
-      for (std::size_t v = 0; v < v2h_.size(); ++v)
-        std::copy(v2h_[v].begin(), v2h_[v].end(),
-                  cols.begin() + static_cast<std::ptrdiff_t>(ptr[v]));
+      for (std::size_t v = 0; v < v2h_.size(); ++v) {
+        // The public view is sorted (the rows are not).
+        const auto at = cols.begin() + static_cast<std::ptrdiff_t>(ptr[v]);
+        std::copy(v2h_[v].begin(), v2h_[v].end(), at);
+        std::sort(at, at + static_cast<std::ptrdiff_t>(v2h_[v].size()));
+      }
       v2h_row_ptr_ = std::move(ptr);
       v2h_col_ind_ = std::move(cols);
       ++builds_.v2h;

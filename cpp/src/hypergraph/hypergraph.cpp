@@ -15,13 +15,16 @@
 #include "core/staging.hpp"
 #include "hypergraph/capacity.hpp"
 #include "hypergraph/escher_store.hpp"
+#include "hypergraph/host_team.hpp"
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/incidence_model.hpp"
 #include "hypergraph/instantiate.hpp"
+#include "hypergraph/radix_sort.hpp"
 #include "hypergraph/slack_csr/device_store.hpp"
 #include "hypergraph/slack_csr/host_store.hpp"
 #include "hypergraph/transaction.hpp"
 #include "util/allocation.hpp"
+#include "util/region_exceptions.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/copy.hpp>
@@ -613,96 +616,201 @@ const char* begin_checks(const resources& res, hypergraph<vertex_t, weight_t>& h
 /// when its hyperedge is dead on G_t, out of range or deleted by the batch (an id the batch
 /// inserts is one of these: it is not live on G_t, or it is deleted by the batch), its vertex is
 /// out of range, a removal names a non-member or would empty its hyperedge, or an addition names
-/// a member. Nothing changes.
+/// a member. Nothing of G_t changes.
+///
+/// An edit's outcome depends only on G_t's row of its hyperedge and on the earlier edits of the
+/// same hyperedge, so the edits are grouped by hyperedge (a stable radix sort: a group keeps its
+/// removals, then its additions, in batch order) and the groups are evaluated in parallel on the
+/// host threads of the resources (M11a step 3, ADR 0089: the host costs of the early maintain
+/// reading); the outcome equals the batch-order evaluation for any thread count. The groups come
+/// out in increasing id: the edited ids, their rows on G_t and after the edits, and the applied
+/// edits grouped by id for the allocator's H2V unfill and fill (MOSP_ESCHER's flushGrouped), so
+/// the commit groups and sorts nothing of them.
 template <typename vertex_t, typename weight_t>
-void stage_incidence_edits(hyper::incidence_store& store, std::int32_t num_vertices,
+void stage_incidence_edits(hypergraph_impl<vertex_t, weight_t>& state, int threads,
                            array_view<const std::int64_t> removal_ids,
                            array_view<const vertex_t> removal_vertices,
                            array_view<const std::int64_t> addition_ids,
                            array_view<const vertex_t> addition_vertices,
                            hyper_staged_batch<weight_t>& staged) {
+  hyper::incidence_store& store = *state.store;
+  const std::vector<std::vector<std::int32_t>>& rows = store.slack()->host_rows();
+  const std::int32_t num_vertices = store.num_vertices();
+  const std::int64_t bound = store.id_bound();
+  const std::size_t num_removals = removal_ids.size();
+  const std::size_t num_edits = num_removals + addition_ids.size();
+  const auto id_of = [&](std::size_t j) {
+    return j < num_removals ? removal_ids[j] : addition_ids[j - num_removals];
+  };
+  const auto vertex_of = [&](std::size_t j) {
+    return j < num_removals ? removal_vertices[j] : addition_vertices[j - num_removals];
+  };
+  if (num_edits > static_cast<std::size_t>(UINT32_MAX)) {
+    throw capacity_error(concat_message("dyng: hypergraph::apply: ", num_edits,
+                                        " incidence edits exceed the 2^32 - 1 of one batch"));
+  }
+  // The edits whose id and vertex are in range, as (id << 32 | edit), grouped by id (stable).
+  std::vector<std::uint64_t>& words = state.sort_words;
+  words.clear();
+  words.reserve(num_edits);
+  for (std::size_t j = 0; j < num_edits; ++j) {
+    const std::int64_t h = id_of(j);
+    const vertex_t v = vertex_of(j);
+    if (h >= 0 && h < bound && v >= 0 && static_cast<std::int64_t>(v) < num_vertices)
+      words.push_back(static_cast<std::uint64_t>(h) << 32 | j);
+  }
+  hyper::radix_sort_by_key(words, static_cast<std::uint64_t>(bound), state.sort_scratch);
+  // The groups: [start[g], start[g + 1]) of `words`.
+  std::vector<std::size_t> start;
+  for (std::size_t i = 0; i < words.size(); ++i)
+    if (i == 0 || (words[i] >> 32) != (words[i - 1] >> 32)) start.push_back(i);
+  const std::size_t num_groups = start.size();
+  start.push_back(words.size());
   std::vector<std::int64_t> deleted = staged.deletions;
   std::sort(deleted.begin(), deleted.end());
-  const std::int64_t bound = store.id_bound();
-  const auto editable = [&](std::int64_t h) {
-    return h >= 0 && h < bound && store.is_live(h) &&
-           !std::binary_search(deleted.begin(), deleted.end(), h);
+  std::vector<std::uint8_t> applied(num_edits, 0);
+  std::vector<std::int64_t> post_size(num_groups, -1);  // -1: no applied edit
+  std::vector<std::int64_t> pre_size(num_groups, 0);
+  const auto group_id = [&](std::size_t g) {
+    return static_cast<std::int64_t>(words[start[g]] >> 32);
   };
-  const auto in_range = [&](vertex_t v) {
-    return v >= 0 && static_cast<std::int64_t>(v) < num_vertices;
-  };
-  // The rows of the hyperedges the edits may change, read once (copies: G_t stays as it is).
-  std::vector<std::int64_t> ids;
-  for (const std::int64_t h : removal_ids)
-    if (editable(h)) ids.push_back(h);
-  for (const std::int64_t h : addition_ids)
-    if (editable(h)) ids.push_back(h);
-  std::sort(ids.begin(), ids.end());
-  ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
-  hyper::member_rows pre;
-  store.read_rows(ids, pre);
-  std::vector<std::vector<std::int32_t>> work(ids.size());
-  for (std::size_t i = 0; i < ids.size(); ++i)
-    work[i].assign(pre.members.begin() + pre.offsets[i], pre.members.begin() + pre.offsets[i + 1]);
-  std::vector<std::uint8_t> edited(ids.size(), 0);
-  const auto slot_of = [&](std::int64_t h) {
-    return static_cast<std::size_t>(std::lower_bound(ids.begin(), ids.end(), h) - ids.begin());
-  };
-  std::int64_t skipped = 0;
-  // Phase 2: incidence removals.
-  for (std::size_t k = 0; k < removal_ids.size(); ++k) {
-    const std::int64_t h = removal_ids[k];
-    const vertex_t v = removal_vertices[k];
-    if (!editable(h) || !in_range(v)) {
-      ++skipped;
-      continue;
+  // Evaluate group g's edits in order on a copy of its row (into `row`); true if one applied.
+  const auto evaluate = [&](std::size_t g, std::vector<std::int32_t>& row, bool mark) {
+    const std::int64_t h = group_id(g);
+    const auto& before = rows[static_cast<std::size_t>(h)];
+    // Live = a non-empty row (a slack_csr store keeps no live row empty and clears a dead one;
+    // check_integrity() checks it).
+    if (before.empty() || std::binary_search(deleted.begin(), deleted.end(), h)) return false;
+    row.assign(before.begin(), before.end());
+    bool any = false;
+    for (std::size_t i = start[g]; i < start[g + 1]; ++i) {
+      const auto j = static_cast<std::size_t>(words[i] & 0xffffffffULL);
+      const auto v = static_cast<std::int32_t>(vertex_of(j));
+      const auto it = std::lower_bound(row.begin(), row.end(), v);
+      const bool member = it != row.end() && *it == v;
+      if (j < num_removals) {
+        // A non-member, or the last member (that would be an implicit deletion: heDelete is for
+        // it).
+        if (!member || row.size() == 1) continue;
+        row.erase(it);
+      } else {
+        if (member) continue;  // already a member
+        row.insert(it, v);
+      }
+      if (mark) applied[j] = 1;
+      any = true;
     }
-    const std::size_t slot = slot_of(h);
-    auto& row = work[slot];
-    const auto it = std::lower_bound(row.begin(), row.end(), static_cast<std::int32_t>(v));
-    // A non-member, or the last member (that would be an implicit deletion: heDelete is for it).
-    if (it == row.end() || *it != static_cast<std::int32_t>(v) || row.size() == 1) {
-      ++skipped;
-      continue;
+    return any;
+  };
+  const auto groups = static_cast<std::int64_t>(num_groups);
+  // The host team (host_team.hpp: short iterations, one fixed team size).
+  const int team = hyper::host_team(threads, groups);
+  const bool parallel = team > 1;
+  (void)parallel;
+  (void)team;
+  {
+    // Each group writes its own entries of `applied` and `post_size` (distinct edits, distinct
+    // groups); a copy of a row allocates: its exception is carried out of the region (ADR 0061).
+    region_exceptions errors;
+#if DYNG_HAS_OPENMP
+#pragma omp parallel num_threads(team) if (parallel)
+#endif
+    {
+      std::vector<std::int32_t> row;
+#if DYNG_HAS_OPENMP
+#pragma omp for schedule(static, 256)
+#endif
+      for (std::int64_t g = 0; g < groups; ++g) {
+        errors.run([&] {
+          if (evaluate(static_cast<std::size_t>(g), row, true)) {
+            post_size[static_cast<std::size_t>(g)] = static_cast<std::int64_t>(row.size());
+            pre_size[static_cast<std::size_t>(g)] = static_cast<std::int64_t>(
+                rows[static_cast<std::size_t>(group_id(static_cast<std::size_t>(g)))].size());
+          }
+        });
+      }
     }
-    row.erase(it);
-    edited[slot] = 1;
-    staged.removal_ids.push_back(h);
-    staged.removal_vertices.push_back(static_cast<std::int32_t>(v));
+    errors.rethrow();
   }
-  // Phase 3: incidence additions.
-  for (std::size_t k = 0; k < addition_ids.size(); ++k) {
-    const std::int64_t h = addition_ids[k];
-    const vertex_t v = addition_vertices[k];
-    if (!editable(h) || !in_range(v)) {
-      ++skipped;
-      continue;
+  // The applied edits in batch order, the skipped count.
+  staged.removal_ids.reserve(num_removals);
+  staged.removal_vertices.reserve(num_removals);
+  staged.addition_ids.reserve(num_edits - num_removals);
+  staged.addition_vertices.reserve(num_edits - num_removals);
+  std::int64_t applied_count = 0;
+  for (std::size_t j = 0; j < num_edits; ++j) {
+    if (applied[j] == 0) continue;
+    ++applied_count;
+    if (j < num_removals) {
+      staged.removal_ids.push_back(removal_ids[j]);
+      staged.removal_vertices.push_back(static_cast<std::int32_t>(removal_vertices[j]));
+    } else {
+      staged.addition_ids.push_back(addition_ids[j - num_removals]);
+      staged.addition_vertices.push_back(
+          static_cast<std::int32_t>(addition_vertices[j - num_removals]));
     }
-    const std::size_t slot = slot_of(h);
-    auto& row = work[slot];
-    const auto it = std::lower_bound(row.begin(), row.end(), static_cast<std::int32_t>(v));
-    if (it != row.end() && *it == static_cast<std::int32_t>(v)) {  // already a member
-      ++skipped;
-      continue;
-    }
-    row.insert(it, static_cast<std::int32_t>(v));
-    edited[slot] = 1;
-    staged.addition_ids.push_back(h);
-    staged.addition_vertices.push_back(static_cast<std::int32_t>(v));
   }
-  staged.skipped_incidence_edits = skipped;
-  for (std::size_t i = 0; i < ids.size(); ++i) {
-    if (edited[i] == 0) continue;
-    staged.edited_ids.push_back(ids[i]);
-    staged.edited_pre_rows.members.insert(staged.edited_pre_rows.members.end(),
-                                          pre.members.begin() + pre.offsets[i],
-                                          pre.members.begin() + pre.offsets[i + 1]);
-    staged.edited_pre_rows.offsets.push_back(
-        static_cast<std::int64_t>(staged.edited_pre_rows.members.size()));
-    staged.edited_post_rows.members.insert(staged.edited_post_rows.members.end(), work[i].begin(),
-                                           work[i].end());
-    staged.edited_post_rows.offsets.push_back(
-        static_cast<std::int64_t>(staged.edited_post_rows.members.size()));
+  staged.skipped_incidence_edits = static_cast<std::int64_t>(num_edits) - applied_count;
+  // The edited ids (increasing: the groups' order), the offsets of their rows, the applied edits
+  // grouped by id.
+  std::vector<std::size_t> edited;  // the groups with an applied edit
+  auto& pre = staged.edited_pre_rows;
+  auto& post = staged.edited_post_rows;
+  for (std::size_t g = 0; g < num_groups; ++g) {
+    if (post_size[g] < 0) continue;
+    edited.push_back(g);
+    const std::int64_t h = group_id(g);
+    staged.edited_ids.push_back(h);
+    pre.offsets.push_back(pre.offsets.back() + pre_size[g]);
+    post.offsets.push_back(post.offsets.back() + post_size[g]);
+    bool removal = false, addition = false;
+    for (std::size_t i = start[g]; i < start[g + 1]; ++i) {
+      const auto j = static_cast<std::size_t>(words[i] & 0xffffffffULL);
+      if (applied[j] == 0) continue;
+      hyper::grouped_members& to =
+          j < num_removals ? staged.removal_groups : staged.addition_groups;
+      bool& opened = j < num_removals ? removal : addition;
+      if (!opened) {
+        to.ids.push_back(h);
+        to.prefix.push_back(to.prefix.empty() ? 0 : to.prefix.back());
+        opened = true;
+      }
+      to.members.push_back(static_cast<std::int32_t>(vertex_of(j)));
+      ++to.prefix.back();
+    }
+  }
+  pre.members.resize(static_cast<std::size_t>(pre.offsets.back()));
+  post.members.resize(static_cast<std::size_t>(post.offsets.back()));
+  {
+    // The rows of the edited ids on G_t and after the edits (evaluated once more), each into its
+    // own range of the flat members.
+    const auto num_edited = static_cast<std::int64_t>(edited.size());
+    const int rows_team = hyper::host_team(threads, num_edited);
+    const bool parallel_rows = rows_team > 1;
+    (void)parallel_rows;
+    (void)rows_team;
+    region_exceptions errors;
+#if DYNG_HAS_OPENMP
+#pragma omp parallel num_threads(rows_team) if (parallel_rows)
+#endif
+    {
+      std::vector<std::int32_t> row;
+#if DYNG_HAS_OPENMP
+#pragma omp for schedule(static, 256)
+#endif
+      for (std::int64_t e = 0; e < num_edited; ++e) {
+        errors.run([&] {
+          const std::size_t g = edited[static_cast<std::size_t>(e)];
+          const auto& before = rows[static_cast<std::size_t>(group_id(g))];
+          std::copy(before.begin(), before.end(),
+                    pre.members.begin() + pre.offsets[static_cast<std::size_t>(e)]);
+          (void)evaluate(g, row, false);
+          std::copy(row.begin(), row.end(),
+                    post.members.begin() + post.offsets[static_cast<std::size_t>(e)]);
+        });
+      }
+    }
+    errors.rethrow();
   }
 }
 
@@ -794,7 +902,7 @@ hyper_transaction<vertex_t, weight_t>::hyper_transaction(const resources& res, c
   staged_.requested_incidence_additions = static_cast<std::int64_t>(addition_ids_.view().size());
   if (staged_.requested_incidence_removals + staged_.requested_incidence_additions > 0) {
     stage_incidence_edits<vertex_t, weight_t>(
-        *hypergraph_access::state(h).store, store.num_vertices(), removal_ids_.view(),
+        hypergraph_access::state(h), resources_access::host_threads(res), removal_ids_.view(),
         removal_vertices_.view(), addition_ids_.view(), addition_vertices_.view(), staged_);
   }
 }
@@ -834,70 +942,113 @@ const hyper_applied& hyper_transaction<vertex_t, weight_t>::applied() const {
 template <typename vertex_t, typename weight_t>
 void hyper_transaction<vertex_t, weight_t>::commit_slack_csr(hyper_applied& applied,
                                                              std::vector<std::int64_t>& ids) {
-  // The store phase of slack_csr storage (ADR 0085, 0086): MOSP_ESCHER's beginBatch /
+  // The store phase of slack_csr storage (ADR 0085, 0086, 0089): MOSP_ESCHER's beginBatch /
   // finishBatch order under insert_first (H2V insert; then H2V erase, H2V unfill, V2H unfill,
   // H2V fill, V2H fill), erase_first's documented order otherwise (erase, unfill, fill, insert);
-  // then the pair delta of the line graph from the batch's incidence changes (incidence_delta,
-  // inside the commit) and its CSR apply.
+  // the applied record; the pair delta inside the commit (the stage hypergraph.apply.translate);
+  // the line graph's CSR apply. Every list is built once from Step 0's staging and the batch, in
+  // one pass each, without a grouping or a sort beyond the radix sorts of the touched ids and
+  // vertices (M11a step 3: the host costs of the early maintain reading, ADR 0089).
   auto& state = hypergraph_access::state(h_);
   hyper::incidence_store& store = *state.store;
   const resources& res = res_;
   const hyper::member_rows& rows = staged_.rows;
   const std::vector<std::int64_t>& live_deletions = staged_.deletions;
-  // What the pair delta reads of G_t: the hyperedges of every touched vertex, the rows of the
-  // deleted and edited ids.
-  std::vector<std::int64_t> pre_ids = live_deletions;
-  pre_ids.insert(pre_ids.end(), staged_.edited_ids.begin(), staged_.edited_ids.end());
-  std::sort(pre_ids.begin(), pre_ids.end());
-  std::vector<std::int32_t> pre_vertices(applied.deleted_members.members);
-  pre_vertices.insert(pre_vertices.end(), staged_.removal_vertices.begin(),
-                      staged_.removal_vertices.end());
-  pre_vertices.insert(pre_vertices.end(), staged_.addition_vertices.begin(),
-                      staged_.addition_vertices.end());
-  pre_vertices.insert(pre_vertices.end(), rows.members.begin(), rows.members.end());
-  std::sort(pre_vertices.begin(), pre_vertices.end());
-  pre_vertices.erase(std::unique(pre_vertices.begin(), pre_vertices.end()), pre_vertices.end());
-  hyper::grouped_members removals, additions;
-  hyper::grouped_incidences groups;
+  // The (vertex, id, sign) of every incidence the batch changes, in MOSP_ESCHER's order: the
+  // deleted rows' members and the removed incidences (its v2hUnfill order, sign -1), then the
+  // added incidences and the inserted rows' members (its v2hFill order, +1; the inserted ids are
+  // filled in once the H2V insert has given them). One list serves the v2h edits, the pair delta
+  // and the record.
+  applied.has_incidence_delta = true;
+  auto& delta = applied.incidence_delta;
+  std::size_t removed_end = 0;
+  std::vector<std::int32_t> pre_vertices;
+  std::vector<std::uint64_t> by_vertex;  // vertex << 32 | its place in the incidence list
+  std::vector<std::size_t> vertex_start;
+  std::vector<std::uint64_t> sorted_deletions;  // id << 32 | its place in live_deletions
+  std::vector<std::int64_t> pre_ids;
   {
     const scoped_stage stage(res, "hypergraph.apply.incidence");
+    const std::size_t total = applied.deleted_members.members.size() + staged_.removal_ids.size() +
+                              staged_.addition_ids.size() + rows.members.size();
+    delta.vertices.reserve(total);
+    delta.ids.reserve(total);
+    delta.signs.reserve(total);
+    for (std::int64_t i = 0; i < applied.deleted_members.size(); ++i) {
+      for (std::int64_t k = applied.deleted_members.offsets[static_cast<std::size_t>(i)];
+           k < applied.deleted_members.offsets[static_cast<std::size_t>(i) + 1]; ++k) {
+        delta.vertices.push_back(applied.deleted_members.members[static_cast<std::size_t>(k)]);
+        delta.ids.push_back(live_deletions[static_cast<std::size_t>(i)]);
+      }
+    }
+    delta.vertices.insert(delta.vertices.end(), staged_.removal_vertices.begin(),
+                          staged_.removal_vertices.end());
+    delta.ids.insert(delta.ids.end(), staged_.removal_ids.begin(), staged_.removal_ids.end());
+    removed_end = delta.vertices.size();
+    delta.vertices.insert(delta.vertices.end(), staged_.addition_vertices.begin(),
+                          staged_.addition_vertices.end());
+    delta.ids.insert(delta.ids.end(), staged_.addition_ids.begin(), staged_.addition_ids.end());
+    delta.vertices.insert(delta.vertices.end(), rows.members.begin(), rows.members.end());
+    delta.ids.resize(delta.vertices.size(), -1);  // the inserted rows' ids: after the insert
+    delta.signs.assign(removed_end, -1);
+    delta.signs.resize(delta.vertices.size(), +1);
+    // The incidences grouped by vertex (a stable radix sort: a vertex keeps the batch's order of
+    // its changes), which gives the touched vertices (sorted, unique) and the v2h edits' groups.
+    if (delta.vertices.size() > static_cast<std::size_t>(UINT32_MAX)) {
+      throw capacity_error(concat_message("dyng: hypergraph::apply: ", delta.vertices.size(),
+                                          " incidence changes exceed the 2^32 - 1 of one batch"));
+    }
+    by_vertex.resize(delta.vertices.size());
+    for (std::size_t i = 0; i < delta.vertices.size(); ++i)
+      by_vertex[i] = static_cast<std::uint64_t>(delta.vertices[i]) << 32 | i;
+    hyper::radix_sort_by_key(by_vertex, static_cast<std::uint64_t>(store.num_vertices()),
+                             state.sort_scratch);
+    for (std::size_t i = 0; i < by_vertex.size(); ++i) {
+      if (i == 0 || (by_vertex[i] >> 32) != (by_vertex[i - 1] >> 32)) {
+        vertex_start.push_back(i);
+        pre_vertices.push_back(static_cast<std::int32_t>(by_vertex[i] >> 32));
+      }
+    }
+    vertex_start.push_back(by_vertex.size());
+    sorted_deletions.resize(live_deletions.size());
+    for (std::size_t i = 0; i < live_deletions.size(); ++i)
+      sorted_deletions[i] = static_cast<std::uint64_t>(live_deletions[i]) << 32 | i;
+    hyper::radix_sort_by_key(sorted_deletions, static_cast<std::uint64_t>(staged_.id_bound),
+                             state.sort_scratch);
+    pre_ids.resize(sorted_deletions.size() + staged_.edited_ids.size());
+    std::size_t a = 0, b = 0, o = 0;
+    while (a < sorted_deletions.size() || b < staged_.edited_ids.size()) {
+      const auto da = a < sorted_deletions.size()
+                          ? static_cast<std::int64_t>(sorted_deletions[a] >> 32)
+                          : INT64_MAX;
+      const std::int64_t eb = b < staged_.edited_ids.size() ? staged_.edited_ids[b] : INT64_MAX;
+      if (da < eb) {
+        pre_ids[o++] = da;
+        ++a;
+      } else {
+        pre_ids[o++] = eb;
+        ++b;
+      }
+    }
     store.begin_line_graph_delta(pre_vertices, pre_ids);
-    hyper::group_by_hyperedge(staged_.removal_ids, staged_.removal_vertices, removals);
-    hyper::group_by_hyperedge(staged_.addition_ids, staged_.addition_vertices, additions);
   }
-  // V2H unfill: the deleted rows' members, then the removed incidences (MOSP_ESCHER's v2hUnfill
-  // order); V2H fill: the added incidences, then the inserted rows (its v2hFill order).
+  // H2V erase, unfill and fill; then (the inserted rows' ids filled in) every v2h edit, grouped by
+  // vertex (nothing of the H2V side reads v2h: one pass at the end is MOSP_ESCHER's order per
+  // vertex).
   const auto remove_phase = [&] {
     store.erase(live_deletions);
-    store.h2v_remove(removals);
-    hyper::member_rows removed = applied.deleted_members;
-    std::vector<std::int64_t> removed_ids = live_deletions;
-    for (std::size_t k = 0; k < staged_.removal_ids.size(); ++k) {
-      removed.members.push_back(staged_.removal_vertices[k]);
-      removed.offsets.push_back(static_cast<std::int64_t>(removed.members.size()));
-      removed_ids.push_back(staged_.removal_ids[k]);
-    }
-    hyper::group_by_vertex(removed, removed_ids, groups);
-    store.v2h_remove(groups);
-    store.h2v_append(additions);
+    store.h2v_edit(staged_.removal_groups, staged_.addition_groups, staged_.edited_ids,
+                   staged_.edited_post_rows);
   };
   const auto append_phase = [&] {
-    hyper::member_rows added;
-    std::vector<std::int64_t> added_ids;
-    for (std::size_t k = 0; k < staged_.addition_ids.size(); ++k) {
-      added.members.push_back(staged_.addition_vertices[k]);
-      added.offsets.push_back(static_cast<std::int64_t>(added.members.size()));
-      added_ids.push_back(staged_.addition_ids[k]);
-    }
+    std::size_t at = removed_end + staged_.addition_ids.size();
     for (std::int64_t i = 0; i < rows.size(); ++i) {
-      added.members.insert(added.members.end(),
-                           rows.members.begin() + rows.offsets[static_cast<std::size_t>(i)],
-                           rows.members.begin() + rows.offsets[static_cast<std::size_t>(i) + 1]);
-      added.offsets.push_back(static_cast<std::int64_t>(added.members.size()));
-      added_ids.push_back(ids[static_cast<std::size_t>(i)]);
+      for (std::int64_t k = rows.offsets[static_cast<std::size_t>(i)];
+           k < rows.offsets[static_cast<std::size_t>(i) + 1]; ++k)
+        delta.ids[at++] = ids[static_cast<std::size_t>(i)];
     }
-    hyper::group_by_vertex(added, added_ids, groups);
-    store.v2h_append(groups);
+    store.v2h_apply(by_vertex, vertex_start, delta.ids.data(), delta.signs.data(),
+                    applied.touched_vertex_lengths);
   };
   if (state.props.reuse == id_reuse::insert_first) {
     {
@@ -919,35 +1070,6 @@ void hyper_transaction<vertex_t, weight_t>::commit_slack_csr(hyper_applied& appl
     const scoped_stage stage(res, "hypergraph.apply.incidence");
     append_phase();
   }
-  // The (vertex, id, sign) of every incidence the batch changed.
-  {
-    const scoped_stage stage(res, "hypergraph.apply.incidence");
-    applied.has_incidence_delta = true;
-    auto& delta = applied.incidence_delta;
-    const auto add = [&](const hyper::member_rows& r, const std::vector<std::int64_t>& rid,
-                         std::int8_t sign) {
-      for (std::int64_t i = 0; i < r.size(); ++i) {
-        for (std::int64_t k = r.offsets[static_cast<std::size_t>(i)];
-             k < r.offsets[static_cast<std::size_t>(i) + 1]; ++k) {
-          delta.vertices.push_back(r.members[static_cast<std::size_t>(k)]);
-          delta.ids.push_back(rid[static_cast<std::size_t>(i)]);
-          delta.signs.push_back(sign);
-        }
-      }
-    };
-    add(applied.deleted_members, live_deletions, -1);
-    for (std::size_t k = 0; k < staged_.removal_ids.size(); ++k) {
-      delta.vertices.push_back(staged_.removal_vertices[k]);
-      delta.ids.push_back(staged_.removal_ids[k]);
-      delta.signs.push_back(-1);
-    }
-    for (std::size_t k = 0; k < staged_.addition_ids.size(); ++k) {
-      delta.vertices.push_back(staged_.addition_vertices[k]);
-      delta.ids.push_back(staged_.addition_ids[k]);
-      delta.signs.push_back(+1);
-    }
-    add(rows, ids, +1);
-  }
   // The rest of the applied record (what hyper_sssp reads; no new virtual on the participant),
   // before the pair delta, which ships its touched rows to a device store.
   {
@@ -960,55 +1082,69 @@ void hyper_transaction<vertex_t, weight_t>::commit_slack_csr(hyper_applied& appl
     applied.deleted_ids = live_deletions;
     applied.has_slack_record = true;
     applied.edited_ids = staged_.edited_ids;
-    {
-      std::int64_t id_end = std::max(store.id_bound(), staged_.id_bound);
-      for (const std::int64_t id : ids) id_end = std::max(id_end, id + 1);
-      state.touched_ids.begin(static_cast<std::size_t>(id_end));
-      for (const std::int64_t id : live_deletions) state.touched_ids.mark(id);
-      for (const std::int64_t id : ids) state.touched_ids.mark(id);
-      for (const std::int64_t id : staged_.edited_ids) state.touched_ids.mark(id);
-      state.touched_ids.take_sorted(applied.touched_hyperedges);
-      state.touched_vertices.begin(static_cast<std::size_t>(store.num_vertices()));
-      for (const std::int32_t v : pre_vertices) state.touched_vertices.mark(v);
-      state.touched_vertices.take_sorted(applied.touched_vertices);
-    }
-    // The touched rows before (G_t: the deleted and edited rows; an inserted id was not live) and
-    // after the batch, and the touched vertices' lengths after it.
-    {
-      std::vector<std::pair<std::int64_t, std::int64_t>> where;  // (id, -1 - deletion | edit)
-      where.reserve(live_deletions.size() + staged_.edited_ids.size());
-      for (std::size_t i = 0; i < live_deletions.size(); ++i)
-        where.emplace_back(live_deletions[i], -1 - static_cast<std::int64_t>(i));
-      for (std::size_t i = 0; i < staged_.edited_ids.size(); ++i)
-        where.emplace_back(staged_.edited_ids[i], static_cast<std::int64_t>(i));
-      std::sort(where.begin(), where.end());
-      auto& pre = applied.touched_pre_rows;
-      pre.clear();
-      for (const std::int64_t id : applied.touched_hyperedges) {
-        const auto it = std::lower_bound(where.begin(), where.end(),
-                                         std::pair<std::int64_t, std::int64_t>{id, INT64_MIN});
-        if (it != where.end() && it->first == id) {
-          const hyper::member_rows& from =
-              it->second < 0 ? applied.deleted_members : staged_.edited_pre_rows;
-          const auto r = static_cast<std::size_t>(it->second < 0 ? -1 - it->second : it->second);
-          pre.members.insert(pre.members.end(), from.members.begin() + from.offsets[r],
-                             from.members.begin() + from.offsets[r + 1]);
-        }
-        pre.offsets.push_back(static_cast<std::int64_t>(pre.members.size()));
+    // The touched ids (sorted, unique) with their rows before (G_t: the deleted and edited rows;
+    // an inserted id was not live) and after the batch (the inserted and edited rows): one merge
+    // of the sorted deletions, insertions and edits (the edited ids are live and kept; an inserted
+    // id may be one the batch deleted, under erase_first).
+    std::int64_t id_end = std::max(store.id_bound(), staged_.id_bound);
+    for (const std::int64_t id : ids) id_end = std::max(id_end, id + 1);
+    std::vector<std::uint64_t> sorted_insertions(ids.size());
+    for (std::size_t i = 0; i < ids.size(); ++i)
+      sorted_insertions[i] = static_cast<std::uint64_t>(ids[i]) << 32 | i;
+    hyper::radix_sort_by_key(sorted_insertions, static_cast<std::uint64_t>(id_end),
+                             state.sort_scratch);
+    const auto& edited = staged_.edited_ids;
+    auto& touched = applied.touched_hyperedges;
+    auto& pre = applied.touched_pre_rows;
+    auto& post = applied.touched_post_rows;
+    touched.clear();
+    pre.clear();
+    post.clear();
+    touched.reserve(sorted_deletions.size() + sorted_insertions.size() + edited.size());
+    pre.offsets.reserve(touched.capacity() + 1);
+    post.offsets.reserve(touched.capacity() + 1);
+    pre.members.reserve(applied.deleted_members.members.size() +
+                        staged_.edited_pre_rows.members.size());
+    post.members.reserve(rows.members.size() + staged_.edited_post_rows.members.size());
+    std::vector<std::uint8_t> reused(live_deletions.size(), 0);
+    const auto append_row = [](hyper::member_rows& to, const hyper::member_rows& from,
+                               std::size_t r) {
+      to.members.insert(to.members.end(), from.members.begin() + from.offsets[r],
+                        from.members.begin() + from.offsets[r + 1]);
+    };
+    std::size_t d = 0, n = 0, e = 0;
+    const auto key = [](std::uint64_t w) { return static_cast<std::int64_t>(w >> 32); };
+    while (d < sorted_deletions.size() || n < sorted_insertions.size() || e < edited.size()) {
+      const std::int64_t kd = d < sorted_deletions.size() ? key(sorted_deletions[d]) : INT64_MAX;
+      const std::int64_t kn = n < sorted_insertions.size() ? key(sorted_insertions[n]) : INT64_MAX;
+      const std::int64_t ke = e < edited.size() ? edited[e] : INT64_MAX;
+      const std::int64_t id = std::min({kd, kn, ke});
+      touched.push_back(id);
+      const bool del = kd == id, ins = kn == id;
+      if (del) {
+        append_row(pre, applied.deleted_members,
+                   static_cast<std::size_t>(sorted_deletions[d] & 0xffffffffULL));
+        if (ins) reused[static_cast<std::size_t>(sorted_deletions[d] & 0xffffffffULL)] = 1;
+        ++d;
       }
-      store.read_rows(applied.touched_hyperedges, applied.touched_post_rows);
-      store.slack()->vertex_lengths(applied.touched_vertices, applied.touched_vertex_lengths);
-    }
-    {
-      std::vector<std::int64_t> inserted = ids;
-      std::sort(inserted.begin(), inserted.end());
-      for (const std::int64_t id : ids) {
-        (id >= staged_.id_bound ? applied.new_ids : applied.recreated_ids).push_back(id);
+      if (ins) {
+        append_row(post, rows, static_cast<std::size_t>(sorted_insertions[n] & 0xffffffffULL));
+        ++n;
       }
-      for (const std::int64_t id : live_deletions)
-        if (!std::binary_search(inserted.begin(), inserted.end(), id))
-          applied.dead_ids.push_back(id);
+      if (ke == id) {
+        append_row(pre, staged_.edited_pre_rows, e);
+        append_row(post, staged_.edited_post_rows, e);
+        ++e;
+      }
+      pre.offsets.push_back(static_cast<std::int64_t>(pre.members.size()));
+      post.offsets.push_back(static_cast<std::int64_t>(post.members.size()));
     }
+    applied.touched_vertices = std::move(pre_vertices);  // sorted, unique
+    for (const std::int64_t id : ids) {
+      (id >= staged_.id_bound ? applied.new_ids : applied.recreated_ids).push_back(id);
+    }
+    for (std::size_t i = 0; i < live_deletions.size(); ++i)
+      if (reused[i] == 0) applied.dead_ids.push_back(live_deletions[i]);
   }
   std::vector<std::int64_t> new_weights(ids.size(), 1);
   if constexpr (!is_unweighted_v<weight_t>) {

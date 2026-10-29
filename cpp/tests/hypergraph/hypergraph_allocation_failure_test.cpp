@@ -17,6 +17,8 @@
  *   - of each region directly, with its loop run in parallel (4 threads, more than the regions'
  *     parallel thresholds, every thread's allocations): the std::bad_alloc comes out of the
  *     region on the calling thread, where the entry points translate it.
+ * M11a step 3 adds the batch regions of slack_csr storage on its host team (Step 0's grouped
+ * evaluation of the incidence edits, the H2V rows after them, the v2h edits by vertex).
  * M11a step 2 adds the regions of slack_csr storage: its v2h append, the slack CSR's build and
  * delta apply and the pair delta (operators::openmp_exec::for_each, ADR 0083), through the public
  * calls with incidence edits and, on 4 threads with every thread's allocations failing, directly.
@@ -438,6 +440,93 @@ TEST(HypergraphAllocationFailure, TheSlackCsrRegionsRethrowOnTheCallingThread) {
                 [&] { h.emplace(make_slack(res, dyng::line_graph_policy::slack_csr, rows, n)); },
                 [&] { (void)h->apply(res, batch.view()); }),
             0);
+}
+
+// M11a step 3 (ADR 0089 section 8): the batch regions of slack_csr storage on the host team (at
+// least 4096 items each, host_team.hpp), every thread's allocations failing: Step 0's evaluation
+// of the incidence edits (a whole apply of 4,200 removals: its work rows), the H2V rows after the
+// edits and the v2h edits grouped by vertex (4,200 each, 64 of them growing). Each failure leaves
+// its region and is rethrown on the calling thread.
+TEST(HypergraphAllocationFailure, TheSlackCsrBatchRegionsRethrowOnTheCallingThread) {
+  if (DYNG_TEST_SANITIZED) GTEST_SKIP() << "operator new is the sanitizer's";
+  if (!dyng::backend_available(dyng::backend::openmp)) GTEST_SKIP() << "no openmp backend";
+  const dyng::resources res = dyng::resources::openmp(4);
+  constexpr std::int32_t groups = 4200;
+  constexpr std::int32_t n = 3 * groups;
+  rows_t rows;
+  for (std::int32_t v = 0; v + 2 < n; v += 3) rows.push_back({v, v + 1, v + 2});
+  // A whole apply: Step 0's regions allocate their work rows (the removals shrink every row, so
+  // the store phase's H2V and v2h regions do not allocate here).
+  batch_t batch;
+  for (std::int32_t k = 0; k < groups; ++k) batch.delete_incidence(k, 3 * k + 1);
+  std::optional<hgraph> h;
+  rows_t before;
+  EXPECT_GT(alloc::fail_each_allocation<dyng::out_of_memory_error>(
+                alloc::scope::any_thread,
+                [&] {
+                  h.emplace(make_slack(res, dyng::line_graph_policy::none, rows, n));
+                  before = rows_by_id(*h);
+                },
+                [&] { (void)h->apply(res, batch.view()); },
+                [&](bool threw) {
+                  if (threw && !poisoned(res, *h)) {
+                    EXPECT_EQ(rows_by_id(*h), before);
+                  }
+                }),
+            0);
+  // The store's H2V rows after the edits and its v2h edits: 4,200 rows and vertices, of which
+  // the first 64 grow (a member and a hyperedge more: an allocation each, inside the regions);
+  // the others keep their size (a member replaced, a hyperedge removed).
+  constexpr std::int32_t growing = 64;
+  dyng::detail::hyper::member_rows m, post;
+  dyng::detail::hyper::grouped_members removed, added;
+  std::vector<std::int64_t> ids;
+  for (std::int32_t g = 0; g < groups; ++g) {
+    const auto& r = rows[static_cast<std::size_t>(g)];
+    m.members.insert(m.members.end(), r.begin(), r.end());
+    m.offsets.push_back(static_cast<std::int64_t>(m.members.size()));
+    std::vector<std::int32_t> after = r;
+    const std::int32_t extra = (3 * g + 3) % n;
+    if (g >= growing) {
+      removed.ids.push_back(g);
+      removed.members.push_back(r.front());
+      removed.prefix.push_back(static_cast<std::int32_t>(removed.members.size()));
+      after.erase(after.begin());
+    }
+    after.push_back(extra);
+    std::sort(after.begin(), after.end());
+    post.members.insert(post.members.end(), after.begin(), after.end());
+    post.offsets.push_back(static_cast<std::int64_t>(post.members.size()));
+    ids.push_back(g);
+    added.ids.push_back(g);
+    added.members.push_back(extra);
+    added.prefix.push_back(g + 1);
+  }
+  std::vector<std::uint64_t> by_vertex;
+  std::vector<std::size_t> start;
+  std::vector<std::int64_t> hyperedge;
+  std::vector<std::int8_t> signs;
+  for (std::int32_t v = 0; v < groups; ++v) {
+    start.push_back(by_vertex.size());
+    by_vertex.push_back(static_cast<std::uint64_t>(v) << 32 | static_cast<std::uint64_t>(v));
+    hyperedge.push_back(v < growing ? groups + v : v / 3);  // vertex v is a member of v / 3
+    signs.push_back(v < growing ? std::int8_t{+1} : std::int8_t{-1});
+  }
+  start.push_back(by_vertex.size());
+  std::optional<dyng::detail::hyper::slack_host_store> store;
+  const auto make_store = [&] {
+    store.emplace(res, n, m, dyng::capacity_policy{}, dyng::detail::hyper::slack::knobs{});
+  };
+  EXPECT_GE(alloc::fail_each_allocation<std::bad_alloc>(
+                alloc::scope::any_thread, make_store,
+                [&] { store->h2v_edit(removed, added, ids, post); }),
+            growing);
+  std::vector<std::int32_t> lengths;
+  EXPECT_GE(
+      alloc::fail_each_allocation<std::bad_alloc>(
+          alloc::scope::any_thread, make_store,
+          [&] { store->v2h_apply(by_vertex, start, hyperedge.data(), signs.data(), lengths); }),
+      growing);
 }
 
 }  // namespace

@@ -87,8 +87,11 @@ class slack_host_store final : public incidence_store, public slack_access {
   [[nodiscard]] bool supports_incidence_edits() const noexcept override {
     return true;
   }
-  void h2v_remove(const grouped_members& g) override;
-  void h2v_append(const grouped_members& g) override;
+  void h2v_edit(const grouped_members& removals, const grouped_members& additions,
+                const std::vector<std::int64_t>& ids, const member_rows& post) override;
+  void v2h_apply(const std::vector<std::uint64_t>& by_vertex,
+                 const std::vector<std::size_t>& group_start, const std::int64_t* ids,
+                 const std::int8_t* signs, std::vector<std::int32_t>& lengths) override;
   void begin_line_graph_delta(const std::vector<std::int32_t>& vertices,
                               const std::vector<std::int64_t>& ids) override;
   void line_graph_delta_of(const std::vector<std::int32_t>& vertices,
@@ -115,6 +118,9 @@ class slack_host_store final : public incidence_store, public slack_access {
   void set_entry_headroom(double headroom) override;
   void vertex_lengths(const std::vector<std::int32_t>& vertices,
                       std::vector<std::int32_t>& out) const override;
+  [[nodiscard]] const std::vector<std::vector<std::int32_t>>& host_rows() const noexcept override {
+    return rows_;
+  }
 
   /// @brief The allocator (tests). @return It.
   [[nodiscard]] const id_allocator& allocator() const noexcept {
@@ -124,7 +130,7 @@ class slack_host_store final : public incidence_store, public slack_access {
   [[nodiscard]] const std::vector<std::vector<std::int32_t>>& rows_by_id() const noexcept {
     return rows_;
   }
-  /// @brief The hyperedges of every vertex, sorted. @return They.
+  /// @brief The hyperedges of every vertex (unsorted). @return They.
   [[nodiscard]] const std::vector<std::vector<std::int64_t>>& v2h_by_vertex() const noexcept {
     return v2h_;
   }
@@ -154,11 +160,13 @@ class slack_host_store final : public incidence_store, public slack_access {
   slack::knobs knobs_;
   id_allocator alloc_;
   std::vector<std::vector<std::int32_t>> rows_;  // by id; empty for a dead id
-  std::vector<std::vector<std::int64_t>> v2h_;   // by vertex; sorted ids
-  std::vector<std::int64_t> weights_;            // by id: the weights the line graph keeps
-  std::int64_t max_bound_ = 0;                   // the largest id bound so far (the CSR's nodes)
-  mutable std::int64_t pair_count_ = 0;          // the live pairs, maintained per batch
-  std::int64_t candidates_ = 0;                  // the last batch's candidate entries
+  // By vertex: the ids, unsorted (MOSP_ESCHER's v2h: appended, swap-removed; the public view and
+  // the checks sort them).
+  std::vector<std::vector<std::int64_t>> v2h_;
+  std::vector<std::int64_t> weights_;    // by id: the weights the line graph keeps
+  std::int64_t max_bound_ = 0;           // the largest id bound so far (the CSR's nodes)
+  mutable std::int64_t pair_count_ = 0;  // the live pairs, maintained per batch
+  std::int64_t candidates_ = 0;          // the last batch's candidate entries
   std::int64_t csr_rebuilds_ = 0;
 
   // The line graph (built at construction under slack_csr, or on first read under automatic).

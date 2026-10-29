@@ -8,8 +8,10 @@
  */
 #include "hypergraph/capacity.hpp"
 #include "hypergraph/escher/store_policy.hpp"
+#include "hypergraph/host_team.hpp"
 #include "hypergraph/hypergraph_support.hpp"
 #include "hypergraph/id_allocator.hpp"
+#include "hypergraph/radix_sort.hpp"
 #include "hypergraph/store.hpp"
 
 #include <dyng/core/error.hpp>
@@ -475,6 +477,38 @@ TEST(GroupByVertex, IsEscherGpusLayout) {
   EXPECT_EQ(g.vertices, (std::vector<std::int32_t>{1, 2, 3}));
   EXPECT_EQ(g.ids, (std::vector<std::int64_t>{10, 30, 20, 10, 30}));
   EXPECT_EQ(g.prefix, (std::vector<std::int32_t>{2, 3, 5}));
+}
+
+// The radix sort of the slack_csr batch (M11a step 3, ADR 0089): stable by the key, equal to
+// std::sort of (key, index) words, below and above its small-input cutoff, for key bounds of one,
+// two and three digits.
+TEST(RadixSortByKey, IsAStableSortByTheKey) {
+  std::mt19937_64 rng(5);
+  for (const std::size_t n : {std::size_t{0}, std::size_t{1}, std::size_t{100}, std::size_t{255},
+                              std::size_t{256}, std::size_t{5000}, std::size_t{70000}}) {
+    for (const std::uint64_t bound : {std::uint64_t{1}, std::uint64_t{7}, std::uint64_t{2048},
+                                      std::uint64_t{3000000}, std::uint64_t{1} << 31}) {
+      std::vector<std::uint64_t> words(n), scratch;
+      for (std::size_t i = 0; i < n; ++i) words[i] = (rng() % bound) << 32 | i;
+      std::vector<std::uint64_t> want = words;
+      std::sort(want.begin(), want.end());
+      dyng::detail::hyper::radix_sort_by_key(words, bound, scratch);
+      EXPECT_EQ(words, want) << n << " words below " << bound;
+    }
+  }
+}
+
+// The host team of slack_csr storage (host_team.hpp): one fixed size, one thread for small work.
+TEST(HostTeam, IsFixedAndCapped) {
+  using dyng::detail::hyper::host_team;
+  using dyng::detail::hyper::host_team_size;
+  EXPECT_EQ(host_team_size(0), 1);
+  EXPECT_EQ(host_team_size(1), 1);
+  EXPECT_EQ(host_team_size(8), 8);
+  EXPECT_EQ(host_team_size(56), dyng::detail::hyper::host_team_cap);
+  EXPECT_EQ(host_team(56, 4095), 1);
+  EXPECT_EQ(host_team(56, 4096), host_team_size(56));
+  EXPECT_EQ(host_team(56, 1 << 30), host_team_size(56));
 }
 
 }  // namespace

@@ -23,6 +23,7 @@
 #include <dyng/hypergraph/hypergraph_properties.hpp>
 #include <dyng/hypergraph/hypergraph_view.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -299,12 +300,31 @@ class incidence_store {
   [[nodiscard]] virtual bool supports_incidence_edits() const noexcept {
     return false;
   }
-  /// @brief Remove members from live rows (MOSP_ESCHER's H2V unfill). @param[in] g The members
-  /// of every id (each a member, never the last one).
-  virtual void h2v_remove(const grouped_members& g);
-  /// @brief Append members to live rows (MOSP_ESCHER's H2V fill). @param[in] g The members of
-  /// every id (none a member).
-  virtual void h2v_append(const grouped_members& g);
+  /**
+   * @brief The incidence edits of live rows: MOSP_ESCHER's H2V unfill of `removals`, then its H2V
+   *        fill of `additions` (the allocator's model, in that order), and the edited rows set to
+   *        their members after the batch.
+   * @param[in] removals  The removed members of every id (each a member, never the last one).
+   * @param[in] additions The added members of every id (none a member).
+   * @param[in] ids       The edited ids (increasing).
+   * @param[in] post      Row i: the members of ids[i] after the edits (sorted).
+   */
+  virtual void h2v_edit(const grouped_members& removals, const grouped_members& additions,
+                        const std::vector<std::int64_t>& ids, const member_rows& post);
+  /**
+   * @brief The v2h edits of a batch, grouped by vertex (MOSP_ESCHER's HostHypergraph: per
+   *        incidence a swap-remove of the first occurrence, or a push_back, in the batch's order;
+   *        the slack_csr stores keep their v2h rows unsorted), and the touched vertices' lengths
+   *        after them.
+   * @param[in]  by_vertex   The incidences as (vertex << 32 | i), sorted by vertex, stable.
+   * @param[in]  group_start The first word of every vertex, then by_vertex.size().
+   * @param[in]  ids         The hyperedge of incidence i.
+   * @param[in]  signs       Its sign: -1 removed, +1 added.
+   * @param[out] lengths     The hyperedges of every vertex after the edits (one per group).
+   */
+  virtual void v2h_apply(const std::vector<std::uint64_t>& by_vertex,
+                         const std::vector<std::size_t>& group_start, const std::int64_t* ids,
+                         const std::int8_t* signs, std::vector<std::int32_t>& lengths);
   /// @brief Before the first phase of a batch: keep what the pair delta reads of the state before
   /// it (the hyperedges of `vertices`, the rows of `ids`). Nothing when the line graph is not
   /// maintained. @param[in] vertices The vertices the batch touches (increasing). @param[in] ids

@@ -68,12 +68,18 @@ void group_by_hyperedge(const std::vector<std::int64_t>& ids,
 
 // The slack_csr calls on a store that does not take them: the container never makes them (it
 // refuses incidence edits under escher storage before the store changes).
-void incidence_store::h2v_remove(const grouped_members& /*g*/) {
-  DYNG_FAIL("hypergraph store: an incidence removal reached a store without incidence edits");
+void incidence_store::h2v_edit(const grouped_members& /*removals*/,
+                               const grouped_members& /*additions*/,
+                               const std::vector<std::int64_t>& /*ids*/,
+                               const member_rows& /*post*/) {
+  DYNG_FAIL("hypergraph store: an incidence edit reached a store without incidence edits");
 }
 
-void incidence_store::h2v_append(const grouped_members& /*g*/) {
-  DYNG_FAIL("hypergraph store: an incidence addition reached a store without incidence edits");
+void incidence_store::v2h_apply(const std::vector<std::uint64_t>& /*by_vertex*/,
+                                const std::vector<std::size_t>& /*group_start*/,
+                                const std::int64_t* /*ids*/, const std::int8_t* /*signs*/,
+                                std::vector<std::int32_t>& /*lengths*/) {
+  DYNG_FAIL("hypergraph store: a grouped v2h edit reached a slack_csr call of another store");
 }
 
 void incidence_store::begin_line_graph_delta(const std::vector<std::int32_t>& /*vertices*/,

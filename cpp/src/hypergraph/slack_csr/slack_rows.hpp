@@ -96,6 +96,11 @@ class slack_access {
   /// @param[in] vertices The vertices. @param[out] out Their lengths.
   virtual void vertex_lengths(const std::vector<std::int32_t>& vertices,
                               std::vector<std::int32_t>& out) const = 0;
+  /// @brief The rows by 0-based id of the host incidence model (sorted members; empty for a dead
+  /// id), which both stores keep authoritative (MOSP_ESCHER's HostHypergraph::heVerts; ADR 0089):
+  /// Step 0 of an apply reads them in place. @return They.
+  [[nodiscard]] virtual const std::vector<std::vector<std::int32_t>>& host_rows()
+      const noexcept = 0;
   /// @brief The last batch's pair delta on the device (the CUDA store). @return The view (null
   /// pointers on the host stores, whose pairs are in the applied record).
   [[nodiscard]] virtual slack_delta_view last_delta() const noexcept {

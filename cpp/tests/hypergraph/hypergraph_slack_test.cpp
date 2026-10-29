@@ -708,6 +708,88 @@ TEST_P(SlackEdits, TheStagesOfTheCommit) {
     EXPECT_NE(std::find(names.begin(), names.end(), want), names.end()) << want;
 }
 
+// ---- The host team (M11a step 3, ADR 0089 section 8) ---------------------------------------
+
+// Batches large enough for the parallel host regions (host_team.hpp: Step 0's groups, the H2V
+// rows, the v2h vertices, at least 4096 each) give the state, the ids, the skips, the record and
+// the pairs of the sequential backend, on 1 and 16 host threads (cuda: the store's host model).
+TEST_P(SlackEdits, LargeBatchesAreTheSameOnEveryHostTeam) {
+  std::mt19937_64 rng(29);
+  const std::int32_t n = 6000;
+  rows initial;
+  std::vector<std::int32_t> w0;
+  for (int i = 0; i < 9000; ++i) {
+    std::vector<std::int32_t> r;
+    for (int k = 0; k < 1 + static_cast<int>(rng() % 5); ++k)
+      r.push_back(static_cast<std::int32_t>(rng() % n));
+    initial.push_back(r);
+    w0.push_back(1 + static_cast<std::int32_t>(rng() % 100));
+  }
+  const auto list = list_of<std::int32_t>(n, initial, w0);
+  for (const id_reuse reuse : {id_reuse::insert_first, id_reuse::erase_first}) {
+    SCOPED_TRACE(std::string(dyng::to_string(reuse)));
+    const auto props =
+        slack_props(reuse, line_graph_policy::slack_csr, capacity_policy::mosp_escher(1 << 20));
+    std::vector<resources> teams;
+    if (GetParam() == backend::openmp) {
+      teams = {resources::openmp(1), resources::openmp(16)};
+    } else if (GetParam() == backend::cuda) {
+      teams = {resources::cuda(0, {}, 1), resources::cuda(0, {}, 16)};
+    } else {
+      teams = {resources::sequential()};
+    }
+    std::vector<whgraph> hs;
+    for (const resources& r : teams) hs.push_back(whgraph::from_hyperedges(r, list.view(), props));
+    whgraph twin = whgraph::from_hyperedges(resources::sequential(), list.view(), props);
+    for (int batch = 0; batch < 2; ++batch) {
+      wbatch_t b;
+      const std::int64_t bound = twin.hyperedge_id_bound();
+      for (int k = 0; k < 4500; ++k)
+        b.delete_hyperedge(static_cast<std::int64_t>(rng() % static_cast<std::uint64_t>(bound)));
+      for (int k = 0; k < 5000; ++k)
+        b.delete_incidence(static_cast<std::int64_t>(rng() % static_cast<std::uint64_t>(bound + 1)),
+                           static_cast<std::int32_t>(rng() % (n + 1)));
+      for (int k = 0; k < 5000; ++k)
+        b.insert_incidence(static_cast<std::int64_t>(rng() % static_cast<std::uint64_t>(bound + 1)),
+                           static_cast<std::int32_t>(rng() % (n + 1)));
+      for (int k = 0; k < 4500; ++k) {
+        std::vector<std::int32_t> r;
+        for (int m = 0; m < 1 + static_cast<int>(rng() % 6); ++m)
+          r.push_back(static_cast<std::int32_t>(rng() % n));
+        b.insert_hyperedge(dyng::host_view(r), 1 + static_cast<std::int32_t>(rng() % 100));
+      }
+      const auto t = twin.apply(resources::sequential(), b.view());
+      const auto& at = hypergraph_access::applied(twin);
+      const auto& pt = hypergraph_access::pairs(twin);
+      for (std::size_t i = 0; i < hs.size(); ++i) {
+        SCOPED_TRACE("team " + std::to_string(i) + ", batch " + std::to_string(batch));
+        const auto s = hs[i].apply(teams[i], b.view());
+        ASSERT_EQ(s.inserted_ids, t.inserted_ids);
+        ASSERT_EQ(s.skipped_ops, t.skipped_ops);
+        ASSERT_EQ(s.deleted_incidences, t.deleted_incidences);
+        ASSERT_EQ(s.inserted_incidences, t.inserted_incidences);
+        ASSERT_EQ(h2v_rows(hs[i]), h2v_rows(twin));
+        ASSERT_EQ(v2h_rows(hs[i]), v2h_rows(twin));
+        const auto& a = hypergraph_access::applied(hs[i]);
+        EXPECT_EQ(a.edited_ids, at.edited_ids);
+        EXPECT_EQ(a.touched_hyperedges, at.touched_hyperedges);
+        EXPECT_EQ(a.touched_pre_rows.members, at.touched_pre_rows.members);
+        EXPECT_EQ(a.touched_post_rows.offsets, at.touched_post_rows.offsets);
+        EXPECT_EQ(a.touched_vertices, at.touched_vertices);
+        EXPECT_EQ(a.touched_vertex_lengths, at.touched_vertex_lengths);
+        EXPECT_EQ(a.dead_ids, at.dead_ids);
+        EXPECT_EQ(a.incidence_delta.ids, at.incidence_delta.ids);
+        const auto& p = hypergraph_access::pairs(hs[i]);
+        EXPECT_EQ(p.deleted_a, pt.deleted_a);
+        EXPECT_EQ(p.deleted_b, pt.deleted_b);
+        EXPECT_EQ(p.inserted_a, pt.inserted_a);
+        EXPECT_EQ(p.inserted_b, pt.inserted_b);
+        hs[i].check_integrity(teams[i]);
+      }
+    }
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, SlackBackends, ::testing::ValuesIn(dyng::test::suite_backends()),
                          backend_name);
 INSTANTIATE_TEST_SUITE_P(Backends, SlackEdits, ::testing::ValuesIn(dyng::test::suite_backends()),

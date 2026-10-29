@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "hypergraph/radix_sort.hpp"
 #include "hypergraph/slack_csr/slack_layout.hpp"
 #include "hypergraph/slack_csr/slack_rows.hpp"
 #include "hypergraph/store.hpp"
@@ -128,6 +129,10 @@ struct hyper_staged_batch {
   std::vector<std::int64_t> edited_ids;            ///< ids with an applied edit, increasing
   hyper::member_rows edited_pre_rows;              ///< row i: edited_ids[i] on G_t
   hyper::member_rows edited_post_rows;             ///< row i: edited_ids[i] after the edits
+  /// The applied removals grouped by hyperedge (ids increasing, a row's vertices in batch order:
+  /// MOSP_ESCHER's flushGrouped of its H2V unfill), built once in Step 0.
+  hyper::grouped_members removal_groups;
+  hyper::grouped_members addition_groups;  ///< the same for the applied additions (its H2V fill)
 };
 
 namespace hyper {
@@ -175,8 +180,15 @@ class touched_marks {
   void take_sorted(std::vector<value_t>& out) {
     out.clear();
     if (list_.size() * 32 < n_) {
-      out.assign(list_.begin(), list_.end());
-      std::sort(out.begin(), out.end());
+      // A radix sort of the marked values (M11a step 3: std::sort was a visible part of a 50K
+      // batch's host cost; the same values, sorted).
+      words_.resize(list_.size());
+      for (std::size_t i = 0; i < list_.size(); ++i)
+        words_[i] = static_cast<std::uint64_t>(list_[i]) << 32;
+      radix_sort_by_key(words_, static_cast<std::uint64_t>(n_), scratch_);
+      out.resize(list_.size());
+      for (std::size_t i = 0; i < words_.size(); ++i)
+        out[i] = static_cast<value_t>(words_[i] >> 32);
     } else {
       out.reserve(list_.size());
       for (std::size_t i = 0; i < n_; ++i)
@@ -189,6 +201,7 @@ class touched_marks {
  private:
   std::vector<std::uint8_t> flags_;
   std::vector<value_t> list_;
+  std::vector<std::uint64_t> words_, scratch_;
   std::size_t n_ = 0;
 };
 
@@ -214,6 +227,9 @@ class hypergraph_impl {
   hyper_applied applied;                           ///< the last applied batch
   hyper::touched_marks<std::int64_t> touched_ids;  ///< scratch of the applied record (not cloned)
   hyper::touched_marks<std::int32_t> touched_vertices;  ///< the same for the vertices
+  /// The radix-sort buffers of a slack_csr batch (Step 0's grouping of the incidence edits, the
+  /// record's sorted ids; scratch, not cloned).
+  std::vector<std::uint64_t> sort_words, sort_scratch;
   hyper::slack::knobs knobs;  ///< the internal knobs of slack_csr storage (ADR 0086)
 };
 

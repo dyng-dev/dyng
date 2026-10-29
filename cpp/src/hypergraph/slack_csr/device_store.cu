@@ -160,11 +160,14 @@ class slack_device_store final : public incidence_store, public slack_access {
   void v2h_append(const grouped_incidences& g) override {
     host_->v2h_append(g);
   }
-  void h2v_remove(const grouped_members& g) override {
-    host_->h2v_remove(g);
+  void h2v_edit(const grouped_members& removals, const grouped_members& additions,
+                const std::vector<std::int64_t>& ids, const member_rows& post) override {
+    host_->h2v_edit(removals, additions, ids, post);
   }
-  void h2v_append(const grouped_members& g) override {
-    host_->h2v_append(g);
+  void v2h_apply(const std::vector<std::uint64_t>& by_vertex,
+                 const std::vector<std::size_t>& group_start, const std::int64_t* ids,
+                 const std::int8_t* signs, std::vector<std::int32_t>& lengths) override {
+    host_->v2h_apply(by_vertex, group_start, ids, signs, lengths);
   }
   void update_line_graph(const std::vector<std::int64_t>& /*deleted*/,
                          const std::vector<std::int64_t>& /*inserted*/,
@@ -692,6 +695,10 @@ class slack_device_store final : public incidence_store, public slack_access {
   void vertex_lengths(const std::vector<std::int32_t>& vertices,
                       std::vector<std::int32_t>& out) const override {
     host_->vertex_lengths(vertices, out);
+  }
+
+  [[nodiscard]] const std::vector<std::vector<std::int32_t>>& host_rows() const noexcept override {
+    return host_->rows_by_id();
   }
 
  private:
