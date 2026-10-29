@@ -113,6 +113,28 @@ dyng_add_test(
   LIBRARIES dyng_cbst_trace
 )
 list(APPEND _dyng_private_tests dyng_cbst_trace_tests)
+# The H-SOSP dumps of MOSP_ESCHER@4b86159 (M11a, ADRs 0081 and 0082): the host-only dump reader,
+# the oracle check of a dump (the go/no-go of criterion 5: dyng::testing's hyper_sssp oracle
+# against B's distances, parents and pairs), the tool parity/hsosp_goldens.py oracle drives over
+# the golden set, and the test of the committed subset (cpp/tests/data/goldens/hyper_sssp).
+add_library(dyng_hsosp_dump STATIC parity/hsosp/hsosp_dump.cpp)
+target_include_directories(dyng_hsosp_dump PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(dyng_hsosp_dump PUBLIC dyng::testing)
+target_compile_features(dyng_hsosp_dump PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_hsosp_dump)
+dyng_enable_sanitizers(dyng_hsosp_dump)
+add_executable(dyng_hsosp_oracle parity/hsosp/hsosp_oracle_main.cpp)
+target_link_libraries(dyng_hsosp_oracle PRIVATE dyng_hsosp_dump)
+dyng_set_warnings(dyng_hsosp_oracle)
+dyng_enable_sanitizers(dyng_hsosp_oracle)
+dyng_add_test(
+  NAME dyng_hsosp_dump_tests
+  SOURCES parity/hsosp/hsosp_dump_test.cpp
+  LABELS cpu parity hyper_sssp
+  LIBRARIES dyng_hsosp_dump
+)
+target_compile_definitions(dyng_hsosp_dump_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+list(APPEND _dyng_private_tests dyng_hsosp_dump_tests)
 # The CBST host model (dyng::testing::cbst_host_model) and the trace replay comparator (M8a step
 # 2, ADR 0037): the comparator library, the replay tool that parity/compare.py cbst_trace drives
 # over the golden sets, the model's tests (the cbst_test layout sizes, the perturbed traces, the
