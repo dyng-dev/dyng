@@ -817,9 +817,14 @@ class GpuProcesses:
 def memory(args: argparse.Namespace) -> int:
     import hypergraph_perf
 
-    if args.side != "original":
-        raise SystemExit("memory --side port: dyng-compat-dynlp arrives in M10a step 4")
-    exe = original_exe()
+    if args.side == "port":
+        if args.exe is None:
+            raise SystemExit("memory --side port needs --exe <dyng-compat-dynlp>")
+        exe = port_exe(args.exe)
+        extra = ["--backend", "cuda"]
+    else:
+        exe = original_exe()
+        extra = []
     env = clean_env(args.gpu)
     (perf_ab.SCRATCH / "runs").mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="lp-memory-", dir=perf_ab.SCRATCH / "runs"))
@@ -829,7 +834,7 @@ def memory(args: argparse.Namespace) -> int:
     try:
         for case in args.cases:
             for schedule in args.schedules:
-                key = f"{case}/{schedule}/original"
+                key = f"{case}/{schedule}/{args.side}"
                 if args.skip_existing and results.get(key, {}).get("counted"):
                     print(f"{key}: skipped (counted in {args.json})")
                     continue
@@ -838,7 +843,7 @@ def memory(args: argparse.Namespace) -> int:
                 out = work / "out"
                 shutil.rmtree(out, ignore_errors=True)
                 out.mkdir()
-                cmd = [str(exe), *timed_argv(case, schedule, out)]
+                cmd = [str(exe), *timed_argv(case, schedule, out), *extra]
                 with GpuProcesses(args.gpu) as gp:
                     nsys = hypergraph_perf.memory_by_range(
                         cmd, env, work / "nsys", "batch", capture=True
@@ -849,8 +854,8 @@ def memory(args: argparse.Namespace) -> int:
                 results[key] = {
                     "case": case,
                     "schedule": schedule,
-                    "side": "original",
-                    "argv": timed_argv(case, schedule, Path("<scratch>")),
+                    "side": args.side,
+                    "argv": timed_argv(case, schedule, Path("<scratch>")) + extra,
                     "counted": counted,
                     "peak_live_bytes": nsys["peak_live_bytes"],
                     "peak_live_mib": nsys["peak_live_mib"],
@@ -886,10 +891,16 @@ def write_memory(args, old: dict, results: dict, started: str) -> None:
         "schema": 1,
         "algorithm": "label_propagation",
         "command": "memory",
-        "what": "the Nsight Systems peak of live device allocations (D1) of O's whole process",
+        "what": "the Nsight Systems peak of live device allocations (D1) of the whole process "
+        "(O's, or dyng-compat-dynlp's with --side port)",
         "date": old.get("date", started),
         "date_end": now(),
         "reference": reference_record(),
+        **(
+            {"port": port_record(port_exe(args.exe))}
+            if getattr(args, "side", "original") == "port"
+            else {}
+        ),
         "harness_commit": perf_ab.port_commit(),
         "protocol": {
             "gpu": args.gpu,
@@ -913,9 +924,317 @@ def write_memory(args, old: dict, results: dict, started: str) -> None:
 
 def port_side(args: argparse.Namespace) -> int:
     raise SystemExit(
-        f"label_propagation {args.command}: its port side (dyng-compat-dynlp) arrives in M10a "
-        "steps 4-5; the command line and the record shape (RECORD) are fixed here"
+        f"label_propagation {args.command}: its port side arrives in M10a step 5 (kernels) and "
+        "M10b (engines: the operators engine); the command line and the record shape (RECORD) "
+        "are fixed here"
     )
+
+
+# --- The A/B gates against O (run; AD2, AD3) -------------------------------------------------
+
+GATES = {"update[sum]": 1.05, "end_to_end": 1.10}  # AD2's gated rows (damped); memory: `memory`
+
+
+def port_exe(path: Path) -> Path:
+    exe = Path(path).resolve()
+    if not exe.is_file():
+        raise SystemExit(f"{exe}: no such dyng-compat-dynlp")
+    return exe
+
+
+def port_record(exe: Path) -> dict:
+    preset = {}
+    for d in [exe.parent, *exe.parents]:
+        cache = d / "CMakeCache.txt"
+        if cache.exists():
+            for line in cache.read_text().splitlines():
+                for key in (
+                    "CMAKE_BUILD_TYPE",
+                    "CMAKE_CUDA_FLAGS_RELEASE",
+                    "DYNG_CUDA_ARCHITECTURES",
+                ):
+                    if line.startswith(key + ":"):
+                        preset[key] = line.split("=", 1)[1]
+            preset["build"] = perf_ab.portable_path(d)
+            break
+    return {
+        "name": "dyng-compat-dynlp",
+        "binary": perf_ab.portable_path(exe),
+        "commit": perf_ab.port_commit(),
+        "argv": "the original's timed argv + --backend cuda",
+        "build": preset,
+        "time_ms": "a pair of CUDA events on the resources' stream around each public "
+        "label_propagation::update() call (AD2); the host wall time of the call in dyng_times.csv",
+    }
+
+
+def port_round(
+    monitor: Monitor, exe: Path, case: str, schedule: str, env: dict, work: Path, r: int
+) -> tuple[dict, dict]:
+    """One process of the port: as one_round(), with --backend cuda, plus the host time of every
+    update() call (dyng_times.csv)."""
+    free = free_bytes(work)
+    if free < MIN_FREE_BYTES:
+        raise SystemExit(
+            f"STOP: {free / 1e9:.1f} GB free on the output's filesystem, below 20 GB: no round "
+            "is started (report it)"
+        )
+    out = work / f"port-round-{r}"
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    try:
+        text, window = monitor.run(
+            [exe, *timed_argv(case, schedule, out), "--backend", "cuda"], env
+        )
+        rows = parse_results((out / "results.csv").read_text())
+        host = [
+            float(x["host_ms"])
+            for x in csv.DictReader(io.StringIO((out / "dyng_times.csv").read_text()))
+        ]
+        labels = out / "dynlp_labels.txt"
+        digest = hashlib.sha256(labels.read_bytes()).hexdigest() if labels.is_file() else None
+        facts = {
+            "batches": rows,
+            "update_sum_ms": sum(x["time_ms"] for x in rows),
+            "update_host_sum_ms": sum(host),
+            "eval_ms": sum(x["eval_ms"] for x in rows),
+            "end_to_end_ms": window["wall_s"] * 1000.0,
+            "max_rss_kib": window["max_rss_kib"],
+            "disk_bytes": disk_use(out),
+            "labels_sha256": digest,
+            "tau": next(
+                (x.split(":", 1)[1].strip() for x in text.splitlines() if x.startswith("Auto tau")),
+                None,
+            ),
+        }
+    finally:
+        shutil.rmtree(out, ignore_errors=True)
+    return facts, window
+
+
+def recorded_lock(baseline_path: Path | None, key: str) -> str:
+    path = baseline_path or (REPO / "parity" / "results" / "M10-baseline-2026-10-29.json")
+    doc = json.loads(Path(path).read_text())
+    res = doc["results"].get(key)
+    if res is None or "lock_decision" not in res:
+        raise SystemExit(f"{path}: no recorded lock for {key}")
+    return res["lock_decision"]["lock"]
+
+
+def region_ratios(o_rows: dict, p_rows: dict) -> dict:
+    out = {}
+    for name, orow in o_rows.items():
+        prow = p_rows.get(name)
+        if prow is None:
+            continue
+        ratio = prow["median"] / orow["median"] if orow["median"] else None
+        out[name] = {
+            "original_median_ms": orow["median"],
+            "port_median_ms": prow["median"],
+            "ratio": ratio,
+            "original": orow,
+            "port": prow,
+        }
+    return out
+
+
+def ab_reading(args, o_exe: Path, p_exe: Path, case: str, schedule: str, env: dict, work: Path,
+               mode: str, rounds: int) -> dict:  # fmt: skip
+    """`rounds` accepted pairs at `mode`: O then the port in every round (A/B/A/B), one process
+    each, both in the same session under the same lock; a pair with a contaminated side is
+    repeated (at most 2 x rounds rejections)."""
+    clocks = perf_ab.ClockLock(args.gpu, mode)
+    key = f"{case}/{schedule}"
+    o_acc, p_acc, windows, rejected, loads = [], [], [], [], []
+    o_first = p_first = None
+    with clocks:
+        allowed = {clocks.pid} if clocks.pid else None
+        with Monitor(
+            args.gpu, args.max_foreign_cpu, allowed_pids=allowed, locked=clocks.locked
+        ) as monitor:
+            r = 0
+            while r < rounds:
+                load = {"before": os.getloadavg()[0], "blocked_before": blocked()}
+                of, ow = one_round(monitor, o_exe, case, schedule, env, work, r)
+                pf, pw = port_round(monitor, p_exe, case, schedule, env, work, r)
+                load.update(after=os.getloadavg()[0], blocked_after=blocked())
+                o_first = o_first or of
+                p_first = p_first or pf
+                bad = guard(schedule, o_first, of) + [
+                    f"port: {x}" for x in guard(schedule, p_first, pf)
+                ]
+                if schedule == "damped" and pf["labels_sha256"] != of["labels_sha256"]:
+                    bad.append("the port's dynlp_labels.txt differs from the original's (AD6)")
+                if schedule == "damped":
+                    for k, (x, y) in enumerate(zip(of["batches"], pf["batches"], strict=True)):
+                        for c in ("iterations", "components", "frontier_visits", "accuracy"):
+                            if x[c] != y[c]:
+                                bad.append(f"batch {k} {c}: port {y[c]} != original {x[c]}")
+                if bad:
+                    raise SystemExit(f"STOP: {key} round {r + 1}: the guard failed: {bad[:5]}")
+                reasons = ow.get("reasons", []) + [f"port: {x}" for x in pw.get("reasons", [])]
+                if reasons:
+                    rejected.append({"before_round": r + 1, "reasons": reasons})
+                    print(f"{key}: round {r + 1} rejected ({'; '.join(reasons)})", flush=True)
+                    if len(rejected) > 2 * rounds:
+                        raise SystemExit(f"{key}: {len(rejected)} rounds rejected; giving up")
+                    continue
+                r += 1
+                o_acc.append(of)
+                p_acc.append(pf)
+                windows.append({"original": ow, "port": pw})
+                loads.append(load)
+                print(
+                    f"{key} {mode} {r}/{rounds}: update[sum] O {of['update_sum_ms']:.2f} ms, port "
+                    f"{pf['update_sum_ms']:.2f} ms (host {pf['update_host_sum_ms']:.2f}); "
+                    f"end_to_end O {of['end_to_end_ms']:.0f} ms, port {pf['end_to_end_ms']:.0f} ms",
+                    flush=True,
+                )
+    o_rows, p_rows = summarize_rows(o_acc), summarize_rows(p_acc)
+    p_rows["update_host[sum]"] = describe([x["update_host_sum_ms"] for x in p_acc])
+    regions = region_ratios(o_rows, p_rows)
+    gated = schedule == "damped"
+    for name, bar in GATES.items():
+        if name in regions:
+            reg = regions[name]
+            if name == "update[sum]" and o_rows[name]["median"] < SHORT_REGION_MS:
+                bar = 1.10  # PLAN 8.6's short regions (with at least 20 runs)
+            reg["bar"] = bar
+            reg["gated"] = gated
+            reg["within"] = reg["ratio"] is not None and reg["ratio"] <= bar
+    per = []
+    for k in range(len(o_acc[0]["batches"])):
+        e = {
+            "batch": k,
+            "original": {"time_ms": describe([x["batches"][k]["time_ms"] for x in o_acc])},
+            "port": {"time_ms": describe([x["batches"][k]["time_ms"] for x in p_acc])},
+        }
+        for side, acc in (("original", o_acc), ("port", p_acc)):
+            for c in ("iterations", "components", "frontier_visits"):
+                vals = [x["batches"][k][c] for x in acc]
+                spread = {"median": statistics.median(vals), "min": min(vals), "max": max(vals)}
+                e[side][c] = vals[0] if len(set(vals)) == 1 else spread
+        per.append(e)
+    out = {
+        "clocks": clocks.record,
+        "rounds": len(o_acc),
+        "complete": len(o_acc) >= rounds,
+        "regions": regions,
+        "per_batch": per,
+        "guard": {
+            "rounds_checked": len(o_acc) + len(rejected),
+            "passed": True,
+            "rule": "damped: the port's per-batch counts, accuracy and label bytes equal the "
+            "original's and their own first round's; in_place: the components",
+        },
+        "monitor": {
+            "rule": f"a pair is repeated if either side's window had a foreign CPU load above "
+            f"{args.max_foreign_cpu} cores, a foreign GPU process, or (locked) a busy sample at "
+            "other clocks",
+            "rounds": windows,
+            "rejected": rejected,
+        },
+        "audit": audit(loads, [{"original": w["original"]} for w in windows]),
+        "rejected": rejected,
+    }
+    if schedule == "inplace":
+        o_it = [sum(b["iterations"] for b in x["batches"]) for x in o_acc]
+        p_it = [sum(b["iterations"] for b in x["batches"]) for x in p_acc]
+        out["inplace"] = {
+            "original_iterations_median": statistics.median(o_it),
+            "port_iterations_median": statistics.median(p_it),
+            "original_ms_per_iteration": o_rows["update[sum]"]["median"] / statistics.median(o_it),
+            "port_ms_per_iteration": p_rows["update[sum]"]["median"] / statistics.median(p_it),
+        }
+    return out
+
+
+def run_gates(args: argparse.Namespace) -> int:
+    o_exe = original_exe()
+    p_exe = port_exe(args.exe)
+    env = clean_env(args.gpu)
+    (perf_ab.SCRATCH / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="lp-run-", dir=perf_ab.SCRATCH / "runs"))
+    old = load_record(args.json)
+    results: dict = dict(old.get("results", {}))
+    started = now()
+    failed = []
+    try:
+        with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for case in args.cases:
+                for schedule in args.schedules:
+                    key = f"{case}/{schedule}"
+                    lock = (
+                        recorded_lock(args.baseline, key)
+                        if args.lock_clocks == "recorded"
+                        else args.lock_clocks
+                    )
+                    rounds = args.rounds or ROUNDS[case]
+                    rd = ab_reading(args, o_exe, p_exe, case, schedule, env, work, lock, rounds)
+                    res = {
+                        "case": case,
+                        "schedule": schedule,
+                        "argv": timed_argv(case, schedule, Path("<scratch>")),
+                        "lock": {"lock": lock, "source": args.lock_clocks},
+                        **rd,
+                    }
+                    results[key] = res
+                    write_run(args, old, results, started)
+                    for name, reg in rd["regions"].items():
+                        if reg.get("gated") and not reg.get("within"):
+                            failed.append(f"{key} {name} {reg['ratio']:.3f} > {reg['bar']}")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    for key, res in results.items():
+        regs = res["regions"]
+        print(
+            f"{key} ({res['lock']['lock']}, {res['rounds']} rounds): update[sum] "
+            f"{regs['update[sum]']['ratio']:.3f}, end_to_end {regs['end_to_end']['ratio']:.3f}"
+        )
+    if failed:
+        print("above the bar: " + "; ".join(failed))
+    return 1 if (failed and args.enforce_gates) else 0
+
+
+def write_run(args, old: dict, results: dict, started: str) -> None:
+    if not args.json:
+        return
+    doc = {
+        "schema": 1,
+        "algorithm": "label_propagation",
+        "command": "run",
+        "what": "the A/B readings of dyng-compat-dynlp against LabelPropagation-CUDA@a276a3a "
+        "(AD2, AD3): update[sum] and end_to_end on damped (gated), in_place reported",
+        "date": old.get("date", started),
+        "date_end": now(),
+        "reference": reference_record(),
+        "port": port_record(port_exe(args.exe)),
+        "protocol": {
+            "gpu": args.gpu,
+            "lock": perf_ab.LOCK_STATUS,
+            "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+            "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+            "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written "
+            "into a fresh per-round scratch directory on the same filesystem and deleted after "
+            "the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+            "clocks": "the lock the baseline recorded per case and schedule (ADRs 0018, 0021)",
+            "rounds": {c: ROUNDS[c] for c in CASES},
+            "statistic": "median; ratio = port / original",
+            "gates": GATES,
+            "contamination_monitor": "contaminated pairs repeated (perf_ab.MachineMonitor); "
+            "never --keep-contaminated",
+            "region_map": "parity/timed_regions/label_propagation.toml",
+        },
+        "driver": perf_ab.driver_versions(),
+        "host": {"cpu": perf_ab.cpu_model()},
+        "results": dict(sorted(results.items())),
+    }
+    args.json.parent.mkdir(parents=True, exist_ok=True)
+    tmp = args.json.with_suffix(".tmp")
+    tmp.write_text(json.dumps(doc, indent=1) + "\n")
+    tmp.replace(args.json)
+    print(f"wrote {args.json}", flush=True)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -991,7 +1310,7 @@ def main(argv: list[str] | None = None) -> int:
     return {
         "baseline": baseline,
         "memory": memory,
-        "run": port_side,
+        "run": run_gates,
         "kernels": port_side,
         "engines": port_side,
     }[args.command](args)

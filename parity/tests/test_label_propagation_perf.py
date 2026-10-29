@@ -107,12 +107,34 @@ def test_record_shapes(tmp_path: Path, monkeypatch) -> None:
         assert {"record", "result"} <= set(lp.RECORD[command])
 
 
-@pytest.mark.parametrize("command", ["run", "kernels", "engines"])
-def test_the_port_commands_parse_and_wait_for_the_port(command: str) -> None:
+@pytest.mark.parametrize("command", ["kernels", "engines"])
+def test_the_later_port_commands_parse_and_wait_for_their_steps(command: str) -> None:
     args = lp.parser().parse_args([command, "--exe", "x", "--cases", "50k"])
     assert args.cases == ["50k"] and args.exe == Path("x")
-    with pytest.raises(SystemExit, match="arrives in M10a steps 4-5"):
+    with pytest.raises(SystemExit, match="arrives in M10a step 5"):
         lp.main([command, "--exe", "x", "--cases", "50k"])
+
+
+def test_run_needs_the_port_and_reads_the_recorded_locks(tmp_path: Path) -> None:
+    args = lp.parser().parse_args(["run", "--exe", "x", "--cases", "50k"])
+    assert args.lock_clocks == "recorded" and args.exe == Path("x")
+    with pytest.raises(SystemExit, match="no such dyng-compat-dynlp"):
+        lp.port_exe(tmp_path / "missing")
+    # The committed baseline records a lock per gate case and schedule.
+    for case in lp.GATE_CASES:
+        for schedule in ("damped", "inplace"):
+            assert lp.recorded_lock(None, f"{case}/{schedule}") in ("boost", "base")
+    with pytest.raises(SystemExit, match="no recorded lock"):
+        lp.recorded_lock(None, "5k5/damped")
+
+
+def test_region_ratios_are_port_over_original() -> None:
+    o = {"update[sum]": lp.describe([10.0, 12.0, 11.0]), "end_to_end": lp.describe([100.0])}
+    p = {"update[sum]": lp.describe([11.0, 11.0, 11.0]), "end_to_end": lp.describe([120.0])}
+    r = lp.region_ratios(o, p)
+    assert r["update[sum]"]["ratio"] == pytest.approx(1.0)
+    assert r["end_to_end"]["ratio"] == pytest.approx(1.2)
+    assert lp.GATES == {"update[sum]": 1.05, "end_to_end": 1.10}
 
 
 def test_the_command_line_refuses_unknown_cases_and_few_rounds() -> None:

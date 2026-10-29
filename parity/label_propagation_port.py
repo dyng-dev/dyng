@@ -282,7 +282,7 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
     margin = class_margin()
     results, ok = [], True
     for case in C_CASES:
-        validate = case.size == "5k5"
+        validate = case.size == "5k5" or args.backend == "cuda"  # IrLP on CUDA at 50k too
         c = g.Case(case.size, delta=case.delta, schedule=case.schedule, validate=validate)
         with tempfile.TemporaryDirectory(prefix="lp-oracle-", dir=runs_dir()) as t:
             tmp = Path(t)
@@ -799,6 +799,47 @@ def cmd_inplace(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+# --- hub (propagation_test's hub graph: both rules) -----------------------------------------------
+
+
+def cmd_hub(args: argparse.Namespace) -> int:
+    """The port of propagation_test.cu (LabelPropagationCuda.HubGolden) with the golden's numbers
+    (DYNG_LP_HUB_INFO=info.json): the damped calls' label bits, iterations, frontier visits,
+    persistent iterations and tags equal the twin's, twice; the in_place call within the
+    original's error bounds; the hubs' degrees and bins."""
+    root = g.set_dir(g.scratch() / "goldens", "hub")
+    info = root / "info.json"
+    p = subprocess.run(
+        [str(args.tests), "--gtest_filter=LabelPropagationCuda.HubGolden", "--gtest_brief=0"],
+        capture_output=True,
+        text=True,
+        env=clean_env(DYNG_LP_HUB_INFO=str(info)),
+    )
+    good = p.returncode == 0 and "[  PASSED  ] 1 test" in p.stdout
+    doc = json.loads(info.read_text())
+    damped = [c for c in doc["calls"] if c.get("update_rule") == 1]
+    if args.json:
+        g.write_json(
+            args.json,
+            {
+                "schema": 1,
+                "what": "propagation_test's hub graph on the fused engine (criterion 12): the "
+                "damped calls bitwise the twin's (labels SHA-256, iterations, frontier visits, "
+                "persistent iterations, tags), twice; in_place within the original's bounds",
+                "reference": g.REFERENCE,
+                "commit": g.COMMIT,
+                "golden": {"info": str(info), "damped_calls": damped},
+                "tests": str(args.tests),
+                "date": g.now(),
+                "equal": good,
+                "output": p.stdout[-4000:],
+            },
+        )
+    print(p.stdout[-1500:])
+    print("hub:", "PASSED" if good else "FAILED")
+    return 0 if good else 1
+
+
 COMMANDS = {
     "container": cmd_container,
     "trace": cmd_trace,
@@ -807,6 +848,7 @@ COMMANDS = {
     "damped": cmd_damped,
     "irlp": cmd_irlp,
     "inplace": cmd_inplace,
+    "hub": cmd_hub,
 }
 
 
@@ -851,6 +893,9 @@ def main(argv: list[str] | None = None) -> int:
     np_.add_argument("--runs", type=int, default=3)
     np_.add_argument("--cases", type=names, help="sizes of I (default: all four)")
     np_.add_argument("--json", type=Path)
+    hp = sub.add_parser("hub")
+    hp.add_argument("--tests", type=Path, required=True, help="dyng_label_propagation_cuda_tests")
+    hp.add_argument("--json", type=Path)
     args = ap.parse_args(argv)
     try:
         return COMMANDS[args.command](args)

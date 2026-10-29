@@ -3,7 +3,9 @@
 /**
  * @file label_propagation_test.cpp
  * @brief Hand cases of label_propagation on the sequential backend (M10a step 3; ADRs 0071,
- *        0072): the published flow on a DynLP stream (the deterministic stages against
+ *        0072), compiled a second time with DYNG_TEST_CUDA=1 for the cuda backend (M10a step 4;
+ *        ADR 0075; the labels are copied to the host, run-to-run bits required for damped only):
+ *        the published flow on a DynLP stream (the deterministic stages against
  *        dyng::testing::lp_host_model, the harmonic oracle of AD7 at delta 1e-6, seeds exact,
  *        labels in [0, 1], no cap), the original's three-vertex graph by hand, an edge-only batch,
  *        the run-to-run bits of both schedules, compute() (IrLP), on_limit, the options and the
@@ -15,6 +17,7 @@
 #include "framework/budgets.hpp"
 
 #include <dyng/core/backend.hpp>
+#include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
@@ -41,6 +44,26 @@
 namespace {
 
 namespace lp = dyng::label_propagation;
+
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+constexpr bool on_cuda = true;
+#else
+constexpr bool on_cuda = false;
+#endif
+
+/// The backend under test: sequential, or cuda (DYNG_TEST_CUDA=1).
+dyng::resources test_resources() {
+  return on_cuda ? dyng::resources::cuda(0) : dyng::resources::sequential();
+}
+
+/// The labels of a result on the host (copied from the device for a CUDA result).
+std::vector<float> host_labels(const dyng::resources& res, const lp::result<std::int32_t>& r) {
+  const auto v = r.labels();
+  if (dyng::is_host_accessible(v.space())) {
+    return std::vector<float>(v.begin(), v.end());
+  }
+  return dyng::to_vector(res, v);
+}
 using dyng::host_view;
 using lp_graph = dyng::graph<std::int32_t, std::int32_t, float>;
 using lp_graph64 = dyng::graph<std::int32_t, std::int64_t, float>;
@@ -87,7 +110,7 @@ lp::result<std::int32_t> empty_compute(const dyng::resources& res, const lp_grap
                      dyng::array_view<const std::int8_t>(), opt);
 }
 
-std::vector<std::uint32_t> bits(dyng::array_view<const float> labels) {
+std::vector<std::uint32_t> bits(const std::vector<float>& labels) {
   std::vector<std::uint32_t> out(labels.size());
   std::memcpy(out.data(), labels.data(), labels.size() * sizeof(float));
   return out;
@@ -108,7 +131,7 @@ dyng::testing::lp_model_batch model_batch(
 /// The published flow on a stream, every batch checked against lp_host_model (the deterministic
 /// counts), the harmonic oracle (AD7) and the label invariants.
 void run_stream(const stream_t& s, float delta, lp::schedule rule) {
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   lp_graph g = capacity_graph(res, s);
   auto r = empty_compute(res, g, published(s, delta, rule));
   r.reserve(res, s.max_batch_vertices, s.max_batch_edges);
@@ -126,7 +149,7 @@ void run_stream(const stream_t& s, float delta, lp::schedule rule) {
     EXPECT_TRUE(st.converged);  // no batch reaches the cap
     EXPECT_FALSE(st.fallback_used);
     EXPECT_EQ(r.graph_version(), g.version());
-    const auto labels = r.labels();
+    const std::vector<float> labels = host_labels(res, r);
     const auto seeds = r.seed_labels();
     std::vector<std::int8_t> seed_vec(seeds.begin(), seeds.end());
     EXPECT_EQ(seed_vec, model.seed_labels());
@@ -141,7 +164,7 @@ void run_stream(const stream_t& s, float delta, lp::schedule rule) {
       }
     }
     // AD7: mean |F - F*| <= 2000 delta, the PCG converged.
-    const std::vector<float> f(labels.begin(), labels.end());
+    const std::vector<float>& f = labels;
     const auto h = dyng::testing::harmonic_solution(
         s.graph.row_ptr, s.graph.col_ind, s.graph.weights, model.present(), model.seed_labels());
     const auto err = dyng::testing::label_error_against(f, h, model.present(), model.seed_labels());
@@ -161,7 +184,7 @@ TEST(LabelPropagation, InPlaceStreamMeetsTheOracle) {
 
 TEST(LabelPropagation, OtherSeedsAndSixtyFourBitOffsets) {
   run_stream(make_stream(2000, 4, 7), 1e-5F, lp::schedule::damped);
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const stream_t s = make_stream(2000, 4, 7);
   lp_graph g = capacity_graph(res, s);
   lp_graph64 g64 = capacity_graph<lp_graph64>(res, s);
@@ -173,21 +196,22 @@ TEST(LabelPropagation, OtherSeedsAndSixtyFourBitOffsets) {
     (void)lp::update(res, g, b.view(), r);
     (void)lp::update(res, g64, b.view(), r64);
   }
-  EXPECT_EQ(bits(r.labels()), bits(r64.labels()));  // the offset type does not change the bits
+  // the offset type does not change the bits
+  EXPECT_EQ(bits(host_labels(res, r)), bits(host_labels(res, r64)));
 }
 
 /// The original's input_contract_test graph: 0 (GT class 0), 1 (GT class 1), 2 unlabelled;
 /// edges 0-2 (0.9) and 1-2 (0.8). Vertex 2's label is 0.8 / 1.7 after the initialization and
 /// stays there (its neighbours are seeds).
 TEST(LabelPropagation, ThreeVertexGraphByHand) {
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const std::vector<std::int32_t> cap = {1, 1, 2};
   lp_graph g = lp_graph::with_capacity(res, 3, host_view(cap), slotted_props());
   lp::options opt;
   opt.similarity_threshold = 0.5F;
   opt.update_schedule = lp::schedule::damped;
   auto r = empty_compute(res, g, opt);
-  for (const float x : r.labels()) {
+  for (const float x : host_labels(res, r)) {
     EXPECT_EQ(x, 0.5F);
   }
   dyng::edge_batch<std::int32_t, float> b;
@@ -203,25 +227,31 @@ TEST(LabelPropagation, ThreeVertexGraphByHand) {
   EXPECT_EQ(st.affected, 3);          // 0 -> 0, 1 -> 1, 2 -> 0.47...
   EXPECT_EQ(st.iterations, 1);        // the initial label is the fixed point
   EXPECT_EQ(st.frontier_visits, 1);
-  const auto labels = r.labels();
+  const std::vector<float> labels = host_labels(res, r);
   EXPECT_EQ(labels[0], 0.0F);
   EXPECT_EQ(labels[1], 1.0F);
   const double w0 = std::nearbyint(0.9F * 4294967296.0) / 4294967296.0;
   const double w1 = std::nearbyint(0.8F * 4294967296.0) / 4294967296.0;
-  EXPECT_EQ(labels[2], static_cast<float>(w1 / (w0 + w1)));
+  if (on_cuda) {
+    // The damped iteration stores 0.5 (F + average) with the original's --use_fast_math
+    // division: within an ulp or two of the initial label.
+    EXPECT_NEAR(labels[2], static_cast<float>(w1 / (w0 + w1)), 1e-6);
+  } else {
+    EXPECT_EQ(labels[2], static_cast<float>(w1 / (w0 + w1)));
+  }
   // The vertex 2 leaves: it keeps its last label.
   dyng::edge_batch<std::int32_t, float> d;
   d.delete_vertex(2);
   const lp::stats sd = lp::update(res, g, d.view(), r);
   EXPECT_EQ(sd.initial_frontier, 0);  // its neighbours are seeds
   EXPECT_EQ(sd.components, 0);
-  EXPECT_EQ(r.labels()[2], labels[2]);
+  EXPECT_EQ(host_labels(res, r)[2], labels[2]);
 }
 
 /// A batch of edges only, between present vertices: both endpoints are affected (ADR 0072: the
 /// original skips its marks when nothing is inserted, unreachable from its generator).
 TEST(LabelPropagation, EdgeOnlyBatchMarksItsEndpoints) {
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const std::vector<std::int32_t> cap = {1, 1, 2, 2};
   lp_graph g = lp_graph::with_capacity(res, 4, host_view(cap), slotted_props());
   lp::options opt;
@@ -235,16 +265,16 @@ TEST(LabelPropagation, EdgeOnlyBatchMarksItsEndpoints) {
   b0.insert_edge(0, 2, {0.9F});
   b0.insert_edge(1, 3, {0.9F});
   (void)lp::update(res, g, b0.view(), r);
-  EXPECT_EQ(r.labels()[2], 0.0F);
-  EXPECT_EQ(r.labels()[3], 1.0F);
+  EXPECT_EQ(host_labels(res, r)[2], 0.0F);
+  EXPECT_EQ(host_labels(res, r)[3], 1.0F);
   dyng::edge_batch<std::int32_t, float> b1;
   b1.insert_edge(2, 3, {0.4F});
   const lp::stats st = lp::update(res, g, b1.view(), r);
   EXPECT_EQ(st.batch.inserted_edges, 2);
   EXPECT_EQ(st.initial_frontier, 2);  // 2 and 3
   EXPECT_EQ(st.components, 0);        // nothing inserted: no G'
-  EXPECT_GT(r.labels()[2], 0.0F);
-  EXPECT_LT(r.labels()[3], 1.0F);
+  EXPECT_GT(host_labels(res, r)[2], 0.0F);
+  EXPECT_LT(host_labels(res, r)[3], 1.0F);
 }
 
 TEST(LabelPropagation, RunToRunBitsOfBothSchedules) {
@@ -252,23 +282,25 @@ TEST(LabelPropagation, RunToRunBitsOfBothSchedules) {
   for (const lp::schedule rule : {lp::schedule::damped, lp::schedule::in_place}) {
     std::vector<std::vector<std::uint32_t>> runs;
     for (int run = 0; run < 2; ++run) {
-      const dyng::resources res = dyng::resources::sequential();
+      const dyng::resources res = test_resources();
       lp_graph g = capacity_graph(res, s);
       auto r = empty_compute(res, g, published(s, 1e-5F, rule));
       std::vector<std::uint32_t> all;
       for (const auto& b : s.batches) {
         (void)lp::update(res, g, b.view(), r);
-        const auto x = bits(r.labels());
+        const auto x = bits(host_labels(res, r));
         all.insert(all.end(), x.begin(), x.end());
       }
       runs.push_back(std::move(all));
     }
-    EXPECT_EQ(runs[0], runs[1]);  // bitwise on the sequential backend
+    if (rule == lp::schedule::damped || !on_cuda) {
+      EXPECT_EQ(runs[0], runs[1]);  // bitwise per backend (in_place on CUDA is not reproducible)
+    }
   }
 }
 
 TEST(LabelPropagation, ComputeIsIrLP) {
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const stream_t s = make_stream(3000, 4);
   lp_graph g = capacity_graph(res, s);
   lp::options opt = published(s, 1e-6F, lp::schedule::damped);
@@ -293,7 +325,7 @@ TEST(LabelPropagation, ComputeIsIrLP) {
   const std::vector<std::int32_t>& sv = seeds;
   const std::vector<std::int8_t>& sc = classes;
   const auto irlp = lp::compute(res, g, host_view(sv), host_view(sc), opt);
-  const std::vector<float> f(irlp.labels().begin(), irlp.labels().end());
+  const std::vector<float> f = host_labels(res, irlp);
   for (std::size_t v = 0; v < f.size(); ++v) {
     if (present[v] == 0) {
       EXPECT_EQ(f[v], 0.5F) << v;  // every vertex that is not active is 0.5
@@ -311,11 +343,11 @@ TEST(LabelPropagation, ComputeIsIrLP) {
   compact.parallel_edges = dyng::multi_edges::allow;
   const lp_graph cg = lp_graph::from_csr(res, c.view(), compact);
   const auto irlp_c = lp::compute(res, cg, host_view(sv), host_view(sc), opt);
-  EXPECT_EQ(bits(irlp.labels()), bits(irlp_c.labels()));
+  EXPECT_EQ(bits(host_labels(res, irlp)), bits(host_labels(res, irlp_c)));
 }
 
 TEST(LabelPropagation, OnLimit) {
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const stream_t s = make_stream(2000, 3);
   for (const lp::on_limit rule :
        {lp::on_limit::report, lp::on_limit::error, lp::on_limit::fallback_recompute}) {
@@ -344,7 +376,7 @@ TEST(LabelPropagation, OnLimit) {
 }
 
 TEST(LabelPropagation, OptionsAndErrors) {
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const std::vector<std::int32_t> cap = {1, 1, 2};
   lp_graph g = lp_graph::with_capacity(res, 3, host_view(cap), slotted_props());
   const auto none_v = dyng::array_view<const std::int32_t>();
@@ -412,7 +444,7 @@ TEST(LabelPropagation, OptionsAndErrors) {
 }
 
 TEST(LabelPropagation, CompositionAndClone) {
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const stream_t s = make_stream(2000, 3);
   lp_graph g = capacity_graph(res, s);
   lp_graph h = capacity_graph(res, s);
@@ -425,9 +457,9 @@ TEST(LabelPropagation, CompositionAndClone) {
     EXPECT_EQ(st.iterations, sb.iterations);
     EXPECT_EQ(st.components, sb.components);
   }
-  EXPECT_EQ(bits(a.labels()), bits(b.labels()));  // dyng::update() is update()
+  EXPECT_EQ(bits(host_labels(res, a)), bits(host_labels(res, b)));  // dyng::update() is update()
   auto c = a.clone(res);
-  EXPECT_EQ(bits(c.labels()), bits(a.labels()));
+  EXPECT_EQ(bits(host_labels(res, c)), bits(host_labels(res, a)));
   EXPECT_EQ(c.graph_version(), a.graph_version());
 }
 
@@ -439,7 +471,7 @@ TEST(LabelPropagation, NoHostAllocationInTheAlgorithmPhaseAfterReserve) {
   if (!dyng::detail::budgets_enabled()) {
     GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build";
   }
-  const dyng::resources res = dyng::resources::sequential();
+  const dyng::resources res = test_resources();
   const stream_t s = make_stream(3000, 5);
   lp_graph g = capacity_graph(res, s);
   auto r = empty_compute(res, g, published(s, 1e-5F, lp::schedule::damped));
@@ -453,7 +485,13 @@ TEST(LabelPropagation, NoHostAllocationInTheAlgorithmPhaseAfterReserve) {
     ASSERT_TRUE(report.measured);
     EXPECT_FALSE(report.reserving());
     EXPECT_EQ(report.used.own_allocations(), 0);
-    EXPECT_EQ(report.used.own_host_syncs(), 0);
+    if (!on_cuda) {
+      EXPECT_EQ(report.used.own_host_syncs(), 0);
+    } else {
+      // The fused engine's run-dependent synchronizations, within its declared budget.
+      EXPECT_TRUE(report.limit.allows(report.used)) << report.used.own_host_syncs();
+      EXPECT_TRUE(report.limit.bounded());
+    }
   }
 }
 

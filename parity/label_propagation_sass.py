@@ -9,6 +9,8 @@ preset, and the SASS of every function compared.
     parity/label_propagation_sass.py compile --archive DIR --dyng-commands compile_commands.json
                                              --probe <path of the FAST_MATH probe .cu> --out DIR
     parity/label_propagation_sass.py compare --out DIR [--json FILE]
+    parity/label_propagation_sass.py port --original-obj DIR --port-obj DIR --graph-obj FILE
+                                          [--json FILE]
 
 `compile` takes O's line from `make -n -B obj/<tu>.o` in the archive (the Makefile's defaults) and
 dynG's from the compile_commands.json of a scratch configure (`cmake --preset parity-cuda` with a
@@ -20,6 +22,16 @@ text with only the address comments removed (the strictest normalization: a func
 only when its machine code is), plus the registers, stack, shared and local memory. It records
 both command lines, the per-function instruction counts and digests, the cuobjdump version, and
 exits 1 when any function differs or exists in one object only.
+
+`port` (M10a step 4; criterion 12; ADR 0075): the fused engine's kernels in dyng_label_propagation's
+objects of a parity-cuda build (--port-obj, the int32 instantiations) against the same kernels in
+O's unpatched objects (--original-obj, O's obj/), named by PORT_KERNELS: per kernel the sequence of
+floating-point instructions (every F*, D*, MUFU and H* opcode with its modifiers, in program
+order: the arithmetic of the hot loops) must be equal; the whole instruction text, the instruction
+text with the constant-bank operands c[0x0][...] blanked (the kernel parameters' offsets) and the
+resources (registers, stack, shared and local memory) are recorded, with the differences listed.
+And the graph module's device apply (--graph-obj, apply_slotted_device.cu.o) must hold no
+floating-point instruction at all (it moves weight bits only). Exit 1 if either fails.
 """
 
 from __future__ import annotations
@@ -208,6 +220,163 @@ def compare_cmd(args: argparse.Namespace) -> int:
     return 0 if not differ else 1
 
 
+# O's kernel -> the port's int32 instantiation (ADR 0075's rename map).
+PORT_KERNELS = {
+    "markDeletionsKernel": "mark_deletions_kernel<int>",
+    "buildSubgraphKernel": "build_subgraph_kernel",
+    "markInsertedKernel": "mark_inserted_kernel",
+    "initParentKernel": "init_parent_kernel",
+    "hookKernel": "hook_kernel",
+    "compressKernel": "compress_kernel",
+    "markRootsKernel": "mark_roots_kernel",
+    "numberRootsKernel": "number_roots_kernel",
+    "assignComponentIdsKernel": "assign_component_ids_kernel",
+    "computeSupernodeWeightsKernel": "compute_supernode_weights_kernel<int>",
+    "initializeLabelsKernel": "initialize_labels_kernel",
+    "initFrontierKernel": "init_frontier_kernel<int>",
+    "propagateGroupKernel<8>": "propagate_group_kernel<8, int>",
+    "propagateGroupKernel<32>": "propagate_group_kernel<32, int>",
+    "propagateBlockKernel": "propagate_block_kernel<int>",
+    "commitLabelsKernel": "commit_labels_kernel",
+    "smallFrontierKernel": "small_frontier_kernel<int>",
+    "enforceGroundTruthKernel": "enforce_ground_truth_kernel",
+    "irLPKernel": "ir_lp_kernel<int>",
+    "irLPEnforceGTKernel": "ir_lp_enforce_gt_kernel",
+}
+O_TUS = ("sparsifySubgraph", "connectedComponents", "labelInitialization",
+         "iterativePropagation", "validation")  # fmt: skip
+PORT_TUS = ("sparsify", "components", "label_init", "propagation", "irlp")
+FP_OPCODE = re.compile(r"^(F[A-Z0-9]*|D[A-Z]+|MUFU|H[A-Z0-9]+)(\.|$)")
+INTEGER_LOOKALIKES = ("FLO",)  # find leading one: an integer instruction
+
+
+def demangle(names: list[str]) -> dict[str, str]:
+    if not names:
+        return {}
+    out = subprocess.run(["c++filt"], input="\n".join(names), capture_output=True, text=True)
+    return dict(zip(names, out.stdout.splitlines(), strict=True))
+
+
+def base_name(demangled: str) -> str:
+    """'void ns::(anonymous namespace)::kernel<8, int>(args)' -> 'kernel<8, int>'."""
+    text = demangled.replace("(anonymous namespace)::", "")
+    if text.startswith("void "):
+        text = text[5:]
+    depth, end = 0, len(text)
+    for i, ch in enumerate(text):
+        if ch == "<":
+            depth += 1
+        elif ch == ">":
+            depth -= 1
+        elif ch == "(" and depth == 0:
+            end = i
+            break
+    head = text[:end]
+    depth, start = 0, 0
+    for i, ch in enumerate(head):
+        if ch == "<":
+            depth += 1
+        elif ch == ">":
+            depth -= 1
+        elif ch == ":" and depth == 0 and i + 1 < len(head) and head[i + 1] == ":":
+            start = i + 2
+    return head[start:].strip()
+
+
+def fp_sequence(instructions: list[str]) -> list[str]:
+    out = []
+    for ins in instructions:
+        text = re.sub(r"^@!?U?P[T0-9]+\s+", "", ins)  # the predicate guard
+        opcode = text.split(" ")[0]
+        if FP_OPCODE.match(opcode) and opcode.split(".")[0] not in INTEGER_LOOKALIKES:
+            out.append(opcode)
+    return out
+
+
+def blank_params(instructions: list[str]) -> list[str]:
+    return [re.sub(r"c\[0x[0-9a-f]+\]\[0x[0-9a-f]+\]", "c[*][*]", x) for x in instructions]
+
+
+def kernels_of(objs: list[Path]) -> tuple[dict, dict]:
+    code: dict[str, list[str]] = {}
+    res: dict[str, dict] = {}
+    for obj in objs:
+        s, r = sass(obj), resources(obj)
+        names = demangle(sorted(s))
+        for mangled, ins in s.items():
+            code[base_name(names[mangled])] = ins
+            if mangled in r:
+                res[base_name(names[mangled])] = r[mangled]
+    return code, res
+
+
+def port_cmd(args: argparse.Namespace) -> int:
+    o_code, o_res = kernels_of([args.original_obj / f"{t}.o" for t in O_TUS])
+    p_code, p_res = kernels_of([args.port_obj / f"{t}.cu.o" for t in PORT_TUS])
+    kernels, bad = {}, []
+    for o_name, p_name in PORT_KERNELS.items():
+        a, b = o_code.get(o_name), p_code.get(p_name)
+        if a is None or b is None:
+            bad.append(f"{o_name}: missing ({'original' if a is None else 'port'})")
+            continue
+        fa, fb = fp_sequence(a), fp_sequence(b)
+        same_fp = fa == fb
+        if not same_fp:
+            bad.append(f"{o_name}: the floating-point instruction sequence differs")
+        kernels[o_name] = {
+            "port": p_name,
+            "fp_sequence_equal": same_fp,
+            "fp_instructions": [len(fa), len(fb)],
+            "fp_sha256": [hashlib.sha256("\n".join(x).encode()).hexdigest() for x in (fa, fb)],
+            "identical": a == b,
+            "identical_but_parameter_offsets": blank_params(a) == blank_params(b),
+            "instructions": [len(a), len(b)],
+            "resources": [o_res.get(o_name), p_res.get(p_name)],
+            "resources_equal": o_res.get(o_name) == p_res.get(p_name),
+        }
+    # The graph module's device apply: no floating-point instruction.
+    g_code, _ = kernels_of([args.graph_obj])
+    graph_fp = {k: fp_sequence(v) for k, v in g_code.items() if fp_sequence(v)}
+    if graph_fp:
+        bad.append(f"the graph module's device apply has floating-point code in {sorted(graph_fp)}")
+    record = {
+        "schema": 1,
+        "what": "the fused engine's kernels against LabelPropagation-CUDA@a276a3a's (criterion 12; "
+        "ADR 0075): the floating-point instruction sequence per kernel equal; the whole SASS, the "
+        "SASS without the parameter offsets and the resources recorded; and no floating-point "
+        "instruction in the graph module's device apply",
+        "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "cuobjdump": subprocess.run([cuobjdump(), "--version"], capture_output=True, text=True)
+        .stdout.strip()
+        .splitlines()[-1],
+        "original_objects": str(args.original_obj),
+        "port_objects": str(args.port_obj),
+        "kernels": kernels,
+        "graph_device_apply": {
+            "object": str(args.graph_obj),
+            "functions": len(g_code),
+            "with_floating_point": graph_fp,
+        },
+        "equal": not bad,
+        "problems": bad,
+    }
+    for name, k in kernels.items():
+        print(
+            f"{name}: fp {'equal' if k['fp_sequence_equal'] else 'DIFFERENT'} "
+            f"({k['fp_instructions'][0]} instructions), whole SASS "
+            f"{'identical' if k['identical'] else 'differs'}"
+            f"{'' if k['identical'] or not k['identical_but_parameter_offsets'] else ' (offs)'}, "
+            f"resources {'equal' if k['resources_equal'] else k['resources']}",
+            flush=True,
+        )
+    print(f"graph device apply: {len(g_code)} functions, floating point in {sorted(graph_fp)}")
+    if args.json:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(record, indent=1) + "\n")
+    print("port SASS: PASSED" if not bad else f"port SASS: FAILED {bad}")
+    return 0 if not bad else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="command", required=True)
@@ -219,8 +388,14 @@ def main(argv: list[str] | None = None) -> int:
     m = sub.add_parser("compare")
     m.add_argument("--out", type=Path, required=True)
     m.add_argument("--json", type=Path)
+    p = sub.add_parser("port")
+    p.add_argument("--original-obj", type=Path, required=True, help="O's unpatched obj/")
+    p.add_argument("--port-obj", type=Path, required=True,
+                   help="dyng_label_propagation.dir of a parity-cuda build")  # fmt: skip
+    p.add_argument("--graph-obj", type=Path, required=True, help="apply_slotted_device.cu.o")
+    p.add_argument("--json", type=Path)
     args = ap.parse_args(argv)
-    return compile_cmd(args) if args.command == "compile" else compare_cmd(args)
+    return {"compile": compile_cmd, "compare": compare_cmd, "port": port_cmd}[args.command](args)
 
 
 if __name__ == "__main__":
