@@ -1,0 +1,45 @@
+{
+ "backend": "sequential",
+ "cases": [
+  {
+   "case": "5k5_d1e-6_s42",
+   "digests": [
+    "e763507dc6bf1292ffc082146aa0132cd0cff1da4789172d9e70eebfe232928d",
+    "e763507dc6bf1292ffc082146aa0132cd0cff1da4789172d9e70eebfe232928d"
+   ],
+   "identical": true,
+   "required": true
+  },
+  {
+   "case": "5k5_d1e-6_s42_inplace",
+   "digests": [
+    "195cd86d1d38984a4db0388c02d60f2307d660e11119b37604339ebf9557fe1a",
+    "195cd86d1d38984a4db0388c02d60f2307d660e11119b37604339ebf9557fe1a"
+   ],
+   "identical": true,
+   "required": true
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "digests": [
+    "a613252bf9663f758051daee751288378255b15f8b9487c44aab3c8c153e3d28",
+    "a613252bf9663f758051daee751288378255b15f8b9487c44aab3c8c153e3d28"
+   ],
+   "identical": true,
+   "required": true
+  },
+  {
+   "case": "50k_d1e-6_s42_inplace",
+   "digests": [
+    "a38b09098d6181bd8b7fa38df2d796d6fc48309ebec4ec755ec46be00c28fd98",
+    "a38b09098d6181bd8b7fa38df2d796d6fc48309ebec4ec755ec46be00c28fd98"
+   ],
+   "identical": true,
+   "required": true
+  }
+ ],
+ "date": "2026-10-29T08:58:14Z",
+ "equal": true,
+ "schema": 1,
+ "what": "run-to-run label bits (criterion 11)"
+}
