@@ -9,7 +9,9 @@
 store (parity/cbst_trace_goldens.py, M8a); `parity/compare.py hypergraph_ids ...` their batch
 records through the hypergraph container (parity/hypergraph_ids.py, M8b); `parity/compare.py
 triad_count ...` ESCHER-GPU's triad goldens (parity/triad_goldens.py, M9a: --verify and --list;
-the replays through dynG by key and by content, parity/triad_replay.py).
+the replays through dynG by key and by content, parity/triad_replay.py); `parity/compare.py
+label_propagation --verify` LabelPropagation-CUDA's goldens (parity/label_propagation_goldens.py,
+M10a; the replays through dynG arrive with the port).
 
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
@@ -388,6 +390,11 @@ def main() -> int:
         import triad_goldens
 
         return triad_goldens.compare_main(sys.argv[2:])
+    if sys.argv[1:2] == ["label_propagation"]:  # LabelPropagation-CUDA's goldens (M10a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import label_propagation_goldens
+
+        return label_propagation_goldens.compare_main(sys.argv[2:])
     scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--goldens", type=Path, default=scratch / "goldens" / "sssp")

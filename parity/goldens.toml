@@ -1792,3 +1792,66 @@ openmp = ["make-test", "syn100k", "syn1m_s1", "coauth_b50k_s1/type1", "coauth_b5
 "coauth_b200k_s3/type1" = { batches = 3, sha256 = "11ea6f44f7b5dffccf25beff668146557d35cd092cea5ad03f09c0d63c92e6dd" }
 "coauth_b200k_s3/type2" = { batches = 3, sha256 = "33b29d04c7d67c392aff0585a8bed4a1a00c29dce5e5a915ee6a06b148feddd8" }
 "coauth_b200k_s3/type3" = { batches = 3, sha256 = "abd7eb19da1a3fa861f7146c9366c18e35f54d47cb6ef5fbc1c604f111a5c7d9" }
+
+[sets.label_propagation_inplace]
+reference = "LabelPropagation-CUDA"
+commit = "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+kind = "label_propagation_inplace"
+what = "the in_place calibration (AD5): N = 10 unpatched runs per I case on GPU 1 and 3 on GPU 0 at the base lock, the delta 1e-6 runs, the calibration record; a distribution"
+location = "$DYNG_SCRATCH/goldens/label_propagation_inplace"
+generated_by = "parity/label_propagation_goldens.py calibrate + calibrate-analyze (exported once: a distribution)"
+num_files = 175
+num_bytes = 362464750
+manifest_sha256 = "f11abd22732341466ea5defc1dbd861ae27481ceca697afdf302123f4e37986f"
+calibration_sha256 = "f9da55af7a5a571896ec068524fa94b4f0652b08a193306aa1a36a7c6f8f42d9"
+
+[sets.label_propagation_inplace.rule]
+# AD5 (decided by the author on 2026-10-28): frozen before the port; recalibration
+# only by ADR with the author's approval. T = k x the largest pairwise value of the N
+# reference runs (floors for the mean and the max), over the vertices ACTIVE and not
+# ground truth
+# after the last batch; iterations per batch within +/- 10 % of the reference median (at
+# least +/- 2) and their sum within +/- 10 %; components and the initial frontier exact.
+k = 3
+floor_mean = 1e-06
+floor_max = 1e-06
+n_gpu1 = 10
+n_gpu0 = 3
+iterations_rel = 0.1
+iterations_floor = 2
+
+[sets.label_propagation_inplace.thresholds."500k_d1e-4_s42_inplace"]
+t_mean = 0.0003922800875420878
+t_max = 1.2280980000000001
+t_flips = 2997
+components = [4942, 43976, 45504, 46088, 46579, 46626, 46865, 46791, 46897, 47076]
+iterations_median = [0, 745, 1652, 1396, 1092, 591, 337, 440, 257, 141.5]
+iterations_sum_median = 6648.5
+vertices_compared = 445500
+
+[sets.label_propagation_inplace.thresholds."50k_d1e-4_s42_inplace"]
+t_mean = 0.0005503162289562289
+t_max = 0.00689699999999982
+t_flips = 405
+components = [497, 4391, 4551, 4589, 4663, 4636, 4664, 4677, 4700, 4719]
+iterations_median = [0, 513, 1236, 1109, 586.5, 871, 226, 230, 94, 60]
+iterations_sum_median = 4931.0
+vertices_compared = 44550
+
+[sets.label_propagation_inplace.thresholds."5k5_d1e-4_s42_inplace"]
+t_mean = 0.0004279650067294746
+t_max = 0.0069990000000000885
+t_flips = 12
+components = [50, 829, 850, 836, 858]
+iterations_median = [0, 677, 435, 225, 145.5]
+iterations_sum_median = 1481.5
+vertices_compared = 4458
+
+[sets.label_propagation_inplace.thresholds."5m_d1e-4_s42_inplace"]
+t_mean = 0.0002672708942760942
+t_max = 1.306071
+t_flips = 21525
+components = [49376, 438347, 455279, 461973, 465267, 466599, 468342, 469007, 469755, 469656]
+iterations_median = [0, 1261, 1677, 1515, 1335, 927.5, 909, 628, 345.5, 376]
+iterations_sum_median = 9000.0
+vertices_compared = 4455000

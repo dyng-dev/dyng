@@ -145,14 +145,18 @@ class Trace:
 
 def read(path: Path | str) -> Trace:
     path = Path(path)
+    return read_bytes(path.read_bytes(), path)
+
+
+def read_bytes(buf: bytes, name: Path | str = "<trace>") -> Trace:
+    """A trace from its bytes (e.g. a decompressed golden); `name` names it in errors."""
     try:
-        return _read(path)
+        return _read(buf, Path(name))
     except struct.error as e:
-        raise ValueError(f"{path}: truncated or malformed ({e})") from e
+        raise ValueError(f"{name}: truncated or malformed ({e})") from e
 
 
-def _read(path: Path) -> Trace:
-    buf = path.read_bytes()
+def _read(buf: bytes, path: Path) -> Trace:
     if buf[:8] != MAGIC:
         raise ValueError(f"{path}: not a DynLP trace")
     version, flags = struct.unpack_from("<II", buf, 8)
@@ -208,3 +212,34 @@ def _read(path: Path) -> Trace:
     if not end_seen:
         raise ValueError(f"{path}: no end record (the recording process did not close the trace)")
     return Trace(path, bool(flags & 1), records)
+
+
+def encode(records: list[Record], digest_mode: bool = False) -> bytes:
+    """A trace file of `records` in the recorder's format (with its end record): what the
+    goldens store as a canonical trace (a recording with its run-varying fields left out)."""
+    out = [MAGIC, struct.pack("<II", 1, 1 if digest_mode else 0)]
+
+    def record(tag: str, batch: int, seq: int, fields: list[Field]) -> bytes:
+        parts = [struct.pack("<IH", RECORD_MAGIC, len(tag)), tag.encode(),
+                 struct.pack("<iiI", batch, seq, len(fields))]  # fmt: skip
+        for f in fields:
+            parts.append(struct.pack("<H", len(f.name)) + f.name.encode())
+            if f.digest:
+                parts.append(struct.pack("<BBQ", f.dtype, 1, f.count) + bytes.fromhex(f.sha256))
+            else:
+                parts.append(struct.pack("<BBQ", f.dtype, 0, f.count) + f._raw())
+        return b"".join(parts)
+
+    for r in records:
+        out.append(record(r.tag, r.batch, r.sequence, list(r.fields.values())))
+    n = struct.pack("<Q", len(records))
+    end = Field("records", 3, False, 1, n, hashlib.sha256(n).hexdigest())
+    out.append(record("end", -1, 0, [end]))
+    return b"".join(out)
+
+
+def without(records: list[Record], drop: set[tuple[str, str]]) -> list[Record]:
+    """The records with the fields (tag, name) of `drop` left out."""
+    return [Record(r.tag, r.batch, r.sequence,
+                   {k: f for k, f in r.fields.items() if (r.tag, k) not in drop})
+            for r in records]  # fmt: skip
