@@ -1117,9 +1117,55 @@ def pair_stats(a, b, mask) -> dict:
 
 
 def iteration_window(median: float) -> tuple[float, float]:
-    """AD5: per batch within +/- 10 % of the reference median, at least +/- 2."""
+    """AD5 as decided on 2026-10-28: per batch within +/- 10 % of the reference median, at least
+    +/- 2. Superseded by iteration_envelope() (the author, 2026-10-29); kept because the step-1
+    calibration record's gpu0_outside and reference self-check were computed by it."""
     half = max(CALIBRATION["iterations_rel"] * median, CALIBRATION["iterations_floor"])
     return median - half, median + half
+
+
+def iteration_envelope(lowest: float, highest: float) -> tuple[float, float]:
+    """AD5's iteration rule as the author decided it on 2026-10-29 (GOVERNANCE.md's approvals
+    log): [0.9 x the minimum, 1.1 x the maximum] of the N GPU-1 reference runs, at least
+    iterations_floor (2) beyond them on each side; never below 0. Rounded to 6 decimals (the
+    bounds are multiples of 0.1 of an integer count)."""
+    rel, floor = CALIBRATION["iterations_rel"], CALIBRATION["iterations_floor"]
+    lo = max(0.0, round(lowest - max(rel * lowest, floor), 6))
+    return lo, round(highest + max(rel * highest, floor), 6)
+
+
+def envelope_of(case_record: dict) -> dict:
+    """The frozen envelope of one case of a calibration record: per batch from the reference
+    runs' minimum and maximum, the sum from their sums' (the floor is moot there: every sum is
+    above 1000)."""
+    it = case_record["iterations"]
+    per = [iteration_envelope(e["min"], e["max"]) for e in it["per_batch"]]
+    rel = CALIBRATION["iterations_rel"]
+    return {
+        "iterations_lo": [lo for lo, _ in per],
+        "iterations_hi": [hi for _, hi in per],
+        "iterations_sum_lo": round((1 - rel) * it["sum_min"], 6),
+        "iterations_sum_hi": round((1 + rel) * it["sum_max"], 6),
+    }
+
+
+def iterations_inside(envelope: dict, iterations: list[int]) -> dict:
+    """A run's per-batch iterations against a frozen envelope (the in_place rule of AD5)."""
+    if len(iterations) != len(envelope["iterations_lo"]):
+        raise GoldenError("the run's batches are not the envelope's")
+    outside = [
+        b
+        for b, v in enumerate(iterations)
+        if not envelope["iterations_lo"][b] <= v <= envelope["iterations_hi"][b]
+    ]
+    total = sum(iterations)
+    sum_ok = envelope["iterations_sum_lo"] <= total <= envelope["iterations_sum_hi"]
+    return {"batches_outside": outside, "sum": total, "sum_within": sum_ok,
+            "within": not outside and sum_ok}  # fmt: skip
+
+
+def _toml_number(x: float) -> str:
+    return str(int(x)) if float(x).is_integer() else repr(float(x))
 
 
 def status_of(case: Case, copy: Path, gpu: int):
@@ -1306,8 +1352,11 @@ def inplace_toml(set_path: Path) -> list[str]:
         "# only by ADR with the author's approval. T = k x the largest pairwise value of the N",
         "# reference runs (floors for the mean and the max), over the vertices ACTIVE and not",
         "# ground truth",
-        "# after the last batch; iterations per batch within +/- 10 % of the reference median (at",
-        "# least +/- 2) and their sum within +/- 10 %; components and the initial frontier exact.",
+        "# after the last batch; components and the initial frontier exact. Iterations (the",
+        "# author, 2026-10-29): per batch, and their sum, inside the envelope [0.9 x the minimum,",
+        "# 1.1 x the maximum] of the N GPU-1 reference runs, at least iterations_floor beyond them",
+        "# per batch (iterations_lo / iterations_hi, iterations_sum_lo / iterations_sum_hi); the",
+        "# medians are reported only. Frozen before any port run is read by it.",
         f"k = {rule['k']}",
         f"floor_mean = {rule['floor_mean']}",
         f"floor_max = {rule['floor_max']}",
@@ -1315,6 +1364,7 @@ def inplace_toml(set_path: Path) -> list[str]:
         f"n_gpu0 = {rule['n_gpu0']}",
         f"iterations_rel = {rule['iterations_rel']}",
         f"iterations_floor = {rule['iterations_floor']}",
+        'iterations_rule = "envelope"',
     ]
     for name, c in rec["cases"].items():
         t = c["thresholds"]
@@ -1329,6 +1379,13 @@ def inplace_toml(set_path: Path) -> list[str]:
             f"iterations_median = [{meds}]",
             f"iterations_sum_median = {c['iterations']['sum_median']!r}",
             f"vertices_compared = {c['vertices_compared']}",
+        ]
+        env = envelope_of(c)
+        out += [
+            f"iterations_lo = [{', '.join(_toml_number(x) for x in env['iterations_lo'])}]",
+            f"iterations_hi = [{', '.join(_toml_number(x) for x in env['iterations_hi'])}]",
+            f"iterations_sum_lo = {_toml_number(env['iterations_sum_lo'])}",
+            f"iterations_sum_hi = {_toml_number(env['iterations_sum_hi'])}",
         ]
     return out
 
@@ -1358,7 +1415,56 @@ def semantic_inplace(p: Path) -> list[str]:
             problems.append(f"inplace {name}: the frozen thresholds are not the record's")
         if rec["cases"][name]["thresholds"] != t:
             problems.append(f"inplace {name}: the record's thresholds are not its pairs'")
+        env = envelope_of(rec["cases"][name])
+        if frozen is None or any(frozen.get(key) != env[key] for key in env):
+            problems.append(f"inplace {name}: the frozen iteration envelope is not the record's")
+    if (spec.get("rule") or {}).get("iterations_rule") != "envelope":
+        problems.append("inplace: the frozen rule is not the iteration envelope (2026-10-29)")
     return problems
+
+
+def envelope_check(args: argparse.Namespace) -> int:
+    """Every reference run of the calibration (N on GPU 1 and the GPU-0 runs) against the frozen
+    envelope of parity/goldens.toml (the author's decision of 2026-10-29: all of them lie inside
+    it); the record is parity/results/M10a-inplace-envelope.json."""
+    root = set_dir(Path(args.root), "inplace")
+    rec = json.loads((root / "calibration.json").read_text())
+    spec = golden_spec(SETS["inplace"]) or {}
+    out: dict = {
+        "schema": 1,
+        "what": "the calibration's reference runs against AD5's frozen iteration envelope "
+        "(decided by the author on 2026-10-29)",
+        "date": now(),
+        "calibration_sha256": sha256_file(root / "calibration.json"),
+        "rule": "per batch [min - max(0.1 min, 2), max + max(0.1 max, 2)] (not below 0) and the "
+        "sum [0.9 sum_min, 1.1 sum_max] of the N GPU-1 reference runs",
+        "cases": {},
+    }
+    ok = True
+    for name, c in rec["cases"].items():
+        frozen = spec.get("thresholds", {}).get(name, {})
+        env = {key: frozen.get(key) for key in envelope_of(c)}
+        if env != envelope_of(c):
+            raise GoldenError(f"{name}: the frozen envelope is not the record's")
+        runs = []
+        for tag, n in (("gpu1", CALIBRATION["n_gpu1"]), ("gpu0", CALIBRATION["n_gpu0"])):
+            for i in range(n):
+                stem = f"{tag}-run-{i:02d}"
+                meta = json.loads((root / "runs" / name / f"{stem}.json").read_text())
+                text = (root / "runs" / name / f"{stem}.results.csv").read_text()
+                if sha256_bytes(text.encode()) != meta["results_sha256"]:
+                    raise GoldenError(f"{name} {stem}: results.csv is not the recorded one")
+                its = [int(x["iterations"]) for x in results_columns(text)]
+                v = iterations_inside(env, its)
+                ok = ok and v["within"]
+                runs.append({"run": stem, "iterations": its, **v})
+        out["cases"][name] = {**env, "runs": runs}
+        inside = sum(r["within"] for r in runs)
+        print(f"{name}: {inside} of {len(runs)} reference runs inside the envelope", flush=True)
+    out["all_inside"] = ok
+    if args.json:
+        write_json(args.json, out)
+    return 0 if ok else 1
 
 
 SEMANTIC["inplace"] = semantic_inplace
@@ -1597,6 +1703,9 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--root", default=str(scratch() / "goldens"))
     a.add_argument("--json", type=Path)
     a.add_argument("--no-toml", action="store_true")
+    ev = sub.add_parser("envelope-check")
+    ev.add_argument("--root", default=str(scratch() / "goldens"))
+    ev.add_argument("--json", type=Path)
     m = sub.add_parser("margins")
     m.add_argument("--cases", required=True, type=lambda s: s.split(","))
     m.add_argument("--rules", default=["inplace", "damped"], type=lambda s: s.split(","))
@@ -1645,6 +1754,8 @@ def main(argv: list[str] | None = None) -> int:
             return calibrate_analyze(args)
         if args.command == "margins":
             return margins(args)
+        if args.command == "envelope-check":
+            return envelope_check(args)
     except GoldenError as err:
         print(f"label_propagation_goldens {args.command}: {err}", file=sys.stderr)
         return 1

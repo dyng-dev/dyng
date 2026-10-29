@@ -137,7 +137,34 @@ Records: `parity/results/M10a-check-margins.json`, the logs in `label_propagatio
 
 See `parity/results/M10a.md` (sections 2-7) for every number; in short: check_twins passed;
 the components are identical in every calibration run; the two exports are identical; the SASS
-is identical (ADR 0066); the margins on C hold.
+is identical (ADR 0066); the margins on C hold on every batch but one (5k5 damped, delta 1e-6,
+batch 1: 1.32, O's own figure; the STOP of step 1, decided by the author below).
+
+## Amendment (2026-10-29): the author's decisions on AD5's iterations and AD7's margin
+
+**Decided by the author on 2026-10-29** (S M Shovan; GOVERNANCE.md, approvals log, the rows
+"The in_place iteration rule (AD5, sheet C1)" and "The AD7 margin on C (AD7, sheet C3; the STOP
+of M10a step 1)"):
+
+- **The iteration rule of section 3** is replaced: an in_place port run's iterations per batch,
+  and their sum, must lie inside the envelope [0.9 x the minimum, 1.1 x the maximum] of the 10
+  GPU-1 reference runs (per batch, and for the sum); per batch at least `iterations_floor` = 2
+  beyond the minimum and the maximum (the floor is moot for the sums, all above 1000), never
+  below 0. Where O is stable this equals +/- 10 % of the median; it widens only where O spreads
+  itself. `label_propagation_goldens.py`'s `iteration_envelope` / `envelope_of` compute it from
+  the committed record (`M10a-inplace-calibration.json`, unchanged), `inplace_toml` freezes it in
+  `parity/goldens.toml` (`iterations_lo`, `iterations_hi`, `iterations_sum_lo`,
+  `iterations_sum_hi`, and `iterations_rule = "envelope"` in the rule), `verify` checks the frozen
+  envelope against the record, and `iterations_inside` is the check M10a step 4 reads the port
+  by. It was frozen in its own commit before any port run was read by it. `envelope-check` puts
+  every reference run against it: all 13 per case (10 on GPU 1, 3 on GPU 0) lie inside
+  (`parity/results/M10a-inplace-envelope.json`), which settles the GPU-0 cross-check flag. The
+  label thresholds and the record are unchanged; `iteration_window` (the median rule) stays only
+  because the record's `gpu0_outside` and self-check were computed by it.
+- **The margin of section 4:** AD7's bound 2000 delta stays on every batch, schedule, engine and
+  backend; the go/no-go margin of 2 is waived for 5k5 damped, delta 1e-6, batch 1 only (O's own
+  margin 1.32), because the damped schedule is deterministic, so run-to-run noise cannot erode
+  its headroom. The certificate reports every batch's margin; every other batch of C keeps 2.
 
 ## Consequences
 

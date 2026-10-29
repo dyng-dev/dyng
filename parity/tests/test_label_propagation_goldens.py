@@ -3,7 +3,8 @@
 """Tests of parity/label_propagation_goldens.py (M10a step 1, ADR 0065) that need no GPU, build or
 original: the corpora and their argv, O's host status of the batches, O's label text, the
 manifest and case digests (the hub's distribution outside them), the comparison of two exports,
-the in_place thresholds (AD5) and their recomputation from a record, and the iteration window."""
+the in_place thresholds (AD5) and their recomputation from a record, the iteration window and
+the iteration envelope that replaced it (the author, 2026-10-29)."""
 
 from __future__ import annotations
 
@@ -104,6 +105,41 @@ def test_thresholds_follow_ad5_and_are_recomputed() -> None:
 def test_the_iteration_window_is_ten_percent_with_a_floor_of_two() -> None:
     assert lg.iteration_window(1000) == (900, 1100)
     assert lg.iteration_window(10) == (8, 12)
+
+
+def test_the_iteration_envelope_is_the_reference_spread_with_a_floor_of_two() -> None:
+    # the author's rule of 2026-10-29: [0.9 x min, 1.1 x max] of the reference runs, floor 2
+    assert lg.iteration_envelope(411, 872) == (369.9, 959.2)
+    assert lg.iteration_envelope(57, 71) == (51.3, 78.1)
+    assert lg.iteration_envelope(0, 0) == (0.0, 2.0)
+    assert lg.iteration_envelope(10, 10) == (8.0, 12.0)
+    env = {"iterations_lo": [0.0, 8.0], "iterations_hi": [2.0, 12.0],
+           "iterations_sum_lo": 9.0, "iterations_sum_hi": 13.0}  # fmt: skip
+    assert lg.iterations_inside(env, [0, 10])["within"]
+    assert lg.iterations_inside(env, [0, 13]) == {"batches_outside": [1], "sum": 13,
+                                                  "sum_within": True, "within": False}  # fmt: skip
+    assert not lg.iterations_inside(env, [2, 7])["within"]
+    with pytest.raises(lg.GoldenError):
+        lg.iterations_inside(env, [0])
+
+
+def test_the_frozen_envelope_is_the_committed_calibration_records() -> None:
+    import json
+    import tomllib
+
+    rec = json.loads((REPO / "parity" / "results" / "M10a-inplace-calibration.json").read_text())
+    spec = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())["sets"][
+        "label_propagation_inplace"
+    ]
+    assert spec["rule"]["iterations_rule"] == "envelope"
+    assert set(spec["thresholds"]) == set(rec["cases"])
+    for name, case in rec["cases"].items():
+        env = lg.envelope_of(case)
+        assert {key: spec["thresholds"][name][key] for key in env} == env
+        per = case["iterations"]["per_batch"]
+        assert len(env["iterations_lo"]) == len(per) == case["batches"]
+        for e, lo, hi in zip(per, env["iterations_lo"], env["iterations_hi"], strict=True):
+            assert lo <= e["min"] <= e["median"] <= e["max"] <= hi
 
 
 def test_pair_stats_compare_the_masked_vertices() -> None:
