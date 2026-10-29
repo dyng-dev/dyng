@@ -270,6 +270,14 @@ TRIAD_REPLAYS_SINCE = (0, 3)
 TRIAD_MODES = ("by_key", "by_content")
 # The features of a hypergraph-id config that count as an id replay.
 HYPERGRAPH_ID_MODES = {"ids": ("by_id", "both"), "line_graph": ("line_graph",)}
+# The hyper_sssp golden replays (M11a, ADR 0081; criterion 21): from the 0.4 series (hyper_sssp is
+# part of 0.4.0, Appendix F) a certificate needs, for every backend and parity mode of the set's
+# [modes] table (parity/goldens.toml; the coverage of HD2, decided by the author on 2026-10-28),
+# passed replays (config "<backend>:hyper_sssp/<by_id|by_id_public|by_key>") covering every case
+# the table gives that mode ("test" = every make-test case, "paper" = every paper configuration).
+# A 0.1-0.3 certificate lists the set without a verdict.
+HYPER_SSSP_REPLAYS_SINCE = (0, 4)
+HYPER_SSSP_MODES = ("by_id", "by_id_public", "by_key")
 # The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
 # series on which its algorithm's gates became part of the release (PLAN 8.6, Appendix F): sssp and
 # cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
@@ -715,6 +723,37 @@ def triad_required_cases(spec: dict) -> dict[str, set[str]]:
     }
 
 
+def hyper_sssp_required_cases(spec: dict) -> dict[str, set[str]]:
+    """{"<backend>:hyper_sssp/<mode>": cases} of a hyper_sssp set's [modes] table ("test" and
+    "paper" name every case of that part)."""
+    cases = set(spec.get("cases", {}))
+    out: dict[str, set[str]] = {}
+    for backend, modes in (spec.get("modes") or {}).items():
+        for mode, items in modes.items():
+            if mode not in HYPER_SSSP_MODES:
+                continue
+            want: set[str] = set()
+            for item in items:
+                want |= (
+                    {c for c in cases if c.startswith(item + "/")} if "/" not in item else {item}
+                )
+            out[f"{backend}:hyper_sssp/{mode}"] = want
+    return out
+
+
+def hyper_sssp_coverage(entry: dict) -> dict[str, set[str]]:
+    """{config: the cases with an "equal" verdict} of the passed hyper_sssp replays of an entry."""
+    out: dict[str, set[str]] = {}
+    for r in entry["replays"]:
+        if not r["passed"]:
+            continue
+        for case, row in r["matrix"].items():
+            for config, verdict in row.items():
+                if ":hyper_sssp/" in config and verdict == "equal":
+                    out.setdefault(config, set()).add(case)
+    return out
+
+
 def triad_coverage(entry: dict) -> dict[str, dict[str, set[str]]]:
     """{backend: {mode: cases}} of the passed triad replays of a golden-set entry with the
     algorithm counter (the oracle's replays of the go/no-go do not count)."""
@@ -743,6 +782,8 @@ def set_algorithm(name: str, spec: dict) -> str:
         return "cbst"
     # M10 label_propagation
     # M11 slack_csr / hyper_sssp
+    if kind == "hyper_sssp":
+        return "hyper_sssp"
     return "cycle_count" if name.startswith("cycle_count") else name.removesuffix("_scale")
 
 
@@ -848,6 +889,15 @@ def golden_suites(
             continue
         # M10 label_propagation
         # M11 slack_csr / hyper_sssp
+        hsosp_required = entry["kind"] == "hyper_sssp" and (
+            series is None or series >= HYPER_SSSP_REPLAYS_SINCE
+        )
+        if entry["kind"] == "hyper_sssp" and not hsosp_required and not entry["replays"]:
+            # MOSP_ESCHER's H-SOSP goldens (M11a, ADR 0081): required from the 0.4 series only.
+            entry["passed"] = None
+            entry["required"] = "from 0.4 on (the hyper_sssp replays of M11a)"
+            out.append(entry)
+            continue
         missing = [b for b in REQUIRED_REPLAYS.get(name, []) if b not in covered]
         if missing:
             problems.append(f"golden set {name}: no replay on {', '.join(missing)}")
@@ -879,6 +929,20 @@ def golden_suites(
                         entry["passed"] = False
         # M10 label_propagation
         # M11 slack_csr / hyper_sssp
+        if hsosp_required:
+            # Every backend and parity mode of the set's [modes] table, every case it lists.
+            wanted = hyper_sssp_required_cases(spec)
+            have = hyper_sssp_coverage(entry)
+            entry["required_coverage"] = {c: len(cases) for c, cases in sorted(wanted.items())}
+            for config, cases in sorted(wanted.items()):
+                absent = cases - have.get(config, set())
+                if absent:
+                    problems.append(
+                        f"golden set {name}: {len(absent)} of the {len(cases)} cases of {config} "
+                        f"have no passed replay (first: {sorted(absent)[0]}; compare.py "
+                        "hyper_sssp --certificate <results>)"
+                    )
+                    entry["passed"] = False
         if entry["kind"] == "cbst_trace":
             # The CBST trace goldens (M8a): replays of the dynG store under the original's preset
             # and dynG's default are required (CBST_REQUIRED_PRESETS).

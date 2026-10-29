@@ -658,6 +658,32 @@ def _replays(cert, results: Path, commit: str) -> None:
     _triad_replays(cert, results, commit)
     # M10 label_propagation
     # M11 slack_csr / hyper_sssp
+    _hsosp_replays(cert, results, commit)
+
+
+HSOSP_SET = "hyper_sssp_mosp_escher"
+
+
+def _hsosp_replays(cert, results: Path, commit: str, skip: tuple = ()) -> None:
+    """Passed records of `compare.py hyper_sssp --certificate` for every backend and parity mode
+    of the set's [modes] table (M11a, ADR 0081), but the configs in `skip`."""
+    import tomllib
+
+    spec = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"][HSOSP_SET]
+    for config, cases in cert.hyper_sssp_required_cases(spec).items():
+        if config in skip:
+            continue
+        record = {
+            "set": HSOSP_SET,
+            "kind": "hyper_sssp",
+            "port": {"commit": commit},
+            "goldens": {"manifest_sha256": spec["manifest_sha256"]},
+            "configs": [config],
+            "matrix": {case: {config: "equal"} for case in sorted(cases)},
+            "passed": True,
+        }
+        name = config.replace(":", "-").replace("/", "-")
+        (results / f"parity-{HSOSP_SET}-{name}.json").write_text(json.dumps(record))
 
 
 TRIAD_SET = "triad_count_escher_gpu"
@@ -2683,3 +2709,38 @@ def test_the_label_follows_the_tree(cert, tmp_path: Path) -> None:
     older = f"{series[0]}.{series[1] - 1}.9" if series and series[1] > 0 else "9.9.9"
     with pytest.raises(SystemExit, match="follows its tree's release series"):
         cert.main(["write", "--results", str(results), "--version", older, "--allow-dirty"])
+
+
+def test_a_04_certificate_needs_the_hyper_sssp_replays(cert, certified) -> None:
+    """From 0.4 on a certificate needs the hyper_sssp replays of every backend and parity mode of
+    the set's [modes] table, every case (M11a criterion 21); a 0.1-0.3 certificate lists the set
+    without a verdict."""
+    results, write, problems = certified
+    assert write("0.4.0") == 0, problems()
+    doc = json.loads((results / "parity.json").read_text())
+    entry = next(g for g in doc["golden_suites"] if g["set"] == HSOSP_SET)
+    assert entry["passed"] is True
+    assert set(entry["required_coverage"]) == {
+        f"{b}:hyper_sssp/{m}"
+        for b in ("cuda", "sequential")
+        for m in ("by_id", "by_id_public", "by_key")
+    }
+    assert entry["required_coverage"]["cuda:hyper_sssp/by_id"] == 25
+    # One config missing: the certificate fails, naming it.
+    for f in results.glob(f"parity-{HSOSP_SET}-cuda-hyper_sssp-by_key.json"):
+        f.unlink()
+    assert write("0.4.0") == 1
+    assert "cuda:hyper_sssp/by_key" in problems()
+    # One case missing from a config's matrix.
+    path = next(results.glob(f"parity-{HSOSP_SET}-sequential-hyper_sssp-by_id.json"))
+    record = json.loads(path.read_text())
+    del record["matrix"]["paper/dblp_vertex_50000"]
+    path.write_text(json.dumps(record))
+    assert write("0.4.0") == 1 and "paper/dblp_vertex_50000" in problems()
+    # A 0.3 certificate does not need them: without any replay the set has no verdict.
+    for f in results.glob(f"parity-{HSOSP_SET}-*.json"):
+        f.unlink()
+    assert write("0.3.0") == 0, problems()
+    doc = json.loads((results / "parity.json").read_text())
+    entry = next(g for g in doc["golden_suites"] if g["set"] == HSOSP_SET)
+    assert entry["passed"] is None and "0.4" in entry["required"]

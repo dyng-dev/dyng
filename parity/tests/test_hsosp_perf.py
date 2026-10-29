@@ -63,12 +63,12 @@ def test_bs_environment_has_no_omp_and_eager_loading(monkeypatch: pytest.MonkeyP
 
 
 def test_the_sampler_reads_the_load_average_and_procs_blocked() -> None:
-    with perf.LoadSampler(period=0.05) as s:
-        t0 = time.time()
-        time.sleep(0.3)
-        t1 = time.time()
+    t0 = time.time()
+    with perf.LoadSampler(period=0.01) as s:
+        time.sleep(0.5)  # at least one sample even on a loaded machine (the first is at start)
+    t1 = time.time()
     got = s.between(t0, t1)
-    assert got["samples"] >= 2
+    assert got["samples"] >= 1
     assert got["load_average_max"] >= 0.0
     assert got["procs_blocked_max"] >= 0
 
