@@ -55,11 +55,11 @@ constexpr u64 sentinel = ~0ull;
 
 /** Grows a device buffer to hold at least @p n elements (contents lost). */
 template <class T>
-void grow(T*& ptr, long long& cap, long long n) {
+void grow(buffer<T>& b, long long& cap, long long n, const resources& res) {
   if (n <= cap) return;
-  if (ptr) DYNG_CUDA_TRY(cudaFree(ptr));
+  b = buffer<T>();  // release first: the peak holds one array, not two
   cap = n + n / 2 + 1024;
-  DYNG_CUDA_TRY(cudaMalloc(&ptr, sizeof(T) * cap));
+  b = buffer<T>(res, static_cast<std::size_t>(cap));
 }
 
 template <class T>
@@ -298,8 +298,8 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   device_incidence::scratch_arrays& sc = *di.scratch;
   device_delta& dd = dev.delta;
   const int block = 256;
-  DYNG_CUDA_TRY(
-      cudaMemsetAsync(dev.d_error, 0, sizeof(std::uint32_t), dev.stream));  // dynG: the error word
+  DYNG_CUDA_TRY(cudaMemsetAsync(dev.d_error.data(), 0, sizeof(std::uint32_t),
+                                dev.stream));  // dynG: the error word
   // dynG: the batch's counts are int32 on the device.
   if (inc.inc_key.size() > static_cast<std::size_t>(INT_MAX) ||
       inc.touched.size() >= static_cast<std::size_t>(INT_MAX) ||
@@ -318,93 +318,97 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   for (int i = 0; i < n_inc; ++i) keys[i] = inc.inc_key[i] - 1;  // h -> h-1
   std::vector<int> touched0(n_t);
   for (int t = 0; t < n_t; ++t) touched0[t] = inc.touched[t] - 1;
-  grow(sc.inc_keys, sc.inc_cap, n_inc);
-  grow(sc.inc_keys_alt, sc.inc_cap2, n_inc);
-  grow(sc.signs, sc.inc_cap3, n_inc);
-  grow(sc.signs_alt, sc.inc_cap4, n_inc);
-  grow(sc.uniq, sc.inc_cap5, n_inc);
-  grow(sc.net, sc.inc_cap6, n_inc);
-  grow(sc.cnt0, sc.inc_cap7, n_inc);
-  grow(sc.cnt1, sc.inc_cap8, n_inc);
-  grow(sc.off0, sc.inc_cap9, n_inc);
-  grow(sc.off1, sc.inc_cap10, n_inc);
-  grow(sc.seg_len, sc.inc_cap11, n_inc);
-  grow(sc.seg_off, sc.inc_cap12, n_inc);
-  grow(sc.seg_vert, sc.inc_cap13, n_inc);
-  grow(sc.touched, sc.t_cap, n_t);
-  grow(sc.pre_off, sc.t_cap2, n_t + 1);
-  grow(sc.post_off, sc.t_cap3, n_t + 1);
-  grow(sc.he_write_off, sc.t_cap4, n_t);
-  grow(sc.pre_vals, sc.val_cap, static_cast<long long>(inc.pre_vals.size()));
-  grow(sc.post_vals, sc.val_cap2, static_cast<long long>(inc.post_vals.size()));
-  grow(sc.t_verts, sc.tv_cap, n_tv);
-  grow(sc.t_vert_len, sc.tv_cap2, n_tv);
-  upload(sc.inc_keys, keys, dev.stream);
-  upload(sc.signs, inc.inc_sign, dev.stream);
-  upload(sc.touched, touched0, dev.stream);
-  upload(sc.pre_off, inc.pre_off, dev.stream);
-  upload(sc.post_off, inc.post_off, dev.stream);
-  upload(sc.pre_vals, inc.pre_vals, dev.stream);
-  upload(sc.post_vals, inc.post_vals, dev.stream);
-  upload(sc.t_verts, inc.touched_vertices, dev.stream);
-  upload(sc.t_vert_len, inc.touched_vertex_len, dev.stream);
+  grow(sc.inc_keys, sc.inc_cap, n_inc, *dev.res);
+  grow(sc.inc_keys_alt, sc.inc_cap2, n_inc, *dev.res);
+  grow(sc.signs, sc.inc_cap3, n_inc, *dev.res);
+  grow(sc.signs_alt, sc.inc_cap4, n_inc, *dev.res);
+  grow(sc.uniq, sc.inc_cap5, n_inc, *dev.res);
+  grow(sc.net, sc.inc_cap6, n_inc, *dev.res);
+  grow(sc.cnt0, sc.inc_cap7, n_inc, *dev.res);
+  grow(sc.cnt1, sc.inc_cap8, n_inc, *dev.res);
+  grow(sc.off0, sc.inc_cap9, n_inc, *dev.res);
+  grow(sc.off1, sc.inc_cap10, n_inc, *dev.res);
+  grow(sc.seg_len, sc.inc_cap11, n_inc, *dev.res);
+  grow(sc.seg_off, sc.inc_cap12, n_inc, *dev.res);
+  grow(sc.seg_vert, sc.inc_cap13, n_inc, *dev.res);
+  grow(sc.touched, sc.t_cap, n_t, *dev.res);
+  grow(sc.pre_off, sc.t_cap2, n_t + 1, *dev.res);
+  grow(sc.post_off, sc.t_cap3, n_t + 1, *dev.res);
+  grow(sc.he_write_off, sc.t_cap4, n_t, *dev.res);
+  grow(sc.pre_vals, sc.val_cap, static_cast<long long>(inc.pre_vals.size()), *dev.res);
+  grow(sc.post_vals, sc.val_cap2, static_cast<long long>(inc.post_vals.size()), *dev.res);
+  grow(sc.t_verts, sc.tv_cap, n_tv, *dev.res);
+  grow(sc.t_vert_len, sc.tv_cap2, n_tv, *dev.res);
+  upload(sc.inc_keys.data(), keys, dev.stream);
+  upload(sc.signs.data(), inc.inc_sign, dev.stream);
+  upload(sc.touched.data(), touched0, dev.stream);
+  upload(sc.pre_off.data(), inc.pre_off, dev.stream);
+  upload(sc.post_off.data(), inc.post_off, dev.stream);
+  upload(sc.pre_vals.data(), inc.pre_vals, dev.stream);
+  upload(sc.post_vals.data(), inc.post_vals, dev.stream);
+  upload(sc.t_verts.data(), inc.touched_vertices, dev.stream);
+  upload(sc.t_vert_len.data(), inc.touched_vertex_len, dev.stream);
 
   // ---- 1. net sign per (vertex, hyperedge) -------------------------------
   int n_uniq = 0;
   if (n_inc > 0) {
     const int end_bit = 32 + bits_for(std::max(2, di.num_vertices));
-    cub::DoubleBuffer<u64> k(sc.inc_keys, sc.inc_keys_alt);
-    cub::DoubleBuffer<int> s(sc.signs, sc.signs_alt);
+    cub::DoubleBuffer<u64> k(sc.inc_keys.data(), sc.inc_keys_alt.data());
+    cub::DoubleBuffer<int> s(sc.signs.data(), sc.signs_alt.data());
     std::size_t b1 = 0, b2 = 0;
     DYNG_CUDA_TRY(
         cub::DeviceRadixSort::SortPairs(nullptr, b1, k, s, n_inc, 0, end_bit, dev.stream));
-    DYNG_CUDA_TRY(cub::DeviceReduce::ReduceByKey(nullptr, b2, sc.inc_keys, sc.uniq, sc.signs,
-                                                 sc.net, sc.counts, ::cuda::std::plus<int>(), n_inc,
-                                                 dev.stream));
-    sc.reserve_temp(std::max(b1, b2));
-    DYNG_CUDA_TRY(
-        cub::DeviceRadixSort::SortPairs(sc.temp, sc.temp_cap, k, s, n_inc, 0, end_bit, dev.stream));
-    DYNG_CUDA_TRY(cub::DeviceReduce::ReduceByKey(sc.temp, sc.temp_cap, k.Current(), sc.uniq,
-                                                 s.Current(), sc.net, sc.counts,
+    DYNG_CUDA_TRY(cub::DeviceReduce::ReduceByKey(nullptr, b2, sc.inc_keys.data(), sc.uniq.data(),
+                                                 sc.signs.data(), sc.net.data(), sc.counts.data(),
                                                  ::cuda::std::plus<int>(), n_inc, dev.stream));
-    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts, sc.counts, sizeof(int), cudaMemcpyDeviceToHost,
-                                  dev.stream));
+    sc.reserve_temp(std::max(b1, b2));
+    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortPairs(sc.temp.data(), sc.temp_cap, k, s, n_inc, 0,
+                                                  end_bit, dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceReduce::ReduceByKey(
+        sc.temp.data(), sc.temp_cap, k.Current(), sc.uniq.data(), s.Current(), sc.net.data(),
+        sc.counts.data(), ::cuda::std::plus<int>(), n_inc, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts.data(), sc.counts.data(), sizeof(int),
+                                  cudaMemcpyDeviceToHost, dev.stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
     note_host_sync();
-    n_uniq = sc.host_counts[0];
+    n_uniq = sc.host_counts.data()[0];
   }
 
   // ---- 2. candidate counts (lists before / after the batch) --------------
   long long total0 = 0, total1 = 0;
   if (n_uniq > 0) {
     if (n_tv > 0)
-      scatter_int_kernel<<<grid_for(n_tv, block), block, 0, dev.stream>>>(sc.t_verts, sc.t_vert_len,
-                                                                          n_tv, di.d_post_len);
+      scatter_int_kernel<<<grid_for(n_tv, block), block, 0, dev.stream>>>(
+          sc.t_verts.data(), sc.t_vert_len.data(), n_tv, di.d_post_len.data());
     count_candidates_kernel<<<grid_for(n_uniq, block), block, 0, dev.stream>>>(
-        sc.uniq, sc.net, n_uniq, di.d_v_len, di.d_post_len, sc.cnt0, sc.cnt1);
+        sc.uniq.data(), sc.net.data(), n_uniq, di.d_v_len.data(), di.d_post_len.data(),
+        sc.cnt0.data(), sc.cnt1.data());
     std::size_t b = 0;
-    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, b, sc.cnt0, sc.off0, n_uniq, dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, b, sc.cnt0.data(), sc.off0.data(), n_uniq,
+                                                dev.stream));
     sc.reserve_temp(b);
-    DYNG_CUDA_TRY(
-        cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.cnt0, sc.off0, n_uniq, dev.stream));
-    DYNG_CUDA_TRY(
-        cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.cnt1, sc.off1, n_uniq, dev.stream));
-    totals_kernel<<<1, 1, 0, dev.stream>>>(sc.off0, sc.cnt0, sc.off1, sc.cnt1, n_uniq, sc.totals);
-    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_totals, sc.totals, sizeof(long long) * 2,
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(sc.temp.data(), sc.temp_cap, sc.cnt0.data(),
+                                                sc.off0.data(), n_uniq, dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(sc.temp.data(), sc.temp_cap, sc.cnt1.data(),
+                                                sc.off1.data(), n_uniq, dev.stream));
+    totals_kernel<<<1, 1, 0, dev.stream>>>(sc.off0.data(), sc.cnt0.data(), sc.off1.data(),
+                                           sc.cnt1.data(), n_uniq, sc.totals.data());
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_totals.data(), sc.totals.data(), sizeof(long long) * 2,
                                   cudaMemcpyDeviceToHost, dev.stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
     note_host_sync();
-    total0 = sc.host_totals[0];
-    total1 = sc.host_totals[1];
+    total0 = sc.host_totals.data()[0];
+    total1 = sc.host_totals.data()[1];
   }
   const long long n_cand = total0 + total1;
-  grow(sc.cand, sc.cand_cap, n_cand);
-  grow(sc.cand_alt, sc.cand_cap2, n_cand);
+  grow(sc.cand, sc.cand_cap, n_cand, *dev.res);
+  grow(sc.cand_alt, sc.cand_cap2, n_cand, *dev.res);
 
   // ---- 3. pass 0, update the vertex -> hyperedge mirror, pass 1 ----------
   if (n_uniq > 0) {
     emit_candidates_kernel<<<grid_for(32LL * n_uniq, block), block, 0, dev.stream>>>(
-        sc.uniq, sc.net, n_uniq, di.d_v_off, di.d_v_len, di.d_v_val, sc.off0, 0, sc.cand);
+        sc.uniq.data(), sc.net.data(), n_uniq, di.d_v_off.data(), di.d_v_len.data(),
+        di.d_v_val.data(), sc.off0.data(), 0, sc.cand.data());
     DYNG_CUDA_TRY(cudaGetLastError());
 
     // Rows that outgrow their slot move to the tail (host layout); a
@@ -433,38 +437,42 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
     } else {
       const int n_r = static_cast<int>(reloc_v.size());
       if (n_r > 0) {
-        grow(sc.reloc_verts, sc.r_cap, n_r);
-        grow(sc.reloc_off, sc.r_cap2, n_r);
-        upload(sc.reloc_verts, reloc_v, dev.stream);
-        upload(sc.reloc_off, reloc_off, dev.stream);
+        grow(sc.reloc_verts, sc.r_cap, n_r, *dev.res);
+        grow(sc.reloc_off, sc.r_cap2, n_r, *dev.res);
+        upload(sc.reloc_verts.data(), reloc_v, dev.stream);
+        upload(sc.reloc_off.data(), reloc_off, dev.stream);
         relocate_rows_kernel<<<grid_for(32LL * n_r, block), block, 0, dev.stream>>>(
-            sc.reloc_verts, sc.reloc_off, n_r, di.d_v_off, di.d_v_len, di.d_v_val);
+            sc.reloc_verts.data(), sc.reloc_off.data(), n_r, di.d_v_off.data(), di.d_v_len.data(),
+            di.d_v_val.data());
       }
       // Vertex segments of the sorted net changes.
-      auto verts = thrust::make_transform_iterator(sc.uniq, high_word());
+      auto verts = thrust::make_transform_iterator(sc.uniq.data(), high_word());
       std::size_t b = 0;
-      DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(nullptr, b, verts, sc.seg_vert, sc.seg_len,
-                                                       sc.counts + 1, n_uniq, dev.stream));
+      DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(nullptr, b, verts, sc.seg_vert.data(),
+                                                       sc.seg_len.data(), sc.counts.data() + 1,
+                                                       n_uniq, dev.stream));
       sc.reserve_temp(b);
-      DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(
-          sc.temp, sc.temp_cap, verts, sc.seg_vert, sc.seg_len, sc.counts + 1, n_uniq, dev.stream));
-      DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 1, sc.counts + 1, sizeof(int),
+      DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(sc.temp.data(), sc.temp_cap, verts,
+                                                       sc.seg_vert.data(), sc.seg_len.data(),
+                                                       sc.counts.data() + 1, n_uniq, dev.stream));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts.data() + 1, sc.counts.data() + 1, sizeof(int),
                                     cudaMemcpyDeviceToHost, dev.stream));
       DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
       note_host_sync();
-      const int n_seg = sc.host_counts[1];
+      const int n_seg = sc.host_counts.data()[1];
       b = 0;
-      DYNG_CUDA_TRY(
-          cub::DeviceScan::ExclusiveSum(nullptr, b, sc.seg_len, sc.seg_off, n_seg, dev.stream));
-      sc.reserve_temp(b);
-      DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(sc.temp, sc.temp_cap, sc.seg_len, sc.seg_off,
+      DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, b, sc.seg_len.data(), sc.seg_off.data(),
                                                   n_seg, dev.stream));
+      sc.reserve_temp(b);
+      DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(sc.temp.data(), sc.temp_cap, sc.seg_len.data(),
+                                                  sc.seg_off.data(), n_seg, dev.stream));
       apply_vertex_rows_kernel<<<grid_for(32LL * n_seg, block), block, 0, dev.stream>>>(
-          sc.seg_off, sc.seg_len, n_seg, sc.uniq, sc.net, di.d_v_off, di.d_v_len, di.d_v_val,
-          dev.d_error);
+          sc.seg_off.data(), sc.seg_len.data(), n_seg, sc.uniq.data(), sc.net.data(),
+          di.d_v_off.data(), di.d_v_len.data(), di.d_v_val.data(), dev.d_error.data());
     }
     emit_candidates_kernel<<<grid_for(32LL * n_uniq, block), block, 0, dev.stream>>>(
-        sc.uniq, sc.net, n_uniq, di.d_v_off, di.d_v_len, di.d_v_val, sc.off1, total0, sc.cand);
+        sc.uniq.data(), sc.net.data(), n_uniq, di.d_v_off.data(), di.d_v_len.data(),
+        di.d_v_val.data(), sc.off1.data(), total0, sc.cand.data());
     DYNG_CUDA_TRY(cudaGetLastError());
   }
 
@@ -478,65 +486,68 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
                            " (the int32 counts of the delta); split the batch");
     }
     const int n = static_cast<int>(n_cand);
-    cub::DoubleBuffer<u64> k(sc.cand, sc.cand_alt);
+    cub::DoubleBuffer<u64> k(sc.cand.data(), sc.cand_alt.data());
     std::size_t b1 = 0, b2 = 0, b3 = 0;
     DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(nullptr, b1, k, n, 0,
                                                  static_cast<int>(sizeof(u64) * 8), dev.stream));
-    DYNG_CUDA_TRY(
-        cub::DeviceSelect::Unique(nullptr, b2, sc.cand, sc.cand_alt, sc.counts + 2, n, dev.stream));
-    grow(sc.cls, sc.cls_cap, n_cand);
-    grow(sc.selected, sc.sel_cap, n_cand);
-    DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(nullptr, b3, sc.cand,
-                                             thrust::make_transform_iterator(sc.cls, is_deleted()),
-                                             sc.selected, sc.counts + 3, n, dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceSelect::Unique(nullptr, b2, sc.cand.data(), sc.cand_alt.data(),
+                                            sc.counts.data() + 2, n, dev.stream));
+    grow(sc.cls, sc.cls_cap, n_cand, *dev.res);
+    grow(sc.selected, sc.sel_cap, n_cand, *dev.res);
+    DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(
+        nullptr, b3, sc.cand.data(), thrust::make_transform_iterator(sc.cls.data(), is_deleted()),
+        sc.selected.data(), sc.counts.data() + 3, n, dev.stream));
     sc.reserve_temp(std::max({b1, b2, b3}));
-    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(sc.temp, sc.temp_cap, k, n, 0,
+    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(sc.temp.data(), sc.temp_cap, k, n, 0,
                                                  static_cast<int>(sizeof(u64) * 8), dev.stream));
     u64* sorted = k.Current();
     u64* uniq = k.Alternate();
-    DYNG_CUDA_TRY(cub::DeviceSelect::Unique(sc.temp, sc.temp_cap, sorted, uniq, sc.counts + 2, n,
-                                            dev.stream));
-    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 2, sc.counts + 2, sizeof(int),
+    DYNG_CUDA_TRY(cub::DeviceSelect::Unique(sc.temp.data(), sc.temp_cap, sorted, uniq,
+                                            sc.counts.data() + 2, n, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts.data() + 2, sc.counts.data() + 2, sizeof(int),
                                   cudaMemcpyDeviceToHost, dev.stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
     note_host_sync();
-    const int n_pairs = sc.host_counts[2];
+    const int n_pairs = sc.host_counts.data()[2];
 
     if (n_t > 0)
-      set_index_kernel<<<grid_for(n_t, block), block, 0, dev.stream>>>(sc.touched, n_t,
-                                                                       di.d_touched_idx);
+      set_index_kernel<<<grid_for(n_t, block), block, 0, dev.stream>>>(sc.touched.data(), n_t,
+                                                                       di.d_touched_idx.data());
     classify_pairs_kernel<<<grid_for(n_pairs, block), block, 0, dev.stream>>>(
-        uniq, n_pairs, di.d_touched_idx, sc.pre_off, sc.pre_vals, sc.post_off, sc.post_vals,
-        di.d_he_off, di.d_he_len, di.d_he_val, sc.cls);
+        uniq, n_pairs, di.d_touched_idx.data(), sc.pre_off.data(), sc.pre_vals.data(),
+        sc.post_off.data(), sc.post_vals.data(), di.d_he_off.data(), di.d_he_len.data(),
+        di.d_he_val.data(), sc.cls.data());
     DYNG_CUDA_TRY(cudaGetLastError());
     if (n_t > 0)
-      reset_index_kernel<<<grid_for(n_t, block), block, 0, dev.stream>>>(sc.touched, n_t,
-                                                                         di.d_touched_idx);
+      reset_index_kernel<<<grid_for(n_t, block), block, 0, dev.stream>>>(sc.touched.data(), n_t,
+                                                                         di.d_touched_idx.data());
 
     // Deleted pairs first, then inserted ones.
-    dd.reserve(n_pairs, 0);
-    DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(sc.temp, sc.temp_cap, uniq,
-                                             thrust::make_transform_iterator(sc.cls, is_deleted()),
-                                             sc.selected, sc.counts + 3, n_pairs, dev.stream));
-    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 3, sc.counts + 3, sizeof(int),
+    dd.reserve(*dev.res, n_pairs, 0);
+    DYNG_CUDA_TRY(
+        cub::DeviceSelect::Flagged(sc.temp.data(), sc.temp_cap, uniq,
+                                   thrust::make_transform_iterator(sc.cls.data(), is_deleted()),
+                                   sc.selected.data(), sc.counts.data() + 3, n_pairs, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts.data() + 3, sc.counts.data() + 3, sizeof(int),
                                   cudaMemcpyDeviceToHost, dev.stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
     note_host_sync();
-    num_del = sc.host_counts[3];
+    num_del = sc.host_counts.data()[3];
     if (num_del > 0)
-      keys_to_pairs_kernel<<<grid_for(num_del, block), block, 0, dev.stream>>>(sc.selected, num_del,
-                                                                               dd.d_pairs);
-    DYNG_CUDA_TRY(cub::DeviceSelect::Flagged(sc.temp, sc.temp_cap, uniq,
-                                             thrust::make_transform_iterator(sc.cls, is_inserted()),
-                                             sc.selected, sc.counts + 3, n_pairs, dev.stream));
-    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts + 3, sc.counts + 3, sizeof(int),
+      keys_to_pairs_kernel<<<grid_for(num_del, block), block, 0, dev.stream>>>(
+          sc.selected.data(), num_del, dd.d_pairs.data());
+    DYNG_CUDA_TRY(
+        cub::DeviceSelect::Flagged(sc.temp.data(), sc.temp_cap, uniq,
+                                   thrust::make_transform_iterator(sc.cls.data(), is_inserted()),
+                                   sc.selected.data(), sc.counts.data() + 3, n_pairs, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(sc.host_counts.data() + 3, sc.counts.data() + 3, sizeof(int),
                                   cudaMemcpyDeviceToHost, dev.stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
     note_host_sync();
-    num_ins = sc.host_counts[3];
+    num_ins = sc.host_counts.data()[3];
     if (num_ins > 0)
       keys_to_pairs_kernel<<<grid_for(num_ins, block), block, 0, dev.stream>>>(
-          sc.selected, num_ins, dd.d_pairs + num_del);
+          sc.selected.data(), num_ins, dd.d_pairs.data() + num_del);
     DYNG_CUDA_TRY(cudaGetLastError());
   }
 
@@ -563,10 +574,10 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
       upload_he_rows(di, hg, 1.5);
       ++reuploads;
     } else {
-      upload(sc.he_write_off, write_off, dev.stream);
+      upload(sc.he_write_off.data(), write_off, dev.stream);
       write_he_rows_kernel<<<grid_for(32LL * n_t, block), block, 0, dev.stream>>>(
-          sc.touched, sc.he_write_off, n_t, sc.post_off, sc.post_vals, di.d_he_off, di.d_he_len,
-          di.d_he_val);
+          sc.touched.data(), sc.he_write_off.data(), n_t, sc.post_off.data(), sc.post_vals.data(),
+          di.d_he_off.data(), di.d_he_len.data(), di.d_he_val.data());
       DYNG_CUDA_TRY(cudaGetLastError());
     }
   }
@@ -576,9 +587,9 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   ids.reserve(inc.new_he.size() + inc.dead_he.size());
   for (int id : inc.new_he) ids.push_back(id - 1);
   for (int id : inc.dead_he) ids.push_back(id - 1);
-  dd.reserve(0, static_cast<long long>(ids.size()));
-  upload(dd.d_ids, ids, dev.stream);
-  upload(dd.d_new_w, inc.new_w, dev.stream);
+  dd.reserve(*dev.res, 0, static_cast<long long>(ids.size()));
+  upload(dd.d_ids.data(), ids, dev.stream);
+  upload(dd.d_new_w.data(), inc.new_w, dev.stream);
   dd.num_del = num_del;
   dd.num_ins = num_ins;
   dd.num_new = static_cast<int>(inc.new_he.size());

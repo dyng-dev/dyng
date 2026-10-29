@@ -27,16 +27,20 @@
  * mosp/src are untouched.
  */
 
+#include "core/resources_access.hpp"
 #include "hypergraph/slack_csr/slack_layout.hpp"
 #include "util/cuda_check.hpp"
 #include "util/device_error_flags.hpp"
 
+#include <dyng/core/buffer.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/resources.hpp>
 
 #include <cuda_runtime.h>
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -135,9 +139,9 @@ struct incidence_batch {
  * pairs; ids = new (inserted or recreated) nodes, then dead ones.
  */
 struct device_delta {
-  int2* d_pairs = nullptr;
-  int* d_ids = nullptr;
-  long long* d_new_w = nullptr;  ///< weights of the new nodes
+  buffer<int2> d_pairs;
+  buffer<int> d_ids;
+  buffer<long long> d_new_w;  ///< weights of the new nodes
   long long pair_capacity = 0;
   long long id_capacity = 0;
   int num_del = 0;
@@ -148,26 +152,23 @@ struct device_delta {
   // The scratch of the device-side grouping of the CSR apply: directed
   // row keys (double buffered for the radix sort), row runs and offsets,
   // and the CUB temporary storage. Grown on demand, reused across batches.
-  unsigned long long* d_keys = nullptr;
-  unsigned long long* d_keys_alt = nullptr;
-  int* d_rows = nullptr;
-  int* d_row_len = nullptr;
-  int* d_row_off = nullptr;
-  int* d_num_rows = nullptr;
-  void* d_temp = nullptr;
+  buffer<unsigned long long> d_keys;
+  buffer<unsigned long long> d_keys_alt;
+  buffer<int> d_rows;
+  buffer<int> d_row_len;
+  buffer<int> d_row_off;
+  buffer<int> d_num_rows;
+  buffer<char> d_temp;
   std::size_t temp_bytes = 0;
   long long key_capacity = 0;
   /// After the CSR apply: the sorted directed keys (row << 33 |
   /// isInsert << 32 | col), 2 per pair (one of d_keys / d_keys_alt).
   const unsigned long long* d_sorted_keys = nullptr;
   long long num_sorted_keys = 0;
-  /// Pinned host copy of the sorted keys (for the CBST maintenance).
-  unsigned long long* h_sorted_keys = nullptr;
-  long long host_key_capacity = 0;
 
-  void reserve(long long pairs, long long ids);
-  void reserve_keys(long long keys);
-  void reserve_temp(std::size_t bytes);
+  void reserve(const resources& res, long long pairs, long long ids);
+  void reserve_keys(const resources& res, long long keys);
+  void reserve_temp(const resources& res, std::size_t bytes);
   void free();
 };
 
@@ -184,28 +185,29 @@ struct device_incidence {
   int max_nodes = 0;
   int num_vertices = 0;
   // Hyperedge -> vertices (node-indexed).
-  long long* d_he_off = nullptr;
-  int* d_he_len = nullptr;
-  int* d_he_val = nullptr;
+  buffer<long long> d_he_off;
+  buffer<int> d_he_len;
+  buffer<int> d_he_val;
   long long he_capacity = 0;
   long long he_tail = 0;
   std::vector<long long> he_off;
   std::vector<int> he_cap;
   // Vertex -> hyperedges (0-based node indices).
-  long long* d_v_off = nullptr;
-  int* d_v_len = nullptr;
-  int* d_v_val = nullptr;
+  buffer<long long> d_v_off;
+  buffer<int> d_v_len;
+  buffer<int> d_v_val;
   long long v_capacity = 0;
   long long v_tail = 0;
   std::vector<long long> v_off;
   std::vector<int> v_cap;
   // Per-batch scratch, grown on demand.
-  int* d_touched_idx = nullptr;  ///< node -> touched slot or -1
-  int* d_post_len = nullptr;     ///< vertex -> post-batch length
+  buffer<int> d_touched_idx;  ///< node -> touched slot or -1
+  buffer<int> d_post_len;     ///< vertex -> post-batch length
   struct scratch_arrays;
-  scratch_arrays* scratch = nullptr;
+  std::unique_ptr<scratch_arrays> scratch;
+  const resources* res = nullptr;  ///< dynG: the store's resources (every array from them)
 
-  device_incidence() = default;
+  device_incidence();
   ~device_incidence();
   device_incidence(const device_incidence&) = delete;
   device_incidence& operator=(const device_incidence&) = delete;
@@ -224,79 +226,60 @@ struct device_incidence {
 using u64 = unsigned long long;
 
 struct device_incidence::scratch_arrays {
-  u64* inc_keys = nullptr;
-  u64* inc_keys_alt = nullptr;
-  int* signs = nullptr;
-  int* signs_alt = nullptr;
-  u64* uniq = nullptr;
-  int* net = nullptr;
-  long long* cnt0 = nullptr;
-  long long* cnt1 = nullptr;
-  long long* off0 = nullptr;
-  long long* off1 = nullptr;
-  int* seg_len = nullptr;
-  int* seg_off = nullptr;
-  int* seg_vert = nullptr;
+  buffer<u64> inc_keys;
+  buffer<u64> inc_keys_alt;
+  buffer<int> signs;
+  buffer<int> signs_alt;
+  buffer<u64> uniq;
+  buffer<int> net;
+  buffer<long long> cnt0;
+  buffer<long long> cnt1;
+  buffer<long long> off0;
+  buffer<long long> off1;
+  buffer<int> seg_len;
+  buffer<int> seg_off;
+  buffer<int> seg_vert;
   long long inc_cap = 0, inc_cap2 = 0, inc_cap3 = 0, inc_cap4 = 0, inc_cap5 = 0, inc_cap6 = 0,
             inc_cap7 = 0, inc_cap8 = 0, inc_cap9 = 0, inc_cap10 = 0, inc_cap11 = 0, inc_cap12 = 0,
             inc_cap13 = 0;
-  u64* cand = nullptr;
-  u64* cand_alt = nullptr;
-  signed char* cls = nullptr;
-  u64* selected = nullptr;
+  buffer<u64> cand;
+  buffer<u64> cand_alt;
+  buffer<signed char> cls;
+  buffer<u64> selected;
   long long cand_cap = 0, cand_cap2 = 0, cls_cap = 0, sel_cap = 0;
-  int* touched = nullptr;
-  int* pre_off = nullptr;
-  int* post_off = nullptr;
-  long long* he_write_off = nullptr;
+  buffer<int> touched;
+  buffer<int> pre_off;
+  buffer<int> post_off;
+  buffer<long long> he_write_off;
   long long t_cap = 0, t_cap2 = 0, t_cap3 = 0, t_cap4 = 0;
-  int* pre_vals = nullptr;
-  int* post_vals = nullptr;
+  buffer<int> pre_vals;
+  buffer<int> post_vals;
   long long val_cap = 0, val_cap2 = 0;
-  int* t_verts = nullptr;
-  int* t_vert_len = nullptr;
-  int* reloc_verts = nullptr;
-  long long* reloc_off = nullptr;
+  buffer<int> t_verts;
+  buffer<int> t_vert_len;
+  buffer<int> reloc_verts;
+  buffer<long long> reloc_off;
   long long tv_cap = 0, tv_cap2 = 0, r_cap = 0, r_cap2 = 0;
-  long long* totals = nullptr;
-  int* counts = nullptr;             // [0] uniq, [1] segs, [2] cand, [3] sel
-  long long* host_totals = nullptr;  // pinned
-  int* host_counts = nullptr;        // pinned
-  void* temp = nullptr;
+  buffer<long long> totals;
+  buffer<int> counts;             // [0] uniq, [1] segs, [2] cand, [3] sel
+  buffer<long long> host_totals;  // pinned
+  buffer<int> host_counts;        // pinned
+  buffer<char> temp;
   std::size_t temp_cap = 0;
 
-  scratch_arrays() {
-    DYNG_CUDA_TRY(cudaMalloc(&totals, sizeof(long long) * 2));
-    DYNG_CUDA_TRY(cudaMalloc(&counts, sizeof(int) * 4));
-    DYNG_CUDA_TRY(cudaMallocHost(&host_totals, sizeof(long long) * 2));
-    DYNG_CUDA_TRY(cudaMallocHost(&host_counts, sizeof(int) * 4));
-  }
-  ~scratch_arrays() {
-    for (void* p : {static_cast<void*>(inc_keys),     static_cast<void*>(inc_keys_alt),
-                    static_cast<void*>(signs),        static_cast<void*>(signs_alt),
-                    static_cast<void*>(uniq),         static_cast<void*>(net),
-                    static_cast<void*>(cnt0),         static_cast<void*>(cnt1),
-                    static_cast<void*>(off0),         static_cast<void*>(off1),
-                    static_cast<void*>(seg_len),      static_cast<void*>(seg_off),
-                    static_cast<void*>(seg_vert),     static_cast<void*>(cand),
-                    static_cast<void*>(cand_alt),     static_cast<void*>(cls),
-                    static_cast<void*>(selected),     static_cast<void*>(touched),
-                    static_cast<void*>(pre_off),      static_cast<void*>(post_off),
-                    static_cast<void*>(he_write_off), static_cast<void*>(pre_vals),
-                    static_cast<void*>(post_vals),    static_cast<void*>(t_verts),
-                    static_cast<void*>(t_vert_len),   static_cast<void*>(reloc_verts),
-                    static_cast<void*>(reloc_off),    static_cast<void*>(totals),
-                    static_cast<void*>(counts),       temp})
-      if (p) DYNG_CUDA_TRY_NO_THROW(cudaFree(p));
-    if (host_totals) DYNG_CUDA_TRY_NO_THROW(cudaFreeHost(host_totals));
-    if (host_counts) DYNG_CUDA_TRY_NO_THROW(cudaFreeHost(host_counts));
-  }
+  const resources* res = nullptr;
 
+  explicit scratch_arrays(const resources& r)
+      : totals(r, 2),
+        counts(r, 4),
+        host_totals(2, r.stream(), resources_access::staging_memory(r), -1),
+        host_counts(4, r.stream(), resources_access::staging_memory(r), -1),
+        res(&r) {}
   void reserve_temp(std::size_t bytes) {
     if (bytes <= temp_cap) return;
-    if (temp) DYNG_CUDA_TRY(cudaFree(temp));
+    temp = buffer<char>();
     temp_cap = bytes + bytes / 2 + 4096;
-    DYNG_CUDA_TRY(cudaMalloc(&temp, temp_cap));
+    temp = buffer<char>(*res, temp_cap);
   }
 };
 
@@ -308,28 +291,29 @@ struct device_h2h {
   long long cap_entries = 0;      ///< capacity of col_ind
   long long used_entries = 0;     ///< host mirror of the tail cursor
 
-  long long* d_row_start = nullptr;
-  int* d_deg = nullptr;
-  int* d_cap = nullptr;
-  int* d_col_ind = nullptr;
-  long long* d_node_w = nullptr;
-  unsigned long long* d_tail_cursor = nullptr;
-  int* d_overflow_flag = nullptr;
+  buffer<long long> d_row_start;
+  buffer<int> d_deg;
+  buffer<int> d_cap;
+  buffer<int> d_col_ind;
+  buffer<long long> d_node_w;
+  buffer<unsigned long long> d_tail_cursor;
+  buffer<int> d_overflow_flag;
   /// dynG: the sticky device error word (PLAN 4.7.3) of the delta and the CSR apply: a deletion
   /// that finds no entry is a broken invariant (device_error::internal), read with the overflow
   /// flag.
-  std::uint32_t* d_error = nullptr;
+  buffer<std::uint32_t> d_error;
   long long num_entries = 0;  ///< live adjacency entries (2 x pairs)
 
-  device_delta delta;    ///< last applied batch delta
-  device_incidence inc;  ///< incidence mirror for the delta
+  device_delta delta;              ///< last applied batch delta
+  device_incidence inc;            ///< incidence mirror for the delta
+  const resources* res = nullptr;  ///< dynG: the store's resources (every array from them)
 
   device_h2h() = default;
-  ~device_h2h();
+  ~device_h2h() = default;
   device_h2h(const device_h2h&) = delete;
   device_h2h& operator=(const device_h2h&) = delete;
-  device_h2h(device_h2h&&) noexcept;
-  device_h2h& operator=(device_h2h&&) noexcept;
+  device_h2h(device_h2h&&) noexcept = default;
+  device_h2h& operator=(device_h2h&&) noexcept = default;
 
   long long device_bytes() const;
   void free();

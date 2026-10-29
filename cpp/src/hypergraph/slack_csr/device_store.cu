@@ -96,6 +96,9 @@ class slack_device_store final : public incidence_store, public slack_access {
     // Every operation of the device graph on the store's stream.
     dev_.stream = stream_of(res_);
     dev_.inc.stream = stream_of(res_);
+    // Every array of the device graph from the store's resources (buffers).
+    dev_.res = &res_;
+    dev_.inc.res = &res_;
   }
 
   [[nodiscard]] std::unique_ptr<incidence_store> clone(const resources& res) const override {
@@ -246,7 +249,7 @@ class slack_device_store final : public incidence_store, public slack_access {
     const std::size_t total = static_cast<std::size_t>(dd.num_del) + dd.num_ins;
     std::vector<std::int32_t> pairs(2 * total);
     if (total > 0) {
-      DYNG_CUDA_TRY(cudaMemcpyAsync(pairs.data(), dd.d_pairs, sizeof(int2) * total,
+      DYNG_CUDA_TRY(cudaMemcpyAsync(pairs.data(), dd.d_pairs.data(), sizeof(int2) * total,
                                     cudaMemcpyDeviceToHost, stream_of(res_)));
       DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
       note_host_sync();
@@ -280,7 +283,8 @@ class slack_device_store final : public incidence_store, public slack_access {
     }
     if (dd.num_dead > 0) {
       zero_dead_degrees_kernel<<<slack::grid_for(dd.num_dead, block_size), block_size, 0,
-                                 stream_of(res_)>>>(dd.d_ids + dd.num_new, dd.num_dead, dev_.d_deg);
+                                 stream_of(res_)>>>(dd.d_ids.data() + dd.num_new, dd.num_dead,
+                                                    dev_.d_deg.data());
       DYNG_CUDA_TRY(cudaGetLastError());
     }
 #if defined(DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS)
@@ -506,10 +510,10 @@ class slack_device_store final : public incidence_store, public slack_access {
     std::vector<int> deg(static_cast<std::size_t>(dev_.max_nodes)),
         cap(static_cast<std::size_t>(dev_.max_nodes));
     std::vector<long long> weight(static_cast<std::size_t>(dev_.max_nodes));
-    download(dev_.d_row_start, start);
-    download(dev_.d_deg, deg);
-    download(dev_.d_cap, cap);
-    download(dev_.d_node_w, weight);
+    download(dev_.d_row_start.data(), start);
+    download(dev_.d_deg.data(), deg);
+    download(dev_.d_cap.data(), cap);
+    download(dev_.d_node_w.data(), weight);
     for (std::size_t r = 0; r < deg.size() && problems.size() < 20; ++r) {
       if (deg[r] < 0 || deg[r] > cap[r] || (deg[r] > 0 && start[r] + cap[r] > dev_.used_entries) ||
           (static_cast<std::int64_t>(r) >= dev_.num_nodes && deg[r] != 0))
@@ -612,11 +616,11 @@ class slack_device_store final : public incidence_store, public slack_access {
     v.used_entries = dev_.used_entries;
     v.cap_entries = dev_.cap_entries;
     v.pair_count = pair_count_;
-    v.row_start = reinterpret_cast<const std::int64_t*>(dev_.d_row_start);
-    v.deg = dev_.d_deg;
-    v.cap = dev_.d_cap;
-    v.col_ind = dev_.d_col_ind;
-    v.node_weight = reinterpret_cast<const std::int64_t*>(dev_.d_node_w);
+    v.row_start = reinterpret_cast<const std::int64_t*>(dev_.d_row_start.data());
+    v.deg = dev_.d_deg.data();
+    v.cap = dev_.d_cap.data();
+    v.col_ind = dev_.d_col_ind.data();
+    v.node_weight = reinterpret_cast<const std::int64_t*>(dev_.d_node_w.data());
     v.mirror_he_capacity = dev_.inc.he_capacity;
     v.mirror_he_tail = dev_.inc.he_tail;
     v.mirror_v_capacity = dev_.inc.v_capacity;
@@ -630,9 +634,9 @@ class slack_device_store final : public incidence_store, public slack_access {
     const slack::device_delta& dd = dev_.delta;
     v.space = memory_space::device;
     v.device = res_.device();
-    v.pairs = reinterpret_cast<const std::int32_t*>(dd.d_pairs);
-    v.ids = dd.d_ids;
-    v.new_weights = reinterpret_cast<const std::int64_t*>(dd.d_new_w);
+    v.pairs = reinterpret_cast<const std::int32_t*>(dd.d_pairs.data());
+    v.ids = dd.d_ids.data();
+    v.new_weights = reinterpret_cast<const std::int64_t*>(dd.d_new_w.data());
     v.num_deleted = dd.num_del;
     v.num_inserted = dd.num_ins;
     v.num_new = dd.num_new;
@@ -712,7 +716,7 @@ class slack_device_store final : public incidence_store, public slack_access {
     std::vector<long long> w(static_cast<std::size_t>(dev_.max_nodes), 0);
     const auto& by_id = host_->node_weights();
     for (std::size_t i = 0; i < by_id.size() && i < w.size(); ++i) w[i] = by_id[i];
-    DYNG_CUDA_TRY(cudaMemcpyAsync(dev_.d_node_w, w.data(), sizeof(long long) * w.size(),
+    DYNG_CUDA_TRY(cudaMemcpyAsync(dev_.d_node_w.data(), w.data(), sizeof(long long) * w.size(),
                                   cudaMemcpyHostToDevice, stream_of(res_)));
     DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));  // `w` is a local
     note_host_sync();

@@ -192,30 +192,32 @@ void build_csr(device_h2h& dev, const host_hypergraph& hg, const line_graph_csr&
     }
   }
 
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_row_start, sizeof(long long) * max_nodes));
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_deg, sizeof(int) * max_nodes));
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_cap, sizeof(int) * max_nodes));
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_col_ind, sizeof(int) * dev.cap_entries));
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_node_w, sizeof(long long) * max_nodes));
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_tail_cursor, sizeof(unsigned long long)));
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_overflow_flag, sizeof(int)));
-  DYNG_CUDA_TRY(cudaMalloc(&dev.d_error, sizeof(std::uint32_t)));
-  DYNG_CUDA_TRY(cudaMemsetAsync(dev.d_error, 0, sizeof(std::uint32_t), dev.stream));
+  const resources& res = *dev.res;
+  const auto nodes = static_cast<std::size_t>(max_nodes);
+  dev.d_row_start = buffer<long long>(res, nodes);
+  dev.d_deg = buffer<int>(res, nodes);
+  dev.d_cap = buffer<int>(res, nodes);
+  dev.d_col_ind = buffer<int>(res, static_cast<std::size_t>(dev.cap_entries));
+  dev.d_node_w = buffer<long long>(res, nodes);
+  dev.d_tail_cursor = buffer<unsigned long long>(res, 1);
+  dev.d_overflow_flag = buffer<int>(res, 1);
+  dev.d_error = buffer<std::uint32_t>(res, 1);
+  DYNG_CUDA_TRY(cudaMemsetAsync(dev.d_error.data(), 0, sizeof(std::uint32_t), dev.stream));
 
-  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_row_start, row_start.data(), sizeof(long long) * max_nodes,
+  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_row_start.data(), row_start.data(),
+                                sizeof(long long) * max_nodes, cudaMemcpyHostToDevice, dev.stream));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_deg.data(), deg.data(), sizeof(int) * max_nodes,
                                 cudaMemcpyHostToDevice, dev.stream));
-  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_deg, deg.data(), sizeof(int) * max_nodes,
+  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_cap.data(), cap.data(), sizeof(int) * max_nodes,
                                 cudaMemcpyHostToDevice, dev.stream));
-  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_cap, cap.data(), sizeof(int) * max_nodes,
+  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_col_ind.data(), col_ind.data(), sizeof(int) * dev.cap_entries,
                                 cudaMemcpyHostToDevice, dev.stream));
-  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_col_ind, col_ind.data(), sizeof(int) * dev.cap_entries,
-                                cudaMemcpyHostToDevice, dev.stream));
-  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_node_w, node_w.data(), sizeof(long long) * max_nodes,
+  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_node_w.data(), node_w.data(), sizeof(long long) * max_nodes,
                                 cudaMemcpyHostToDevice, dev.stream));
   unsigned long long tc = static_cast<unsigned long long>(cursor);
-  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_tail_cursor, &tc, sizeof(unsigned long long),
+  DYNG_CUDA_TRY(cudaMemcpyAsync(dev.d_tail_cursor.data(), &tc, sizeof(unsigned long long),
                                 cudaMemcpyHostToDevice, dev.stream));
-  DYNG_CUDA_TRY(cudaMemsetAsync(dev.d_overflow_flag, 0, sizeof(int), dev.stream));
+  DYNG_CUDA_TRY(cudaMemsetAsync(dev.d_overflow_flag.data(), 0, sizeof(int), dev.stream));
 }
 
 /**
@@ -236,9 +238,9 @@ bool apply_delta_pairs(device_h2h& dev) {
       throw capacity_error("dyng: hypergraph: a batch of " + std::to_string(n_pairs) +
                            " line-graph pair changes exceeds the int32 counts of the CSR apply");
     }
-    dd.reserve_keys(n_keys);
+    dd.reserve_keys(*dev.res, n_keys);
     expand_delta_keys_kernel<<<grid_for(n_pairs, block), block, 0, dev.stream>>>(
-        dd.d_pairs, dd.num_del, static_cast<int>(n_pairs), dd.d_keys);
+        dd.d_pairs.data(), dd.num_del, static_cast<int>(n_pairs), dd.d_keys.data());
     DYNG_CUDA_TRY(cudaGetLastError());
 
     // Only the bits up to the row index take part in the sort.
@@ -246,53 +248,56 @@ bool apply_delta_pairs(device_h2h& dev) {
     while ((1LL << row_bits) < dev.max_nodes) ++row_bits;
     const int end_bit = 33 + row_bits;
     const int n = static_cast<int>(n_keys);
-    cub::DoubleBuffer<unsigned long long> keys(dd.d_keys, dd.d_keys_alt);
+    cub::DoubleBuffer<unsigned long long> keys(dd.d_keys.data(), dd.d_keys_alt.data());
     auto rows_in =
         thrust::make_transform_iterator(static_cast<const unsigned long long*>(nullptr), key_row());
     std::size_t sort_bytes = 0, rle_bytes = 0, scan_bytes = 0;
     DYNG_CUDA_TRY(
         cub::DeviceRadixSort::SortKeys(nullptr, sort_bytes, keys, n, 0, end_bit, dev.stream));
-    DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(nullptr, rle_bytes, rows_in, dd.d_rows,
-                                                     dd.d_row_len, dd.d_num_rows, n, dev.stream));
-    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes, dd.d_row_len, dd.d_row_off, n,
-                                                dev.stream));
-    dd.reserve_temp(std::max({sort_bytes, rle_bytes, scan_bytes}));
-    DYNG_CUDA_TRY(
-        cub::DeviceRadixSort::SortKeys(dd.d_temp, dd.temp_bytes, keys, n, 0, end_bit, dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(nullptr, rle_bytes, rows_in, dd.d_rows.data(),
+                                                     dd.d_row_len.data(), dd.d_num_rows.data(), n,
+                                                     dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes, dd.d_row_len.data(),
+                                                dd.d_row_off.data(), n, dev.stream));
+    dd.reserve_temp(*dev.res, std::max({sort_bytes, rle_bytes, scan_bytes}));
+    DYNG_CUDA_TRY(cub::DeviceRadixSort::SortKeys(dd.d_temp.data(), dd.temp_bytes, keys, n, 0,
+                                                 end_bit, dev.stream));
     const unsigned long long* sorted = keys.Current();
     dd.d_sorted_keys = sorted;
     dd.num_sorted_keys = n_keys;
     auto rows = thrust::make_transform_iterator(sorted, key_row());
-    DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(dd.d_temp, dd.temp_bytes, rows, dd.d_rows,
-                                                     dd.d_row_len, dd.d_num_rows, n, dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceRunLengthEncode::Encode(dd.d_temp.data(), dd.temp_bytes, rows,
+                                                     dd.d_rows.data(), dd.d_row_len.data(),
+                                                     dd.d_num_rows.data(), n, dev.stream));
     int n_rows = 0;
-    DYNG_CUDA_TRY(
-        cudaMemcpyAsync(&n_rows, dd.d_num_rows, sizeof(int), cudaMemcpyDeviceToHost, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(&n_rows, dd.d_num_rows.data(), sizeof(int),
+                                  cudaMemcpyDeviceToHost, dev.stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
     note_host_sync();
-    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(dd.d_temp, dd.temp_bytes, dd.d_row_len,
-                                                dd.d_row_off, n_rows, dev.stream));
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(dd.d_temp.data(), dd.temp_bytes,
+                                                dd.d_row_len.data(), dd.d_row_off.data(), n_rows,
+                                                dev.stream));
     apply_rows_warp_kernel<<<grid_for(32LL * n_rows, block), block, 0, dev.stream>>>(
-        n_rows, dd.d_rows, dd.d_row_off, dd.d_row_len, sorted, dev.d_row_start, dev.d_deg,
-        dev.d_cap, dev.d_col_ind, dev.d_tail_cursor, dev.cap_entries, dev.d_overflow_flag,
-        dev.d_error);
+        n_rows, dd.d_rows.data(), dd.d_row_off.data(), dd.d_row_len.data(), sorted,
+        dev.d_row_start.data(), dev.d_deg.data(), dev.d_cap.data(), dev.d_col_ind.data(),
+        dev.d_tail_cursor.data(), dev.cap_entries, dev.d_overflow_flag.data(), dev.d_error.data());
     DYNG_CUDA_TRY(cudaGetLastError());
   }
   if (dd.num_new > 0) {
     scatter_weights_kernel<<<grid_for(dd.num_new, block), block, 0, dev.stream>>>(
-        dd.d_ids, dd.d_new_w, dd.num_new, dev.d_node_w);
+        dd.d_ids.data(), dd.d_new_w.data(), dd.num_new, dev.d_node_w.data());
     DYNG_CUDA_TRY(cudaGetLastError());
   }
 
   int overflow = 0;
-  DYNG_CUDA_TRY(cudaMemcpyAsync(&overflow, dev.d_overflow_flag, sizeof(int), cudaMemcpyDeviceToHost,
-                                dev.stream));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(&overflow, dev.d_overflow_flag.data(), sizeof(int),
+                                cudaMemcpyDeviceToHost, dev.stream));
   unsigned long long tc = 0;
-  DYNG_CUDA_TRY(cudaMemcpyAsync(&tc, dev.d_tail_cursor, sizeof(unsigned long long),
+  DYNG_CUDA_TRY(cudaMemcpyAsync(&tc, dev.d_tail_cursor.data(), sizeof(unsigned long long),
                                 cudaMemcpyDeviceToHost, dev.stream));
   std::uint32_t error = 0;
-  DYNG_CUDA_TRY(cudaMemcpyAsync(&error, dev.d_error, sizeof(std::uint32_t), cudaMemcpyDeviceToHost,
-                                dev.stream));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(&error, dev.d_error.data(), sizeof(std::uint32_t),
+                                cudaMemcpyDeviceToHost, dev.stream));
   DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));  // MOSP_ESCHER's read point (its copies)
   note_host_sync();
   dev.used_entries = static_cast<long long>(tc);
@@ -308,12 +313,13 @@ std::vector<std::vector<int>> download_rows(const device_h2h& dev, int m) {
   std::vector<int> deg(m);
   std::vector<int> col_ind(static_cast<std::size_t>(dev.cap_entries));
   if (m > 0) {
-    DYNG_CUDA_TRY(cudaMemcpyAsync(row_start.data(), dev.d_row_start, sizeof(long long) * m,
+    DYNG_CUDA_TRY(cudaMemcpyAsync(row_start.data(), dev.d_row_start.data(), sizeof(long long) * m,
                                   cudaMemcpyDeviceToHost, dev.stream));
-    DYNG_CUDA_TRY(cudaMemcpyAsync(deg.data(), dev.d_deg, sizeof(int) * m, cudaMemcpyDeviceToHost,
+    DYNG_CUDA_TRY(cudaMemcpyAsync(deg.data(), dev.d_deg.data(), sizeof(int) * m,
+                                  cudaMemcpyDeviceToHost, dev.stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(col_ind.data(), dev.d_col_ind.data(),
+                                  sizeof(int) * dev.cap_entries, cudaMemcpyDeviceToHost,
                                   dev.stream));
-    DYNG_CUDA_TRY(cudaMemcpyAsync(col_ind.data(), dev.d_col_ind, sizeof(int) * dev.cap_entries,
-                                  cudaMemcpyDeviceToHost, dev.stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(dev.stream));
     note_host_sync();
   }

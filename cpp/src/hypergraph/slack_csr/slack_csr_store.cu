@@ -29,11 +29,11 @@ namespace {
 
 /** Grows a device buffer to hold at least @p n elements (contents lost). */
 template <class T>
-void grow(T*& ptr, long long& cap, long long n) {
+void grow(buffer<T>& b, long long& cap, long long n, const resources& res) {
   if (n <= cap) return;
-  if (ptr) DYNG_CUDA_TRY(cudaFree(ptr));
+  b = buffer<T>();  // release first: the peak holds one array, not two
   cap = n + n / 2 + 1024;
-  DYNG_CUDA_TRY(cudaMalloc(&ptr, sizeof(T) * cap));
+  b = buffer<T>(res, static_cast<std::size_t>(cap));
 }
 
 template <class T>
@@ -49,65 +49,21 @@ void upload(T* dst, const std::vector<T>& src, cudaStream_t stream) {
 // device_incidence
 // ---------------------------------------------------------------------------
 
-device_incidence::~device_incidence() {
-  free();
-}
-
-device_incidence::device_incidence(device_incidence&& o) noexcept {
-  *this = std::move(o);
-}
-
-device_incidence& device_incidence::operator=(device_incidence&& o) noexcept {
-  if (this != &o) {
-    free();
-    max_nodes = o.max_nodes;
-    num_vertices = o.num_vertices;
-    d_he_off = o.d_he_off;
-    d_he_len = o.d_he_len;
-    d_he_val = o.d_he_val;
-    he_capacity = o.he_capacity;
-    he_tail = o.he_tail;
-    he_off = std::move(o.he_off);
-    he_cap = std::move(o.he_cap);
-    d_v_off = o.d_v_off;
-    d_v_len = o.d_v_len;
-    d_v_val = o.d_v_val;
-    v_capacity = o.v_capacity;
-    v_tail = o.v_tail;
-    v_off = std::move(o.v_off);
-    v_cap = std::move(o.v_cap);
-    d_touched_idx = o.d_touched_idx;
-    d_post_len = o.d_post_len;
-    scratch = o.scratch;
-    o.d_he_off = nullptr;
-    o.d_he_len = nullptr;
-    o.d_he_val = nullptr;
-    o.d_v_off = nullptr;
-    o.d_v_len = nullptr;
-    o.d_v_val = nullptr;
-    o.d_touched_idx = nullptr;
-    o.d_post_len = nullptr;
-    o.scratch = nullptr;
-  }
-  return *this;
-}
+device_incidence::device_incidence() = default;
+device_incidence::~device_incidence() = default;
+device_incidence::device_incidence(device_incidence&&) noexcept = default;
+device_incidence& device_incidence::operator=(device_incidence&&) noexcept = default;
 
 void device_incidence::free() {
-  for (void* p :
-       {static_cast<void*>(d_he_off), static_cast<void*>(d_he_len), static_cast<void*>(d_he_val),
-        static_cast<void*>(d_v_off), static_cast<void*>(d_v_len), static_cast<void*>(d_v_val),
-        static_cast<void*>(d_touched_idx), static_cast<void*>(d_post_len)})
-    if (p) DYNG_CUDA_TRY_NO_THROW(cudaFree(p));
-  delete scratch;
-  d_he_off = nullptr;
-  d_he_len = nullptr;
-  d_he_val = nullptr;
-  d_v_off = nullptr;
-  d_v_len = nullptr;
-  d_v_val = nullptr;
-  d_touched_idx = nullptr;
-  d_post_len = nullptr;
-  scratch = nullptr;
+  d_he_off = {};
+  d_he_len = {};
+  d_he_val = {};
+  d_v_off = {};
+  d_v_len = {};
+  d_v_val = {};
+  d_touched_idx = {};
+  d_post_len = {};
+  scratch.reset();
   he_capacity = v_capacity = he_tail = v_tail = 0;
   he_off.clear();
   he_cap.clear();
@@ -155,15 +111,15 @@ void upload_he_rows(device_incidence& di, const host_hypergraph& hg, double grow
   for (int id = 1; id <= m; ++id)
     std::copy(hg.he_verts[id - 1].begin(), hg.he_verts[id - 1].end(),
               val.begin() + di.he_off[id - 1]);
-  if (di.d_he_val) DYNG_CUDA_TRY(cudaFree(di.d_he_val));
-  DYNG_CUDA_TRY(cudaMalloc(&di.d_he_val, sizeof(int) * capacity));
+  di.d_he_val = buffer<int>();
+  di.d_he_val = buffer<int>(*di.res, static_cast<std::size_t>(capacity));
   di.he_capacity = capacity;
-  upload(di.d_he_val, val, di.stream);
+  upload(di.d_he_val.data(), val, di.stream);
   // The free tail is zeroed too (rows move there with slack).
-  DYNG_CUDA_TRY(
-      cudaMemsetAsync(di.d_he_val + cursor, 0, sizeof(int) * (capacity - cursor), di.stream));
-  upload(di.d_he_off, di.he_off, di.stream);
-  upload(di.d_he_len, len, di.stream);
+  DYNG_CUDA_TRY(cudaMemsetAsync(di.d_he_val.data() + cursor, 0, sizeof(int) * (capacity - cursor),
+                                di.stream));
+  upload(di.d_he_off.data(), di.he_off, di.stream);
+  upload(di.d_he_len.data(), len, di.stream);
 }
 
 // (Re)uploads the vertex rows (0-based node indices) from the host.
@@ -186,31 +142,31 @@ void upload_vertex_rows(device_incidence& di, const host_hypergraph& hg, double 
   for (int v = 0; v < n; ++v)
     for (std::size_t k = 0; k < hg.v2h[v].size(); ++k)
       val[di.v_off[v] + k] = static_cast<int>(hg.v2h[v][k]);  // dynG: the ids are 0-based
-  if (di.d_v_val) DYNG_CUDA_TRY(cudaFree(di.d_v_val));
-  DYNG_CUDA_TRY(cudaMalloc(&di.d_v_val, sizeof(int) * capacity));
+  di.d_v_val = buffer<int>();
+  di.d_v_val = buffer<int>(*di.res, static_cast<std::size_t>(capacity));
   di.v_capacity = capacity;
-  upload(di.d_v_val, val, di.stream);
+  upload(di.d_v_val.data(), val, di.stream);
   // The free tail is zeroed too (rows move there with slack).
   DYNG_CUDA_TRY(
-      cudaMemsetAsync(di.d_v_val + cursor, 0, sizeof(int) * (capacity - cursor), di.stream));
-  upload(di.d_v_off, di.v_off, di.stream);
-  upload(di.d_v_len, len, di.stream);
+      cudaMemsetAsync(di.d_v_val.data() + cursor, 0, sizeof(int) * (capacity - cursor), di.stream));
+  upload(di.d_v_off.data(), di.v_off, di.stream);
+  upload(di.d_v_len.data(), len, di.stream);
 }
 
 void device_incidence::build(const host_hypergraph& hg, int nodes, double headroom) {
   free();
   max_nodes = nodes;
   num_vertices = hg.num_vertices;
-  DYNG_CUDA_TRY(cudaMalloc(&d_he_off, sizeof(long long) * max_nodes));
-  DYNG_CUDA_TRY(cudaMalloc(&d_he_len, sizeof(int) * max_nodes));
-  DYNG_CUDA_TRY(cudaMalloc(&d_touched_idx, sizeof(int) * max_nodes));
-  DYNG_CUDA_TRY(cudaMemsetAsync(d_touched_idx, 0xff, sizeof(int) * max_nodes, stream));
-  DYNG_CUDA_TRY(cudaMalloc(&d_v_off, sizeof(long long) * std::max(1, num_vertices)));
-  DYNG_CUDA_TRY(cudaMalloc(&d_v_len, sizeof(int) * std::max(1, num_vertices)));
-  DYNG_CUDA_TRY(cudaMalloc(&d_post_len, sizeof(int) * std::max(1, num_vertices)));
+  d_he_off = buffer<long long>(*res, static_cast<std::size_t>(max_nodes));
+  d_he_len = buffer<int>(*res, static_cast<std::size_t>(max_nodes));
+  d_touched_idx = buffer<int>(*res, static_cast<std::size_t>(max_nodes));
+  DYNG_CUDA_TRY(cudaMemsetAsync(d_touched_idx.data(), 0xff, sizeof(int) * max_nodes, stream));
+  d_v_off = buffer<long long>(*res, static_cast<std::size_t>(std::max(1, num_vertices)));
+  d_v_len = buffer<int>(*res, static_cast<std::size_t>(std::max(1, num_vertices)));
+  d_post_len = buffer<int>(*res, static_cast<std::size_t>(std::max(1, num_vertices)));
   upload_he_rows(*this, hg, headroom);
   upload_vertex_rows(*this, hg, headroom);
-  scratch = new scratch_arrays();
+  scratch = std::make_unique<scratch_arrays>(*res);
 }
 
 long long incidence_mirror_mismatches(const device_incidence& di, const host_hypergraph& hg) {
@@ -227,9 +183,9 @@ long long incidence_mirror_mismatches(const device_incidence& di, const host_hyp
   long long bad = 0;
   // Hyperedge rows (dead hyperedges: empty).
   const int m = hg.max_id();
-  download(di.d_he_off, m, off);
-  download(di.d_he_len, m, len);
-  download(di.d_he_val, di.he_tail, val);  // rows lie below the tail
+  download(di.d_he_off.data(), m, off);
+  download(di.d_he_len.data(), m, len);
+  download(di.d_he_val.data(), di.he_tail, val);  // rows lie below the tail
   for (int id = 1; id <= m; ++id) {
     std::vector<int> got(val.begin() + off[id - 1], val.begin() + off[id - 1] + len[id - 1]);
     std::vector<int> want = hg.alive[id - 1] ? hg.he_verts[id - 1] : std::vector<int>{};
@@ -237,9 +193,9 @@ long long incidence_mirror_mismatches(const device_incidence& di, const host_hyp
     if (got != want) ++bad;
   }
   // Vertex rows (0-based node indices).
-  download(di.d_v_off, di.num_vertices, off);
-  download(di.d_v_len, di.num_vertices, len);
-  download(di.d_v_val, di.v_tail, val);
+  download(di.d_v_off.data(), di.num_vertices, off);
+  download(di.d_v_len.data(), di.num_vertices, len);
+  download(di.d_v_val.data(), di.v_tail, val);
   for (int v = 0; v < di.num_vertices; ++v) {
     std::vector<int> got(val.begin() + off[v], val.begin() + off[v] + len[v]);
     std::vector<int> want;
@@ -256,117 +212,63 @@ long long incidence_mirror_mismatches(const device_incidence& di, const host_hyp
 // ---------------------------------------------------------------------------
 
 void device_h2h::free() {
-  if (d_row_start) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_row_start));
-  if (d_deg) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_deg));
-  if (d_cap) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_cap));
-  if (d_col_ind) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_col_ind));
-  if (d_node_w) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_node_w));
-  if (d_tail_cursor) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_tail_cursor));
-  if (d_overflow_flag) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_overflow_flag));
-  if (d_error) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_error));
-  d_row_start = nullptr;
-  d_deg = nullptr;
-  d_cap = nullptr;
-  d_col_ind = nullptr;
-  d_node_w = nullptr;
-  d_tail_cursor = nullptr;
-  d_overflow_flag = nullptr;
-  d_error = nullptr;
+  d_row_start = {};
+  d_deg = {};
+  d_cap = {};
+  d_col_ind = {};
+  d_node_w = {};
+  d_tail_cursor = {};
+  d_overflow_flag = {};
+  d_error = {};
 }
 
-void device_delta::reserve(long long pairs, long long ids) {
+void device_delta::reserve(const resources& res, long long pairs, long long ids) {
   if (pairs > pair_capacity) {
-    if (d_pairs) DYNG_CUDA_TRY(cudaFree(d_pairs));
+    d_pairs = buffer<int2>();
     pair_capacity = pairs + pairs / 2 + 1024;
-    DYNG_CUDA_TRY(cudaMalloc(&d_pairs, sizeof(int2) * pair_capacity));
+    d_pairs = buffer<int2>(res, static_cast<std::size_t>(pair_capacity));
   }
   if (ids > id_capacity) {
-    if (d_ids) DYNG_CUDA_TRY(cudaFree(d_ids));
-    if (d_new_w) DYNG_CUDA_TRY(cudaFree(d_new_w));
+    d_ids = buffer<int>();
+    d_new_w = buffer<long long>();
     id_capacity = ids + ids / 2 + 1024;
-    DYNG_CUDA_TRY(cudaMalloc(&d_ids, sizeof(int) * id_capacity));
-    DYNG_CUDA_TRY(cudaMalloc(&d_new_w, sizeof(long long) * id_capacity));
+    d_ids = buffer<int>(res, static_cast<std::size_t>(id_capacity));
+    d_new_w = buffer<long long>(res, static_cast<std::size_t>(id_capacity));
   }
 }
 
-void device_delta::reserve_keys(long long keys) {
+void device_delta::reserve_keys(const resources& res, long long keys) {
   if (keys <= key_capacity) return;
-  if (d_keys) DYNG_CUDA_TRY(cudaFree(d_keys));
-  if (d_keys_alt) DYNG_CUDA_TRY(cudaFree(d_keys_alt));
-  if (d_rows) DYNG_CUDA_TRY(cudaFree(d_rows));
-  if (d_row_len) DYNG_CUDA_TRY(cudaFree(d_row_len));
-  if (d_row_off) DYNG_CUDA_TRY(cudaFree(d_row_off));
-  if (!d_num_rows) DYNG_CUDA_TRY(cudaMalloc(&d_num_rows, sizeof(int)));
+  d_keys = {};
+  d_keys_alt = {};
+  d_rows = {};
+  d_row_len = {};
+  d_row_off = {};
+  if (d_num_rows.size() == 0) d_num_rows = buffer<int>(res, 1);
   key_capacity = keys + keys / 2 + 4096;
-  DYNG_CUDA_TRY(cudaMalloc(&d_keys, sizeof(unsigned long long) * key_capacity));
-  DYNG_CUDA_TRY(cudaMalloc(&d_keys_alt, sizeof(unsigned long long) * key_capacity));
-  DYNG_CUDA_TRY(cudaMalloc(&d_rows, sizeof(int) * key_capacity));
-  DYNG_CUDA_TRY(cudaMalloc(&d_row_len, sizeof(int) * key_capacity));
-  DYNG_CUDA_TRY(cudaMalloc(&d_row_off, sizeof(int) * key_capacity));
+  const auto n = static_cast<std::size_t>(key_capacity);
+  d_keys = buffer<unsigned long long>(res, n);
+  d_keys_alt = buffer<unsigned long long>(res, n);
+  d_rows = buffer<int>(res, n);
+  d_row_len = buffer<int>(res, n);
+  d_row_off = buffer<int>(res, n);
 }
 
-void device_delta::reserve_temp(std::size_t bytes) {
+void device_delta::reserve_temp(const resources& res, std::size_t bytes) {
   if (bytes <= temp_bytes) return;
-  if (d_temp) DYNG_CUDA_TRY(cudaFree(d_temp));
+  d_temp = {};
   temp_bytes = bytes + bytes / 2 + 4096;
-  DYNG_CUDA_TRY(cudaMalloc(&d_temp, temp_bytes));
+  d_temp = buffer<char>(res, temp_bytes);
 }
 
 void device_delta::free() {
-  for (void* p :
-       {static_cast<void*>(d_pairs), static_cast<void*>(d_ids), static_cast<void*>(d_new_w),
-        static_cast<void*>(d_keys), static_cast<void*>(d_keys_alt), static_cast<void*>(d_rows),
-        static_cast<void*>(d_row_len), static_cast<void*>(d_row_off),
-        static_cast<void*>(d_num_rows), d_temp})
-    if (p) DYNG_CUDA_TRY_NO_THROW(cudaFree(p));
-  if (h_sorted_keys) DYNG_CUDA_TRY_NO_THROW(cudaFreeHost(h_sorted_keys));
   *this = device_delta{};
 }
 
 // free() releases the graph arrays only: build_csr (also used to
 // rebuild after a tail overflow) keeps the last delta for hsospUpdate and
-// the incidence mirror.
-device_h2h::~device_h2h() {
-  free();
-  delta.free();
-  inc.free();
-}
-
-device_h2h::device_h2h(device_h2h&& o) noexcept {
-  *this = std::move(o);
-}
-
-device_h2h& device_h2h::operator=(device_h2h&& o) noexcept {
-  if (this != &o) {
-    free();
-    max_nodes = o.max_nodes;
-    num_nodes = o.num_nodes;
-    cap_entries = o.cap_entries;
-    used_entries = o.used_entries;
-    d_row_start = o.d_row_start;
-    d_deg = o.d_deg;
-    d_cap = o.d_cap;
-    d_col_ind = o.d_col_ind;
-    d_node_w = o.d_node_w;
-    d_tail_cursor = o.d_tail_cursor;
-    d_overflow_flag = o.d_overflow_flag;
-    d_error = o.d_error;
-    num_entries = o.num_entries;
-    delta.free();
-    delta = o.delta;
-    o.delta = device_delta{};
-    inc = std::move(o.inc);
-    o.d_row_start = nullptr;
-    o.d_deg = nullptr;
-    o.d_cap = nullptr;
-    o.d_col_ind = nullptr;
-    o.d_node_w = nullptr;
-    o.d_tail_cursor = nullptr;
-    o.d_overflow_flag = nullptr;
-    o.d_error = nullptr;
-  }
-  return *this;
-}
+// the incidence mirror. (dynG: the arrays are buffers; the destructor and
+// the moves are the defaults.)
 
 long long device_h2h::device_bytes() const {
   return static_cast<long long>(max_nodes) *
