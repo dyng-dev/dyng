@@ -986,6 +986,7 @@ std::string integrity_violation(const graph_impl<vertex_t, edge_t, weight_t>& im
   template std::string integrity_violation<V, E, W>(const graph_impl<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_HOST)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_HOST)
+DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_HOST)
 #undef DYNG_INSTANTIATE_APPLY_HOST
 
 }  // namespace dyng::detail

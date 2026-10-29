@@ -163,7 +163,7 @@ dyng_add_module(
 dyng_add_module(
   NAME graph
   SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp src/graph/names.cpp
-          src/graph/structural_change.cpp
+          src/graph/structural_change.cpp src/graph/apply_slotted_host.cpp
   CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu
 )
 

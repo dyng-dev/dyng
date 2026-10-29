@@ -587,6 +587,7 @@
       std::vector< vertex_t > edge_destinations
       std::vector< float > edge_weights
       std::vector< vertex_t > delete_vertices
+      [[nodiscard]] edge_batch_view< vertex_t, float > view() const noexcept
   template <typename vertex_t, typename edge_t> struct dyng::generators::vertex_arrival_stream
       csr< vertex_t, edge_t, float > graph
       std::vector< std::int8_t > true_labels
@@ -609,6 +610,7 @@
       std::int64_t deleted_vertices = 0
       std::int64_t num_vertices_after = 0
       std::int64_t ignored_insertions = 0
+      std::int64_t dropped_insertions = 0
 
 [dyng/graph/csr.hpp] frozen
   template <typename vertex_t, typename edge_t, typename weight_t> struct dyng::csr_view
@@ -650,6 +652,8 @@
       void insert_edge(vertex_t u, vertex_t v)
       void insert_edge(vertex_t u, vertex_t v, array_view< const weight_t > weights)
       void delete_edge(vertex_t u, vertex_t v)
+      void insert_vertex(vertex_t v, std::int8_t label=-1)
+      void delete_vertex(vertex_t v)
       void reserve(std::size_t insertions, std::size_t deletions)
       void clear() noexcept
       [[nodiscard]] int num_weights() const noexcept
@@ -661,6 +665,9 @@
       [[nodiscard]] const std::vector< weight_t > & insert_weights() const noexcept
       [[nodiscard]] const std::vector< vertex_t > & delete_src() const noexcept
       [[nodiscard]] const std::vector< vertex_t > & delete_dst() const noexcept
+      [[nodiscard]] const std::vector< vertex_t > & insert_vertices() const noexcept
+      [[nodiscard]] const std::vector< std::int8_t > & insert_vertex_labels() const noexcept
+      [[nodiscard]] const std::vector< vertex_t > & delete_vertices() const noexcept
       [[nodiscard]] edge_batch_view< vertex_t, weight_t > view() const noexcept
 
 [dyng/graph/edge_list.hpp] frozen
@@ -692,6 +699,7 @@
       [[nodiscard]] static graph from_edges(const resources &res, edge_list_view< vertex_t, weight_t > edges, const graph_properties &props={})
       [[nodiscard]] static graph from_csr(const resources &res, csr_view< vertex_t, edge_t, weight_t > csr, const graph_properties &props={})
       [[nodiscard]] static graph from_csr(const resources &res, csr_type &&csr, const graph_properties &props={})
+      [[nodiscard]] static graph with_capacity(const resources &res, vertex_t vertex_capacity, array_view< const edge_t > row_capacity, const graph_properties &props)
       graph(graph &&other) noexcept
       graph & operator=(graph &&other) noexcept
       graph(const graph &)=delete
@@ -701,6 +709,7 @@
       [[nodiscard]] graph to_backend(const resources &res) const
       void reserve(const resources &res, edge_t edge_capacity)
       [[nodiscard]] vertex_t num_vertices() const noexcept
+      [[nodiscard]] vertex_t num_active_vertices() const noexcept
       [[nodiscard]] edge_t num_edges() const noexcept
       [[nodiscard]] int num_weights() const noexcept
       [[nodiscard]] const graph_properties & properties() const noexcept
@@ -727,8 +736,10 @@
       bool deletions_first = true
       bool allow_vertex_growth = true
       bool as_sets = false
+      bool as_net_effect = false
       [[nodiscard]] static constexpr batch_semantics upsert_last_wins() noexcept
       [[nodiscard]] static constexpr batch_semantics set() noexcept
+      [[nodiscard]] static constexpr batch_semantics net_effect() noexcept
   struct dyng::graph_properties
       bool directed = true
       bool store_transposed = true
@@ -748,6 +759,7 @@
   [[nodiscard]] std::string_view dyng::to_string(batch_semantics::self_loop rule) noexcept
 
 [dyng/graph/graph_view.hpp] frozen
+  enum class dyng::vertex_status : std::uint8_t { active, deleted, inactive }
   template <typename vertex_t, typename edge_t, typename weight_t> struct dyng::graph_view
       csr_view< vertex_t, edge_t, weight_t > out
       csr_view< vertex_t, edge_t, weight_t > in
@@ -755,6 +767,8 @@
       bool directed = true
       row_layout layout = row_layout::compact
       std::uint64_t version = 0
+      array_view< const vertex_status > status
+      array_view< const edge_t > row_end
       [[nodiscard]] vertex_t num_vertices() const noexcept
       [[nodiscard]] edge_t num_edges() const noexcept
       [[nodiscard]] int num_weights() const noexcept

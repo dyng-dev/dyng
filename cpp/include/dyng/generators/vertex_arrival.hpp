@@ -13,14 +13,18 @@
  * replay: graph::with_capacity(stream.row_capacity), then the batches in order, with
  * stream.similarity_threshold as the published threshold (PLAN 6.4.7).
  *
- * Provisional (M10a): the batches hold plain arrays until edge_batch carries vertex arrivals
- * (M10a step 3); the library's own generator of the same stream shape arrives in M10b.
+ * Provisional (M10a): a batch holds plain arrays and view() shows them as the edge_batch_view
+ * that graph::apply() and label_propagation::update() take (vertex arrivals with their labels,
+ * the new edges, departures); the library's own generator of the same stream shape arrives in
+ * M10b.
  * @ingroup generators
  */
 #pragma once
 
+#include <dyng/core/array_view.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/csr.hpp>
+#include <dyng/graph/edge_batch.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -61,6 +65,24 @@ struct vertex_arrival_batch {
   std::vector<vertex_t> edge_destinations;  ///< see edge_sources
   std::vector<float> edge_weights;          ///< the weight of each new edge
   std::vector<vertex_t> delete_vertices;    ///< departing vertices, in the generator's order
+
+  /**
+   * @brief The batch as the edge_batch_view of a graph with batch_semantics::net_effect()
+   *        (one weight per edge).
+   * @return A host view: insert_vertices with insert_vertex_labels, the edges as insertions,
+   *         delete_vertices; valid while this batch is alive and unmodified.
+   */
+  [[nodiscard]] edge_batch_view<vertex_t, float> view() const noexcept {
+    edge_batch_view<vertex_t, float> out;
+    out.insert_src = host_view(edge_sources);
+    out.insert_dst = host_view(edge_destinations);
+    out.insert_weights = host_view(edge_weights);
+    out.insert_vertices = host_view(insert_vertices);
+    out.insert_vertex_labels = host_view(insert_vertex_labels);
+    out.delete_vertices = host_view(delete_vertices);
+    out.num_weights = 1;
+    return out;
+  }
 };
 
 /**

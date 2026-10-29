@@ -43,7 +43,9 @@ struct edge_batch_view {
   array_view<const vertex_t> delete_src;       ///< source of each deletion
   array_view<const vertex_t> delete_dst;       ///< destination of each deletion
   array_view<const vertex_t> insert_vertices;  ///< new vertices (0.4, DynLP)
-  array_view<const std::int8_t> insert_vertex_labels;   ///< optional labels of new vertices
+  /** @brief Optional: one label per new vertex (-1: none; 0 or 1: a seed label, DynLP's ground
+   *         truth), or empty (no labels). */
+  array_view<const std::int8_t> insert_vertex_labels;
   array_view<const vertex_t> delete_vertices;           ///< removed vertices (0.4, DynLP)
   int num_weights = is_unweighted_v<weight_t> ? 0 : 1;  ///< weights per insertion (0: unweighted)
 
@@ -177,6 +179,44 @@ class edge_batch {
   }
 
   /**
+   * @brief Add a vertex insertion (a graph with batch_semantics::net_effect(); 0.4).
+   * @param[in] v     The vertex.
+   * @param[in] label Its seed label: -1 (none, the default), or its class 0 or 1 (DynLP's ground
+   *                  truth). The graph checks the value when the batch is applied.
+   * @throws out_of_memory_error if the arrays cannot grow.
+   * @guarantee Strong: after an exception the batch is unchanged.
+   */
+  void insert_vertex(vertex_t v, std::int8_t label = -1) {
+    const std::size_t n = insert_vertices_.size();
+    try {
+      insert_vertices_.push_back(v);
+      insert_vertex_labels_.push_back(label);
+    } catch (const std::bad_alloc& e) {
+      shrink_vertex_insertions(n);
+      detail::throw_host_allocation_failure("edge_batch::insert_vertex", e.what());
+    } catch (const std::length_error& e) {
+      shrink_vertex_insertions(n);
+      detail::throw_host_allocation_failure("edge_batch::insert_vertex", e.what());
+    }
+  }
+
+  /**
+   * @brief Add a vertex deletion (a graph with batch_semantics::net_effect(); 0.4).
+   * @param[in] v The vertex.
+   * @throws out_of_memory_error if the array cannot grow.
+   * @guarantee Strong: after an exception the batch is unchanged.
+   */
+  void delete_vertex(vertex_t v) {
+    try {
+      delete_vertices_.push_back(v);
+    } catch (const std::bad_alloc& e) {
+      detail::throw_host_allocation_failure("edge_batch::delete_vertex", e.what());
+    } catch (const std::length_error& e) {
+      detail::throw_host_allocation_failure("edge_batch::delete_vertex", e.what());
+    }
+  }
+
+  /**
    * @brief Reserve capacity.
    * @param[in] insertions Expected number of insertions.
    * @param[in] deletions  Expected number of deletions.
@@ -199,7 +239,7 @@ class edge_batch {
   }
 
   /**
-   * @brief Remove every operation (keeps num_weights() and the capacity).
+   * @brief Remove every operation, edge and vertex (keeps num_weights() and the capacity).
    * @guarantee No-throw.
    */
   void clear() noexcept {
@@ -208,6 +248,9 @@ class edge_batch {
     insert_weights_.clear();
     delete_src_.clear();
     delete_dst_.clear();
+    insert_vertices_.clear();
+    insert_vertex_labels_.clear();
+    delete_vertices_.clear();
   }
 
   /**
@@ -236,10 +279,11 @@ class edge_batch {
 
   /**
    * @brief Whether the batch is empty.
-   * @return True if it has no operation.
+   * @return True if it has no operation (no edge and no vertex insertion or deletion).
    */
   [[nodiscard]] bool empty() const noexcept {
-    return insert_src_.empty() && delete_src_.empty();
+    return insert_src_.empty() && delete_src_.empty() && insert_vertices_.empty() &&
+           delete_vertices_.empty();
   }
 
   /**
@@ -283,8 +327,33 @@ class edge_batch {
   }
 
   /**
+   * @brief The inserted vertices (insert_vertex()).
+   * @return The array, in insertion order.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& insert_vertices() const noexcept {
+    return insert_vertices_;
+  }
+
+  /**
+   * @brief The labels of the inserted vertices, one per insert_vertices() entry (-1: none).
+   * @return The array, in insertion order.
+   */
+  [[nodiscard]] const std::vector<std::int8_t>& insert_vertex_labels() const noexcept {
+    return insert_vertex_labels_;
+  }
+
+  /**
+   * @brief The deleted vertices (delete_vertex()).
+   * @return The array, in deletion order.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& delete_vertices() const noexcept {
+    return delete_vertices_;
+  }
+
+  /**
    * @brief A read-only view of the batch.
-   * @return A host edge_batch_view; valid while this batch is alive and unmodified.
+   * @return A host edge_batch_view (with the vertex arrays: insert_vertex_labels holds one label
+   *         per inserted vertex); valid while this batch is alive and unmodified.
    */
   [[nodiscard]] edge_batch_view<vertex_t, weight_t> view() const noexcept {
     edge_batch_view<vertex_t, weight_t> out;
@@ -293,6 +362,9 @@ class edge_batch {
     out.insert_weights = host_view(insert_weights_);
     out.delete_src = host_view(delete_src_);
     out.delete_dst = host_view(delete_dst_);
+    out.insert_vertices = host_view(insert_vertices_);
+    out.insert_vertex_labels = host_view(insert_vertex_labels_);
+    out.delete_vertices = host_view(delete_vertices_);
     out.num_weights = num_weights_;
     return out;
   }
@@ -312,12 +384,23 @@ class edge_batch {
     delete_dst_.erase(delete_dst_.begin() + static_cast<std::ptrdiff_t>(n), delete_dst_.end());
   }
 
+  /// Undo a partial vertex insertion: the arrays back to `n` vertices (no allocation).
+  void shrink_vertex_insertions(std::size_t n) noexcept {
+    insert_vertices_.erase(insert_vertices_.begin() + static_cast<std::ptrdiff_t>(n),
+                           insert_vertices_.end());
+    insert_vertex_labels_.erase(insert_vertex_labels_.begin() + static_cast<std::ptrdiff_t>(n),
+                                insert_vertex_labels_.end());
+  }
+
   int num_weights_;
   std::vector<vertex_t> insert_src_;
   std::vector<vertex_t> insert_dst_;
   std::vector<weight_t> insert_weights_;
   std::vector<vertex_t> delete_src_;
   std::vector<vertex_t> delete_dst_;
+  std::vector<vertex_t> insert_vertices_;
+  std::vector<std::int8_t> insert_vertex_labels_;
+  std::vector<vertex_t> delete_vertices_;
 };
 
 }  // namespace dyng

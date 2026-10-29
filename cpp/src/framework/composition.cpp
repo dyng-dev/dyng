@@ -83,7 +83,9 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
   // normalized batch of G_t (graph/normalized_batch.hpp).
   std::optional<workspace_pool::lease<normalized_workspace<vertex_t>>> normalized_lease;
   const normalized_batch<vertex_t>* normalized = nullptr;
-  if (g.properties().semantics.as_sets) {
+  if (g.properties().semantics.as_sets || g.properties().semantics.as_net_effect) {
+    // Step 0 of as_sets (the normalized edge lists) or of as_net_effect (the vertex batch
+    // checked against G_t and its net effect, ADR 0069), before any participant reads G_t.
     scoped_stage stage(res, normalize_stage(commit_stage));
     normalized_lease.emplace(
         resources_access::workspaces(res).acquire<normalized_workspace<vertex_t>>(res));
@@ -146,6 +148,7 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("dyng::update (", g.num_vertices(), " vertices
       update_participant<V, E, W>* const*, std::size_t, std::string_view);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
+DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
 #undef DYNG_INSTANTIATE_RUN_UPDATE
 
 }  // namespace dyng::detail

@@ -21,8 +21,13 @@ namespace dyng {
  */
 enum class row_layout : std::uint8_t {
   compact,  ///< exact CSR; a batch rebuilds the touched rows (the only layout in 0.1)
-  slotted,  ///< fixed per-vertex slot ranges (DynLP); planned for 0.4
-  slack,    ///< per-row headroom with a tail region; planned for 0.4
+  /** fixed per-vertex slot ranges and a row end per vertex (DynLP's device graph; 0.4): built
+   *  by graph::with_capacity(), it takes vertex batches under batch_semantics::net_effect().
+   *  Only label_propagation reads it; every other algorithm refuses it (not_supported_error). */
+  slotted,
+  /** per-row headroom with a tail region for streams without known capacities (the 0.4
+   *  representation of ADR 0069; implemented in M10b); refused at construction until then. */
+  slack,
 };
 
 /**
@@ -110,6 +115,22 @@ struct batch_semantics {
   bool as_sets = false;
 
   /**
+   * @brief true: a batch is read as its net effect on the VERTEX set (DynLP's vertex batches;
+   *        net_effect() sets it; 0.4).
+   *
+   * The batch inserts the vertices Ins (edge_batch_view::insert_vertices, each with an optional
+   * seed label) and deletes Del (delete_vertices); its effect is Ins \ Del, in list order, and
+   * Del ∩ V_t: an id in both never enters the graph, and every id in Del ends deleted (deleting
+   * an id that was never inserted retires it). Ids are single-use: an id inserted, or named in
+   * a deletion, before cannot be inserted again. The batch's edges (insert_src / insert_dst /
+   * insert_weights) are appended to the rows of both endpoints in batch order, each edge whose
+   * two endpoints are active after the batch; any other edge is dropped (and counted). Edge
+   * deletions are not supported. Only graphs with row_layout::slotted (graph::with_capacity())
+   * take these semantics; graph::with_capacity() requires exactly net_effect().
+   */
+  bool as_net_effect = false;
+
+  /**
    * @brief MOSP applyChangeBatch() / updateGraphCSR() semantics (the default).
    * @return Upsert, ignore missing deletions, keep self-loops, deletions first, vertex growth.
    */
@@ -134,6 +155,29 @@ struct batch_semantics {
     s.deletions_first = true;
     s.allow_vertex_growth = true;
     s.as_sets = true;
+    return s;
+  }
+
+  /**
+   * @brief LabelPropagation-CUDA's vertex batches (DynLP's runDynLP / launchAppendEdges): the
+   *        net effect of each batch on the vertex set, its edges appended (see as_net_effect).
+   *
+   * as_net_effect with: self-loops kept, deletions first (an id in both lists ends deleted),
+   * no vertex growth (the vertices are the capacity given to graph::with_capacity()). The
+   * edge-level switches (on_existing_insert, on_missing_delete) do not apply: every live edge of
+   * the batch is appended (parallel edges are kept) and edge deletions are refused. Only a
+   * graph with row_layout::slotted takes it (0.4).
+   * @return The net-effect semantics.
+   */
+  [[nodiscard]] static constexpr batch_semantics net_effect() noexcept {
+    batch_semantics s;
+    s.on_existing_insert = existing_insert::upsert;
+    s.on_missing_delete = missing_delete::ignore;
+    s.on_self_loop = self_loop::keep;
+    s.deletions_first = true;
+    s.allow_vertex_growth = false;
+    s.as_sets = false;
+    s.as_net_effect = true;
     return s;
   }
 };

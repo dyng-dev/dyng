@@ -12,6 +12,7 @@
 
 #include "graph/device_graph.hpp"
 #include "graph/normalized_batch.hpp"
+#include "graph/slotted_rows.hpp"
 
 #include <dyng/core/backend.hpp>
 #include <dyng/core/resources.hpp>
@@ -56,6 +57,13 @@ namespace dyng::detail {
  * deleted and re-inserted) edges, each list sorted by (source, destination) without repeats
  * (CycleEnumeration-GPU's prepare_batch), and every weight-increase flag is 0.
  *
+ * Under batch_semantics::as_net_effect (vertex batches on slotted rows, ADR 0069) the record is
+ * the batch's net effect: inserted_vertices (Ins_eff = Ins \ Del, in list order) with their seed
+ * labels, deleted_vertices (Del_eff = Del ∩ V_t, in list order), and as insertions the edges that
+ * were appended (both endpoints active after the batch), each ONCE as (u, v) of the batch, in
+ * batch order, with insert_index its position in the batch (the weights are the batch's); there
+ * are no deletions and no weight-increase flags (both lists empty).
+ *
  * @tparam vertex_t Vertex id type.
  */
 template <typename vertex_t>
@@ -66,6 +74,10 @@ struct apply_delta {
   std::vector<std::uint8_t> weight_increased;  ///< num_weights flags per insertion
   std::vector<vertex_t> delete_src;            ///< tails of the deletions
   std::vector<vertex_t> delete_dst;            ///< heads of the deletions
+  std::vector<std::size_t> insert_index;       ///< as_net_effect: batch position of insertion i
+  std::vector<vertex_t> inserted_vertices;     ///< as_net_effect: Ins_eff, in list order
+  std::vector<std::int8_t> inserted_labels;    ///< as_net_effect: the seed label of each (-1)
+  std::vector<vertex_t> deleted_vertices;      ///< as_net_effect: Del_eff, in list order
 };
 
 /**
@@ -168,6 +180,18 @@ class graph_impl {
 
   /// The device copy type.
   using device_type = device_graph<vertex_t, edge_t, weight_t>;
+
+  /// row_layout::slotted (with_capacity()): the row ends, vertex states and counts next to the
+  /// slot storage, which is the host CSR (host_edges()); empty for compact rows (ADR 0069).
+  slotted_rows<vertex_t, edge_t> slotted;
+
+  /**
+   * @brief Whether the rows are slotted.
+   * @return props.layout == row_layout::slotted.
+   */
+  [[nodiscard]] bool is_slotted() const noexcept {
+    return props.layout == row_layout::slotted;
+  }
 
   /**
    * @brief The host out-edges, downloaded from the device copy first if a device apply left them

@@ -187,6 +187,7 @@ void download_device_graph(const device_graph<vertex_t, edge_t, weight_t>& g,
   template void download_device_graph<V, E, W>(const device_graph<V, E, W>&, csr<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_DEVICE_GRAPH)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_DEVICE_GRAPH)
+DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(DYNG_INSTANTIATE_DEVICE_GRAPH)
 #undef DYNG_INSTANTIATE_DEVICE_GRAPH
 
 // One registration per line (the registrar's name is made unique by __LINE__).
@@ -196,5 +197,7 @@ DYNG_REGISTER_KERNEL(in_degree_kernel<std::int64_t, std::int64_t>);
 DYNG_REGISTER_KERNEL(fill_reverse_kernel<std::int32_t, std::int32_t, std::int32_t>);
 DYNG_REGISTER_KERNEL(fill_reverse_kernel<std::int32_t, std::int64_t, std::int32_t>);
 DYNG_REGISTER_KERNEL(fill_reverse_kernel<std::int64_t, std::int64_t, std::int32_t>);
+DYNG_REGISTER_KERNEL(fill_reverse_kernel<std::int32_t, std::int32_t, float>);
+DYNG_REGISTER_KERNEL(fill_reverse_kernel<std::int32_t, std::int64_t, float>);
 
 }  // namespace dyng::detail

@@ -69,9 +69,17 @@ struct graph_access;
  * may be used concurrently through copies of one resources handle.
  *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
- * and (int64, int64, int32), and without weights for (int32, int32, unweighted) and
- * (int32, int64, unweighted). A graph with weight_t = unweighted has no
- * weight columns. The default edge offset type is int32, the originals' type, fixed by the edge_t
+ * and (int64, int64, int32), without weights for (int32, int32, unweighted) and
+ * (int32, int64, unweighted), and with float weights for (int32, int32, float) and
+ * (int32, int64, float) (label_propagation's similarity graphs; 0.4). A graph with
+ * weight_t = unweighted has no weight columns.
+ *
+ * **Row layouts (0.4).** A graph built by from_edges() or from_csr() has row_layout::compact
+ * (every algorithm reads it). graph::with_capacity() builds a graph with row_layout::slotted:
+ * fixed per-vertex slot ranges, a row end and a state per vertex (vertex_status), and vertex
+ * batches under batch_semantics::net_effect() (LabelPropagation-CUDA's device graph; ADR 0069).
+ * Only label_propagation reads slotted rows: every other algorithm, the device merge and the
+ * upload of the compact device copy refuse them with not_supported_error (ADR 0070). The default edge offset type is int32, the originals' type, fixed by the edge_t
  * benchmark (ADR 0009: 64-bit offsets cost more than 3 % on the parity suites). Construction is
  * checked: a graph whose edge count does not fit edge_t (from_edges(), or a batch that grows it
  * past 2^31 - 1 edges with int32) throws capacity_error naming the int64 instantiation.
@@ -95,9 +103,11 @@ class graph {
   /**
    * @brief An empty graph (no vertices) with the given properties.
    * @param[in] props The properties (see graph_properties).
-   * @throws not_supported_error if `props.layout` is not row_layout::compact, or the batch
-   *         semantics cannot be applied (batch_semantics::as_sets without deletions_first, with
-   *         an upsert, or on rows that are not row_order::sorted with multi_edges::forbid).
+   * @throws not_supported_error if `props.layout` is not row_layout::compact (a slotted graph
+   *         is built by with_capacity()), or the batch semantics cannot be applied
+   *         (batch_semantics::as_sets without deletions_first, with an upsert, or on rows that
+   *         are not row_order::sorted with multi_edges::forbid; batch_semantics::net_effect() on
+   *         compact rows).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    */
   explicit graph(const graph_properties& props = {});
@@ -183,6 +193,46 @@ class graph {
                                       const graph_properties& props = {});
 
   /**
+   * @brief An empty graph with fixed slot rows (row_layout::slotted): `vertex_capacity` vertices,
+   *        all inactive, vertex v owning row_capacity[v] slots (LabelPropagation-CUDA's
+   *        createDeviceGraph; the published setup of label_propagation, ADR 0069).
+   *
+   * Vertices arrive and leave with the vertex arrays of the batches (batch_semantics::
+   * net_effect()); a batch's edges are appended to the rows of both endpoints in batch order and
+   * never move (rows are not compacted: a deleted vertex keeps its entries, and the entries
+   * pointing to it stay, skipped by every reader). An append past a row's capacity is refused
+   * with capacity_error before anything changes. num_vertices() is the capacity; num_edges()
+   * counts the entries whose endpoints are both active (an undirected edge twice, as for compact
+   * rows).
+   *
+   * In 0.4 the properties must be: layout = row_layout::slotted, directed = false, order =
+   * row_order::append, parallel_edges = multi_edges::allow (the rows are not checked for
+   * duplicates, as the original does not) and semantics = batch_semantics::net_effect();
+   * store_transposed is ignored (the rows are symmetric). num_weights must be 1 (0 for weight_t
+   * = unweighted).
+   * @param[in] res             Execution resources (the graph belongs to their backend).
+   * @param[in] vertex_capacity The number of vertices (>= 0).
+   * @param[in] row_capacity    The slots of each vertex (>= 0 each; any memory space: copied to
+   *                            the host once under res.get_copy_policy()), e.g. its degree in the
+   *                            full graph (generators::vertex_arrival_stream::row_capacity).
+   * @param[in] props           The properties (see above).
+   * @return The graph at version 0, every vertex inactive and every row empty.
+   * @throws invalid_argument_error if `vertex_capacity` is negative, `row_capacity` does not hold
+   *         vertex_capacity values or one is negative, num_weights is not 1 (0 for unweighted),
+   *         `props.layout` is not row_layout::slotted, or an array must be copied and the copy
+   *         policy is copy_policy::error.
+   * @throws capacity_error         if the sum of the capacities does not fit edge_t (use the
+   *         int64 edge_t instantiation).
+   * @throws not_supported_error    for row_layout::slack (M10b) and for any property the 0.4
+   *         slotted rows do not support (the message names it).
+   * @throws out_of_memory_error    if host memory cannot be allocated.
+   * @sync
+   */
+  [[nodiscard]] static graph with_capacity(const resources& res, vertex_t vertex_capacity,
+                                           array_view<const edge_t> row_capacity,
+                                           const graph_properties& props);
+
+  /**
    * @brief Move constructor.
    * @param[in,out] other The graph to move from; it may only be assigned to or destroyed after.
    */
@@ -236,7 +286,8 @@ class graph {
    * straight port of MOSP's applyChangeBatch(), which builds a new CSR per batch, so the first
    * apply() after reserve() allocates new arrays and the reserved capacity is released. It gives
    * no guarantee against reallocation until the resident apply replaces the port (invariant I9
-   * exempts the port until then; docs/developer/framework.md, "Budgets").
+   * exempts the port until then; docs/developer/framework.md, "Budgets"). A slotted graph's
+   * storage is fixed by with_capacity(): reserve() checks the argument and changes nothing.
    * @param[in] res           Execution resources.
    * @param[in] edge_capacity Expected maximum number of stored edges.
    * @throws invalid_argument_error if `edge_capacity` is negative or the graph was moved from.
@@ -249,13 +300,22 @@ class graph {
 
   /**
    * @brief Number of vertices.
-   * @return The vertex count.
+   * @return The vertex count (row_layout::slotted: the vertex capacity, whatever the states).
    */
   [[nodiscard]] vertex_t num_vertices() const noexcept;
 
   /**
+   * @brief Number of active vertices.
+   * @return num_vertices() for row_layout::compact (every vertex is active); for
+   *         row_layout::slotted the vertices whose state is vertex_status::active.
+   */
+  [[nodiscard]] vertex_t num_active_vertices() const noexcept;
+
+  /**
    * @brief Number of stored (directed) edges.
-   * @return The edge count (an undirected edge counts twice, a self-loop once).
+   * @return The edge count (an undirected edge counts twice, a self-loop once). For
+   *         row_layout::slotted: the entries whose two endpoints are active (the edges of the
+   *         current graph, to_csr().num_edges()), not the slots.
    */
   [[nodiscard]] edge_t num_edges() const noexcept;
 
@@ -334,20 +394,36 @@ class graph {
    * @throws invalid_argument_error if an id is negative or out of range (without vertex growth),
    *         the weights do not match num_weights(), a semantics rule says error, or an array must
    *         be copied and the copy policy is copy_policy::error.
-   * @throws capacity_error         if the edge count after the batch does not fit edge_t.
-   * @throws not_supported_error    for vertex insertions or deletions (planned for 0.4).
+   * @throws capacity_error         if the edge count after the batch does not fit edge_t, or
+   *         (row_layout::slotted) an append would pass the end of its row.
+   * @throws not_supported_error    for vertex insertions or deletions on compact rows (they need
+   *         with_capacity() and batch_semantics::net_effect()), and for edge deletions on slotted
+   *         rows.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error (device merge).
    * @sync
    * @guarantee Strong: the batch is validated and the next state is built completely before it
    *            replaces the current one, so a throwing apply() leaves the graph (storage, version,
    *            state identity) unchanged.
+   *
+   * **Vertex batches (row_layout::slotted, batch_semantics::net_effect(); ADR 0069).** Every
+   * check runs before anything changes: an id or edge endpoint outside [0, num_vertices()), an
+   * id listed twice in insert_vertices or twice in delete_vertices, the insertion of an id that
+   * is not inactive (ids are single-use), a label other than -1, 0 or 1, labels that do not match
+   * the insertions one to one, a labelled vertex that the batch also deletes, and edge
+   * deletions, raise their error; an append past the end of a row raises capacity_error. Then
+   * the deletions (every listed id ends deleted), the effective insertions (Ins \ Del) and the
+   * appends (in batch order, both directions, each edge whose endpoints are active after the
+   * batch; the others are counted in apply_summary::dropped_insertions). The labels are not kept
+   * by the graph: an algorithm's result keeps them (label_propagation's seed labels).
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
 
   /**
    * @brief A host copy of the out-edges (downloaded first, once per state, if a device merge left
-   *        the host CSR of a CUDA graph stale).
+   *        the host CSR of a CUDA graph stale). For row_layout::slotted: the compacted edges,
+   *        the entries of each row whose two endpoints are active, in slot order (an inactive or
+   *        deleted vertex has an empty row).
    * @param[in] res Execution resources.
    * @return The out-edge CSR with objective-major weights.
    * @throws invalid_argument_error for a moved-from graph.
@@ -357,7 +433,10 @@ class graph {
   [[nodiscard]] csr_type to_csr(const resources& res) const;
 
   /**
-   * @brief Check the storage invariants (offsets, ids, row order, simple graph, in-edges).
+   * @brief Check the storage invariants (offsets, ids, row order, simple graph, in-edges; for
+   *        row_layout::slotted: every row inside its slots, row ends and unused slots coherent,
+   *        no entry to a never-inserted vertex, inactive vertices without entries, the entries
+   *        symmetric, the counts of active vertices and edges).
    * @param[in] res Execution resources.
    * @throws internal_error if an invariant is broken.
    * @sync

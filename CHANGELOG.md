@@ -52,6 +52,22 @@ Before 0.1.0 anything may change.
   and `compare.py label_propagation generator|model|check-runs|oracle|margin|subset`
   (`parity/label_propagation_replay.py`); the recorder's `check_labels` record; the committed
   digests under `cpp/tests/data/goldens/label_propagation` (19.6 KB).
+- M10a step 3 (api-change, additive, the frozen `graph/` headers; ADR 0069): **slotted rows and
+  vertex batches** on the host. `graph<int32, int32, float>` and `graph<int32, int64, float>` are
+  instantiated; `graph::with_capacity(res, vertex_capacity, row_capacity, props)` builds a graph
+  with `row_layout::slotted` (fixed per-vertex slot ranges, a row end and a `vertex_status` per
+  vertex, all inactive), which takes vertex batches under the new `batch_semantics::net_effect()`
+  (with the appended field `batch_semantics::as_net_effect`): Ins \ Del become active, every id of
+  Del ends deleted, ids are single-use, the edges are appended to both rows in batch order, and
+  every contract violation (an id out of range, listed twice, re-inserted, a labelled vertex
+  deleted in its batch, a row overflow) is refused before anything changes. New:
+  `enum class vertex_status {active, deleted, inactive}`, `graph_view::status` and
+  `graph_view::row_end` (appended; empty for compact rows), `graph::num_active_vertices()`,
+  `apply_summary::dropped_insertions` (appended), `edge_batch::insert_vertex(v, label = -1)`,
+  `delete_vertex(v)` and their accessors (`empty()`, `clear()` and `view()` cover them), and
+  `generators::vertex_arrival_batch::view()`. The 0.1-0.3 instantiations and compact rows are
+  unchanged; a vertex batch on compact rows still raises `not_supported_error`, now naming
+  `with_capacity()`.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 

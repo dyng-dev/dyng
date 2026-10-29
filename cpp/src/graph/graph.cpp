@@ -11,6 +11,7 @@
 #include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
+#include "graph/slotted_rows.hpp"
 #include "util/allocation.hpp"
 
 #include <dyng/config.hpp>
@@ -44,12 +45,28 @@ void set_home(impl_t& impl, const resources& res) {
 }
 
 void expect_supported_layout(const graph_properties& props) {
+  if (props.layout == row_layout::slotted) {
+    throw not_supported_error(
+        "dyng: a graph with row_layout::slotted is built by graph::with_capacity() (its rows "
+        "receive vertex batches); from_edges(), from_csr() and the empty graph have compact rows");
+  }
   if (props.layout != row_layout::compact) {
     throw not_supported_error(
-        "dyng: only row_layout::compact is implemented; slotted and slack arrive in 0.4");
+        "dyng: row_layout::slack arrives with label_propagation's streaming mode (M10b, 0.4)");
+  }
+  if (props.semantics.as_net_effect) {
+    throw not_supported_error(
+        "dyng: batch_semantics::net_effect() (vertex batches) needs row_layout::slotted; build "
+        "the graph with graph::with_capacity()");
   }
   detail::expect_supported_semantics(props);  // e.g. as_sets with upsert: fail here, not at apply
 }
+
+/// The device merge of batch_semantics::as_sets: 32-bit vertex ids, graphs of 0.1-0.3's weight
+/// types (the float graphs of 0.4 carry weight columns, which the merge does not handle).
+template <typename vertex_t, typename weight_t>
+inline constexpr bool device_merge_types_v =
+    detail::device_set_apply_supported_v<vertex_t> && !std::is_same_v<weight_t, float>;
 
 }  // namespace
 
@@ -163,6 +180,26 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::from_csr (", csr.num_vertices(), " ver
                                   csr.num_edges(), " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::with_capacity(
+    const resources& res, vertex_t vertex_capacity, array_view<const edge_t> row_capacity,
+    const graph_properties& props) try {
+  detail::expect_slotted_properties(props);
+  scoped_stage stage(res, "graph.build");
+  auto impl = std::make_unique<impl_type>();
+  impl->props = props;
+  impl->props.store_transposed = false;  // the rows are symmetric: no in-edges are kept
+  impl->build_threads = host_threads(res);
+  set_home(*impl, res);
+  const detail::host_input<edge_t> capacity(res, row_capacity,
+                                            "graph::with_capacity: row_capacity");
+  detail::build_slotted(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
+                        props.num_weights, impl->host_edges_for_write(), impl->slotted);
+  return graph(std::move(impl));
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::with_capacity (", vertex_capacity, " vertices, ",
+                                  row_capacity.size(), " row capacities)")
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::clone(
     const resources& res) const try {
   auto copy = std::make_unique<impl_type>(impl());
@@ -184,6 +221,9 @@ void graph<vertex_t, edge_t, weight_t>::reserve(const resources& res, edge_t edg
   (void)res;  // the host storage (also of a CUDA graph, whose device copy is rebuilt per state)
   DYNG_EXPECTS(edge_capacity >= 0, "graph::reserve: negative capacity ", edge_capacity);
   auto& state = impl();
+  if (state.is_slotted()) {
+    return;  // the slots are fixed by with_capacity()
+  }
   const auto m = static_cast<std::size_t>(edge_capacity);
   auto& out = state.host_edges_for_write();
   const auto k = static_cast<std::size_t>(out.num_weights);
@@ -199,6 +239,14 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::reserve (", edge_capacity, " edges)")
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t graph<vertex_t, edge_t, weight_t>::num_vertices() const noexcept {
   return impl_ ? impl_->num_vertices() : vertex_t{0};
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+vertex_t graph<vertex_t, edge_t, weight_t>::num_active_vertices() const noexcept {
+  if (!impl_) {
+    return vertex_t{0};
+  }
+  return impl_->is_slotted() ? impl_->slotted.active_vertices : impl_->num_vertices();
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -243,6 +291,10 @@ typename graph<vertex_t, edge_t, weight_t>::view_type graph<vertex_t, edge_t, we
   const auto& state = impl();
   view_type out;
   out.out = state.host_edges().view();
+  if (state.is_slotted()) {
+    out.status = host_view(state.slotted.status);
+    out.row_end = host_view(state.slotted.row_end);
+  }
   if (state.props.store_transposed) {
     out.in = state.in_edges(state.build_threads).view();
   }
@@ -267,7 +319,13 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 typename graph<vertex_t, edge_t, weight_t>::csr_type graph<vertex_t, edge_t, weight_t>::to_csr(
     const resources& res) const try {
   (void)res;  // the host CSR (downloaded first if a device apply left it stale)
-  return impl().host_edges();
+  const auto& state = impl();
+  if (state.is_slotted()) {
+    csr_type out;
+    detail::compact_slotted(state.host_edges(), state.slotted, out);
+    return out;
+  }
+  return state.host_edges();
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::to_csr (", num_edges(), " edges)")
 
@@ -275,7 +333,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) const try {
   (void)res;  // checks the host storage (downloaded first if a device apply left it stale)
   (void)impl().host_edges();
-  const std::string violation = detail::integrity_violation(impl());
+  const std::string violation =
+      impl().is_slotted() ? detail::slotted_integrity_violation(impl().host_edges(), impl().slotted,
+                                                                impl().props.num_weights)
+                          : detail::integrity_violation(impl());
   if (!violation.empty()) {
     DYNG_FAIL("graph integrity: ", violation);
   }
@@ -341,7 +402,22 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
                                   const normalized_batch<vertex_t>* normalized) try {
   auto& state = g.impl();
   scoped_stage stage(res, "graph.apply");
-  if constexpr (device_set_apply_supported_v<vertex_t>) {
+  if (state.is_slotted()) {
+    // Vertex batches on slotted rows (ADR 0069): Step 0 (once per update: run_update passes it),
+    // then the in-place host apply, which cannot fail once Step 0 passed.
+    normalized_batch<vertex_t> local;
+    if (normalized == nullptr || !normalized->vertex_step ||
+        normalized->state_id != state.state_id) {
+      normalize(res, g, batch, local);
+      normalized = &local;
+    }
+    const apply_summary summary = apply_vertex_batch_host(state.host_edges_for_write(),
+                                                          state.slotted, batch, *normalized, delta);
+    ++state.version;
+    state.state_id = next_graph_state_id();
+    return summary;
+  }
+  if constexpr (device_merge_types_v<vertex_t, weight_t>) {
     // A resident CUDA graph under set semantics without weight columns: merge the batch on the
     // device and keep the graph there (CycleEnumeration-GPU's build_next_rows_kernel; ADR 0020).
     if (state.home == backend::cuda && res.get_backend() == backend::cuda &&
@@ -382,7 +458,12 @@ void graph_access::normalize(const resources& res, const graph<vertex_t, edge_t,
                              const edge_batch_view<vertex_t, weight_t>& batch,
                              normalized_batch<vertex_t>& out) {
   const auto& state = g.impl();
-  if constexpr (device_set_apply_supported_v<vertex_t>) {
+  if (state.props.semantics.as_net_effect) {
+    normalize_vertex_batch(state.host_edges(), state.slotted, batch, out);
+    out.state_id = state.state_id;
+    return;
+  }
+  if constexpr (device_merge_types_v<vertex_t, weight_t>) {
     if (!state.host_current() && state.home == backend::cuda &&
         res.get_backend() == backend::cuda && res.device() == state.home_device &&
         state.has_device_edges()) {
@@ -403,6 +484,7 @@ graph_impl<vertex_t, edge_t, weight_t>::graph_impl(const graph_impl& other)
       build_threads(other.build_threads),
       home(other.home),
       home_device(other.home_device),
+      slotted(other.slotted),
       out_(other.host_edges()) {
   const std::lock_guard<std::mutex> lock(other.in_mutex_);
   if (other.in_built_.load(std::memory_order_acquire)) {
@@ -496,6 +578,9 @@ vertex_t graph_impl<vertex_t, edge_t, weight_t>::num_vertices() const noexcept {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 edge_t graph_impl<vertex_t, edge_t, weight_t>::num_edges() const noexcept {
+  if (is_slotted()) {
+    return slotted.live_entries;
+  }
   return host_current_.load(std::memory_order_acquire) ? out_.num_edges() : device_->num_edges;
 }
 
@@ -574,6 +659,7 @@ graph_view<vertex_t, edge_t, weight_t> graph_access::view(
       const detail::normalized_batch<V>*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
+DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
 #undef DYNG_INSTANTIATE_GRAPH
 
 }  // namespace dyng

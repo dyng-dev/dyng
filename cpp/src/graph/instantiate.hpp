@@ -29,3 +29,11 @@
 #define DYNG_FOR_EACH_VERTEX_WEIGHT_TYPE(X) \
   X(std::int32_t, std::int32_t)             \
   X(std::int64_t, std::int32_t)
+
+/// Calls `X(vertex_t, edge_t, weight_t)` once per instantiated graph type with FLOAT weights
+/// (label_propagation's similarity graphs, 0.4; ADR 0069): the graph container, its host apply and
+/// run_update() instantiate these in addition to DYNG_FOR_EACH_GRAPH_TYPE; the algorithms of 0.1-0.3
+/// do not.
+#define DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(X) \
+  X(std::int32_t, std::int32_t, float)    \
+  X(std::int32_t, std::int64_t, float)
