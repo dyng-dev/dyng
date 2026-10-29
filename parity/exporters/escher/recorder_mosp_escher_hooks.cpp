@@ -32,6 +32,26 @@
 
 namespace rec = dyng_parity::cbst_rec;
 
+// The H-SOSP dump (parity/exporters/hsosp/recorder_mosp_escher_hsosp.cpp, ADR 0081; on with
+// DYNG_HSOSP_DUMP_DIR): defined only in the twins that link it (relink_twins.sh --extra), so
+// they are declared weak and called only when they are there. They record into their own dump,
+// never into the CBST trace, whose records stay as they were.
+extern "C" {
+__attribute__((weak)) bool dyng_hsosp_dump_active();
+__attribute__((weak)) void dyng_hsosp_on_bulk_load_enter(const void*,
+                                                         const std::vector<std::vector<int>>*,
+                                                         const std::vector<long long>*, int, int);
+__attribute__((weak)) void dyng_hsosp_on_bulk_load_exit(const void*,
+                                                        const escher_mosp::HostHypergraph*,
+                                                        const escher_mosp::LineGraphCSR*,
+                                                        const char*);
+__attribute__((weak)) void dyng_hsosp_on_begin_batch_enter(const void*,
+                                                           const escher_mosp::HgBatch*);
+__attribute__((weak)) void dyng_hsosp_on_begin_batch_exit(
+    const void*, const escher_mosp::DynamicHypergraph::BatchResult*,
+    const escher_mosp::HostHypergraph*, const char*);
+}
+
 // The wrappers have C linkage (their names are the mangled C++ symbols) and return C++ types
 // through the Itanium ABI's hidden result pointer, exactly as the wrapped members do.
 #if defined(__clang__)
@@ -41,6 +61,19 @@ namespace rec = dyng_parity::cbst_rec;
 namespace {
 rec::recorder* recorder() {
   return rec::original_recorder();
+}
+// Whether this twin has the H-SOSP dump and it is on.
+bool hsosp_dump() {
+  return dyng_hsosp_dump_active != nullptr && dyng_hsosp_dump_active();
+}
+std::string exception_text(std::exception_ptr e) {
+  try {
+    std::rethrow_exception(e);
+  } catch (const std::exception& x) {
+    return x.what();
+  } catch (...) {
+    return "unknown exception";
+  }
 }
 }  // namespace
 
@@ -67,10 +100,12 @@ __wrap__ZN11escher_mosp17DynamicHypergraph8bulkLoadEOSt6vectorIS1_IiSaIiEESaIS3_
     DynamicHypergraph* self, std::vector<std::vector<int>>&& rows, std::vector<long long>&& weights,
     int source_he, int target_he) {
   rec::recorder* r = recorder();
-  if (r == nullptr)
+  const bool h = hsosp_dump();
+  if (r == nullptr && !h)
     return __real__ZN11escher_mosp17DynamicHypergraph8bulkLoadEOSt6vectorIS1_IiSaIiEESaIS3_EEOS1_IxSaIxEEii(
         self, std::move(rows), std::move(weights), source_he, target_he);
-  {
+  if (h) dyng_hsosp_on_bulk_load_enter(self, &rows, &weights, source_he, target_he);
+  if (r != nullptr) {
     // The rows as given (0-based vertices; the virtual source and target hyperedges included).
     rec::batch_record b(r, "mosp_escher.bulk_load", "enter");
     b.rows("rows", rows);
@@ -85,16 +120,25 @@ __wrap__ZN11escher_mosp17DynamicHypergraph8bulkLoadEOSt6vectorIS1_IiSaIiEESaIS3_
         __real__ZN11escher_mosp17DynamicHypergraph8bulkLoadEOSt6vectorIS1_IiSaIiEESaIS3_EEOS1_IxSaIxEEii(
             self, std::move(rows), std::move(weights), source_he, target_he);
   } catch (...) {
-    rec::batch_record b(r, "mosp_escher.bulk_load", "exit");
-    b.exception(std::current_exception());
-    b.write();
+    if (r != nullptr) {
+      rec::batch_record b(r, "mosp_escher.bulk_load", "exit");
+      b.exception(std::current_exception());
+      b.write();
+    }
+    if (h) {
+      const std::string what = exception_text(std::current_exception());
+      dyng_hsosp_on_bulk_load_exit(self, nullptr, nullptr, what.c_str());
+    }
     throw;
   }
-  rec::batch_record b(r, "mosp_escher.bulk_load", "exit");
-  b.scalar("max_id", self->host().maxId());
-  b.scalar("line_graph_entries", lg.numEntries());
-  b.scalar("escher_device_bytes", self->escherDeviceBytes());
-  b.write();
+  if (r != nullptr) {
+    rec::batch_record b(r, "mosp_escher.bulk_load", "exit");
+    b.scalar("max_id", self->host().maxId());
+    b.scalar("line_graph_entries", lg.numEntries());
+    b.scalar("escher_device_bytes", self->escherDeviceBytes());
+    b.write();
+  }
+  if (h) dyng_hsosp_on_bulk_load_exit(self, &self->host(), &lg, nullptr);
   return lg;
 }
 
@@ -102,9 +146,11 @@ extern "C" DynamicHypergraph::BatchResult
 __wrap__ZN11escher_mosp17DynamicHypergraph10beginBatchERKNS_7HgBatchE(DynamicHypergraph* self,
                                                                       const HgBatch& batch) {
   rec::recorder* r = recorder();
-  if (r == nullptr)
+  const bool h = hsosp_dump();
+  if (r == nullptr && !h)
     return __real__ZN11escher_mosp17DynamicHypergraph10beginBatchERKNS_7HgBatchE(self, batch);
-  {
+  if (h) dyng_hsosp_on_begin_batch_enter(self, &batch);
+  if (r != nullptr) {
     rec::batch_record b(r, "mosp_escher.begin_batch", "enter");
     std::vector<int> a, c;
     b.ints("he_delete", batch.heDelete);
@@ -127,18 +173,27 @@ __wrap__ZN11escher_mosp17DynamicHypergraph10beginBatchERKNS_7HgBatchE(DynamicHyp
   try {
     res = __real__ZN11escher_mosp17DynamicHypergraph10beginBatchERKNS_7HgBatchE(self, batch);
   } catch (...) {
-    rec::batch_record b(r, "mosp_escher.begin_batch", "exit");
-    b.exception(std::current_exception());
-    b.write();
+    if (r != nullptr) {
+      rec::batch_record b(r, "mosp_escher.begin_batch", "exit");
+      b.exception(std::current_exception());
+      b.write();
+    }
+    if (h) {
+      const std::string what = exception_text(std::current_exception());
+      dyng_hsosp_on_begin_batch_exit(self, nullptr, nullptr, what.c_str());
+    }
     throw;
   }
-  rec::batch_record b(r, "mosp_escher.begin_batch", "exit");
-  b.ints("final_ids", res.inc.newHe);
-  b.longs("final_weights", res.inc.newW);
-  b.ints("dead_he", res.inc.deadHe);
-  b.scalar("skipped_ops", res.inc.skippedOps);
-  b.scalar("max_id", self->host().maxId());
-  b.write();
+  if (r != nullptr) {
+    rec::batch_record b(r, "mosp_escher.begin_batch", "exit");
+    b.ints("final_ids", res.inc.newHe);
+    b.longs("final_weights", res.inc.newW);
+    b.ints("dead_he", res.inc.deadHe);
+    b.scalar("skipped_ops", res.inc.skippedOps);
+    b.scalar("max_id", self->host().maxId());
+    b.write();
+  }
+  if (h) dyng_hsosp_on_begin_batch_exit(self, &res, &self->host(), nullptr);
   return res;
 }
 
