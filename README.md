@@ -33,7 +33,7 @@ pages, the C++ and Python API reference; built from `docs/` on every push to `ma
 | [`dynamic_bfs`](docs/algorithms/dynamic_bfs.md) | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | [`triangle_delta`](docs/algorithms/triangle_delta.md) | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | [`triad_count`](docs/algorithms/triad_count.md) | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | ESCHER / ESCHER+ |
-| `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned (0.4) | DynLP (ICS 2026) |
+| [`label_propagation`](docs/algorithms/label_propagation.md) | binary harmonic label propagation under vertex batches | graph | fixed point | sequential | experimental | DynLP (ICS 2026) |
 | `hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | planned (0.4) | H-SOSP (IA3 2026) |
 <!-- regen:algorithms end -->
 

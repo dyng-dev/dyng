@@ -56,4 +56,8 @@
 /cpp/include/dyng/triad_count.hpp   @SMShovan
 /cpp/tests/algorithms/triad_count/  @SMShovan
 /docs/algorithms/triad_count.md     @SMShovan
+/cpp/src/algorithms/label_propagation/ @SMShovan
+/cpp/include/dyng/label_propagation.hpp @SMShovan
+/cpp/tests/algorithms/label_propagation/ @SMShovan
+/docs/algorithms/label_propagation.md @SMShovan
 # regen:algorithms end

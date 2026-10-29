@@ -404,6 +404,7 @@
   #include <dyng/io/hypergraph_io.hpp>
   #include <dyng/io/matrix_market.hpp>
   #include <dyng/io/result_io.hpp>
+  #include <dyng/label_propagation.hpp>
   #include <dyng/mosp.hpp>
   #include <dyng/sssp.hpp>
   #include <dyng/triad_count.hpp>
@@ -1085,6 +1086,41 @@
   void dyng::io::write_triad_bins_json(std::ostream &out, const triad_bins &bins)
   void dyng::io::write_triad_bins_json(const std::string &path, const triad_bins &bins)
   [[nodiscard]] triad_bins dyng::io::read_triad_bins_json(const std::string &path)
+
+[dyng/label_propagation.hpp] tracked
+  enum class dyng::label_propagation::schedule : std::uint8_t { in_place, damped }
+  enum class dyng::label_propagation::on_limit : std::uint8_t { error, report, fallback_recompute }
+  struct dyng::label_propagation::options
+      std::optional< float > similarity_threshold
+      float tolerance = 1e-4F
+      std::int64_t max_iterations = 100000
+      on_limit on_iteration_limit = on_limit::report
+      schedule update_schedule = schedule::in_place
+      engine cuda_engine = engine::automatic
+  struct dyng::label_propagation::stats : public dyng::update_stats
+      apply_summary batch
+      std::int64_t components = 0
+      std::int64_t sparsified_edges = 0
+      std::int64_t initial_frontier = 0
+  template <typename vertex_t> class dyng::label_propagation::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] array_view< const float > labels() const
+      [[nodiscard]] array_view< const std::int8_t > seed_labels() const
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+      void reserve(const resources &res, std::size_t max_batch_vertices, std::size_t max_batch_edges)
+  #define DYNG_LABEL_PROPAGATION_TYPES_MESSAGE
+  template <typename vertex_t, typename edge_t> [[nodiscard]] result< vertex_t > dyng::label_propagation::compute(const resources &res, const graph< vertex_t, edge_t, float > &g, array_view< const vertex_t > seed_vertices, array_view< const std::int8_t > seed_labels, const options &opt={})
+  template <typename vertex_t, typename edge_t> stats dyng::label_propagation::update(const resources &res, graph< vertex_t, edge_t, float > &g, const edge_batch_view< vertex_t, float > &batch, result< vertex_t > &r)
+  detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool label_propagation_supported_v = std::is_same_v<weight_t, float> && std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>);
+  detail: template <typename vertex_t> struct update_traits<label_propagation::result<vertex_t>> { using stats_type = label_propagation::stats; }
 
 [dyng/mosp.hpp] frozen
   constexpr int dyng::mosp::max_objectives = 64

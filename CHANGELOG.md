@@ -76,6 +76,30 @@ Before 0.1.0 anything may change.
   g.to_csr(res).view(), props)`), before anything changes. Their headers and `update.hpp` gain the
   `@throws` line; nothing else in those algorithms changes, and `triad_count` (hypergraphs) is
   untouched.
+- M10a step 3 (api-change, additive; provisional until M10b's freeze; ADRs 0071-0073):
+  **`label_propagation`** (experimental), `<dyng/label_propagation.hpp>` (added to
+  `<dyng/dyng.hpp>`): `schedule {in_place, damped}`, `on_limit {error, report,
+  fallback_recompute}`, `options` (`similarity_threshold`, `tolerance`, `max_iterations`,
+  `on_iteration_limit`, `update_schedule`, `cuda_engine`), `stats` (`batch`, `components`,
+  `sparsified_edges`, `initial_frontier` = \|V_aff\|), `result<vertex_t>` (`labels()`,
+  `seed_labels()`, `reserve()`, ...), `compute()` (IrLP, the published baseline) and `update()`
+  (DynLP, one vertex batch on slotted rows) for `graph<int32, int32 | int64, float>`, on the
+  sequential backend (cuda in M10a step 4; no OpenMP backend in 0.4: OpenMP resources raise
+  `not_supported_error` naming sequential and cuda). Its deterministic stages equal
+  LabelPropagation-CUDA@a276a3a's trace on the whole corpus P+, and its labels meet the harmonic
+  oracle. The profiler counter `label_propagation.irlp_iterations`; the stage trace of the
+  original's recorder format when `DYNG_DYNLP_TRACE_DIR` is set (a parity diagnostic).
+- M10a step 3 (api-change, documentation only, `core/stats.hpp`; AD20): the last paragraph of the
+  `update_stats` comment: "An algorithm's stats documentation may state a weaker level
+  (deterministic per backend, or schedule-dependent) for an inherited field; that statement
+  governs for that algorithm." (label_propagation's `affected`, `converged` and `fallback_used`:
+  deterministic per backend under `damped`, schedule-dependent under `in_place`).
+- M10a step 3: `dyng-compat-dynlp` (`tools/compat/dynlp`; ADR 0073), the original's `dynLP` command
+  line on dynG (public headers only; built against the install tree by `ci/cmake_consumer.sh`;
+  C8's refusals of `--tau 0`, a NaN `--tau` and `--maxIter <= 0`); `compare.py label_propagation
+  container|trace|oracle-port|determinism` (`parity/label_propagation_port.py`) and the mode
+  `dyng_lp_replay container`; `perf_ab.py mosp --baseline-exe/--baseline-label/--layouts` (the
+  dynG-against-dynG reading of ADR 0024).
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 

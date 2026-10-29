@@ -16,6 +16,12 @@
  *       Replays O's own batches (run_begin / batch_data; in the digest mode the generator's, after
  *       checking their digests) through lp_host_model and compares every predicted field with
  *       the trace's records; also checks the generator's tau against the trace's.
+ *   dyng_lp_replay container --trace <trace.dlt> [--threads T]
+ *       M10a step 3 (ADR 0069): O's own batches (as for model) applied to
+ *       graph::with_capacity() with slotted rows and batch_semantics::net_effect() (the library's
+ *       host apply), and after every batch the graph's row ends, slot columns and value bits and
+ *       its states (mapped to O's codes by name with the seed labels of the batches) against the
+ *       trace's records, check_integrity(), and the same fields against lp_host_model.
  *   dyng_lp_replay oracle --nodes N --batches B --degree D --seed S [--threads T]
  *                         (--labels-trace <dlt> | --labels-bits <file> | --final-labels <txt>)
  *       Per batch: the harmonic solution of the graph after the batch (the generator's batches
@@ -28,6 +34,12 @@
 #include "parity/label_propagation/lp_replay.hpp"
 #include "support/sha256.hpp"
 
+#include <dyng/core/error.hpp>
+#include <dyng/core/resources.hpp>
+#include <dyng/graph/edge_batch.hpp>
+#include <dyng/graph/graph.hpp>
+#include <dyng/graph/graph_properties.hpp>
+#include <dyng/graph/graph_view.hpp>
 #include <dyng/testing/harmonic_solution.hpp>
 #include <dyng/testing/lp_host_model.hpp>
 
@@ -356,6 +368,141 @@ int run_model(const args& a) {
   return ok ? 0 : 1;
 }
 
+/// An owned named array of a vector (the original's layout of a field).
+template <typename value_t>
+lp::named_array owned(const std::vector<value_t>& v) {
+  lp::named_array a;
+  a.count = v.size();
+  a.bytes.resize(v.size() * sizeof(value_t));
+  if (!v.empty()) {
+    std::memcpy(a.bytes.data(), v.data(), a.bytes.size());
+  }
+  return a;
+}
+
+/// container: O's batches on graph::with_capacity() against the trace and lp_host_model.
+int run_container(const args& a) {
+  const int threads = static_cast<int>(a.num("threads", 1));
+  const dlt::trace t = dlt::read(a.get("trace"));
+  bool generated = false;
+  std::string problem;
+  const auto t0 = std::chrono::steady_clock::now();
+  const dyng::detail::dynlp_legacy_output in = inputs_of(t, threads, generated, problem);
+  const auto n = static_cast<std::size_t>(in.num_nodes);
+  std::vector<std::int32_t> capacity(n);
+  for (std::size_t v = 0; v < n; ++v) {
+    capacity[v] = in.row_ptr[v + 1] - in.row_ptr[v];
+  }
+  dyng::graph_properties props;
+  props.directed = false;
+  props.layout = dyng::row_layout::slotted;
+  props.order = dyng::row_order::append;
+  props.parallel_edges = dyng::multi_edges::allow;
+  props.semantics = dyng::batch_semantics::net_effect();
+  const dyng::resources res = dyng::resources::sequential();
+  const std::vector<std::int32_t>& cap = capacity;
+  auto g = dyng::graph<std::int32_t, std::int32_t, float>::with_capacity(
+      res, static_cast<std::int32_t>(n), dyng::host_view(cap), props);
+  dyng::testing::lp_host_model model(lp::row_capacities(in.row_ptr));
+  std::vector<std::int8_t> seeds(n, -1);
+  std::int64_t compared = 0;
+  std::int64_t mismatched = 0;
+  std::ostringstream mm;
+  const auto mismatch = [&](std::size_t b, const std::string& field, const std::string& detail) {
+    ++mismatched;
+    mm << (mismatched == 1 ? "" : ",") << "{\"batch\":" << b << ",\"field\":" << json_string(field)
+       << ",\"detail\":" << json_string(detail) << "}";
+  };
+  for (std::size_t b = 0; b < in.batches.size(); ++b) {
+    const auto bi = static_cast<std::int32_t>(b);
+    const dyng::testing::lp_model_batch mb = lp::model_batch(in.batches[b], in.num_nodes);
+    dyng::edge_batch_view<std::int32_t, float> view;
+    view.insert_vertices = dyng::host_view(mb.insert_vertices);
+    view.insert_vertex_labels = dyng::host_view(mb.insert_labels);
+    view.delete_vertices = dyng::host_view(mb.delete_vertices);
+    view.insert_src = dyng::host_view(mb.edge_sources);
+    view.insert_dst = dyng::host_view(mb.edge_destinations);
+    view.insert_weights = dyng::host_view(mb.edge_weights);
+    view.num_weights = 1;
+    try {
+      (void)g.apply(res, view);
+    } catch (const std::exception& e) {
+      mismatch(b, "apply", e.what());
+      break;
+    }
+    for (std::size_t i = 0; i < mb.insert_vertices.size(); ++i) {
+      if (mb.insert_labels[i] >= 0) {
+        seeds[static_cast<std::size_t>(mb.insert_vertices[i])] = mb.insert_labels[i];
+      }
+    }
+    (void)model.apply(mb, in.tau);
+    try {
+      g.check_integrity(res);
+    } catch (const std::exception& e) {
+      mismatch(b, "check_integrity", e.what());
+    }
+    const auto gv = g.view();
+    std::vector<std::int32_t> status(n);
+    for (std::size_t v = 0; v < n; ++v) {
+      switch (gv.status[v]) {
+        case dyng::vertex_status::active:
+          status[v] = seeds[v] >= 0 ? lp::original_ground_truth : lp::original_active;
+          break;
+        case dyng::vertex_status::deleted:
+          status[v] = lp::original_deleted;
+          break;
+        case dyng::vertex_status::inactive:
+          status[v] = lp::original_inactive;
+          break;
+      }
+    }
+    std::vector<std::int32_t> row_end(gv.row_end.begin(), gv.row_end.end());
+    std::vector<std::int32_t> cols(gv.out.col_ind.begin(), gv.out.col_ind.end());
+    std::vector<float> values(gv.out.weights.begin(), gv.out.weights.end());
+    std::map<std::string, lp::named_array> fields;
+    fields["apply_vertex_changes.status"] = owned(status);
+    fields["append_edges.row_end"] = owned(row_end);
+    fields["append_edges.slot_col_ind"] = owned(cols);
+    fields["append_edges.slot_values"] = owned(values);
+    if (b == 0) {
+      std::vector<std::int32_t> row_ptr(gv.out.row_ptr.begin(), gv.out.row_ptr.end());
+      fields["append_edges.row_ptr"] = owned(row_ptr);
+    }
+    for (const auto& [key, ours] : fields) {
+      const std::size_t dot = key.find('.');
+      const dlt::record* rec = t.in_batch(key.substr(0, dot), bi);
+      ++compared;
+      if (rec == nullptr || !rec->has(key.substr(dot + 1))) {
+        mismatch(b, key, "not in the trace");
+        continue;
+      }
+      const field_result res_field = compare(ours, (*rec)[key.substr(dot + 1)]);
+      if (!res_field.equal) {
+        mismatch(b, key, res_field.detail);
+      }
+    }
+    // check_integrity agrees with lp_host_model: the same rows, slots and states.
+    ++compared;
+    bool same = std::equal(model.row_end().begin(), model.row_end().end(), row_end.begin(),
+                           row_end.end(), [](std::int64_t x, std::int32_t y) { return x == y; }) &&
+                model.slot_columns() == cols &&
+                std::memcmp(model.slot_weights().data(), values.data(),
+                            values.size() * sizeof(float)) == 0 &&
+                lp::original_statuses(model) == status;
+    if (!same) {
+      mismatch(b, "lp_host_model", "the graph differs from the host model");
+    }
+  }
+  const bool ok = mismatched == 0 && problem.empty();
+  std::cout << "{\"mode\":\"container\",\"digest_mode\":" << (t.digest_mode ? "true" : "false")
+            << ",\"inputs\":" << json_string(generated ? "generated" : "recorded")
+            << ",\"seconds\":" << json_double(seconds_since(t0)) << ",\"compared\":" << compared
+            << ",\"mismatched\":" << mismatched << ",\"problem\":" << json_string(problem)
+            << ",\"mismatches\":[" << mm.str() << "],\"equal\":" << (ok ? "true" : "false")
+            << "}\n";
+  return ok ? 0 : 1;
+}
+
 /// The labels of every batch from one of the sources (missing batches: empty).
 std::vector<std::vector<float>> labels_of(const args& a, std::size_t n, std::size_t batches) {
   std::vector<std::vector<float>> out(batches);
@@ -445,7 +592,8 @@ int run_oracle(const args& a) {
 int main(int argc, char** argv) {
   try {
     if (argc < 2) {
-      throw std::invalid_argument("usage: dyng_lp_replay generator|model|oracle [--key value ...]");
+      throw std::invalid_argument(
+          "usage: dyng_lp_replay generator|model|container|oracle [--key value ...]");
     }
     const std::string mode = argv[1];
     args a;
@@ -461,6 +609,9 @@ int main(int argc, char** argv) {
     }
     if (mode == "model") {
       return run_model(a);
+    }
+    if (mode == "container") {
+      return run_container(a);
     }
     if (mode == "oracle") {
       return run_oracle(a);

@@ -1535,18 +1535,24 @@ def export_main(argv: list[str] | None = None) -> int:
 
 
 REPLAY_COMMANDS = ("generator", "model", "check-runs", "oracle", "margin", "subset")
+PORT_COMMANDS = ("container", "trace", "oracle-port", "determinism")
 
 
 def compare_main(argv: list[str] | None = None) -> int:
     """compare.py label_propagation --verify [--sets ...]: the goldens' own checks; compare.py
     label_propagation generator|model|check-runs|oracle|margin|subset: the replays of the legacy
-    generator and the oracles (M10a step 2, parity/label_propagation_replay.py); the replays of
-    the port arrive in M10a steps 3-4."""
+    generator and the oracles (M10a step 2, parity/label_propagation_replay.py); compare.py
+    label_propagation container|trace|oracle-port|determinism: the replays of the port (M10a step
+    3 on, parity/label_propagation_port.py)."""
     argv = list(argv or [])
     if argv[:1] and argv[0] in REPLAY_COMMANDS:
         import label_propagation_replay
 
         return label_propagation_replay.main(argv)
+    if argv[:1] and argv[0] in PORT_COMMANDS:
+        import label_propagation_port
+
+        return label_propagation_port.main(argv)
     if "--verify" not in argv:
         print(
             "compare.py label_propagation: --verify, or one of " + ", ".join(REPLAY_COMMANDS),

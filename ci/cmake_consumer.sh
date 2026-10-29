@@ -155,6 +155,35 @@ done
 echo "cmake_consumer: OK (examples/cpp/triad_count_update.cpp, built against the installed" \
   "package, prints its expected output on: ${backends})"
 
+# dyng-compat-dynlp against the installed package (M10a, ADR 0073): the parity driver of
+# label_propagation includes installed public headers only, so it builds with find_package(dyng)
+# and dyng::dyng / dyng::testing alone; it runs a small published-setup case on sequential.
+mkdir -p "${tmp}/compat_dynlp"
+cat >"${tmp}/compat_dynlp/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.30)
+project(dyng_compat_dynlp CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(dyng ${major_minor} REQUIRED)
+add_executable(dyng-compat-dynlp "${repo_root}/tools/compat/dynlp/dynlp_compat.cpp")
+target_link_libraries(dyng-compat-dynlp PRIVATE dyng::dyng dyng::testing)
+CMAKE
+cmake -S "${tmp}/compat_dynlp" -B "${tmp}/compat_dynlp/build" -G Ninja \
+  -DCMAKE_PREFIX_PATH="${tmp}/prefix" -DCMAKE_BUILD_TYPE=Release >"${tmp}/compat_dynlp.log" 2>&1 &&
+  cmake --build "${tmp}/compat_dynlp/build" >>"${tmp}/compat_dynlp.log" 2>&1 || {
+  cat "${tmp}/compat_dynlp.log"
+  echo "cmake_consumer: tools/compat/dynlp does not build against the installed package" >&2
+  exit 1
+}
+"${tmp}/compat_dynlp/build/dyng-compat-dynlp" --totalNodes 2000 --numBatches 3 --quiet \
+  --noValidate --noGraphFiles --update damped --backend sequential \
+  --output "${tmp}/compat_dynlp/out" >>"${tmp}/compat_dynlp.log" 2>&1 &&
+  [ -s "${tmp}/compat_dynlp/out/dynlp_labels.txt" ] || {
+  cat "${tmp}/compat_dynlp.log"
+  echo "cmake_consumer: the installed dyng-compat-dynlp failed" >&2
+  exit 1
+}
+echo "cmake_consumer: OK (tools/compat/dynlp builds against the installed package and runs)"
+
 # The nvcc consumer: a user Op against the installed package (CUDA builds only).
 if ! grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt"; then
   echo "cmake_consumer: ${build} has no CUDA; the nvcc consumer of count_local_patterns is skipped"

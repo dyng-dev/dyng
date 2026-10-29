@@ -57,6 +57,7 @@
 #include <dyng/io/hypergraph_io.hpp>
 #include <dyng/io/matrix_market.hpp>
 #include <dyng/io/result_io.hpp>
+#include <dyng/label_propagation.hpp>
 #include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
 #include <dyng/triad_count.hpp>
