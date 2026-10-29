@@ -1,0 +1,344 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of hyper_sssp against MOSP_ESCHER@4b86159 (PLAN Sections 6.3 step 3, 6.4.8
+# and 8.6; ADR 0080; the author's decisions HD3 and HD4 of 2026-10-28). Each timer of the original
+# -> the dynG stages or driver timers whose host times are summed to match it. Written in M11a
+# step 1, BEFORE the first commit that creates anything under cpp/src/hypergraph/slack_csr/,
+# cpp/src/hypergraph/line_graph/incidence_delta*, cpp/src/algorithms/hyper_sssp/ or
+# cpp/include/dyng/hyper_sssp.hpp (PLAN 6.3: "without this table '<= 1.05x of the paper-timed
+# region' is not well defined"; the git log shows the order). parity/perf_ab.py LOADS it
+# (load_hsosp_regions(), on top of load_regions("mosp_escher", HSOSP_REGION_MAP, ...)) and refuses a
+# region whose original timer it does not know, that names no port stage, that has an unknown
+# key, or a gated row that is not one of the rows the author decided (HD3). The keys mean what
+# they mean in sssp.toml, hypergraph.toml and triad_count.toml: `gate` is "compute" (<= 1.05x;
+# <= 1.10x with at least 21 rounds where the original's median is under 10 ms), "end_to_end"
+# (<= 1.10x) or "none" (reported only); per_batch = true reads the region once per batch, one row
+# per batch ("<name>[b1]" .. "<name>[b3]": the three batches of every paper configuration), each
+# row its own gate reading; report_sum = true reports the 3-batch sum, never a gate reading.
+# `original_report` is a LIST of the original's timers whose values are SUMMED (here: hsospBench's
+# CSV columns "csv:<column>" of the row of batch N, and the [e2e] line "e2e:<field>").
+#
+# What MOSP_ESCHER@4b86159 (B) times (hsosp/src/hsospBench.cu; steady_clock host timers, no CUDA
+# events; every stage ends with cudaDeviceSynchronize()), per batch, in --hg mode
+# (runRealDataset, lines 473-538; runBatch, lines 305-371; hsosp::applyBatch, hsospDelta.cu
+# lines 882-942):
+#   [untimed]        generatePaperBatch (the batch is generated on the host, outside every timer)
+#   t_escher_ms      DynamicHypergraph::beginBatch's h2v insert (BatchResult::escherMs: the ids of
+#                    the inserted hyperedges) + finishBatch (the remaining CBST maintenance from the
+#                    sorted line-graph keys, which are first copied to the host; synchronized)
+#   t_delta_ms       beginBatch's host incidence update (BatchResult::deltaMs: Step 0's checks,
+#                    the skipped ops, the H2V/v2h rows) + the line-graph delta on the GPU
+#                    (deriveDelta: the incidence mirror, the candidate pairs, their classification)
+#   t_csr_apply_ms   the device CSR apply (radix sort, warp per row, the new weights) and, when the
+#                    CSR tail overflows, its rebuild from the host incidence (csrRebuilt)
+#   t_sosp_update_ms hsospUpdate on state A (the budget fallback's recompute included)
+#   t_dynamic_total_ms  t_escher + t_delta + t_csr_apply + t_sosp_update (BatchOutcome::dynamicMs)
+#   t_static_ms      hsospRecompute on state B (the static baseline, on the maintained device graph)
+#   [untimed]        compareDistances (update == static), the oracle and --check-escher (only with
+#                    --verify), the CSV row
+# and once per process, the stderr line "[e2e] <name>: load L ms, 3 batches: dynamic D ms, static
+# S ms, wall W ms" (lines 532-536):
+#   load    from the start of runRealDataset (reading the .hg file, B's loader with --maxcard),
+#           the DynamicHypergraph construction and bulkLoad (the three CBSTs and the host line
+#           graph), buildDeviceH2H (the CSR and the incidence mirror), the two states, the initial
+#           hsospRecompute and the reachable-fraction download; B's CUDA context is created inside
+#           it (at its first CUDA call), its modules loaded there under CUDA_MODULE_LOADING=EAGER
+#   dynamic the sum of t_dynamic_total_ms over the batches
+#   static  the sum of t_static_ms over the batches
+#   wall    from the start of runRealDataset to the end of the last batch's row (generation and
+#           checks included)
+#
+# The port (M11a steps 3-4): `dyng-compat-hsosp bench` (tools/compat/hsosp; HD12) with B's
+# options, --backend cuda --sync-stages (the profiler synchronizes the stream at every stage
+# boundary, as every B stage ends with a device synchronization) and --timing <file>.csv. It
+# replays the batches the patched copy of B exported (HD5; read and staged as host batches BEFORE
+# its timer starts) on a container loaded as the by_id mode loads it: B's rows, its two virtual
+# rows at their positions with weight 1, id_reuse::insert_first, capacity_policy::mosp_escher with
+# B's capacities, the slack_csr storage and line graph (ADR 0080 section 2). Its stage names
+# (profiler stages; "<algo>.<hook>" as cpp/src/framework/enactor.hpp names them) are, by this map:
+#   hypergraph.apply > { hypergraph.apply.normalize (Step 0: the batch checked and normalized),
+#                        hypergraph.apply.ids (the id allocation, B's beginBatch h2v insert),
+#                        hypergraph.apply.incidence (the incidence edits: H2V/v2h rows, the
+#                        applied record), hypergraph.apply.translate (the order-free line-graph
+#                        delta: incidence_delta, inside the commit), hypergraph.apply.line_graph
+#                        (the slack CSR apply, node weights, any rebuild) }
+#   hyper_sssp.update > { hyper_sssp.normalize, hyper_sssp.commit (contains hypergraph.apply),
+#                         hyper_sssp.identify_affected, hyper_sssp.seed, hyper_sssp.loop,
+#                         hyper_sssp.recompute (the budget fallback; emitted, 0 ms or more, on
+#                         every update so that the row is defined), hyper_sssp.finalize }
+#   hyper_sssp.compute (the whole compute() call)
+# A later rename of a stage amends this map in the same commit. The driver's own timers (its
+# --timing rows "driver,<name>,<ms>", steady_clock after a device synchronization): update_ms
+# (around hyper_sssp::update), static_ms (around the static recompute), load_ms (from the start
+# of main to the end of the initial compute), dynamic_ms (the sum of update_ms), static_sum_ms,
+# total_ms (from the start of main to the end of the last batch).
+#
+# Scope rules (both sides; ADR 0080 section 1):
+#   - dynG reads its exported batch before its timer starts (a host batch: Step 0 is inside the
+#     region); B generates its batch in-process outside its timers.
+#   - A device synchronization before each timer starts (B: every stage ends with one; the port:
+#     --sync-stages and the driver's cudaStreamSynchronize before each timer).
+#   - --verify none on B and no oracle on dynG in a timed round; the update == static check is
+#     untimed on both sides (B's compareDistances runs after its static timer).
+#   - The port runs with --sync-stages.
+#   - Capacities are planned as B plans them (hsospBench.cu lines 211-218 and 496-511):
+#     planned = batch x batches for hyperedge batches (0 for vertex batches) + 65536;
+#     maxHyperedges = rows (the two virtual rows included) + planned + 1024; headroomFactor 1.3;
+#     extraPayloadInts = planned x (maxcard + 2 x 128 + 16) + 8 Mi (8 << 20); the line graph's
+#     entry headroom 1.6 (kEntryHeadroom) and the incidence mirror's headroom 1.6.
+#   - static on the port is a recompute into a second, pre-allocated result on the maintained
+#     line graph (no rebuild, copy or allocation inside the region), as B recomputes into its
+#     pre-allocated state B on the maintained device graph.
+#   - One asymmetry, conservative for dynG: dynG's maintain (the whole hypergraph.apply) also
+#     contains the id assignment (hypergraph.apply.ids), which B times in t_escher_ms (its h2v
+#     insert), outside B's maintain = t_delta_ms + t_csr_apply_ms.
+
+[reference.mosp_escher]
+repo = "MOSP_ESCHER"
+commit = "4b86159"
+driver = "bin/hsospBench of the UNPATCHED copy, --hg <file> --kind <k> --batch <n> --batches 3 --del 50 --verify none --out <csv> (the CSV row of each batch; the [e2e] line of stderr)"
+port_driver = "dyng-compat-hsosp bench (tools/compat/hsosp), parity-cuda preset, B's options, --backend cuda --sync-stages --timing <file>.csv"
+
+# --- Gated per batch (HD3) ---------------------------------------------------------------------
+
+# The maintenance of the line graph: B's host incidence update, its GPU delta and its CSR apply
+# against the whole hypergraph.apply under slack_csr.
+[[reference.mosp_escher.region]]
+name = "maintain"
+per_objective = false
+per_batch = true
+rows = ["maintain[b1]", "maintain[b2]", "maintain[b3]"]
+report_sum = true
+original = ["t_delta_ms + t_csr_apply_ms (the host incidence, the GPU line-graph delta, the device CSR apply and any rebuild)"]
+original_report = ["csv:t_delta_ms", "csv:t_csr_apply_ms"]
+port = ["hypergraph.apply"]
+gate = "compute"
+note = """
+The whole hypergraph.apply under slack_csr storage and line graph: Step 0 (normalize), the ids,
+the incidence edits, translate (the order-free line-graph delta, inside the commit) and the
+line-graph apply, any rebuild included. B's beginBatch host incidence (deltaMs) + deriveDelta
+(t_delta_ms) + the CSR apply or its rebuild (t_csr_apply_ms). Conservative for dynG: its region
+also holds the id assignment (hypergraph.apply.ids), which B times in t_escher_ms."""
+
+# The SSSP update after the commit, budget fallback included.
+[[reference.mosp_escher.region]]
+name = "sosp_update"
+per_objective = false
+per_batch = true
+rows = ["sosp_update[b1]", "sosp_update[b2]", "sosp_update[b3]"]
+report_sum = true
+original = ["t_sosp_update_ms (hsospUpdate on state A, the fallback recompute included)"]
+original_report = ["csv:t_sosp_update_ms"]
+port = ["hyper_sssp.identify_affected", "hyper_sssp.seed", "hyper_sssp.loop", "hyper_sssp.recompute", "hyper_sssp.finalize"]
+gate = "compute"
+note = """
+hyper_sssp's stages after the commit: the roots and the invalidation (identify_affected), the
+pull of the invalidated nodes and the inserted pairs (seed), the push rounds (loop), the budget
+fallback (recompute; emitted on every update, 0 ms without a fallback) and the result's
+finalization. B's t_sosp_update_ms is steady_clock around hsospUpdate, which includes its own
+fallback recompute (hsospDevice.cu lines 1065-1195)."""
+
+# The static baseline.
+[[reference.mosp_escher.region]]
+name = "static"
+per_objective = false
+per_batch = true
+rows = ["static[b1]", "static[b2]", "static[b3]"]
+report_sum = true
+original = ["t_static_ms (hsospRecompute into state B on the maintained device graph)"]
+original_report = ["csv:t_static_ms"]
+port = ["hyper_sssp.compute"]
+port_report = ["static_ms"]
+gate = "compute"
+note = """
+A recompute into a second, pre-allocated result on the maintained line graph: no rebuild, copy or
+allocation inside the region (B recomputes into its pre-allocated state B). static_ms is the
+driver's steady_clock around that compute, after a device synchronization."""
+
+# B's comparable dynamic total: what both sides do for one batch on the SSSP path.
+[[reference.mosp_escher.region]]
+name = "dynamic_comparable"
+per_objective = false
+per_batch = true
+rows = ["dynamic_comparable[b1]", "dynamic_comparable[b2]", "dynamic_comparable[b3]"]
+report_sum = true
+original = ["t_delta_ms + t_csr_apply_ms + t_sosp_update_ms"]
+original_report = ["csv:t_delta_ms", "csv:t_csr_apply_ms", "csv:t_sosp_update_ms"]
+port = ["hyper_sssp.update"]
+port_report = ["update_ms"]
+gate = "compute"
+note = """
+The whole hyper_sssp::update call (normalize, the commit with hypergraph.apply, the update stages,
+any fallback) against B's delta + CSR apply + SOSP update; B's t_escher_ms (CBST maintenance that
+nothing on the SSSP path reads, and that the slack_csr store does not have) is left out on B's
+side, while dynG's update keeps its id assignment (conservative for dynG)."""
+
+# B's own dynamic total (PLAN 6.4.8's figure), flagged in the improvement table.
+[[reference.mosp_escher.region]]
+name = "dynamic"
+per_objective = false
+per_batch = true
+rows = ["dynamic[b1]", "dynamic[b2]", "dynamic[b3]"]
+report_sum = true
+original = ["t_dynamic_total_ms (t_escher + t_delta + t_csr_apply + t_sosp_update; PLAN 6.4.8's per-batch dynamic time)"]
+original_report = ["csv:t_dynamic_total_ms"]
+port = ["hyper_sssp.update"]
+port_report = ["update_ms"]
+gate = "compute"
+note = """
+Gated as PLAN 6.4.8 states its figure, and FLAGGED in the improvement table: B's total includes
+its CBST maintenance (t_escher_ms, 50-71 % of the total) that nothing on the SSSP path reads, so
+the port is ahead by construction here; dynamic_comparable is the row that can show a regression
+(PLAN 8.6: improvements are reported apart, so they never mask one)."""
+
+# --- Gated end to end (HD3) ----------------------------------------------------------------------
+
+[[reference.mosp_escher.region]]
+name = "load_plus_dynamic"
+per_objective = false
+original = ["[e2e] load + [e2e] dynamic (B's load from the start of runRealDataset, plus the sum of its dynamic totals)"]
+original_report = ["e2e:load", "e2e:dynamic"]
+port = ["driver.load", "hyper_sssp.update"]
+port_report = ["load_ms", "dynamic_ms"]
+gate = "end_to_end"
+note = """
+B's load (reading the .hg file with its loader, the CBST builds and the host line graph, the
+device CSR and incidence mirror, the two states, the initial recompute, the reachable fraction;
+B's CUDA context and, under EAGER, its modules) plus the sum of its three dynamic totals, against
+the driver's load from the start of main (resources::warm_up, reading the .hg file, the build
+with the line graph, the upload, the initial compute) plus its three summed updates. The batches
+are read before the timers on dynG's side and generated outside them on B's."""
+
+# --- Reported, never gated (HD3) -------------------------------------------------------------
+
+[[reference.mosp_escher.region]]
+name = "escher"
+per_objective = false
+per_batch = true
+rows = ["escher[b1]", "escher[b2]", "escher[b3]"]
+report_sum = true
+original = ["t_escher_ms (the h2v insert in beginBatch + finishBatch's CBST maintenance)"]
+original_report = ["csv:t_escher_ms"]
+port = ["hypergraph.apply.ids"]
+gate = "none"
+note = "Only the id allocation has a dynG counterpart; the rest of B's CBST maintenance goes to the improvement table."
+
+[[reference.mosp_escher.region]]
+name = "delta"
+per_objective = false
+per_batch = true
+rows = ["delta[b1]", "delta[b2]", "delta[b3]"]
+report_sum = true
+original = ["t_delta_ms (beginBatch's host incidence + deriveDelta on the GPU)"]
+original_report = ["csv:t_delta_ms"]
+port = ["hypergraph.apply.normalize", "hypergraph.apply.incidence", "hypergraph.apply.translate"]
+gate = "none"
+note = "Reported (HD3): the scopes are not one to one (B's Step 0 checks sit in its host incidence update)."
+
+[[reference.mosp_escher.region]]
+name = "csr_apply"
+per_objective = false
+per_batch = true
+rows = ["csr_apply[b1]", "csr_apply[b2]", "csr_apply[b3]"]
+report_sum = true
+original = ["t_csr_apply_ms (the device CSR apply, or its rebuild after a tail overflow)"]
+original_report = ["csv:t_csr_apply_ms"]
+port = ["hypergraph.apply.line_graph"]
+gate = "none"
+note = "Reported (HD3): 1.5-28 ms on host timers, and its scope is not one to one."
+
+[[reference.mosp_escher.region]]
+name = "update.identify_affected"
+per_objective = false
+per_batch = true
+rows = ["update.identify_affected[b1]", "update.identify_affected[b2]", "update.identify_affected[b3]"]
+original = ["(inside t_sosp_update_ms: the roots and the pointer-jumping invalidation)"]
+original_report = []
+port = ["hyper_sssp.identify_affected"]
+gate = "none"
+note = "A sub-stage of the port, reported; B has no separate timer for it."
+
+[[reference.mosp_escher.region]]
+name = "update.seed"
+per_objective = false
+per_batch = true
+rows = ["update.seed[b1]", "update.seed[b2]", "update.seed[b3]"]
+original = ["(inside t_sosp_update_ms: the pull of the invalidated nodes and the inserted pairs)"]
+original_report = []
+port = ["hyper_sssp.seed"]
+gate = "none"
+note = "A sub-stage of the port, reported."
+
+[[reference.mosp_escher.region]]
+name = "update.loop"
+per_objective = false
+per_batch = true
+rows = ["update.loop[b1]", "update.loop[b2]", "update.loop[b3]"]
+original = ["(inside t_sosp_update_ms: the push rounds)"]
+original_report = []
+port = ["hyper_sssp.loop"]
+gate = "none"
+note = "A sub-stage of the port, reported."
+
+[[reference.mosp_escher.region]]
+name = "update.recompute"
+per_objective = false
+per_batch = true
+rows = ["update.recompute[b1]", "update.recompute[b2]", "update.recompute[b3]"]
+original = ["(inside t_sosp_update_ms: the budget fallback's hsospRecompute)"]
+original_report = []
+port = ["hyper_sssp.recompute"]
+gate = "none"
+note = "A sub-stage of the port, reported; the fallback decision of each batch is a per-round guard (HD7), not a parity target."
+
+[[reference.mosp_escher.region]]
+name = "update.finalize"
+per_objective = false
+per_batch = true
+rows = ["update.finalize[b1]", "update.finalize[b2]", "update.finalize[b3]"]
+original = ["(inside t_sosp_update_ms: the packed words unpacked into distances and parents)"]
+original_report = []
+port = ["hyper_sssp.finalize"]
+gate = "none"
+note = "A sub-stage of the port, reported."
+
+[[reference.mosp_escher.region]]
+name = "load"
+per_objective = false
+original = ["[e2e] load"]
+original_report = ["e2e:load"]
+port = ["driver.load"]
+port_report = ["load_ms"]
+gate = "none"
+note = "Reported; gated only inside load_plus_dynamic."
+
+[[reference.mosp_escher.region]]
+name = "static_sum"
+per_objective = false
+original = ["[e2e] static (the sum of t_static_ms)"]
+original_report = ["e2e:static"]
+port = ["hyper_sssp.compute"]
+port_report = ["static_sum_ms"]
+gate = "none"
+note = "The 3-batch sum of the static rows, reported."
+
+[[reference.mosp_escher.region]]
+name = "wall"
+per_objective = false
+original = ["[e2e] wall (from the start of runRealDataset to the last batch's row)"]
+original_report = ["e2e:wall"]
+port = ["driver.total"]
+port_report = ["total_ms"]
+gate = "none"
+note = "Reported; B's wall also holds its batch generation and its untimed checks."
+
+[[reference.mosp_escher.region]]
+name = "process"
+per_objective = false
+original = ["process wall time (the harness's clock around the whole process)"]
+original_report = ["process wall time"]
+port = []
+port_report = ["process wall time"]
+gate = "none"
+note = "Includes process start-up, the CUDA context and exit on both sides; reported only."

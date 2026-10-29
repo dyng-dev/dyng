@@ -130,7 +130,9 @@ note = "M8b's .hg reader (io.read_hypergraph); for a synthetic input the generat
 # finishBatch (h2v erase / unfill / fill, v2h unfill / fill, h2h unfill / erase / fill / insert;
 # hsospDelta.cu:937-940, which also copies the sorted line-graph keys to the host before it and
 # synchronizes the device after it). Noted here for M11 (hyper_sssp), which maps it with its own
-# stages (t_delta_ms, t_csr_apply_ms, t_sosp_update_ms, t_static_ms).
+# stages (t_delta_ms, t_csr_apply_ms, t_sosp_update_ms, t_static_ms): the H-SOSP regions, gated
+# per batch, are in parity/timed_regions/hyper_sssp.toml (M11a, ADR 0080); this stub keeps only
+# the reported `escher` region of the hypergraph container.
 [reference.mosp_escher]
 repo = "MOSP_ESCHER"
 commit = "4b86159"
@@ -144,4 +146,4 @@ original = ["t_escher_ms (beginBatch's h2v insert + finishBatch)"]
 original_report = ["csv:t_escher_ms"]
 port = ["hypergraph.apply"]
 gate = "none"
-note = "M11 maps the H-SOSP regions; dynG's line-graph delta (t_delta_ms) is not part of this region."
+note = "M11 maps the H-SOSP regions in hyper_sssp.toml (ADR 0080); dynG's line-graph delta (t_delta_ms) is not part of this region."
