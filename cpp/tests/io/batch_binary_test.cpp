@@ -3,8 +3,9 @@
 /**
  * @file batch_binary_test.cpp
  * @brief The binary batch files `.dgb`: the header and record layout, round trips of graph and
- *        hypergraph batches (with the annotations of the flags), `.dgt` <-> `.dgb`, and the
- *        rejection of truncated, size-lying, damaged, wrong-kind and future-version files.
+ *        hypergraph batches (with the annotations of the flags and, from 0.4, the incidence
+ *        edits), `.dgt` <-> `.dgb`, the files of 0.3 written byte for byte as 0.3 wrote them, and
+ *        the rejection of truncated, size-lying, damaged, wrong-kind and future-version files.
  */
 #include "support/data_paths.hpp"
 
@@ -20,6 +21,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -446,13 +448,173 @@ TEST_F(BinaryBatches, ReadsFilesWrittenFromTheSpecification) {
   EXPECT_EQ(e[0].insert_src(), (std::vector<std::int64_t>{5000000000LL}));
   EXPECT_THROW(io::batch_reader(seed("crc_mismatch")).next(), dyng::io_error);
   EXPECT_THROW(io::batch_reader{seed("future_version")}, dyng::io_error);
+  // 0.4: the incidence edits after the other arrays (a 56-byte count block).
+  {
+    io::batch_reader in(seed("hyper_incidence_edits"));
+    EXPECT_EQ(in.header().flags,
+              io::batch_file_flags::insert_first | io::batch_file_flags::incidence_edits);
+    ASSERT_TRUE(in.next());
+    const auto v = in.hyperedge_batch<std::int32_t, std::int32_t>();
+    const auto ids = [](const auto& a) { return std::vector<std::int64_t>(a.begin(), a.end()); };
+    const auto vs = [](const auto& a) { return std::vector<std::int32_t>(a.begin(), a.end()); };
+    EXPECT_EQ(ids(v.delete_hyperedges), (std::vector<std::int64_t>{3}));
+    EXPECT_EQ(vs(v.insert_members), (std::vector<std::int32_t>{4, 1}));
+    EXPECT_EQ(ids(v.delete_incidence_hyperedge), (std::vector<std::int64_t>{0, 2}));
+    EXPECT_EQ(vs(v.delete_incidence_vertex), (std::vector<std::int32_t>{1, 7}));
+    EXPECT_EQ(ids(v.insert_incidence_hyperedge), (std::vector<std::int64_t>{0}));
+    EXPECT_EQ(vs(v.insert_incidence_vertex), (std::vector<std::int32_t>{5}));
+    ASSERT_TRUE(in.next());
+    const auto w = in.hyperedge_batch<std::int32_t, std::int32_t>();
+    EXPECT_TRUE(w.delete_incidence_hyperedge.empty());
+    EXPECT_EQ(ids(w.insert_incidence_hyperedge), (std::vector<std::int64_t>{4}));
+    EXPECT_FALSE(in.next());
+  }
+}
+
+// HD10 (0.4): every file of 0.3 is written byte for byte as 0.3 wrote it. The seeds written from
+// 0.3's specification (and the converted ESCHER-GPU dump of M8b) are read and written again with
+// the header's flags and the records' annotations.
+TEST_F(BinaryBatches, TheFilesOf03AreWrittenByteForByteAsBefore) {
+  const std::string dir = std::string(DYNG_TEST_DATA_DIR) + "/../../fuzz/corpus/batch_binary/";
+  for (const char* name : {"hyper_weighted", "hyper_annotated", "hyper_insert_first", "graph_k1",
+                           "graph_unweighted_int64", "empty_file", "escher_016_main_converted"}) {
+    SCOPED_TRACE(name);
+    const std::string bytes = read_text(dir + name);
+    const std::string original = bytes.substr(bytes.find('\n') + 1);
+    const std::string in_path = path(std::string(name) + ".in.dgb");
+    const std::string out_path = path(std::string(name) + ".out.dgb");
+    write_text(in_path, original);
+    io::batch_reader in(in_path);
+    const io::batch_file_header h = in.header();
+    EXPECT_EQ(h.flags & io::batch_file_flags::incidence_edits, 0U);
+    {
+      io::batch_writer out(out_path, h);
+      while (in.next()) {
+        const auto copy = [](const auto& a) {
+          using value_t = std::remove_cv_t<std::remove_reference_t<decltype(a[0])>>;
+          return std::vector<value_t>(a.begin(), a.end());
+        };
+        if (h.kind == dyng::container_kind::graph) {
+          if (h.vertex_type == io::batch_dtype::int64) {
+            out.write(in.edge_batch<std::int64_t, dyng::unweighted>());
+          } else {
+            out.write(in.edge_batch<std::int32_t, std::int32_t>());
+          }
+          continue;
+        }
+        const auto a = in.annotations<std::int32_t>();
+        // The views of the reader stay valid until next(); the writer copies.
+        const auto off = copy(a.deleted_offsets);
+        const auto mem = copy(a.deleted_members);
+        const auto ids = copy(a.expected_ids);
+        const io::hyperedge_batch_annotations<std::int32_t> notes{
+            dyng::host_view(off), dyng::host_view(mem), dyng::host_view(ids)};
+        if (h.weight_type == io::batch_dtype::none) {
+          out.write(in.hyperedge_batch<std::int32_t, dyng::unweighted>(), notes);
+        } else {
+          out.write(in.hyperedge_batch<std::int32_t, std::int32_t>(), notes);
+        }
+      }
+      out.close();
+    }
+    EXPECT_EQ(read_text(out_path), original);
+  }
+  // The whole-file writer sets incidence_edits only when a batch needs it.
+  const auto batches = sample_hyperedge_batches();
+  std::vector<dyng::hyperedge_batch_view<std::int32_t, std::int32_t>> views;
+  for (const auto& b : batches) views.push_back(b.view());
+  io::write_binary_hyperedge_batches(path("plain.dgb"), views);
+  EXPECT_EQ(io::batch_reader(path("plain.dgb")).header().flags, 0U);
+  EXPECT_EQ(u64_at(read_text(path("plain.dgb")), 64), 40U + 8 + 24 + 16 + 8);  // 0.3's record
+}
+
+TEST_F(BinaryBatches, IncidenceEditsRoundTripWithTheirFlag) {
+  auto batches = sample_hyperedge_batches();
+  batches[0].delete_incidence(2, 7);
+  batches[0].delete_incidence(0, 1);
+  batches[0].insert_incidence(5, 3);
+  batches[2].insert_incidence(9000000000LL, 0);  // a batch of edits only
+  std::vector<dyng::hyperedge_batch_view<std::int32_t, std::int32_t>> views;
+  for (const auto& b : batches) views.push_back(b.view());
+  io::write_binary_hyperedge_batches(path("edits.dgb"), views);
+  const std::string bytes = read_text(path("edits.dgb"));
+  EXPECT_EQ(u64_at(bytes, 24), io::batch_file_flags::incidence_edits);
+  // The first record: the 56-byte count block, then the 0.3 arrays, then the edits.
+  EXPECT_EQ(u64_at(bytes, 64 + 16 + 40), 2U);  // removals
+  EXPECT_EQ(u64_at(bytes, 64 + 16 + 48), 1U);  // additions
+  const auto back =
+      io::read_binary_hyperedge_batches<std::int32_t, std::int32_t>(path("edits.dgb"));
+  ASSERT_EQ(back.size(), batches.size());
+  for (std::size_t i = 0; i < back.size(); ++i) {
+    SCOPED_TRACE(i);
+    EXPECT_EQ(back[i].delete_hyperedges(), batches[i].delete_hyperedges());
+    EXPECT_EQ(back[i].insert_members(), batches[i].insert_members());
+    EXPECT_EQ(back[i].insert_weights(), batches[i].insert_weights());
+    EXPECT_EQ(back[i].delete_incidence_hyperedge(), batches[i].delete_incidence_hyperedge());
+    EXPECT_EQ(back[i].delete_incidence_vertex(), batches[i].delete_incidence_vertex());
+    EXPECT_EQ(back[i].insert_incidence_hyperedge(), batches[i].insert_incidence_hyperedge());
+    EXPECT_EQ(back[i].insert_incidence_vertex(), batches[i].insert_incidence_vertex());
+  }
+  // .dgt and .dgb hold the same batches.
+  io::write_hyperedge_batches(path("edits.dgt"), views);
+  const auto text = io::read_hyperedge_batches<std::int32_t, std::int32_t>(path("edits.dgt"));
+  ASSERT_EQ(text.size(), back.size());
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    EXPECT_EQ(text[i].delete_incidence_hyperedge(), back[i].delete_incidence_hyperedge());
+    EXPECT_EQ(text[i].insert_incidence_vertex(), back[i].insert_incidence_vertex());
+  }
+  // A file opened with the flag takes batches without edits (zero counts).
+  io::batch_writer w(path("flagged.dgb"),
+                     io::hyperedge_batch_file_header<std::int32_t, std::int32_t>(
+                         io::batch_file_flags::incidence_edits));
+  w.write(batches[1].view());
+  w.close();
+  const auto one =
+      io::read_binary_hyperedge_batches<std::int32_t, std::int32_t>(path("flagged.dgb"));
+  ASSERT_EQ(one.size(), 1U);
+  EXPECT_TRUE(one[0].delete_incidence_hyperedge().empty());
+  // The writers refuse what would not read back.
+  using hviews = std::vector<dyng::hyperedge_batch_view<std::int32_t, std::int32_t>>;
+  hbatch neg;
+  neg.delete_incidence(-1, 0);
+  EXPECT_THROW(io::write_binary_hyperedge_batches(path("neg.dgb"), hviews{neg.view()}),
+               dyng::invalid_argument_error);
+  hbatch negv;
+  negv.insert_incidence(0, -2);
+  EXPECT_THROW(io::write_hyperedge_batches(path("neg.dgt"), hviews{negv.view()}),
+               dyng::invalid_argument_error);
+  // A reader rejects an edit out of its vertex range or a negative id.
+  io::batch_reader_options o;
+  o.num_vertices = 7;
+  const auto read_edits = [&] {
+    (void)io::read_binary_hyperedge_batches<std::int32_t, std::int32_t>(path("edits.dgb"), o);
+  };
+  EXPECT_THROW(read_edits(), dyng::io_error);  // the removal (2, 7)
+  std::string s = bytes;
+  const std::size_t edits_at = 64 + 16 + 56 + 8 + 24 + 16 + 8;  // the first removal's id
+  set_u64(s, edits_at, static_cast<std::uint64_t>(-5));
+  reseal_record(s, 64);
+  write_text(path("negative.dgb"), s);
+  const auto e = expect_io_error([&] {
+    (void)io::read_binary_hyperedge_batches<std::int32_t, std::int32_t>(path("negative.dgb"));
+  });
+  EXPECT_NE(std::string(e.what()).find("incidence removal"), std::string::npos) << e.what();
+  // A graph file with a flag, a hypergraph file with an unknown one.
+  s = annotated_file();
+  set_u64(s, 24, 16);
+  reseal_header(s);
+  write_text(path("bit4.dgb"), s);
+  const auto unknown = expect_io_error([&] { io::batch_reader in(path("bit4.dgb")); });
+  EXPECT_NE(std::string(unknown.what()).find("unknown flags 16"), std::string::npos)
+      << unknown.what();
 }
 
 TEST_F(BinaryBatches, WritersCheckTheirInput) {
   io::batch_writer w(path("w.dgb"), io::hyperedge_batch_file_header<std::int32_t, std::int32_t>());
   hbatch inc;
   inc.insert_incidence(0, 1);
-  EXPECT_THROW(w.write(inc.view()), dyng::not_supported_error);
+  // The flags are fixed when the file is opened: an edit needs incidence_edits (0.4, HD10).
+  EXPECT_THROW(w.write(inc.view()), dyng::invalid_argument_error);
   hbatch neg;
   neg.delete_hyperedge(-3);
   EXPECT_THROW(w.write(neg.view()), dyng::invalid_argument_error);
@@ -474,6 +636,10 @@ TEST_F(BinaryBatches, WritersCheckTheirInput) {
   EXPECT_THROW(io::batch_writer(path("x.dgb"), h), dyng::invalid_argument_error);
   EXPECT_THROW((void)(io::hyperedge_batch_file_header<std::int32_t, std::int32_t>(1024)),
                dyng::invalid_argument_error);
+  EXPECT_THROW((void)(io::hyperedge_batch_file_header<std::int32_t, std::int32_t>(16)),
+               dyng::invalid_argument_error);       // bit 4: reserved for graph files
+  h.flags = io::batch_file_flags::incidence_edits;  // a hypergraph flag in a graph file
+  EXPECT_THROW(io::batch_writer(path("x.dgb"), h), dyng::invalid_argument_error);
   EXPECT_EQ(io::to_string(io::batch_dtype::int64), "int64");
   // An unclosed writer leaves a file whose count is 0 and whose record is trailing data.
   {

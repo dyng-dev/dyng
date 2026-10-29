@@ -1040,8 +1040,9 @@ def read_hyperedge_batches(
 
     Hyperedge operations: ``+h v1 v2 .. [; w]`` (insert a hyperedge; ``; w`` for a weighted
     read) and ``-h id`` (delete the hyperedge with that id). ``%batch <id>`` starts a batch,
-    ``%dgt 1 hypergraph`` may name the kind; graph operations (``+e``, ``-e``) are an error here,
-    and the incidence edits ``+i`` / ``-i`` are planned for 0.4.
+    ``%dgt 1 hypergraph`` may name the kind; graph operations (``+e``, ``-e``) are an error here.
+    The incidence edits ``+i h v`` / ``-i h v`` of 0.4 are read by the C++ library; the Python
+    layer takes them with M11b of 0.4 and refuses a batch that has one until then.
 
     Args:
         path: The file.
@@ -1050,6 +1051,7 @@ def read_hyperedge_batches(
 
     Raises:
         FileFormatError: the file is missing or malformed.
+        NotSupportedError: a batch has incidence edits (until M11b of 0.4).
     """
     reader = (
         native.read_hyperedge_batches_i32_i32

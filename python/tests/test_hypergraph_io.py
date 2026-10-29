@@ -119,8 +119,12 @@ def test_dgt_kinds_are_not_mixed(tmp_path: Path) -> None:
     with pytest.raises(dyng.FileFormatError):
         dyng.io.read_batches(f)
     i = _write(tmp_path / "i.dgt", "+i 0 1\n")
-    with pytest.raises(dyng.FileFormatError, match="0.4"):
+    # The incidence edits of 0.4: read by the C++ library, refused by the Python layer until M11b
+    # (rather than dropped).
+    with pytest.raises(dyng.NotSupportedError, match="0.4"):
         dyng.io.read_hyperedge_batches(i)
+    with pytest.raises(dyng.FileFormatError):
+        dyng.io.read_batches(i)
 
 
 # -- .dgb ---------------------------------------------------------------------------------------
