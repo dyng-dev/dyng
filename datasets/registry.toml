@@ -78,7 +78,7 @@ loaded_by = "bin/hsospBench --hg <file> (--maxcard 25, the default): 2,466,792 h
 # collection's restricted archive coauth-MAG-Geology (simplices of at most 25 nodes), whose counts
 # MOSP_ESCHER's results/README.md reports (1,203,895 hyperedges, 1,256,385 vertices) although it
 # names the full archive. The goldens and the gates use geology.hg (parity/results/M11a.md
-# section 2; listed for the author's acknowledgement in GOVERNANCE.md, M11 (HD)).
+# section 2; decided by the author on 2026-10-29, GOVERNANCE.md approvals log).
 [[dataset]]
 name = "coauth-MAG-Geology-full"
 kind = "archive"
