@@ -74,6 +74,13 @@ code, the oracle must be shown to reproduce B on B's own data (go/no-go; STOP S2
    (`dyng_hsosp_dump_tests`) runs the same check in hosted CI and shows that a planted wrong
    distance, parent or pair fails it.
 
+## Outcome (M11a step 1)
+
+**GO**: on every batch of T and of `dblp_vertex_50000` and `geology_hyperedge_50000`, the oracle
+reproduces all 788 recorded updates and recomputes of B by id (distances and parents, 0
+differences) and `line_graph_delta` the pairs of all 728 batches (0 differences); the planted
+changes of the committed subset's test are all detected (`parity/results/M11a.md` section 7).
+
 ## Consequences
 
 - M11a's later steps check the port against this oracle (by_id_public and by_key, and the CI

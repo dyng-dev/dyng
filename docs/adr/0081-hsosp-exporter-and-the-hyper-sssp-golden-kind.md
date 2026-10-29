@@ -125,6 +125,19 @@ the port exists) writes `$DYNG_SCRATCH/goldens/hyper_sssp/mosp_escher`:
   (`parity/hsosp_goldens.py subset`), replayed by `dyng_hsosp_dump_tests` in hosted CI.
 - **Disk:** at most 1.5 GB new under the goldens root (HD18).
 
+## Outcome (M11a step 1)
+
+- The set: 25 cases (T: 153 sessions, 722 batches, 774 updates and recomputes; P: 16
+  configurations, 48 batches), 56 files, 600.7 MB; `MANIFEST.sha256` `62113394...c872`
+  byte-identical in two exports from two fresh patched copies. The first double export differed
+  only in a stderr line that held the initial recompute's iteration count (a logged-only counter);
+  it is now replaced like the times, and the set was exported twice again with every dump equal
+  to the first try's.
+- The twins equal the originals with recording off (32 of 32 invocations of `make test`, the CSVs
+  included); `cbst_trace_mosp_escher_test` re-exported through them has its golden's manifest; the
+  batch records equal the CBST trace goldens (1,770 records, 0 differences).
+- The committed subset is 70,740 bytes (`parity/results/M11a.md` sections 3 and 4).
+
 ## Consequences
 
 - M11a steps 2-4 replay the set by id (ADR 0080's modes): the batches, ids, skipped ops and pairs

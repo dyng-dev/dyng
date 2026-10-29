@@ -195,6 +195,17 @@ improvement mask a regression (PLAN 8.6).
   after the repeats, or if `mismatch_static` or the oracle fails: a finding against the original
   is reported, never worked around.
 
+## Outcome (M11a step 1)
+
+- B's own cross-checks pass: a fresh `make test` of the unpatched copy (28 PASS, 0 FAIL), and all
+  16 P configurations at `--verify all` (48 batches, `mismatch_static` 0, the oracle and the
+  parent check OK on every batch), with `h2h_pairs`, `seeds`, `overflow_rebuilds` and the
+  fallback decision of every batch equal to the export's; B's loader reports 1,203,895 hyperedges
+  and 1,256,385 vertices on Geology (`parity/results/M11a.md` section 5).
+- The quiet pre-read: neither dataset holds the boost lock for B (coauth-DBLP drops to 1650 MHz;
+  Geology's probe was contaminated by foreign CPU load), so both are read at base; B's quiet
+  maximum of the load average is 7.03 (procs_blocked 1), so the audit keeps 16 / 4 (section 6).
+
 ## Consequences
 
 - The port (M11a steps 2-5) is measured against a fixed map: it is committed before any file

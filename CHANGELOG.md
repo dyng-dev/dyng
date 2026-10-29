@@ -26,6 +26,23 @@ Before 0.1.0 anything may change.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
+- Added: `dyng::testing::hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`
+  (`<dyng/testing/hyper_sssp_reference.hpp>`), the independent oracle of `hyper_sssp`:
+  node-weighted shortest paths over the line graph rebuilt from the hyperedges, from a source
+  hyperedge or a source vertex, the canonical parents, and the line-graph change of a batch
+  (MOSP_ESCHER@4b86159's test oracle; the names decided by the author on 2026-10-28, HD12;
+  ADR 0082). It reproduces MOSP_ESCHER's distances, parents and pair lists on its own dumps.
+- Parity harness: the timed-region map of `hyper_sssp` against MOSP_ESCHER@4b86159
+  (`parity/timed_regions/hyper_sssp.toml`; the per-batch gate rows of HD3; ADR 0080) and its
+  loader in `parity/perf_ab.py`; the H-SOSP dump of the recording twins
+  (`parity/exporters/hsosp`, additive) and the golden kind `hyper_sssp` with the set
+  `hyper_sssp_mosp_escher` (`parity/hsosp_goldens.py`; ADR 0081); the clock probe and quiet
+  pre-read of MOSP_ESCHER (`parity/hsosp_perf.py probe`); `parity/certify.py` requires the
+  hyper_sssp replays of every backend and parity mode of the set from the 0.4 series
+  (`HYPER_SSSP_REPLAYS_SINCE`), and earlier certificates list the set without a verdict.
+- Datasets: Benson's coauth-MAG-Geology archives and H-SOSP's `geology.hg`, re-derived and
+  pinned in `datasets/registry.toml` (HD15).
+
 ## [0.3.0] - 2026-10-29
 
 ### Summary
