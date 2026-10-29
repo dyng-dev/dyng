@@ -615,7 +615,6 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
   // ---- The store phase (basic guarantee: a failure poisons the hypergraph).
   hyper_applied applied;
   hyper_apply_summary summary;
-  std::vector<weight_t> next_weights;
   try {
     const container_scope container;  // the container's own work (budgets, I9)
     store.set_host_threads(resources_access::host_threads(res));
@@ -709,12 +708,9 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
       add(rows, ids, +1);
     }
     if constexpr (!is_unweighted_v<weight_t>) {
-      next_weights = state.weights;
-      for (const std::int64_t id : live_deletions) next_weights[static_cast<std::size_t>(id)] = 0;
-      next_weights.resize(static_cast<std::size_t>(store.id_bound()), weight_t{0});
-      for (std::size_t i = 0; i < ids.size(); ++i) {
-        next_weights[static_cast<std::size_t>(ids[i])] = staged_.weights[i];
-      }
+      // The weights by id are updated in place after the commit point (ADR 0088): only the room
+      // for a larger bound is allocated here, inside the store phase (a failure poisons).
+      state.weights.reserve(static_cast<std::size_t>(store.id_bound()));
     }
     // One read of the device error words, then the row views of the new state.
     store.finish_apply();
@@ -732,14 +728,26 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
     state.poisoned = true;
     throw;
   }
-  // ---- The commit (no-throw: integer assignments, a swap and moves only).
+  // ---- The commit (no-throw: integer assignments, the weights written into reserved room, and
+  // moves only).
   applied.version_before = state.version;
   applied.state_before = state.state_id;
   ++state.version;
   state.state_id = next_graph_state_id();
   applied.version_after = state.version;
   applied.state_after = state.state_id;
-  if constexpr (!is_unweighted_v<weight_t>) state.weights.swap(next_weights);
+  if constexpr (!is_unweighted_v<weight_t>) {
+    // In place, O(batch) (ADR 0088; the copy of every weight per batch is gone): the deleted ids
+    // weigh 0, the bound moves (a smaller bound drops the dead tail, a larger one fits the
+    // reserved room: no allocation), then the inserted ids get theirs (one may be an id the batch
+    // deleted, under erase_first).
+    auto& w = state.weights;
+    for (const std::int64_t id : live_deletions) w[static_cast<std::size_t>(id)] = weight_t{0};
+    w.resize(static_cast<std::size_t>(summary.id_bound_after), weight_t{0});
+    for (std::size_t i = 0; i < summary.inserted_ids.size(); ++i) {
+      w[static_cast<std::size_t>(summary.inserted_ids[i])] = staged_.weights[i];
+    }
+  }
   static_assert(std::is_nothrow_move_assignable_v<hyper_applied>,
                 "the commit moves the applied record after the commit point");
   state.applied = std::move(applied);

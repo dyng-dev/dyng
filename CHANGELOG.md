@@ -49,6 +49,9 @@ Before 0.1.0 anything may change.
 - Internal: `escher::flatten_rows` (the port of ESCHER-GPU's `flatten2DVector`), which no library
   code called and whose OpenMP region ignored the resources' thread count, moved from the library
   to a test helper (`cpp/tests/support/escher_flatten.hpp`; the carried item (c) of 0.4; ADR 0084).
+- Changed (internal): a batch of a weighted hypergraph updates the weights by id in place, in
+  O(batch), instead of copying all of them (O(id bound)) per batch; the guarantees of `apply()`
+  are unchanged (ADR 0088).
 
 ## [0.3.0] - 2026-10-29
 

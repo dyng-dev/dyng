@@ -19,12 +19,15 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
+#include <random>
 #include <string>
 #include <vector>
 
 namespace {
 
 using dyng::backend;
+using dyng::capacity_policy;
 using dyng::hypergraph;
 using dyng::hypergraph_properties;
 using dyng::id_reuse;
@@ -254,6 +257,7 @@ TEST_P(HypergraphBackends, ValidationErrorsLeaveTheHypergraphUnchanged) {
   whgraph h = whgraph::from_hyperedges(res(), list.view(), props_of(id_reuse::erase_first));
   const std::uint64_t state = dyng::detail::hypergraph_access::state_id(h);
   const auto before = h.to_hyperedge_list(res());
+  const auto weights_before = dyng::test::host_copy(h.weights());
   const auto expect_unchanged = [&]() {
     EXPECT_EQ(h.version(), 0U);
     EXPECT_EQ(dyng::detail::hypergraph_access::state_id(h), state);
@@ -261,6 +265,8 @@ TEST_P(HypergraphBackends, ValidationErrorsLeaveTheHypergraphUnchanged) {
     EXPECT_EQ(now.offsets, before.offsets);
     EXPECT_EQ(now.members, before.members);
     EXPECT_EQ(now.weights, before.weights);
+    // The weights by id too (they are written in place after the commit point, ADR 0088).
+    EXPECT_EQ(dyng::test::host_copy(h.weights()), weights_before);
     h.check_integrity(res());
   };
   {  // a vertex out of range (after a valid deletion: nothing is deleted either)
@@ -419,6 +425,77 @@ TEST_P(HypergraphBackends, WeightsById) {
   hgraph u =
       hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), props_of(id_reuse::erase_first));
   EXPECT_TRUE(u.weights().empty());
+}
+
+// The weights by id follow every batch, in place (ADR 0088: no copy of every weight per batch):
+// random batches under both orders and every capacity preset against a model of the weights by
+// id; the bound grows and shrinks (a surplus insert drops the dead tail), a reused id gets its new
+// weight, a deleted one weighs 0; with room for the bound the array is not reallocated.
+TEST_P(HypergraphBackends, WeightsFollowEveryBatchInPlace) {
+  bool shrank = false;
+  for (const id_reuse reuse : {id_reuse::erase_first, id_reuse::insert_first}) {
+    for (const auto& capacity :
+         {capacity_policy::escher_gpu(), capacity_policy::mosp_escher(256), capacity_policy{}}) {
+      SCOPED_TRACE(std::string(dyng::to_string(reuse)));
+      std::mt19937_64 rng(7);
+      rows initial;
+      std::vector<std::int32_t> w0;
+      for (int i = 0; i < 40; ++i) {
+        initial.push_back({static_cast<std::int32_t>(rng() % 30)});
+        w0.push_back(1 + static_cast<std::int32_t>(rng() % 1000));
+      }
+      auto props = props_of(reuse);
+      props.capacity = capacity;
+      whgraph h =
+          whgraph::from_hyperedges(res(), list_of<std::int32_t>(30, initial, w0).view(), props);
+      std::vector<std::int32_t> model = w0;
+      bool reused_in_place = false;
+      for (int batch = 0; batch < 60; ++batch) {
+        dyng::hyperedge_batch<std::int32_t, std::int32_t> b;
+        std::vector<std::int64_t> live;
+        for (std::int64_t id = 0; id < h.hyperedge_id_bound(); ++id)
+          if (model[static_cast<std::size_t>(id)] != 0) live.push_back(id);
+        if (batch % 10 == 9) {
+          // The highest ids: a surplus insert then drops them (the bound goes down).
+          std::sort(live.begin(), live.end(), std::greater<>());
+        } else {
+          std::shuffle(live.begin(), live.end(), rng);
+        }
+        const std::size_t deletions =
+            batch % 10 == 9 ? 5 : (batch % 7 == 6 ? live.size() / 2 : rng() % 4);
+        for (std::size_t i = 0; i < std::min(deletions, live.size()); ++i)
+          b.delete_hyperedge(live[i]);
+        const int insertions = batch % 10 == 9 ? 2 : static_cast<int>(rng() % 4);
+        std::vector<std::int32_t> inserted_w;
+        for (int i = 0; i < insertions; ++i) {
+          inserted_w.push_back(1 + static_cast<std::int32_t>(rng() % 1000));
+          // Members 1-6: a row of more than 3 does not fit a dead slot of a single (surplus).
+          std::vector<std::int32_t> members;
+          const int n = batch % 10 == 9 ? 6 : 1 + static_cast<int>(rng() % 6);
+          for (int k = 0; k < n; ++k)
+            members.push_back(static_cast<std::int32_t>((batch + 5 * k) % 30));
+          b.insert_hyperedge(dyng::host_view(members), inserted_w.back());
+        }
+        const std::int64_t bound_before = h.hyperedge_id_bound();
+        const std::int32_t* data_before = h.weights().data();
+        const auto s = h.apply(res(), b.view());
+        for (std::size_t i = 0; i < std::min(deletions, live.size()); ++i)
+          model[static_cast<std::size_t>(live[i])] = 0;
+        model.resize(static_cast<std::size_t>(s.id_bound_after), 0);
+        for (std::size_t i = 0; i < s.inserted_ids.size(); ++i)
+          model[static_cast<std::size_t>(s.inserted_ids[i])] = inserted_w[i];
+        ASSERT_EQ(dyng::test::host_copy(h.weights()), model) << "batch " << batch;
+        shrank = shrank || s.id_bound_after < bound_before;
+        if (s.id_bound_after <= bound_before && !s.inserted_ids.empty()) {
+          reused_in_place = true;
+          EXPECT_EQ(h.weights().data(), data_before) << "batch " << batch;
+        }
+      }
+      h.check_integrity(res());
+      EXPECT_TRUE(reused_in_place);
+    }
+  }
+  EXPECT_TRUE(shrank);  // a surplus insert dropped the dead tail somewhere
 }
 
 TEST_P(HypergraphBackends, LineGraphPolicies) {
