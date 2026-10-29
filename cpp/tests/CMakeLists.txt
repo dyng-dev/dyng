@@ -643,6 +643,17 @@ target_include_directories(dyng_operators_tests PRIVATE "${PROJECT_SOURCE_DIR}/c
 if(DYNG_ENABLE_OPENMP)
   target_link_libraries(dyng_operators_tests PRIVATE OpenMP::OpenMP_CXX)
 endif()
+# The host executors' for_each carries an exception out of its region (ADR 0083): its own
+# executable, since it replaces operator new (support/failing_allocator.hpp).
+dyng_add_test(
+  NAME dyng_operators_execution_tests
+  SOURCES operators/execution_test.cpp
+  LABELS cpu operators
+)
+target_include_directories(dyng_operators_execution_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_operators_execution_tests PRIVATE OpenMP::OpenMP_CXX)
+endif()
 if(DYNG_ENABLE_CUDA)
   dyng_add_test(
     NAME dyng_operators_cuda_tests

@@ -42,6 +42,10 @@ Before 0.1.0 anything may change.
   (`HYPER_SSSP_REPLAYS_SINCE`), and earlier certificates list the set without a verdict.
 - Datasets: Benson's coauth-MAG-Geology archives and H-SOSP's `geology.hg`, re-derived and
   pinned in `datasets/registry.toml` (HD15).
+- Fixed: an exception thrown by the work of `operators::openmp_exec::for_each` (the host
+  executor of the operators, used by the tutorial algorithms dynamic_bfs and triangle_delta) left
+  its OpenMP region and ended the process; it is now rethrown on the calling thread after the
+  region (the carried item (b) of 0.4, the D13 class of ADR 0061; ADR 0083).
 
 ## [0.3.0] - 2026-10-29
 
