@@ -2033,6 +2033,174 @@ def delta_main(args) -> int:
     return 0 if not problems else 1
 
 
+RESULTS_TOTALS = (
+    "sessions",
+    "stopped_sessions",
+    "batches",
+    "updates",
+    "recomputes",
+    "digest_calls",
+    "ids_compared",
+    "original_exceptions",
+    "source_row_parents",
+    "target_row_parents",
+    "canonical_checked",
+    "compute_checked",
+    "fallback_equal",
+    "fallback_differ",
+    "dyng_fallbacks",
+    "b_fallbacks",
+    "not_checked",
+    "mismatch_count",
+)
+
+
+def results_main(args) -> int:
+    """--part results (M11a criterion 14, HD2; ADR 0091): every session of the cases replayed
+    whole through hyper_sssp with dyng_hsosp_replay --algorithm <mode>, every hsospUpdate and
+    hsospRecompute B recorded compared with dynG's result (by_id: distances and parents by id, a
+    digest case by its digests; by_id_public: distances on the real hyperedges, the documented
+    parent differences counted, every parent against the canonical rule; by_key: a container
+    loaded as a user would, B's batches resolved by content). Also update == compute (B's state B
+    recompute against the updated state A, and with --check-compute a fresh compute() after every
+    update), and the per-call digests of every result (--repeat N runs a case N times and requires
+    identical digests; --same-as <record.json> requires the digests of another record, e.g.
+    sequential == cuda). The fallback decisions are tabulated against B's (HD7). --record writes
+    M11a-hsosp-results-<mode>-<backend>[-<cases>].json."""
+    exe = args.exe or find_replay()
+    if exe is None or not exe.is_file():
+        print("dyng_hsosp_replay not found: build dyng_hsosp_replay_tool", file=sys.stderr)
+        return 2
+    out = set_dir(args.scratch)
+    if not (out / "MANIFEST.sha256").is_file():
+        print(f"no goldens under {out}; skipping", file=sys.stderr)
+        return 77
+    problems: list[str] = []
+    if not args.skip_verify:
+        problems += verify_set(args.scratch)
+    t, names = select(args.cases)
+    cases = ([f"test/{n}" for n, _ in T_CASES] if t else []) + [f"paper/{n}" for n in names]
+    if args.backend == "openmp":
+        print("hyper_sssp has no openmp backend in 0.4 (HD14)", file=sys.stderr)
+        return 2
+    env = dict(os.environ)
+    if args.backend == "cuda":
+        env["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    reports = []
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=args.scratch / "runs", prefix="hsosp-results-") as tmp:
+        for case in cases:
+            dump = out / case / "dump.hsd.zst"
+            if case.startswith("paper/"):
+                dump = splice_load(out, case, Path(tmp))
+            digests = None
+            for run in range(max(1, args.repeat)):
+                js = Path(tmp) / "report.json"
+                cmd = [str(exe), "--algorithm", args.mode, "--backend", args.backend]
+                cmd += ["--json", str(js)]
+                if args.check_compute:
+                    cmd.append("--check-compute")
+                cmd.append(str(dump))
+                if args.backend == "cuda" and args.gpu == 1:
+                    wait_gpu1_quiet()  # every GPU-1 job checks the shared calendar first
+                t0 = time.monotonic()
+                r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+                if r.returncode not in (0, 1) or not js.is_file():
+                    rep = {
+                        "ok": False,
+                        "error": (r.stderr or r.stdout)[-2000:],
+                        "mismatch_count": 1,
+                    }
+                else:
+                    rep = json.loads(js.read_text())[0]
+                rep["file"] = f"{case}/dump.hsd.zst"
+                rep["wall_seconds"] = round(time.monotonic() - t0, 1)
+                calls = rep.get("calls", [])
+                if digests is None:
+                    digests = calls
+                elif calls != digests:
+                    rep["ok"] = False
+                    rep.setdefault("mismatches", []).insert(0, f"run {run + 1}: the digests differ")
+                    rep["mismatch_count"] = int(rep.get("mismatch_count", 0)) + 1
+                if run > 0:
+                    rep["repeat_of"] = 1
+                reports.append(rep)
+                first = (
+                    "" if rep.get("ok") else (rep.get("mismatches") or [rep.get("error", "")])[0]
+                )
+                print(
+                    f"{case}{f' run {run + 1}' if args.repeat > 1 else ''}: "
+                    f"{'ok' if rep.get('ok') else 'MISMATCH'} ({rep.get('sessions')} sessions, "
+                    f"{rep.get('batches')} batches, {rep.get('updates')} updates, "
+                    f"{rep.get('recomputes')} recomputes, {rep.get('ids_compared')} ids, fallbacks "
+                    f"{rep.get('dyng_fallbacks')} vs B {rep.get('b_fallbacks')}, "
+                    f"{rep['wall_seconds']} s) {first}",
+                    flush=True,
+                )
+            if case.startswith("paper/"):
+                dump.unlink()
+    if args.same_as:
+        other = json.loads(Path(args.same_as).read_text())
+        theirs = {c["file"]: c.get("calls") for c in other.get("cases", [])}
+        compared = 0
+        for rep in reports:
+            if rep.get("repeat_of"):
+                continue
+            if rep["file"] in theirs:
+                compared += 1
+                if theirs[rep["file"]] != rep.get("calls"):
+                    problems.append(f"{rep['file']}: the digests differ from {args.same_as}")
+        print(f"--same-as {args.same_as}: {compared} cases compared")
+    totals = {
+        k: sum(int(r.get(k, 0)) for r in reports if not r.get("repeat_of")) for k in RESULTS_TOTALS
+    }
+    for r in reports:
+        if not r.get("ok"):
+            problems.append(f"{r['file']}: {(r.get('mismatches') or [r.get('error', '?')])[0]}")
+    if totals["stopped_sessions"]:
+        problems.append(f"{totals['stopped_sessions']} sessions were not replayed to their end")
+    for r in reports:
+        r.pop("repeat_of", None)
+    record = {
+        "record": f"hyper_sssp's results ({args.mode}): B's sessions replayed whole through "
+        "hyper_sssp",
+        "mode": args.mode,
+        "backend": args.backend,
+        "check_compute": args.check_compute,
+        "repeat": args.repeat,
+        "same_as": portable(Path(args.same_as)) if args.same_as else None,
+        "verified": not args.skip_verify,
+        "commit": git_head(),
+        "tool": portable(exe),
+        "passed": not problems,
+        "totals": totals,
+        "cases": reports,
+        "problems": problems,
+    }
+    print(
+        f"hyper_sssp results {args.mode} on {args.backend}: {len(cases)} cases, "
+        f"{totals['sessions']} sessions ({totals['stopped_sessions']} stopped), "
+        f"{totals['batches']} batches, {totals['updates']} updates, "
+        f"{totals['recomputes']} recomputes "
+        f"({totals['digest_calls']} by digest), {totals['ids_compared']} ids, fallbacks "
+        f"{totals['dyng_fallbacks']} vs B {totals['b_fallbacks']} ({totals['fallback_differ']} "
+        f"differ), {totals['mismatch_count']} mismatches: " + ("OK" if not problems else "FAILED")
+    )
+    for pr in problems[:20]:
+        print("  " + pr)
+    if args.record:
+        args.record.mkdir(parents=True, exist_ok=True)
+        name = f"M11a-hsosp-results-{args.mode}-{args.backend}"
+        if args.cases != "t,p50":
+            name += "-" + re.sub(r"[^a-z0-9]+", "-", args.cases.lower()).strip("-")
+        if args.repeat > 1:
+            name += f"-x{args.repeat}"
+        if args.check_compute:
+            name += "-check-compute"
+        (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
+    return 0 if not problems else 1
+
+
 def git_head() -> str:
     try:
         return subprocess.run(
@@ -2064,9 +2232,18 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
     p.add_argument("--exe", type=Path, help="dyng_hsosp_replay (default: find it in build/)")
     p.add_argument("--record", type=Path, help="write M11a-hsosp-delta-*.json here")
+    p.add_argument("--mode", choices=["by_id", "by_id_public", "by_key"], default="by_id",
+                   help="--part results: the parity mode (HD2)")  # fmt: skip
+    p.add_argument("--check-compute", action="store_true",
+                   help="--part results: every update also against a fresh compute()")  # fmt: skip
+    p.add_argument("--repeat", type=int, default=1,
+                   help="--part results: run each case N times (identical digests)")  # fmt: skip
+    p.add_argument("--same-as", help="--part results: a record whose digests must be equal")
     args = p.parse_args(argv)
     if args.part == "delta":
         return delta_main(args)
+    if args.part == "results":
+        return results_main(args)
     if args.list:
         for name, _ in T_CASES:
             print(f"test/{name}")

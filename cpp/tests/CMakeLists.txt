@@ -125,8 +125,10 @@ dyng_set_warnings(dyng_hsosp_dump)
 dyng_enable_sanitizers(dyng_hsosp_dump)
 # The container side of hyper_sssp's parity (M11a step 2, ADRs 0085 and 0086): the sessions of the
 # dumps replayed whole through dyng::hypergraph on slack_csr storage, by id (the tool
-# parity/compare.py hyper_sssp --part delta drives over the golden set).
-add_library(dyng_hsosp_replay STATIC parity/hsosp/hsosp_replay.cpp)
+# parity/compare.py hyper_sssp --part delta drives over the golden set); and its result side (M11a
+# step 4, ADR 0091: every update and recompute B recorded against hyper_sssp's, in the modes
+# by_id, by_id_public and by_key; --part results).
+add_library(dyng_hsosp_replay STATIC parity/hsosp/hsosp_replay.cpp parity/hsosp/hsosp_results.cpp)
 target_link_libraries(dyng_hsosp_replay PUBLIC dyng_hsosp_dump dyng_cbst_compare dyng::dyng)
 target_include_directories(dyng_hsosp_replay PUBLIC "${PROJECT_SOURCE_DIR}/cpp/src")
 dyng_set_warnings(dyng_hsosp_replay)
@@ -144,6 +146,30 @@ dyng_add_test(
 )
 target_compile_definitions(dyng_hsosp_replay_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 list(APPEND _dyng_private_tests dyng_hsosp_replay_tests)
+# The result side (M11a step 4, criterion 14): the subset through hyper_sssp in the three modes,
+# and the planted results, batch orders and drops the comparator must catch (sequential; cuda in
+# CUDA builds).
+dyng_add_test(
+  NAME dyng_hsosp_results_tests
+  SOURCES parity/hsosp/hsosp_results_test.cpp
+  LABELS cpu parity hyper_sssp
+  LIBRARIES dyng_hsosp_replay
+)
+target_compile_definitions(dyng_hsosp_results_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+list(APPEND _dyng_private_tests dyng_hsosp_results_tests)
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_hsosp_results_cuda_tests
+    SOURCES parity/hsosp/hsosp_results_test.cpp
+    LABELS gpu parity hyper_sssp
+    LIBRARIES dyng_hsosp_replay
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(
+    dyng_hsosp_results_cuda_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}" DYNG_TEST_CUDA=1
+  )
+  list(APPEND _dyng_private_tests dyng_hsosp_results_cuda_tests)
+endif()
 add_executable(dyng_hsosp_oracle parity/hsosp/hsosp_oracle_main.cpp)
 target_link_libraries(dyng_hsosp_oracle PRIVATE dyng_hsosp_dump)
 dyng_set_warnings(dyng_hsosp_oracle)
