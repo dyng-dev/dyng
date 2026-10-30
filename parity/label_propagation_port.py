@@ -28,11 +28,13 @@ trace       For every case of P+: dyng-compat-dynlp with the case's argv, --back
             bits, and the initial frontier (size and vertices); the stages O does not run in a
             batch must be absent. The labels after propagation are not compared here (on
             sequential the oracle judges them).
-oracle-port On C = {5k5, 50k} at delta 1e-6, both rules: dyng-compat-dynlp --check (the harmonic
-            oracle per batch, AD7: mean |F - F*| <= 2000 delta, no PCG skip, seeds exact, labels
-            in [0, 1]) and the class margin rule (no flip where |F* - 0.5| > 3 m, m from
-            parity/results/M10a-class-margin.json) on its label dump, and IrLP (--validate) on
-            the snapshots at 5k5 delta 1e-6 (agreement with DynLP reported).
+oracle-port On C = {5k5, 50k} at delta 1e-6 by default (--cases: also L = {500k, 5m} at delta
+            1e-4, the release replay, and 50k at delta 1e-4, the weekly hosted run), both
+            rules: dyng-compat-dynlp --check (the harmonic oracle per batch, AD7: mean
+            |F - F*| <= 2000 delta, no PCG skip, seeds exact, labels in [0, 1]) and, at delta
+            1e-6 (where m was taken), the class margin rule (no flip where |F* - 0.5| > 3 m, m
+            from parity/results/M10a-class-margin.json; reported at delta 1e-4) on its label
+            dump, and IrLP (--validate) on the snapshots of C (agreement with DynLP reported).
 determinism Two runs of every C case on the backend: damped label bits identical run to run, and
             in_place too on sequential (it updates each half-sweep in vertex order).
 """
@@ -68,6 +70,9 @@ C_CASES = [
 ]
 # L: the release replay of AD7 (delta 1e-4 at 500k and 5m, both rules; M10a step 5).
 L_CASES = [g.Case(s, schedule=r) for s in ("500k", "5m") for r in ("damped", "inplace")]
+# The weekly hosted CPU run of AD7 (delta 1e-4 at 50k on sequential, both rules;
+# .github/workflows/oracle.yml).
+WEEKLY_CASES = [g.Case("50k", schedule=r) for r in ("damped", "inplace")]
 MARGIN_RECORD = REPO / "parity" / "results" / "M10a-class-margin.json"
 
 
@@ -283,7 +288,7 @@ def labels_of_dump(path: Path, n: int) -> list:
 def cmd_oracle_port(args: argparse.Namespace) -> int:
     margin = class_margin()
     results, ok = [], True
-    for case in select(C_CASES + L_CASES, args.cases or [c.name for c in C_CASES]):
+    for case in select(C_CASES + L_CASES + WEEKLY_CASES, args.cases or [c.name for c in C_CASES]):
         # IrLP on every snapshot of C (at 50k on CUDA too); L is the update chain only.
         validate = case in C_CASES and (case.size == "5k5" or args.backend == "cuda")
         c = g.Case(case.size, delta=case.delta, schedule=case.schedule, validate=validate)
@@ -333,10 +338,17 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
         sources = [("update", b) for b in oracle["batches"]]
         if irlp_out is not None:
             sources += [("compute (IrLP)", b) for b in json.loads(irlp_out.stdout)["batches"]]
+        # AD7's class rule (no flip where |F* - 0.5| > 3m) holds at the delta m was taken at
+        # (1e-6, C); at delta 1e-4 (L, the weekly run) the bound and the PCG are the rule and the
+        # flips beyond 3m are reported: the original's own 50k delta 1e-4 labels flip beyond 3m
+        # in batches 2-7 (ADR 0078).
+        class_rule = c.delta == "1e-6"
         for source, b in sources:
             limit = 2000.0 * float(g.DELTAS[c.delta])
             good_b = (
-                b["converged"] and b["mean"] <= limit and b["largest_flip_distance"] <= 3 * margin
+                b["converged"]
+                and b["mean"] <= limit
+                and (not class_rule or b["largest_flip_distance"] <= 3 * margin)
             )
             if b["largest_flip_distance"] > 3 * margin:
                 flips_beyond.append(f"{source} {b['batch']}")
@@ -364,6 +376,7 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
                 "check_lines": lines,
                 "batches": batches,
                 "flips_beyond_3m": flips_beyond,
+                "class_rule_applied": class_rule,
                 "irlp_results_csv": results_csv,
                 "within": good,
             }
@@ -372,7 +385,7 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
         print(
             f"{c.name}: {'within' if good else 'OUTSIDE'} (exit {p.returncode}; smallest margin "
             f"2000 delta / mean = {worst if worst is None else round(worst, 2)}; flips beyond 3m "
-            f"in batches {flips_beyond})",
+            f"in batches {flips_beyond}{'' if class_rule else ', reported only at this delta'})",
             flush=True,
         )
     if args.json:
