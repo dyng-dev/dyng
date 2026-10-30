@@ -183,8 +183,17 @@ results=()
 
 step() { printf '\n==> %s\n' "$*"; }
 skipped() { [[ "${skip}" == *" $1 "* ]]; }
-# Heavy commands: shared lock (never during an exclusive timing run), niced.
+# Heavy commands: shared lock (never during an exclusive timing run), niced. With
+# DYNG_LOCKLOG_MILESTONE set (M10a, M11a, ...), each first waits while another agent's GPU1-QUIET
+# window of the shared calendar ($DYNG_SCRATCH/tools/locklog.py quiet-ok) is open.
 heavy() {
+  local calendar="${DYNG_SCRATCH:-}/tools/locklog.py"
+  if [ -n "${DYNG_LOCKLOG_MILESTONE:-}" ] && [ -f "${calendar}" ]; then
+    while ! python3 "${calendar}" quiet-ok "${DYNG_LOCKLOG_MILESTONE}" >/dev/null; do
+      echo "waiting: a GPU1-QUIET window is open (locklog.py quiet-ok)"
+      sleep 60
+    done
+  fi
   if [ -n "${lock}" ]; then
     flock -s "${lock}" nice -n 10 "$@"
   else
