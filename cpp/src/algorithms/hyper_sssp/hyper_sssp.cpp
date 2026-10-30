@@ -257,10 +257,10 @@ hyper_sssp::result<std::int32_t> hyper_sssp_access::make(std::unique_ptr<hyper_s
 }
 
 // ------------------------------------------------------------------------------------------------
-// The CUDA engine: stubs until MOSP_ESCHER's engine is transplanted (cuda.cu)
+// The CUDA engine without CUDA: the stubs (cuda.cu defines them in a CUDA build)
 // ------------------------------------------------------------------------------------------------
 
-#if 1
+#if !DYNG_HAS_CUDA
 namespace {
 [[noreturn]] void no_cuda() {
   throw not_supported_error("dyng: hyper_sssp: the cuda backend is not built");

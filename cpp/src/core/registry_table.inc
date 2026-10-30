@@ -77,7 +77,7 @@ table.push_back(algorithm_info{
     maturity_level::experimental,
     determinism::bitwise,
     oracle_kind::compute,
-    {backend::sequential},
+    {backend::sequential, backend::cuda},
     {"hsosp2026"},
 });
 #endif

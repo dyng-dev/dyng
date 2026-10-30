@@ -1,0 +1,474 @@
+diff -ruN a/cpp/src/algorithms/hyper_sssp/engine.cu b/cpp/src/algorithms/hyper_sssp/engine.cu
+--- a/cpp/src/algorithms/hyper_sssp/engine.cu
++++ b/cpp/src/algorithms/hyper_sssp/engine.cu
+@@ -14,10 +14,23 @@
+ #include "algorithms/hyper_sssp/kernels.cuh"
+ #include "algorithms/hyper_sssp/state.cuh"
+ 
++#include <dyng/core/error.hpp>
++
+ #include <algorithm>
+-#include <cstdio>
+ #include <limits>
+ #include <stdexcept>
++#include <string>
++#include <vector>
++
++// dynG (transplant hunk): MOSP_ESCHER's HSOSP_CUDA_CHECK (hsosp/src/hsospInternal.cuh).
++#define HSOSP_CUDA_CHECK(call)                                                                    \
++  do {                                                                                            \
++    cudaError_t err__ = (call);                                                                   \
++    if (err__ != cudaSuccess) {                                                                   \
++      throw std::runtime_error(std::string("CUDA error: ") + cudaGetErrorString(err__) + " at " + \
++                               __FILE__ + ":" + std::to_string(__LINE__));                        \
++    }                                                                                             \
++  } while (0)
+ 
+ namespace dyng::detail::hsosp {
+ 
+@@ -43,6 +56,8 @@
+   if (d_stamp) cudaFree(d_stamp);
+   if (d_upd_counters) cudaFree(d_upd_counters);
+   if (h_upd_counters) cudaFreeHost(h_upd_counters);
++  if (d_holds) cudaFree(d_holds);
++  d_holds = nullptr;
+   d_packed = nullptr;
+   d_inv_a = d_inv_b = d_jump_a = d_jump_b = nullptr;
+   d_front = d_next = d_stamp = nullptr;
+@@ -88,6 +103,8 @@
+     d_upd_counters = o.d_upd_counters;
+     h_upd_counters = o.h_upd_counters;
+     epoch = o.epoch;
++    d_holds = o.d_holds;
++    o.d_holds = nullptr;
+     o.d_packed = nullptr;
+     o.d_inv_a = o.d_inv_b = o.d_jump_a = o.d_jump_b = nullptr;
+     o.d_front = o.d_next = o.d_stamp = nullptr;
+@@ -135,10 +152,20 @@
+   HSOSP_CUDA_CHECK(cudaDeviceSynchronize());
+ }
+ 
++void device_state::allocate_holds() {
++  if (d_holds) cudaFree(d_holds);
++  d_holds = nullptr;
++  HSOSP_CUDA_CHECK(cudaMalloc(&d_holds, static_cast<std::size_t>(max_nodes)));
++  HSOSP_CUDA_CHECK(cudaMemset(d_holds, 0, static_cast<std::size_t>(max_nodes)));
++}
++
+ long long device_state::device_bytes() const {
++  // dynG (transplant hunk): + the public mode's source flags (none in the virtual mode, whose bytes
++  // are MOSP_ESCHER's).
+   return static_cast<long long>(max_nodes) *
+              (sizeof(long long) + 5 * sizeof(int) + sizeof(unsigned long long) + 8 * sizeof(int)) +
+-         2 * sizeof(int) + upd_counters * sizeof(unsigned long long);
++         2 * sizeof(int) + upd_counters * sizeof(unsigned long long) +
++         (d_holds != nullptr ? static_cast<long long>(max_nodes) : 0);
+ }
+ 
+ void device_state::download_distances(std::vector<long long>& dist, int n) const {
+@@ -211,7 +238,7 @@
+     pull_distances_warp_kernel<<<grid_for(32LL * cand_count, block), block>>>(
+         st.d_cand_list, cand_count, dev.d_row_start, dev.d_deg, dev.d_col_ind, dev.d_node_w,
+         st.d_dist, st.d_parent, st.d_is_candidate, st.d_is_affected, st.d_aff_list, d_aff_count,
+-        source0);
++        source0, dev.zero_a, dev.zero_b, dev.d_holds);
+     HSOSP_CUDA_CHECK(cudaGetLastError());
+ 
+     int aff_count = 0;
+@@ -250,9 +277,18 @@
+   fill_int_kernel<<<grid_for(n, block), block>>>(st.d_parent, n, -1);
+   HSOSP_CUDA_CHECK(cudaMemset(st.d_is_affected, 0, sizeof(int) * n));
+   HSOSP_CUDA_CHECK(cudaMemset(st.d_is_candidate, 0, sizeof(int) * n));
+-  const long long zero = 0;
+-  HSOSP_CUDA_CHECK(
+-      cudaMemcpy(st.d_dist + source0, &zero, sizeof(long long), cudaMemcpyHostToDevice));
++  if (source0 >= 0) {
++    const long long zero = 0;
++    HSOSP_CUDA_CHECK(
++        cudaMemcpy(st.d_dist + source0, &zero, sizeof(long long), cudaMemcpyHostToDevice));
++  } else if (dev.base != nullptr && !dev.base->empty()) {
++    // dynG (transplant hunk), the public mode: the hyperedges holding the source at their own
++    // weight (the source row's role; propagate collects their neighbours first).
++    const int nb = static_cast<int>(dev.base->size());
++    HSOSP_CUDA_CHECK(
++        cudaMemcpy(st.d_aff_list, dev.base->data(), sizeof(int) * nb, cudaMemcpyHostToDevice));
++    seed_base_kernel<<<grid_for(nb, block), block>>>(st.d_aff_list, nb, dev.d_node_w, st.d_dist);
++  }
+   HSOSP_CUDA_CHECK(cudaDeviceSynchronize());
+ }
+ 
+@@ -268,12 +304,14 @@
+   engine_config rcfg = cfg;
+   // Recompute-from-blank converges in <= eccentricity(source) rounds; the
+   // stale-loop hazard of the dynamic path cannot occur. Cap generously.
+-  rcfg.max_iterations = std::max(cfg.max_iterations, dev.num_nodes + 1);
++  rcfg.max_iterations = std::max<std::int64_t>(cfg.max_iterations, dev.num_nodes + 1);
+ 
++  // dynG (transplant hunk): the public mode starts from the hyperedges holding the source.
+   std::vector<int> initial = {source0};
++  if (source0 < 0) initial = dev.base != nullptr ? *dev.base : std::vector<int>{};
+   int it = propagate(dev, st, initial, /*start_with_candidates=*/false, source0, rcfg,
+                      &stats.max_frontier);
+-  stats.iterations = (it < 0) ? rcfg.max_iterations : it;
++  stats.iterations = (it < 0) ? static_cast<int>(rcfg.max_iterations) : it;
+   return stats;
+ }
+ 
+@@ -290,17 +328,14 @@
+   const int2* del_pairs = dd.d_pairs;
+   const int2* ins_pairs = dd.d_pairs + dd.num_del;
+   const int* new_ids = dd.d_ids;
+-  const int* dead_ids = dd.d_ids + dd.num_new;
+   u64* cnt = st.d_upd_counters;
+   u64* hcnt = st.h_upd_counters;
+   auto read_counters = [&]() {
+     HSOSP_CUDA_CHECK(cudaMemcpy(hcnt, cnt, sizeof(u64) * upd_counters, cudaMemcpyDeviceToHost));
+   };
+ 
+-  // Dead nodes have no edges left (all their pairs are in the delta);
+-  // zero their degree anyway so they can never be pushed from.
+-  if (dd.num_dead > 0)
+-    zeroDegreeKernel<<<grid_for(dd.num_dead, block), block>>>(dead_ids, dd.num_dead, dev.d_deg);
++  // dynG (transplant hunk): the dead nodes' degrees are zeroed by the slack_csr store's CSR apply
++  // (ADR 0089), so the engine writes no container state.
+ 
+   // 1. Pack the pre-batch state; mark the roots.
+   HSOSP_CUDA_CHECK(cudaMemset(cnt, 0, sizeof(u64) * upd_counters));
+@@ -312,6 +347,15 @@
+   if (dd.num_new + dd.num_dead > 0)
+     mark_ids_kernel<<<grid_for(dd.num_new + dd.num_dead, block), block>>>(
+         new_ids, dd.num_new + dd.num_dead, st.d_inv_a);
++  // dynG (transplant hunk), the public mode: a hyperedge that lost the source is a root if it was
++  // reached from the source directly (uploaded into the unused candidate list).
++  if (dev.lost != nullptr && !dev.lost->empty()) {
++    const int nl = static_cast<int>(dev.lost->size());
++    HSOSP_CUDA_CHECK(
++        cudaMemcpy(st.d_cand_list, dev.lost->data(), sizeof(int) * nl, cudaMemcpyHostToDevice));
++    mark_lost_source_kernel<<<grid_for(nl, block), block>>>(st.d_cand_list, nl, st.d_packed,
++                                                            st.d_inv_a);
++  }
+   HSOSP_CUDA_CHECK(cudaGetLastError());
+ 
+   // 2. Invalidate the subtrees of the roots by pointer jumping. A parent
+@@ -338,6 +382,7 @@
+   }
+   const double work_limit = cfg.work_budget * static_cast<double>(std::max(1LL, dev.num_entries));
+   bool budget_exceeded = !tree_ok;
++  if (!tree_ok) stats.reason = hyper_sssp::fallback_reason::invalidation_depth;
+ 
+   if (!budget_exceeded) {
+     invalidate_kernel<<<grid_for(n, block), block>>>(inv_in, st.d_packed, st.d_front, cnt, n,
+@@ -353,11 +398,20 @@
+     if (n_inv > 0)
+       pull_invalidated_kernel<<<grid_for(32LL * n_inv, block), block>>>(
+           st.d_front, n_inv, dev.d_row_start, dev.d_deg, dev.d_col_ind, dev.d_node_w, st.d_packed,
+-          st.d_stamp, ep0, st.d_next, cnt);
++          st.d_stamp, ep0, st.d_next, cnt, dev.zero_a, dev.zero_b, dev.d_holds);
+     if (dd.num_ins > 0)
+       relax_inserted_kernel<<<grid_for(dd.num_ins, block), block>>>(
+           ins_pairs, dd.num_ins, dev.d_node_w, st.d_packed, st.d_stamp, ep0, st.d_next, cnt,
+-          source0);
++          source0, dev.zero_a, dev.zero_b);
++    // dynG (transplant hunk), the public mode: the hyperedges that gained the source are offered
++    // their own weight (uploaded into the unused candidate list).
++    if (dev.gained != nullptr && !dev.gained->empty()) {
++      const int ng = static_cast<int>(dev.gained->size());
++      HSOSP_CUDA_CHECK(
++          cudaMemcpy(st.d_cand_list, dev.gained->data(), sizeof(int) * ng, cudaMemcpyHostToDevice));
++      relax_base_kernel<<<grid_for(ng, block), block>>>(
++          st.d_cand_list, ng, dev.d_node_w, st.d_packed, st.d_stamp, ep0, st.d_next, cnt);
++    }
+     HSOSP_CUDA_CHECK(cudaGetLastError());
+     read_counters();
+ 
+@@ -368,6 +422,12 @@
+       if (stats.iterations >= cfg.max_iterations ||
+           static_cast<double>(hcnt[cnt_work]) > work_limit || hcnt[cnt_overflow] != 0) {
+         budget_exceeded = true;
++        // dynG (transplant hunk): the reason, in MOSP_ESCHER's order of the test (HD12).
++        stats.reason = stats.iterations >= cfg.max_iterations
++                           ? hyper_sssp::fallback_reason::iterations
++                       : static_cast<double>(hcnt[cnt_work]) > work_limit
++                           ? hyper_sssp::fallback_reason::work_budget
++                           : hyper_sssp::fallback_reason::distance_width;
+         break;
+       }
+       ++stats.iterations;
+@@ -376,14 +436,30 @@
+       HSOSP_CUDA_CHECK(cudaMemset(cnt + cnt_next, 0, sizeof(u64)));
+       push_kernel<<<grid_for(32LL * frontier, block), block>>>(
+           st.d_front, frontier, dev.d_row_start, dev.d_deg, dev.d_col_ind, dev.d_node_w,
+-          st.d_packed, st.d_stamp, ep, st.d_next, cnt, source0);
++          st.d_packed, st.d_stamp, ep, st.d_next, cnt, source0, dev.zero_a, dev.zero_b);
+       HSOSP_CUDA_CHECK(cudaGetLastError());
+       read_counters();
+       frontier = static_cast<int>(hcnt[cnt_next]);
+       stats.max_frontier = std::max(stats.max_frontier, frontier);
+     }
+     stats.work = static_cast<long long>(hcnt[cnt_work]);
+-    if (hcnt[cnt_overflow] != 0) budget_exceeded = true;
++    if (hcnt[cnt_overflow] != 0) {
++      if (!budget_exceeded) stats.reason = hyper_sssp::fallback_reason::distance_width;
++      budget_exceeded = true;
++    }
++  }
++
++  // dynG (transplant hunk): budget_action::error for a spent work or iteration budget (HD8).
++  if (budget_exceeded && cfg.error_on_budget &&
++      (stats.reason == hyper_sssp::fallback_reason::work_budget ||
++       stats.reason == hyper_sssp::fallback_reason::iterations)) {
++    throw convergence_error(
++        std::string("dyng: hyper_sssp::update: the update exceeded its ") +
++        (stats.reason == hyper_sssp::fallback_reason::iterations
++             ? "iteration budget (options::max_iterations push rounds)"
++             : "work budget (options::work_budget x the live entries)") +
++        " under budget_action::error; the hypergraph holds the batch and the result is "
++        "poisoned: recompute it");
+   }
+ 
+   if (budget_exceeded) {
+diff -ruN a/cpp/src/algorithms/hyper_sssp/kernels.cuh b/cpp/src/algorithms/hyper_sssp/kernels.cuh
+--- a/cpp/src/algorithms/hyper_sssp/kernels.cuh
++++ b/cpp/src/algorithms/hyper_sssp/kernels.cuh
+@@ -13,6 +13,10 @@
+  */
+ #pragma once
+ 
++#include <cuda_runtime.h>
++
++#include <limits>
++
+ namespace dyng::detail::hsosp {
+ 
+ inline int grid_for(long long n, int block) {
+@@ -24,6 +28,14 @@
+ // Same value as HostHypergraph::INF (which is not constexpr).
+ constexpr long long inf_value = std::numeric_limits<long long>::max() / 4;
+ static_assert(inf_value > 0, "inf_value must be positive");
++
++// dynG (transplant hunk): the weight hyper_sssp reads for node v: 0 for the virtual-endpoint
++// mode's source and target rows (zero_a, zero_b; MOSP_ESCHER's weight-0 virtual hyperedges, which
++// the container holds with weight 1), the node weight otherwise (HD2).
++__device__ __forceinline__ long long node_weight(const long long* node_w, int v, int zero_a,
++                                                 int zero_b) {
++  return (v == zero_a || v == zero_b) ? 0 : node_w[v];
++}
+ // ---------------------------------------------------------------------------
+ // Kernels
+ // ---------------------------------------------------------------------------
+@@ -53,7 +65,8 @@
+                                            const int* col_ind, const long long* node_w,
+                                            long long* dist, int* parent, int* is_candidate,
+                                            int* is_affected, int* aff_list, int* aff_count,
+-                                           int source) {
++                                           int source, int zero_a, int zero_b,
++                                           const unsigned char* holds) {
+   const int warp = (blockIdx.x * blockDim.x + threadIdx.x) >> 5;
+   const int lane = threadIdx.x & 31;
+   if (warp >= num_cand) return;
+@@ -66,7 +79,10 @@
+   int best_p = -1;
+   const long long base = row_start[v];
+   const int d = deg[v];
+-  const long long wv = node_w[v];
++  const long long wv = node_weight(node_w, v, zero_a, zero_b);
++  // dynG (transplant hunk): the public mode's base offer (a hyperedge holding the source vertex
++  // starts at its own weight, parent -1: MOSP_ESCHER's source row).
++  if (holds != nullptr && holds[v] != 0) best = wv;
+   for (int e = lane; e < d; e += 32) {
+     const int p = col_ind[base + e];
+     const long long dp = dist[p];
+@@ -251,15 +267,18 @@
+ // One warp per invalidated node: best (distance, id) over its neighbours.
+ __global__ void pull_invalidated_kernel(const int* list, int n_list, const long long* row_start,
+                                         const int* deg, const int* col_ind, const long long* node_w,
+-                                        u64* packed, int* stamp, int ep, int* next, u64* counters) {
++                                        u64* packed, int* stamp, int ep, int* next, u64* counters,
++                                        int zero_a, int zero_b, const unsigned char* holds) {
+   const int warp = (blockIdx.x * blockDim.x + threadIdx.x) >> 5;
+   const int lane = threadIdx.x & 31;
+   if (warp >= n_list) return;
+   const int v = list[warp];
+   const long long base = row_start[v];
+   const int d = deg[v];
+-  const long long wv = node_w[v];
++  const long long wv = node_weight(node_w, v, zero_a, zero_b);
+   u64 best = packed_inf;
++  // dynG (transplant hunk): the public mode's base offer (see pull_distances_warp_kernel).
++  if (holds != nullptr && holds[v] != 0) best = pack_dist(wv, -1);
+   bool overflow = false;
+   for (int e = lane; e < d; e += 32) {
+     const int p = col_ind[base + e];
+@@ -288,7 +307,7 @@
+ // Both directions of every inserted pair.
+ __global__ void relax_inserted_kernel(const int2* pairs, int n_ins, const long long* node_w,
+                                       u64* packed, int* stamp, int ep, int* next, u64* counters,
+-                                      int source) {
++                                      int source, int zero_a, int zero_b) {
+   int i = blockIdx.x * blockDim.x + threadIdx.x;
+   if (i >= n_ins) return;
+   const int ab[2] = {pairs[i].x, pairs[i].y};
+@@ -297,7 +316,7 @@
+     if (v == source) continue;
+     const u64 x = packed[u];
+     if (x == packed_inf) continue;
+-    const long long cd = packed_dist(x) + node_w[v];
++    const long long cd = packed_dist(x) + node_weight(node_w, v, zero_a, zero_b);
+     if (cd >= packed_dist_limit) {
+       atomicAdd(&counters[cnt_overflow], 1ull);
+       continue;
+@@ -310,7 +329,8 @@
+ // (decrease-only).
+ __global__ void push_kernel(const int* front, int n_front, const long long* row_start,
+                             const int* deg, const int* col_ind, const long long* node_w,
+-                            u64* packed, int* stamp, int ep, int* next, u64* counters, int source) {
++                            u64* packed, int* stamp, int ep, int* next, u64* counters, int source,
++                            int zero_a, int zero_b) {
+   const int warp = (blockIdx.x * blockDim.x + threadIdx.x) >> 5;
+   const int lane = threadIdx.x & 31;
+   if (warp >= n_front) return;
+@@ -324,7 +344,7 @@
+   for (int e = lane; e < d; e += 32) {
+     const int v = col_ind[base + e];
+     if (v == source) continue;
+-    const long long cd = du + node_w[v];
++    const long long cd = du + node_weight(node_w, v, zero_a, zero_b);
+     if (cd >= packed_dist_limit) {
+       overflow = true;
+       continue;
+@@ -338,6 +358,34 @@
+   }
+ }
+ 
++// dynG (transplant hunk), the public mode: a hyperedge that lost the source vertex is a root when
++// it was reached from the source directly (parent -1; MOSP_ESCHER's deleted pair with its source
++// row, markDeletedTreeEdgesKernel).
++__global__ void mark_lost_source_kernel(const int* ids, int n, const u64* packed, int* inv) {
++  int i = blockIdx.x * blockDim.x + threadIdx.x;
++  if (i >= n) return;
++  const u64 x = packed[ids[i]];
++  if (x != packed_inf && packed_parent(x) == -1) inv[ids[i]] = 1;
++}
++
++// dynG (transplant hunk), the public mode: a hyperedge that gained the source vertex is offered
++// its own weight with parent -1 (MOSP_ESCHER's inserted pair with its source row,
++// relaxInsertedKernel).
++__global__ void relax_base_kernel(const int* ids, int n, const long long* node_w, u64* packed,
++                                  int* stamp, int ep, int* next, u64* counters) {
++  int i = blockIdx.x * blockDim.x + threadIdx.x;
++  if (i >= n) return;
++  const int v = ids[i];
++  relax(packed, v, pack_dist(node_w[v], -1), stamp, ep, next, counters);
++}
++
++// dynG (transplant hunk), the public mode: the recompute's base, every live hyperedge holding the
++// source at its own weight (MOSP_ESCHER's source row at distance 0).
++__global__ void seed_base_kernel(const int* ids, int n, const long long* node_w, long long* dist) {
++  int i = blockIdx.x * blockDim.x + threadIdx.x;
++  if (i < n) dist[ids[i]] = node_w[ids[i]];
++}
++
+ }  // namespace
+ constexpr int upd_counters = 8;
+ 
+diff -ruN a/cpp/src/algorithms/hyper_sssp/state.cuh b/cpp/src/algorithms/hyper_sssp/state.cuh
+--- a/cpp/src/algorithms/hyper_sssp/state.cuh
++++ b/cpp/src/algorithms/hyper_sssp/state.cuh
+@@ -12,8 +12,11 @@
+  * (M11a, ADR 0091).
+  */
+ #pragma once
++#include <dyng/hyper_sssp.hpp>
++
+ #include <cuda_runtime.h>
+ 
++#include <cstdint>
+ #include <string>
+ #include <vector>
+ 
+@@ -45,6 +48,9 @@
+   unsigned long long* d_upd_counters = nullptr;
+   unsigned long long* h_upd_counters = nullptr;
+   int epoch = 0;
++  // dynG (transplant hunk): the public mode's source flags (one byte per node: the hyperedge holds
++  // the source vertex), allocated by allocate_holds() for a result of the public mode only.
++  unsigned char* d_holds = nullptr;
+ 
+   device_state() = default;
+   ~device_state();
+@@ -54,6 +60,8 @@
+   device_state& operator=(device_state&&) noexcept;
+ 
+   void allocate(int max_nodes);
++  /// dynG (transplant hunk): the public mode's source flags, all 0.
++  void allocate_holds();
+   long long device_bytes() const;
+   void free();
+ 
+@@ -67,8 +75,8 @@
+ };
+ 
+ struct engine_config {
+-  /// Update budget: push iterations before falling back to a recompute.
+-  int max_iterations = 4096;
++  /// Update budget: push iterations before falling back to a recompute (dynG: 64-bit, HD8).
++  std::int64_t max_iterations = 4096;
+   /// Update budget: edge relaxations (pull + push) before falling back,
+   /// as a multiple of the live adjacency entries.
+   double work_budget = 1.0;
+@@ -77,6 +85,9 @@
+   /// in [32, 1024], else both entry points throw std::invalid_argument.
+   /// The update kernels always use 256.
+   int block_size = 256;
++  /// dynG (transplant hunk): budget_action::error (HD8): a spent work or iteration budget throws
++  /// convergence_error instead of the fallback (the width and the jump cap always recompute).
++  bool error_on_budget = false;
+ };
+ 
+ struct engine_stats {
+@@ -87,6 +98,45 @@
+   long long seed_count = 0;  ///< update: invalidated nodes
+   int jump_rounds = 0;       ///< pointer-jumping rounds
+   long long work = 0;        ///< edge relaxations of the update
++  /// dynG (transplant hunk): why the update fell back (fallback_reason, HD12).
++  hyper_sssp::fallback_reason reason = hyper_sssp::fallback_reason::none;
++};
++
++// dynG (transplant hunk): MOSP_ESCHER's DeviceDelta and DeviceH2H as the engine reads them: the
++// slack_csr store's last delta and device line graph (slack_access::last_delta() and rows(),
++// M11a step 3; the store owns them), plus the endpoints of hyper_sssp's two modes (HD2).
++
++/** The last batch delta in device memory (0-based node indices): deleted
++ *  pairs first, then inserted pairs; ids = new (inserted or recreated)
++ *  nodes, then dead ones. */
++struct device_delta {
++  const int2* d_pairs = nullptr;
++  const int* d_ids = nullptr;
++  int num_del = 0;
++  int num_ins = 0;
++  int num_new = 0;
++  int num_dead = 0;
++};
++
++/** The device line graph: slack rows (row_start, deg) over one symmetric
++ *  adjacency (col_ind) and the per-node weights. */
++struct device_graph {
++  int num_nodes = 0;
++  long long num_entries = 0;  ///< the live entries (each pair in both rows)
++  const long long* d_row_start = nullptr;
++  const int* d_deg = nullptr;
++  const int* d_col_ind = nullptr;
++  const long long* d_node_w = nullptr;
++  device_delta delta;
++  // The virtual-endpoint mode: the ids whose weight reads as 0 (-1: none).
++  int zero_a = -1;
++  int zero_b = -1;
++  // The public mode: the source flags, the live hyperedges of the source (the recompute's base),
++  // the live ids that lost the source (a root if their parent is -1) and those that gained it.
++  const unsigned char* d_holds = nullptr;
++  const std::vector<int>* base = nullptr;
++  const std::vector<int>* lost = nullptr;
++  const std::vector<int>* gained = nullptr;
+ };
+ 
+ /**

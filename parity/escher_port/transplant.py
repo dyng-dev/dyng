@@ -25,7 +25,9 @@ port against the original instead of reading it:
 
 --map selects another rename map (default rename_map.toml, M8a's store): rename_map_line_graph.toml
 is the line-graph port of M8b (ADR 0042), rename_map_hsosp.toml the slack_csr store of M11a
-(MOSP_ESCHER@4b86159's DeviceIncidence, DeviceH2H, deriveDelta and applyDeltaPairs; ADR 0089). A
+(MOSP_ESCHER@4b86159's DeviceIncidence, DeviceH2H, deriveDelta and applyDeltaPairs; ADR 0089),
+rename_map_hyper_sssp.toml hyper_sssp's CUDA engine of M11a (its HsospState, kernels, hsospUpdate
+and hsospRecompute; ADR 0091). A
 map may name its manual hunks (`hunks`, a file next to it; default manual_hunks.patch), the note of
 its generated headers (`note`) and the directory of its original's clone (`original_dir`; default
 ESCHER-GPU).

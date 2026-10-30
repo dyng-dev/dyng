@@ -11,4 +11,7 @@ dyng_add_algorithm(
   SOURCES
   hyper_sssp.cpp
   sequential.cpp
+  CUDA_SOURCES
+  cuda.cu
+  engine.cu
 )

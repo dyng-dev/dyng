@@ -17,7 +17,7 @@ family      = "fixed_point"
 container   = "hypergraph"
 tier        = "custom_engine"
 maturity    = "experimental"            # tracked by the API snapshot, frozen at the end of M11b (HD17)
-backends    = ["sequential"]             # cuda: the transplanted engine (next commit); no openmp backend in 0.4 (HD14, joint with AD19)
+backends    = ["sequential", "cuda"]     # no openmp backend in 0.4 (HD14, joint with AD19)
 determinism = "bitwise"
 oracle      = "compute"
 # Weighted hyperedges (int32_t weights in [1, 2^28], checked by compute() and before the commit) on
