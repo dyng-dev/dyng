@@ -84,6 +84,27 @@ Before 0.1.0 anything may change.
   lockstep with `testing::cbst_host_model` and MOSP_ESCHER's recorded trees (ADR 0085).
 - Conformance kit: the hypergraph axis gains the slack_csr presets and the incidence mixes, with
   a `test_traits::accepts` hook for algorithms that take some storages only.
+- Added (api-change: documentation of the frozen hypergraph headers): **slack_csr storage on the
+  cuda backend** (HD9, decided by the author on 2026-10-28): MOSP_ESCHER@4b86159's device graph
+  (the incidence mirror, the slack CSR line graph with per-node weights, the order-free device
+  pair delta `deriveDelta`, the warp-per-row CSR apply and its rebuild when the tail overflows)
+  transplanted as is with `parity/escher_port/transplant.py` and a committed rename map, kept from
+  every batch inside the commit; the host incidence model and the ids stay authoritative on the
+  host, as in MOSP_ESCHER. `h2h()`, `h2v()`, `v2h()`, `check_integrity()`, `store_stats()`,
+  `clone()` and `to_backend()` across all three backends (ADR 0089).
+- Changed (internal, faster): the host side of a slack_csr batch runs one pass per list: Step 0
+  groups the incidence edits by hyperedge and evaluates the groups in parallel, the commit groups
+  the v2h changes by vertex once and merges the record's rows instead of reading them back, the
+  id allocator keeps its deleted keys as a bitset (an insert no longer scans every key; escher
+  storage's host model gets the same ids faster), a deleted row keeps its capacity, and every host
+  region of slack_csr storage runs on one fixed team of at most 16 threads (ADR 0089 section 8).
+  The results are unchanged on every thread count.
+- Parity harness: `dyng-compat-hsosp replay --backend cuda --line-graph` and `dyng-compat-hsosp
+  bench --maintain-only` (hsospBench's `--hg` options on the cuda backend, the golden's batches,
+  the per-round digests); `parity/hsosp_perf.py run` (reached through `perf_ab.py hyper_sssp`) with
+  the round guards; the slack_csr steps of `ci/gpu_local.sh` (the four compute-sanitizer tools on
+  the store's tests and a forced-overflow session, the make-test replays on cuda), required by
+  0.4 certificates (`GPU_LOCAL_STEPS`).
 - Parity harness: MOSP_ESCHER's sessions are replayed whole on slack_csr storage, its
   vertex-kind batches included (`dyng_hsosp_replay`, `parity/compare.py hyper_sssp --part delta`;
   `dyng_hypergraph_ids --storage slack_csr`); `dyng-compat-hsosp to-dgb` converts the H-SOSP

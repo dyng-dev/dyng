@@ -3,8 +3,8 @@
  "backend": "openmp",
  "threads": 8,
  "oracle": true,
- "verified": false,
- "commit": "6d8ebd3f93b06ed8049e8fcbb92b96dfdddf907a",
+ "verified": true,
+ "commit": "d1d7bf4f50dfbacaf9999ecb43c14b039a4fae5f",
  "tool": "build/cpu-only/cpp/tests/dyng_hsosp_replay",
  "passed": true,
  "totals": {
@@ -29,6 +29,10 @@
   "candidates_differ": 0,
   "csr_rebuilds": 3,
   "b_csr_rebuilds": 3,
+  "mirror_reuploads": 0,
+  "b_mirror_reuploads": 13,
+  "device_layouts_compared": 0,
+  "digest_batches": 0,
   "node_growths": 0,
   "mismatch_count": 0
  },
@@ -59,8 +63,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.0468984,
+   "seconds": 0.0454646,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.1
@@ -91,8 +99,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 1,
    "b_csr_rebuilds": 1,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 8,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.109093,
+   "seconds": 0.116625,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.1
@@ -123,11 +135,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 1,
    "b_csr_rebuilds": 1,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 3,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 7.21792,
+   "seconds": 7.38828,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 7.4
+   "wall_seconds": 7.5
   },
   {
    "file": "test/04-test_hsosp_scale/dump.hsd.zst",
@@ -155,11 +171,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 2.37412,
+   "seconds": 2.56994,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 2.5
+   "wall_seconds": 2.7
   },
   {
    "file": "test/05-hsospStress/dump.hsd.zst",
@@ -187,11 +207,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 1,
    "b_csr_rebuilds": 1,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 2,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 1.19878,
+   "seconds": 1.22833,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 1.2
+   "wall_seconds": 1.3
   },
   {
    "file": "test/06-hsospStress_escher/dump.hsd.zst",
@@ -219,11 +243,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.219361,
+   "seconds": 0.225603,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 0.2
+   "wall_seconds": 0.3
   },
   {
    "file": "test/07-hsospBench_smoke/dump.hsd.zst",
@@ -251,11 +279,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 6.4819,
+   "seconds": 6.99149,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 6.8
+   "wall_seconds": 7.3
   },
   {
    "file": "test/08-hsospBench_real_hyperedge/dump.hsd.zst",
@@ -283,8 +315,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.465325,
+   "seconds": 0.478882,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.5
@@ -315,8 +351,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.414877,
+   "seconds": 0.444366,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.5
@@ -347,11 +387,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 198.963,
+   "seconds": 200.482,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 201.6
+   "wall_seconds": 203.1
   },
   {
    "file": "paper/dblp_vertex_50000/dump.hsd.zst",
@@ -379,11 +423,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 191.67,
+   "seconds": 189.014,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 194.0
+   "wall_seconds": 191.5
   },
   {
    "file": "paper/geology_hyperedge_50000/dump.hsd.zst",
@@ -411,11 +459,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 65.2746,
+   "seconds": 65.8501,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 66.9
+   "wall_seconds": 67.1
   },
   {
    "file": "paper/geology_vertex_50000/dump.hsd.zst",
@@ -443,11 +495,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 62.5784,
+   "seconds": 59.5307,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 64.1
+   "wall_seconds": 60.6
   }
  ],
  "problems": []

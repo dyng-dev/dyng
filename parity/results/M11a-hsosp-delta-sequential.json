@@ -4,7 +4,7 @@
  "threads": 0,
  "oracle": true,
  "verified": true,
- "commit": "6d8ebd3f93b06ed8049e8fcbb92b96dfdddf907a",
+ "commit": "2a2d7f87e85f9d30f96ccd73f42ddebbc0f00d42",
  "tool": "build/cpu-only/cpp/tests/dyng_hsosp_replay",
  "passed": true,
  "totals": {
@@ -29,6 +29,10 @@
   "candidates_differ": 0,
   "csr_rebuilds": 3,
   "b_csr_rebuilds": 3,
+  "mirror_reuploads": 0,
+  "b_mirror_reuploads": 13,
+  "device_layouts_compared": 0,
+  "digest_batches": 0,
   "node_growths": 0,
   "mismatch_count": 0
  },
@@ -59,8 +63,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.0453478,
+   "seconds": 0.0415703,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.1
@@ -91,11 +99,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 1,
    "b_csr_rebuilds": 1,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 8,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.115189,
+   "seconds": 0.122841,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 0.1
+   "wall_seconds": 0.2
   },
   {
    "file": "test/03-test_hsosp_matches_dijkstra/dump.hsd.zst",
@@ -123,11 +135,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 1,
    "b_csr_rebuilds": 1,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 3,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 6.71084,
+   "seconds": 7.1957,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 6.9
+   "wall_seconds": 7.3
   },
   {
    "file": "test/04-test_hsosp_scale/dump.hsd.zst",
@@ -155,11 +171,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 2.40407,
+   "seconds": 2.69292,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 2.5
+   "wall_seconds": 2.8
   },
   {
    "file": "test/05-hsospStress/dump.hsd.zst",
@@ -187,8 +207,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 1,
    "b_csr_rebuilds": 1,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 2,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 1.12743,
+   "seconds": 1.1763,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 1.2
@@ -219,8 +243,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.213203,
+   "seconds": 0.2186,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.2
@@ -251,11 +279,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 6.53226,
+   "seconds": 7.2717,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 6.8
+   "wall_seconds": 7.6
   },
   {
    "file": "test/08-hsospBench_real_hyperedge/dump.hsd.zst",
@@ -283,8 +315,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.44993,
+   "seconds": 0.478411,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.5
@@ -315,8 +351,12 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.417112,
+   "seconds": 0.457244,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.5
@@ -347,11 +387,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 197.749,
+   "seconds": 209.77,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 200.1
+   "wall_seconds": 212.5
   },
   {
    "file": "paper/dblp_vertex_50000/dump.hsd.zst",
@@ -379,11 +423,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 193.996,
+   "seconds": 200.604,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 196.1
+   "wall_seconds": 203.3
   },
   {
    "file": "paper/geology_hyperedge_50000/dump.hsd.zst",
@@ -411,11 +459,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 66.6281,
+   "seconds": 72.1661,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 67.8
+   "wall_seconds": 73.5
   },
   {
    "file": "paper/geology_vertex_50000/dump.hsd.zst",
@@ -443,11 +495,15 @@
    "candidates_differ": 0,
    "csr_rebuilds": 0,
    "b_csr_rebuilds": 0,
+   "mirror_reuploads": 0,
+   "b_mirror_reuploads": 0,
+   "device_layouts_compared": 0,
+   "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 59.7206,
+   "seconds": 67.5943,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 60.7
+   "wall_seconds": 68.7
   }
  ],
  "problems": []

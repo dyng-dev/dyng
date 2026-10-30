@@ -1,0 +1,32 @@
+{
+ "record": "M11a step 3 (cuda-slack-csr-translate-early-read): the checks of the step's final tree",
+ "tree": "the step's commits up to the records commit (the C++ code at 7299fb5/599b797, the fixes of the final check)",
+ "ci_check_sh": {
+  "cpu-only ctest -L cpu": "1394/1394 passed",
+  "dev ctest -L cpu": "1429/1429 passed",
+  "other steps": "format, consumer, tidy, testdata, regen, python (737 passed), api (no breaking change of the frozen C++ or Python API against origin/main), scaffold, docs passed; reuse, provenance, harness and precommit failed on three defects of the step's earlier commits (the H-SOSP manual hunks without REUSE annotation, the CUDA store header naming MOSP_ESCHER's commit, test_escher_port calling default_original() without the map), fixed in one commit; DYNG_CHECK_ONLY='reuse provenance harness precommit docs' then passed"
+ },
+ "transplant_check": "transplant.py --map parity/escher_port/rename_map_hsosp.toml --check --rev e297773: 4 files, identical",
+ "openmp_off": "cpu-only with DYNG_ENABLE_OPENMP=OFF: built, ctest 1218/1218 passed",
+ "fortified": "cpu-only -D_FORTIFY_SOURCE=3: built, 0 warnings",
+ "clang18_syntax": "the dev-cuda database: 1192 files, 0 failures",
+ "gcc13": "GCC 13.4.0 (conda package cache, libstdc++ 13 headers, system glibc) -O2 -D_FORTIFY_SOURCE=3 -Werror over the 840 host translation units of the dev-cuda database: 837 compile; the 3 failures are -Wmismatched-new-delete in test files unchanged since the base b2b1524 (step 2's deviation 4)",
+ "sanitizers": {
+  "asan (ASan+UBSan)": "ci/sanitizers.sh asan: ctest -L cpu -LE slow 1286/1286 passed",
+  "tsan-openmp": "Clang 18.1.8 wrapper, Archer = dyng-clang's libarcher.so.bak (DYNG_ARCHER_LIBRARY): 1286/1286 passed",
+  "compute-sanitizer": "ci/gpu_local.sh step slack (dev-cuda, GPU 1): memcheck (leak check), racecheck, synccheck, initcheck on the Slack* suites on cuda and on the forced-overflow session 02-test_h2h_delta: 0 errors; the make-test replays on cuda: 149 sessions, 722 batches, 0 mismatches; both steps passed"
+ },
+ "cuda_tests": "dyng_hypergraph_cuda_tests (dev-cuda, GPU 1): 83/83 passed",
+ "delta_replays": {
+  "cuda T+P50 (oracle)": "153 sessions, 734 batches, 224,984 ids, 0 mismatches (M11a-hsosp-delta-cuda.json)",
+  "cuda all 16 P": "16 sessions, 48 batches, 1,125,000 ids, 0 mismatches (M11a-hsosp-delta-cuda-p.json)",
+  "sequential, openmp 1 and 8 T+P50 (oracle)": "0 mismatches each (M11a-hsosp-delta-{sequential,openmp-t1,openmp-t8}.json)"
+ },
+ "id_replays": {
+  "escher storage (0.3): escher_gpu_test, mosp_escher_test, mosp_escher_dblp50k_hyperedge, committed": "sequential, openmp-8 and cuda: 0 mismatches, the committed M8b totals",
+  "slack_csr: mosp_escher_test (--line-graph), dblp50k_hyperedge, dblp50k_vertex": "sequential, openmp 1 and 8, cuda: 0 mismatches (M11a-h2h-slack_csr-*.json)"
+ },
+ "triad_goldens": "compare.py triad_count --backend cuda --cases make-test --counter algorithm: 60/60 passed",
+ "harness_tests": "pytest parity/tests/test_hsosp_perf.py parity/tests/test_release_cert.py: 106 passed",
+ "gpu1_jobs": "every GPU-1 job after tools/locklog.py quiet-ok M11a cuda-slack-csr-translate-early-read (no GPU1-QUIET window was open)"
+}

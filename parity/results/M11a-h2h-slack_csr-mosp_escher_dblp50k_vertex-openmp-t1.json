@@ -11,7 +11,7 @@
  "verified": false,
  "legacy_generator": false,
  "hg": null,
- "commit": "628e95f440699dd49152f192b2028b5713f14217",
+ "commit": "d1d7bf4f50dfbacaf9999ecb43c14b039a4fae5f",
  "tool": "build/cpu-only/cpp/tests/dyng_hypergraph_ids",
  "passed": true,
  "totals": {
@@ -100,7 +100,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 114.353,
+   "seconds": 74.7541,
    "paths": [
     0,
     0,
