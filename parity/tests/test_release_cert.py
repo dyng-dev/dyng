@@ -2748,11 +2748,13 @@ def test_a_04_certificate_needs_the_hyper_sssp_replays(cert, certified) -> None:
 
 def test_gpu_local_steps_of_04_hold_the_slack_csr_steps(cert) -> None:
     """M11a criterion 17: M11's commented sub-list of the one (0, 4) key of GPU_LOCAL_STEPS lists
-    the slack_csr steps, gpu_local_steps('0.4.0') holds them (and the 0.3 ones), a 0.3 certificate
-    does not need them, and ci/gpu_local.sh records them."""
+    the slack_csr and hyper_sssp steps, gpu_local_steps('0.4.0') holds them (and the 0.3 ones), a
+    0.3 certificate does not need them, and ci/gpu_local.sh records them."""
     m11 = [
         "slack_csr sanitizers (all four tools; a forced-overflow session)",
         "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
+        "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)",
+        "hyper_sssp replays (cuda, make test; three modes, update == compute)",
     ]
     steps = cert.gpu_local_steps("0.4.0")
     assert set(m11) <= set(steps)
