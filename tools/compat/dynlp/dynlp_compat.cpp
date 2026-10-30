@@ -640,9 +640,9 @@ class batch_views {
   }
 
  private:
-  const stream_type& stream_;
+  [[maybe_unused]] const stream_type& stream_;  // read only with DYNG_COMPAT_CUDA_EVENTS
   std::vector<dyng::edge_batch_view<std::int32_t, float>> views_;
-  bool pinned_ = false;
+  [[maybe_unused]] bool pinned_ = false;  // read only with DYNG_COMPAT_CUDA_EVENTS
 };
 
 /// The device time of one call on the resources' stream: a pair of CUDA events around it (the
@@ -694,7 +694,7 @@ class event_timer {
   }
 
  private:
-  bool on_;
+  [[maybe_unused]] bool on_;  // read only with DYNG_COMPAT_CUDA_EVENTS
 #if defined(DYNG_COMPAT_CUDA_EVENTS) && DYNG_COMPAT_CUDA_EVENTS
   cudaEvent_t start_ = nullptr;
   cudaEvent_t end_ = nullptr;
