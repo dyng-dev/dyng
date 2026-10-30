@@ -1185,6 +1185,35 @@ def test_mutation_points_match_the_code_once() -> None:
         assert m["new"] != m["old"]
 
 
+def test_mutation_gpu_jobs_wait_for_other_quiet_windows(monkeypatch) -> None:
+    """With $DYNG_GPU1_QUIET_OK set, each GPU-1 job of mutate.py first waits while locklog.py
+    quiet-ok exits 1 (another track's GPU-1 quiet window is open); unset, it never asks."""
+    mutate = load("parity/mutate.py")
+    import time
+
+    calls = []
+    answers = iter([1, 1, 0])
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, next(answers))
+
+    monkeypatch.setattr(mutate.subprocess, "run", fake_run)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    monkeypatch.delenv("DYNG_GPU1_QUIET_OK", raising=False)
+    mutate.wait_gpu1_quiet()
+    assert calls == []
+    monkeypatch.setenv("DYNG_GPU1_QUIET_OK", "M10a kit-mutations-gates-certificate")
+    mutate.wait_gpu1_quiet()
+    assert len(calls) == 3
+    assert calls[0][1:] == [
+        str(mutate.SCRATCH / "tools" / "locklog.py"),
+        "quiet-ok",
+        "M10a",
+        "kit-mutations-gates-certificate",
+    ]
+
+
 def test_mutation_defines_reach_both_compilers() -> None:
     mutate = load("parity/mutate.py")
     assert mutate.configure_args([]) == []

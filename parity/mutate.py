@@ -472,6 +472,25 @@ def heavy(argv: list[str]) -> list[str]:
     return (["flock", "-s", lock] if lock else []) + ["nice", "-n", "10", *argv]
 
 
+def wait_gpu1_quiet() -> None:
+    """Waits, before a GPU-1 job, while a GPU-1 quiet window other than the caller's is open (the
+    shared lock-window log, $DYNG_SCRATCH/tools/locklog.py quiet-ok), when $DYNG_GPU1_QUIET_OK
+    names the caller ('<milestone> [<step key>]'); a no-op when it is unset."""
+    caller = os.environ.get("DYNG_GPU1_QUIET_OK", "").split()
+    if not caller:
+        return
+    import time
+
+    tool = SCRATCH / "tools" / "locklog.py"
+    while (
+        subprocess.run(
+            [sys.executable, str(tool), "quiet-ok", *caller], capture_output=True
+        ).returncode
+        == 1
+    ):
+        time.sleep(60)
+
+
 def sh(argv: list[str], log: Path, cwd: Path | None = None, env: dict | None = None) -> int:
     with open(log, "a") as f:
         f.write(f"== {' '.join(argv)}\n")
@@ -550,6 +569,7 @@ def run_gtests(suite: str, exes: dict, config: str, out: Path, log: Path) -> dic
     failed, complete, rc_all, per_exe = 0, True, 0, {}
     for target in suite_targets(suite):
         exe = exes[target]
+        wait_gpu1_quiet()
         proc = subprocess.run(
             heavy([str(exe), "--gtest_brief=1"]), capture_output=True, text=True, env=env
         )
@@ -580,6 +600,7 @@ def replay(suite: str, exe: Path, config: str, out: Path, log: Path) -> dict:
     env.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("DYNG_TEST_GPU", "1"))
     argv = [sys.executable, str(REPO / "parity" / "compare.py"), *SUITES[suite]["compare"]]
     argv += ["--exe", str(exe), "--configs", config, "--json", str(out)]
+    wait_gpu1_quiet()
     rc = sh(heavy(argv), log, env=env)
     if not out.is_file():
         return {"rc": rc, "passed": False, "failed_cases": None}
