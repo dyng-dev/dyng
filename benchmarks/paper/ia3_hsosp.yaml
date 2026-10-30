@@ -179,7 +179,8 @@ readings:      # what one execution of the suite runs; configurations <dblp|geol
   - name: cuda-dblp
     kind: run
     backend: cuda
-    clocks: boost    # probe-dblp (M11a step 5): the boost lock held in all 3 rounds (ADR 0021)
+    clocks: base     # probe-dblp (M11a step 5) held boost for 3 rounds, but the 21-round reading of
+                     # dblp_hyperedge_25000 lost it in 36 of 56 rounds (1635-1680 MHz): ADR 0021, base
     probe: probe-dblp
     runs: 21
     gated: true

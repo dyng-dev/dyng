@@ -740,7 +740,9 @@ def hsosp_read_record(
         if probe_reading and path.is_file():
             doc = json.loads(path.read_text())
             decided = (doc.get("clocks") or {}).get(HSOSP_DATASETS[probe_reading["dataset"]])
-        if decided != reading.get("clocks"):
+        # ADR 0021: boost only where the probe held it; a dataset that cannot hold boost through
+        # the reading is read at base, whatever its probe decided.
+        if reading.get("clocks") != "base" and decided != reading.get("clocks"):
             problems.append(
                 f"{where}: clocks {reading.get('clocks')!r}, the probe "
                 f"{reading['probe']} decided {decided!r} (HD4)"
