@@ -3,12 +3,12 @@
 Maturity: **experimental** (provisional until the freeze of M10b; stable at 0.4.0 only on the
 author's confirmation). Header: `<dyng/label_propagation.hpp>`. Oracle: `reference` (the
 converged harmonic solution). Determinism: `tolerance` (the published `in_place` rule); the
-`damped` schedule is bitwise per backend and build. Backends: sequential (cuda arrives in M10a
-step 4; there is no OpenMP backend in 0.4). Paper: DynLP (ICS 2026); the port of
-LabelPropagation-CUDA@a276a3a (ADRs 0069-0073).
+`damped` schedule is bitwise per backend and build. Backends: sequential and cuda (there is no
+OpenMP backend in 0.4). Paper: DynLP (ICS 2026); the port of LabelPropagation-CUDA@a276a3a
+(ADRs 0069-0075).
 
 :::{note}
-This page describes the state of M10a step 3; M10b completes it (Python, the command line, the
+This page describes the state of M10a step 4; M10b completes it (Python, the command line, the
 formats, the streaming mode). The decisions behind it are the author's of 2026-10-28
 (GOVERNANCE.md, approvals log).
 :::
@@ -69,8 +69,18 @@ The sequential backend (ADR 0072) is new (the original has no host DynLP): its d
 stages (the rows, V_aff, G', the components, the supernode weights, the initial labels) equal the
 original's trace exactly, and its labels meet the harmonic oracle (mean |F - F*| <= 2000 delta,
 AD7). It updates each half-sweep in ascending vertex order, so both schedules are bitwise
-reproducible on it. The CUDA backend (the original's fused engine, ported verbatim) arrives in
-M10a step 4.
+reproducible on it.
+
+The CUDA backend is the original's fused engine, ported verbatim (ADR 0075): every kernel's SASS is
+the original's, compiled with `--use_fast_math` on this target only, and its damped labels are the
+original's bit for bit on the whole corpus (the label files, every batch's bits, the counts and
+every stage of the trace); `in_place` stays inside the calibration frozen from the original's own
+runs (AD5), and both schedules and IrLP meet the harmonic oracle. The graph's rows stay on the
+device (ADR 0074): a batch crosses PCIe once, and the host copy of the rows is downloaded only when
+something reads it. The engine runs on the resources' one stream (the library creates none; AD21);
+the original's overlap of the edge copy with its first kernels, which the single stream gives up,
+was worth 0.03 % of its update time. `options::cuda_engine = engine::operators` (the refactored
+engine) arrives in M10b.
 
 ## 5. Performance notes
 

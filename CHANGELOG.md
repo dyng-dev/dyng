@@ -100,6 +100,29 @@ Before 0.1.0 anything may change.
   container|trace|oracle-port|determinism` (`parity/label_propagation_port.py`) and the mode
   `dyng_lp_replay container`; `perf_ab.py mosp --baseline-exe/--baseline-label/--layouts` (the
   dynG-against-dynG reading of ADR 0024).
+- M10a step 4 (api-change, documentation only, the frozen `graph/graph.hpp`; ADR 0074): **slotted
+  rows on the device.** A slotted graph built with CUDA resources keeps its rows on the device
+  (LabelPropagation-CUDA's device graph): with CUDA resources of its device a vertex batch is checked
+  on the host (Step 0), copied to the device (pinned arrays directly) and applied there, and the
+  host copy of the rows is downloaded on the next host read; the row capacity is checked on the
+  device instead of before the batch, so an overflow raises `capacity_error` after the batch was
+  applied and poisons the graph (the basic guarantee; the `with_capacity()`, `apply()` and
+  `reserve()` descriptions say so). `graph::reserve(res, edge_capacity)` sizes the device scratch of
+  vertex batches of up to `edge_capacity` edges for such a graph.
+- M10a step 4 (provisional until M10b's freeze; ADR 0075): **`label_propagation` on cuda**, the
+  fused engine (the verbatim port of LabelPropagation-CUDA@a276a3a's pipeline, SASS-identical
+  kernels, compiled with `--use_fast_math` on this target only): `update()` and `compute()` (IrLP) on
+  `resources::cuda()`, the result's labels in device memory (`result::space()`), results moving
+  between the backends with `result::clone()`; `options::cuda_engine = engine::operators` raises
+  `not_supported_error` until M10b. Damped labels bitwise the original's on the corpus, in_place
+  inside the frozen calibration, the harmonic oracle met. The profiler counters
+  `label_propagation.hook_rounds` and `label_propagation.persistent_iterations`.
+- M10a step 4: `dyng-compat-dynlp --backend cuda` (page-locked batches, CUDA-event times of each
+  `update()`, `--phases`), `compare.py label_propagation damped|irlp|inplace|hub` and
+  `dyng_lp_replay container --backend cuda`, `parity/label_propagation_sass.py port` (the kernels'
+  SASS against the original's objects), `perf_ab.py label_propagation run` and `memory --side port`
+  (the A/B gates and the port's nsys peak), `ci/fast_math_scope.py` (`--use_fast_math` on
+  label_propagation's CUDA TUs only).
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 

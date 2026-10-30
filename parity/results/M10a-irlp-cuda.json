@@ -1,0 +1,121 @@
+{
+ "backend": "cuda",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "build/parity-cuda"
+ },
+ "cases": [
+  {
+   "case": "5k5_d1e-4_s42",
+   "equal": true,
+   "irlp_labels.txt": true,
+   "snapshots": [
+    {
+     "agreement": "1.000000",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 0
+    },
+    {
+     "agreement": "0.851121",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 1
+    },
+    {
+     "agreement": "0.904484",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 2
+    },
+    {
+     "agreement": "0.971292",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 3
+    },
+    {
+     "agreement": "0.938986",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 4
+    }
+   ]
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "equal": true,
+   "irlp_labels.txt": true,
+   "snapshots": [
+    {
+     "agreement": "1.000000",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 0
+    },
+    {
+     "agreement": "0.939192",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 1
+    },
+    {
+     "agreement": "0.896364",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 2
+    },
+    {
+     "agreement": "0.908418",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 3
+    },
+    {
+     "agreement": "0.941667",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 4
+    },
+    {
+     "agreement": "0.968929",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 5
+    },
+    {
+     "agreement": "0.925758",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 6
+    },
+    {
+     "agreement": "0.952525",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 7
+    },
+    {
+     "agreement": "0.936591",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 8
+    },
+    {
+     "agreement": "0.924826",
+     "bits_equal": true,
+     "iterations_equal": true,
+     "snapshot": 9
+    }
+   ]
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-10-30T00:28:30Z",
+ "equal": true,
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "compute() (IrLP) on CUDA against the twin's per-snapshot bits and iterations (criterion 12)"
+}

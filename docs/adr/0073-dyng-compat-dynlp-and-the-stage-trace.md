@@ -7,6 +7,11 @@
   **decided by the author on 2026-10-28** (GOVERNANCE.md, approvals log, the rows "The parity rules
   of 0.4 (sheet C1-C8)" and "The measurement protocol and gates of 0.4 (sheet B1-B6)"); the tool's
   name follows E1 (named after its `tools/compat` directory).
+- **Amended by:** ADR 0075 (2026-10-29, M10a step 4): on cuda the timed region is the tool's own
+  pair of CUDA events on the resources' stream around each `update()` call (the profiler's CUDA
+  events synchronize at every stage end, so no profiler is attached to the timed calls unless
+  `--profile` or `--sync-stages` asks for one); the batch vectors are page-locked in place, and
+  the evaluation keeps the vertex states itself (no download of the rows).
 - **Date:** 2026-10-29
 - **Deciders:** the AI assistant, on the author's behalf (M10a, step
   host-container-sequential-driver)
