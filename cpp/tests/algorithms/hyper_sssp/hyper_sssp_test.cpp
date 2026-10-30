@@ -14,6 +14,7 @@
 #include "algorithms/hyper_sssp/virtual_endpoints.hpp"
 #include "support/gtest_helpers.hpp"
 
+#include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/hyper_sssp.hpp>
 #include <dyng/update.hpp>
@@ -53,6 +54,7 @@ class HyperSssp : public ::testing::TestWithParam<backend> {
 };
 
 TEST(HyperSsspBackends, RefusesOpenmp) {
+  if (!dyng::backend_available(backend::openmp)) GTEST_SKIP() << "built without OpenMP";
   const resources omp = dyng::test::hyper::resources_of(backend::openmp);
   const whgraph h = make(omp, 4, rows{{0, 1}, {1, 2}}, {1, 1});
   try {
