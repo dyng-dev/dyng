@@ -23,3 +23,13 @@ if(DYNG_ENABLE_CUDA)
   target_compile_definitions(dyng_hyper_sssp_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
   target_include_directories(dyng_hyper_sssp_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 endif()
+# Host allocation failures in compute(), update(), clone() and vertex_distances() are
+# out_of_memory_error with the documented guarantee (M11a step 4; ADR 0061, D13): its own operator
+# new, so its own executable.
+dyng_add_test(
+  NAME dyng_hyper_sssp_allocation_failure_tests
+  SOURCES hyper_sssp_allocation_failure_test.cpp
+  LABELS cpu hyper_sssp
+  LIBRARIES dyng::testing
+)
+target_include_directories(dyng_hyper_sssp_allocation_failure_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
