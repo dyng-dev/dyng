@@ -262,13 +262,14 @@ std::size_t append_temp_bytes(int half_edges, int key_bits) {
   return std::max(sort_bytes, scan_bytes);
 }
 
-/// A device buffer of at least `count` elements (grown with headroom; contents not kept).
+/// A device buffer of at least `count` elements (grown to exactly the batch's size, as the
+/// original sizes its batch buffers for the largest batch; contents not kept).
 template <typename value_t>
 void ensure(const resources& res, buffer<value_t>& b, std::size_t count) {
   if (b.size() < count) {
     note_reservation();
     b = buffer<value_t>();
-    b = buffer<value_t>(res, std::max<std::size_t>(count + count / 2, 1));
+    b = buffer<value_t>(res, std::max<std::size_t>(count, 1));
   }
 }
 

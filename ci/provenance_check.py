@@ -197,6 +197,18 @@ SYMBOLS = [
     "DynLPChecker",
     "harmonicSolution",
     "checkLabels",
+    # LabelPropagation-CUDA@a276a3a, the fused CUDA engine (M10a step 4)
+    "markDeletionsKernel",
+    "buildSubgraphKernel",
+    "launchConnectedComponents",
+    "computeSupernodeWeightsKernel",
+    "launchLabelInitialization",
+    "appendToQueue",
+    "processVertexGroup",
+    "processVertexBlock",
+    "launchBinSweep",
+    "PropagationWorkspace",
+    "advanceRowEndKernel",
 ]
 
 RENAME_MAP = REPO / "parity" / "escher_port" / "rename_map.toml"

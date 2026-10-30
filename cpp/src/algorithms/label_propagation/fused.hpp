@@ -197,10 +197,12 @@ struct workspace final : pooled_workspace {
    * @param[in] inserted The largest number of inserted vertices of a batch.
    * @param[in] edges    The largest number of edges of a batch.
    * @param[in] damped   Whether the damped side arrays are needed.
+   * @param[in] exact    Size the per-batch arrays exactly (result::reserve), not with the
+   *                     headroom of a growth during an update.
    * @throws out_of_memory_error, cuda_error.
    */
   void reserve(const resources& res, std::int64_t n, const int (&capacity)[num_degree_bins],
-               std::int64_t inserted, std::int64_t edges, bool damped);
+               std::int64_t inserted, std::int64_t edges, bool damped, bool exact = false);
 
   /// Bytes held (device and pinned).
   [[nodiscard]] std::size_t bytes() const noexcept override;

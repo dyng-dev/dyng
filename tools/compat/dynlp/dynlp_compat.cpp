@@ -119,6 +119,7 @@ struct config {
   std::string label_dump;
   std::string trace;
   bool sync_stages = false;
+  bool phases = false;  // --phases: the wall time of the run's phases on stderr (diagnostics)
 };
 
 void usage() {
@@ -150,7 +151,8 @@ void usage() {
       << "  --label-dump DIR  The float32 bits of the labels after every batch\n"
       << "                    (DIR/labels.f32; written after the timer)\n"
       << "  --trace DIR       The library's stage trace (recorder format; DIR/<program>.dlt)\n"
-      << "  --sync-stages     Synchronize at the profiler's stage boundaries (diagnostics)\n";
+      << "  --sync-stages     Synchronize at the profiler's stage boundaries (diagnostics)\n"
+      << "  --phases          The wall time of the run's phases on stderr (diagnostics)\n";
 }
 
 /// parseArguments (utils.cu 25-137) with the comparator rules of sheet C8.
@@ -248,6 +250,8 @@ bool parse(int argc, char** argv, config& c) {
       c.label_dump = argv[++i];
     } else if (arg == "--trace" && has_value) {
       c.trace = argv[++i];
+    } else if (arg == "--phases") {
+      c.phases = true;
     } else if (arg == "--sync-stages") {
       c.sync_stages = true;
     } else if (arg == "--help" || arg == "-h") {
@@ -697,7 +701,29 @@ class event_timer {
 #endif
 };
 
+/// --phases: the wall time since the process's first phase mark, per phase, on stderr.
+class phase_clock {
+ public:
+  explicit phase_clock(bool on) : on_(on), t0_(std::chrono::steady_clock::now()), last_(t0_) {}
+  void mark(const char* phase) {
+    if (!on_) {
+      return;
+    }
+    const auto t = std::chrono::steady_clock::now();
+    std::cerr << "[phase] " << phase << ": "
+              << std::chrono::duration<double, std::milli>(t - last_).count() << " ms (at "
+              << std::chrono::duration<double, std::milli>(t - t0_).count() << " ms)\n";
+    last_ = t;
+  }
+
+ private:
+  bool on_;
+  std::chrono::steady_clock::time_point t0_;
+  std::chrono::steady_clock::time_point last_;
+};
+
 int run(const config& c) {
+  phase_clock phase(c.phases);
   const bool cuda_built = dyng::backend_available(dyng::backend::cuda);
   const std::string backend = c.backend.empty() ? (cuda_built ? "cuda" : "sequential") : c.backend;
   print_config(c, backend);
@@ -710,6 +736,7 @@ int run(const config& c) {
   }
   dyng::resources res =
       backend == "cuda" ? dyng::resources::cuda(0) : dyng::resources::sequential();
+  phase.mark("resources");
   const dyng::resources host = dyng::backend_available(dyng::backend::openmp)
                                    ? dyng::resources::openmp()
                                    : dyng::resources::sequential();
@@ -743,6 +770,7 @@ int run(const config& c) {
     std::cout << "Error: Graph generation failed.\n";
     return 1;
   }
+  phase.mark("generation and graph files");
   std::cout << "Generating batches...\n";
   const auto n = static_cast<std::size_t>(c.total_nodes);
   // --- The setup (untimed): the slotted graph, compute() on it, the reservation ---
@@ -754,6 +782,7 @@ int run(const config& c) {
   props.semantics = dyng::batch_semantics::net_effect();
   lp_graph g = lp_graph::with_capacity(res, static_cast<std::int32_t>(n),
                                        dyng::host_view(stream.row_capacity), props);
+  phase.mark("setup: with_capacity");
   const float tau = c.tau < 0.0F ? stream.similarity_threshold : c.tau;
   if (c.tau < 0.0F) {
     std::cout << "Auto tau (average edge weight): " << tau << "\n";
@@ -769,11 +798,15 @@ int run(const config& c) {
                                                    : dyng::engine::automatic;
   auto labels = lp::compute(res, g, dyng::array_view<const std::int32_t>(),
                             dyng::array_view<const std::int8_t>(), opt);
+  phase.mark("setup: compute");
   labels.reserve(res, stream.max_batch_vertices, stream.max_batch_edges);
+  phase.mark("setup: result::reserve");
   // The device scratch of the batches (the original sizes it from the whole run's batches).
   g.reserve(res, static_cast<std::int32_t>(stream.max_batch_edges));
   const bool on_cuda = backend == "cuda";
+  phase.mark("setup: graph::reserve");
   const batch_views views(stream, on_cuda);
+  phase.mark("setup: page-lock");
   event_timer timer(on_cuda);
   // The labels after each batch, on the host (pinned on cuda: the original's h_labels).
   dyng::buffer<float> pinned_labels =
@@ -781,6 +814,7 @@ int run(const config& c) {
                     n, res.stream(),
                     dyng::memory_resource_ref(dyng::default_pinned_host_memory_resource()))
               : dyng::buffer<float>();
+  phase.mark("setup: the rest");
   std::cout << "Running DynLP...\n\n";
   std::vector<batch_result> results(stream.batches.size());
   std::vector<float> host_labels(n, 0.5F);
@@ -919,6 +953,7 @@ int run(const config& c) {
   if (irlp_dump != nullptr) {
     std::fclose(irlp_dump);
   }
+  phase.mark("batches (updates and evaluation)");
   // --- The outputs ---
   if (!write_labels(c.output_dir + "/dynlp_labels.txt", host_labels.data(), n)) {
     std::cout << "Error: Could not write DynLP labels.\n";
@@ -962,6 +997,7 @@ int run(const config& c) {
     std::cout << (checks_passed ? "[check] all oracle checks passed\n"
                                 : "Error: oracle checks failed (see [check] lines above).\n");
   }
+  phase.mark("outputs");
   return checks_passed ? 0 : 1;
 }
 
@@ -973,7 +1009,12 @@ int main(int argc, char** argv) {
     return 1;
   }
   try {
-    return run(c);
+    const auto t0 = std::chrono::steady_clock::now();
+    const int status = run(c);
+    if (c.phases) {
+      std::cerr << "[phase] run() with its teardown: " << ms_since(t0) << " ms\n";
+    }
+    return status;
   } catch (const std::exception& e) {
     std::cout << "Error: " << e.what() << "\n";
     return 1;

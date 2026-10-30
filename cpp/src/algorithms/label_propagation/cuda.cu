@@ -265,7 +265,7 @@ void copy_state(const resources& res, const state& in, state& out) {
 
 void workspace::reserve(const resources& res, std::int64_t n,
                         const int (&capacity)[num_degree_bins], std::int64_t inserted,
-                        std::int64_t edges, bool damped) {
+                        std::int64_t edges, bool damped, bool exact) {
   const scoped_device guard(res.device());
   const auto nn = static_cast<std::size_t>(std::max<std::int64_t>(n, 1));
   if (n > sized_vertices) {
@@ -277,19 +277,33 @@ void workspace::reserve(const resources& res, std::int64_t n,
   }
   if (inserted > sized_inserted) {
     // createCCWorkspace / createLabelInitWorkspace (maxComponents = maxInserted), with headroom.
+    // Exactly the reservation (result::reserve: the original's sizes), with headroom when an
+    // update finds a larger batch.
     const auto ins = static_cast<std::size_t>(std::max<std::int64_t>(inserted, 1));
-    root_flag.reserve_with_headroom(res, ins);
-    root_scan.reserve_with_headroom(res, ins);
-    weight_l0.reserve_with_headroom(res, ins);
-    weight_l1.reserve_with_headroom(res, ins);
+    const auto grow = [&](auto& b) {
+      if (exact) {
+        (void)b.reserve(res, ins);
+      } else {
+        (void)b.reserve_with_headroom(res, ins);
+      }
+    };
+    grow(root_flag);
+    grow(root_scan);
+    grow(weight_l0);
+    grow(weight_l1);
     scan_temp_bytes = components_scan_bytes(static_cast<int>(root_flag.capacity()));
     scan_temp.reserve(res, std::max<std::size_t>(scan_temp_bytes, 1));
     sized_inserted = static_cast<std::int64_t>(root_flag.capacity());
   }
   if (edges > sized_edges) {
     const auto e = static_cast<std::size_t>(std::max<std::int64_t>(edges, 1));
-    sub_src.reserve_with_headroom(res, e);
-    sub_dst.reserve_with_headroom(res, e);
+    if (exact) {
+      (void)sub_src.reserve(res, e);
+      (void)sub_dst.reserve(res, e);
+    } else {
+      (void)sub_src.reserve_with_headroom(res, e);
+      (void)sub_dst.reserve_with_headroom(res, e);
+    }
     sized_edges = static_cast<std::int64_t>(sub_src.capacity());
   }
   for (int b = 0; b < num_degree_bins; ++b) {
@@ -570,8 +584,28 @@ int compute(const resources& res, const graph<std::int32_t, edge_t, float>& g,
   const scoped_device guard(res.device());
   const auto& impl = graph_access::impl(g);
   const std::int64_t n = g.num_vertices();
-  const std::vector<float> start(static_cast<std::size_t>(n), 0.5F);
+  // The starting labels (runIrLPSnapshot): 0.5, a seed its class (compute()'s seeds are active).
+  std::vector<float> start(static_cast<std::size_t>(n), 0.5F);
+  for (std::size_t v = 0; v < start.size(); ++v) {
+    if (seeds[v] >= 0) {
+      start[v] = static_cast<float>(seeds[v]);
+    }
+  }
   create_state(res, n, impl.host_storage().row_ptr.data(), seeds, start.data(), st);
+  capped = false;
+  if (g.num_edges() == 0) {
+    // runIrLPValidation skips an empty snapshot (the labels stay as they start); no scratch is
+    // leased for it (the published flow's compute() on the empty capacity graph).
+    if (lp_trace::writer* trace = lp_trace::writer::get()) {
+      lp_trace::record rr = trace->begin("irlp_snapshot", -1);
+      trace->add_i32(rr, "returned", 1);
+      trace->add_i32(rr, "iterations", 0);
+      trace->add_f32(rr, "delta", delta);
+      trace->add_array(rr, "labels", lp_trace::f32, start.data(), start.size());
+      trace->end_record(rr);
+    }
+    return 0;
+  }
   rows<edge_t> r;
   if (impl.is_slotted()) {
     r = device_rows(graph_access::slotted_device(res, g));

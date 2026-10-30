@@ -909,7 +909,8 @@ void result<vertex_t>::reserve(const resources& res, std::size_t max_batch_verti
         detail::resources_access::workspaces(res).template acquire<detail::lp_cuda::workspace>(res);
     lease->reserve(
         res, st.cuda->n, st.cuda->capacity, static_cast<std::int64_t>(st.reserved_vertices),
-        static_cast<std::int64_t>(st.reserved_edges), st.opt.update_schedule == schedule::damped);
+        static_cast<std::int64_t>(st.reserved_edges), st.opt.update_schedule == schedule::damped,
+        /*exact=*/true);
     return;
   }
   auto lease = detail::resources_access::workspaces(res)
@@ -1032,7 +1033,7 @@ namespace {
 }  // namespace
 void workspace::reserve(const resources& /*res*/, std::int64_t /*n*/,
                         const int (& /*capacity*/)[num_degree_bins], std::int64_t /*inserted*/,
-                        std::int64_t /*edges*/, bool /*damped*/) {
+                        std::int64_t /*edges*/, bool /*damped*/, bool /*exact*/) {
   no_cuda();
 }
 std::size_t workspace::bytes() const noexcept {
