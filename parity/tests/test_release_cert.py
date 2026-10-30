@@ -1017,6 +1017,12 @@ def test_mutation_points_match_the_code_once() -> None:
         if path.is_file():
             hooks += path.read_text()
     hooks += (REPO / "cpp/include/dyng/experimental/detail/local_patterns_engine.hpp").read_text()
+    # hyper_sssp's sites (M11a criterion 16): its engines and the slack_csr store (the allocator and
+    # the line graph's are read above).
+    for directory in ("cpp/src/algorithms/hyper_sssp", "cpp/src/hypergraph/slack_csr"):
+        for path in sorted((REPO / directory).rglob("*")):
+            if path.is_file():
+                hooks += path.read_text()
     assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "triad_count"} == {
         "triad_wrong_bin_sign",
         "triad_skip_frontier_filter_b",
@@ -1073,6 +1079,50 @@ def test_mutation_defines_reach_both_compilers() -> None:
         "-DCMAKE_CXX_FLAGS=-DA -DB",
         "-DCMAKE_CUDA_FLAGS=-DA -DB",
     ]
+
+
+def test_hyper_sssp_mutations_and_their_twins() -> None:
+    """M11a criterion 16: MOSP_ESCHER's sites in the CUDA code and in their host twins, each twin
+    run on the executables of its own configuration, and one build per code change."""
+    mutate = load("parity/mutate.py")
+    rows = [m for m in mutate.MUTATIONS if m["suite"] == "hyper_sssp"]
+    assert [m["name"] for m in rows] == [
+        "hsosp_pull_adds_neighbour_weight",
+        "hsosp_pull_adds_neighbour_weight_sequential",
+        "hsosp_non_tight_parent",
+        "hsosp_non_tight_parent_sequential",
+        "hsosp_csr_skips_last_deletion",
+        "hsosp_csr_skips_last_deletion_host",
+        "hsosp_allocator_unfill_drops_last",
+        "hypergraph_h2v_not_deduplicated_hsosp",
+        "hsosp_pair_count_adds_deletions",
+        "hsosp_pair_count_adds_deletions_host",
+        "hsosp_delta_no_post_pass",
+        "hsosp_delta_no_post_pass_host",
+    ]
+    # #5 and #4's CBST counterpart are re-runs of M8a's mutations in the cbst suite.
+    assert {"cbst_graph_own_ids", "cbst_unfill_drops_last"} <= {
+        m["name"] for m in mutate.MUTATIONS if m["suite"] == "cbst"
+    }
+    assert mutate.SUITES["hyper_sssp"]["runner"] == "gtest"
+    host = mutate.suite_targets("hyper_sssp", "sequential")
+    cuda = mutate.suite_targets("hyper_sssp", "cuda")
+    assert host and cuda and not set(host) & set(cuda)
+    assert all("cuda" in t for t in cuda) and not any("cuda" in t for t in host)
+    assert sorted(mutate.suite_targets("hyper_sssp")) == sorted(host + cuda)
+    # the other suites have one target list for every configuration
+    assert mutate.suite_targets("triad_count", "cuda") == mutate.suite_targets("triad_count")
+    # twins share a build (one code key), and their replays differ by configuration
+    by_key: dict = {}
+    for m in rows:
+        by_key.setdefault(mutate.code_key(m), []).append(m)
+    for twins in by_key.values():
+        assert len({mutate.replay_key(m) for m in twins}) == len(twins)
+    assert len(by_key) == 7
+    # the CTests of the same sites (cpp/tests/CMakeLists.txt) name every define
+    ctests = (REPO / "cpp/tests/CMakeLists.txt").read_text()
+    for m in rows:
+        assert m["defines"][0] in ctests, m["name"]
 
 
 def test_mutation_failures_read_both_matrix_layouts() -> None:

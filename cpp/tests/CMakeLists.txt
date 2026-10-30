@@ -1193,8 +1193,13 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
                      -DNAME=hypergraph.${_name} -P
                      "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
     )
+    # M11a's sites also carry the label hyper_sssp (ctest -L hyper_sssp runs the suite's mutants).
+    set(_labels "cpu;mutation;hypergraph")
+    if(_name MATCHES "^hsosp_")
+      set(_labels "${_labels};hyper_sssp")
+    endif()
     set_tests_properties(
-      hypergraph.mutation.${_name} PROPERTIES LABELS "cpu;mutation;hypergraph" ENVIRONMENT
+      hypergraph.mutation.${_name} PROPERTIES LABELS "${_labels}" ENVIRONMENT
                                               "${DYNG_TEST_ENVIRONMENT}"
     )
     # The CUDA twins of M11a's sites (criterion 16, M11a step 3): the same mutant library against
@@ -1228,8 +1233,12 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
                        -DNAME=hypergraph.cuda.${_name} "-DFILTER=*/cuda" -P
                        "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
       )
+      set(_labels "gpu;mutation;hypergraph")
+      if(_name MATCHES "^hsosp_")
+        set(_labels "${_labels};hyper_sssp")
+      endif()
       set_tests_properties(
-        hypergraph.mutation.cuda.${_name} PROPERTIES LABELS "gpu;mutation;hypergraph" ENVIRONMENT
+        hypergraph.mutation.cuda.${_name} PROPERTIES LABELS "${_labels}" ENVIRONMENT
                                                      "${DYNG_TEST_ENVIRONMENT}"
       )
     endif()
