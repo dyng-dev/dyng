@@ -1,0 +1,32 @@
+{
+ "record": "M11a step 4 (hyper-sssp-sequential-asis-cuda): the checks of the step's final tree",
+ "tree": "the step's final tree: the C++ code at 88b4a8a, unchanged up to the records commit (511ae3c adds parity/hsosp_perf.py launches and its tests)",
+ "ci_check_sh": {
+  "first full run (at 843ea75 + the formatting fix 6065690)": "cpu-only ctest -L cpu 1450/1450, dev ctest -L cpu 1488/1488; consumer, tidy, reuse, testdata, regen, python (737 passed, 81 skipped), api (no breaking change of the frozen C++ or Python API against origin/main), docs passed; format, provenance, harness, scaffold and precommit failed on six defects of the step's commits (clang-format of one test file; two headers without provenance lines; test_regen still expecting hyper_sssp in the planned list; the hsosp_perf guard test without maintain_only; the result side built without hyper_sssp in the scaffold check's DYNG_ALGORITHMS build; codespell on one of MOSP_ESCHER's identifiers in the rename map), fixed in 6065690 and d1a76bf",
+  "rerun (at d1a76bf)": "DYNG_CHECK_ONLY='format build reuse provenance harness precommit': all passed (cpu-only 1450/1450, dev 1488/1488, harness 393 passed); ci/scaffold_check.sh: OK (80 + 54 + 41 tests)"
+ },
+ "transplant_check": "transplant.py --map parity/escher_port/rename_map_hyper_sssp.toml --check --rev 4537dd1: 3 files, identical",
+ "openmp_off": "cpu-only with DYNG_ENABLE_OPENMP=OFF: built; ctest -L cpu first 1245/1247 (HyperSsspBackends.RefusesOpenmp and the mutation control that runs it: no openmp resources to refuse), fixed in 88b4a8a (skip without OpenMP), then 1247/1247",
+ "fortified": "cpu-only with -O2 -D_FORTIFY_SOURCE=3: built, 0 warnings",
+ "clang18_syntax": "ci-local/clang_syntax.py over the dev-cuda database: 1271 files, 0 failures",
+ "gcc13": "GCC 13.4.0 (the conda package cache's gxx_impl / libstdcxx-devel, system glibc) -O2 -D_FORTIFY_SOURCE=3 -Werror over the 910 host translation units of the dev-cuda database: the 3 test files of step 2's deviation 4 (-Wmismatched-new-delete, unchanged since b2b1524) and hyper_sssp.cpp (-Wdangling-reference on distance_to / vertex_distances, compiled 4 times: the library and the mutant copies), fixed in d1a76bf; hyper_sssp.cpp then compiles",
+ "gpu": {
+  "ctest -L gpu (dev-cuda, GPU 1, at 843ea75)": "943 tests: 900 passed, 43 skipped (C4 until M11b and the other algorithms' engine-pair skips), 0 failed",
+  "ctest -L 'hyper_sssp|hypergraph|framework' (dev-cuda, GPU 1, at d1a76bf)": "526/526 passed",
+  "gpu_local.sh hyper_sssp step (dev-cuda, GPU 1)": "compute-sanitizer memcheck (leak check), racecheck, synccheck, initcheck on dyng_hyper_sssp_cuda_tests and dyng_hsosp_results_cuda_tests: 0 errors; the four tools on 07-hsospBench_smoke (by_id, check-compute): exit 0; the make-test result replays on cuda in the three modes with update == compute: 0 mismatches; both records passed",
+  "mutation CTests": "hyper_sssp.mutation.{control,pull_adds_neighbour_weight,non_tight_parent} and .cuda.*: the controls pass, each mutant killed (9 / 7 tests on sequential, 9 / 8 on cuda)"
+ },
+ "allocation_failures": "dyng_hyper_sssp_allocation_failure_tests: 3/3 passed",
+ "gpu1_jobs": "every GPU-1 job after tools/locklog.py quiet-ok M11a hyper-sssp-sequential-asis-cuda",
+ "first_attempt": "the checks below (ci_check_sh to allocation_failures) ran in the step's first attempt at 88b4a8a (the same C++ code)",
+ "rerun_final_tree": {
+  "date": "2026-10-30",
+  "ci_check_sh (full, at 511ae3c with the records uncommitted)": "format, cpu-only ctest -L cpu 1450/1450, dev ctest -L cpu 1488/1488, consumer, tidy, reuse, provenance (299 files), testdata (1,074,029 of 1,250,000 B), regen, harness (396 passed), python (737 passed, 81 skipped), api (no breaking change against origin/main), scaffold (80 + 54 + 41 tests), docs (API baseline 1294 declarations) passed; precommit failed on codespell in parity/results/M11a.md section 10.9 (a quoted identifier), fixed, then DYNG_CHECK_ONLY=precommit passed",
+  "gpu_local.sh (dev-cuda, GPU 1; DYNG_GPU_SKIP all but build, gpu, hyper_sssp)": "build passed; ctest -L gpu 943/943 passed; hyper_sssp sanitizers (memcheck with leak check, racecheck, synccheck, initcheck): 6 ERROR SUMMARY 0 errors, 2 LEAK SUMMARY 0 bytes, 2 RACECHECK SUMMARY 0 hazards; hyper_sssp replays (cuda, make test, three modes, update == compute): passed",
+  "transplant_check": "3 files, identical",
+  "sass": "parity/hsosp_perf.py sass: engine.cu.o SHA-256 d952b1fb4e2f38907079254406c2430e62c58770dbbfb396836700f759f98076, the first attempt's object",
+  "result_replays": "all nine records of parity/results/M11a-hsosp-results-*.json taken again on the final build (parity-cuda and cpu-only Release; compare.py hyper_sssp --verify first): every total and per-case digest equal to the first attempt's records",
+  "launches": "parity/hsosp_perf.py launches --gpu 1 (M11a-hsosp-launches.json)",
+  "parity_pytest": "parity/tests/test_hsosp_perf.py: 15 passed"
+ }
+}
