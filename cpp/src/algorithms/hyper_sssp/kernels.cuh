@@ -77,6 +77,9 @@ __global__ void pull_distances_warp_kernel(const int* cand_list, int num_cand,
 
   long long best = inf_value;
   int best_p = -1;
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+  int any_p = -1;
+#endif
   const long long base = row_start[v];
   const int d = deg[v];
   const long long wv = node_weight(node_w, v, zero_a, zero_b);
@@ -87,11 +90,20 @@ __global__ void pull_distances_warp_kernel(const int* cand_list, int num_cand,
     const int p = col_ind[base + e];
     const long long dp = dist[p];
     if (dp >= inf_value / 2) continue;
+#if defined(DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT)
+    // MUTATION (PLAN 8.4; M11a criterion 16 #1, the CUDA engine): the pull adds the neighbour's
+    // weight instead of the node's.
+    const long long cd = dp + node_weight(node_w, p, zero_a, zero_b);
+#else
     const long long cd = dp + wv;
+#endif
     if (cd < best || (cd == best && p < best_p)) {
       best = cd;
       best_p = p;
     }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+    if (p > any_p) any_p = p;
+#endif
   }
   for (int o = 16; o > 0; o >>= 1) {
     const long long ob = __shfl_xor_sync(0xffffffffu, best, o);
@@ -100,7 +112,16 @@ __global__ void pull_distances_warp_kernel(const int* cand_list, int num_cand,
       best = ob;
       best_p = op;
     }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+    const int oa = __shfl_xor_sync(0xffffffffu, any_p, o);
+    if (oa > any_p) any_p = oa;
+#endif
   }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+  // MUTATION (PLAN 8.4; M11a criterion 16 #2, the CUDA engine): the pull records the highest
+  // reached neighbour as the parent, tight or not; the distances are unchanged.
+  if (best_p >= 0) best_p = any_p;
+#endif
   if (lane == 0) {
     const bool changed = (best != dist[v]);
     parent[v] = best_p;
@@ -284,7 +305,12 @@ __global__ void pull_invalidated_kernel(const int* list, int n_list, const long 
     const int p = col_ind[base + e];
     const u64 x = packed[p];
     if (x == packed_inf) continue;
+#if defined(DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT)
+    // MUTATION (PLAN 8.4; M11a criterion 16 #1, the CUDA engine): see pull_distances_warp_kernel.
+    const long long cd = packed_dist(x) + node_weight(node_w, p, zero_a, zero_b);
+#else
     const long long cd = packed_dist(x) + wv;
+#endif
     if (cd >= packed_dist_limit) {
       overflow = true;
       continue;

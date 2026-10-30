@@ -1228,6 +1228,122 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
   endforeach()
 endif()
 
+# hyper_sssp's mutations (M11a criterion 16, PLAN 8.4; MOSP_ESCHER@4b86159's own mutation record,
+# its CHANGES.md): #1 the pull adds the neighbour's weight instead of the node's, #2 the pull
+# records a non-tight parent (the distances unchanged). Each site is in both engines (the CUDA
+# kernels and their sequential twins in sequential.cpp): a copy of libdyng whose hyper_sssp module
+# is rebuilt with DYNG_MUTATION_HSOSP_<NAME>, linked with hyper_sssp's hand cases and the result
+# replay of the committed subset (hyper_sssp.mutation.<name>, labels cpu;mutation;hyper_sssp,
+# every build: the sequential twin) and, in CUDA builds, with the same suites on cuda
+# (hyper_sssp.mutation.cuda.<name>, labels gpu;mutation;hyper_sssp). The CTest passes when the
+# suite fails; the control copy must pass. parity/mutate.py registers the suite (M11a step 5).
+option(DYNG_HYPER_SSSP_MUTATION_TESTS "Build the mutation tests of hyper_sssp" ${DYNG_MUTATION_TESTS})
+if(DYNG_HYPER_SSSP_MUTATION_TESTS AND TARGET dyng_hyper_sssp)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_property(_dyng_hsosp_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_dyng_hyper_sssp)
+  set(_dyng_hsosp_sources)
+  foreach(_source IN LISTS _dyng_hsosp_relative)
+    if(NOT IS_ABSOLUTE "${_source}")
+      set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+    endif()
+    list(APPEND _dyng_hsosp_sources "${_source}")
+  endforeach()
+  set(_dyng_hsosp_other_objects)
+  foreach(_module IN LISTS _dyng_modules)
+    if(NOT _module STREQUAL "dyng_hyper_sssp")
+      list(APPEND _dyng_hsosp_other_objects $<TARGET_OBJECTS:${_module}>)
+    endif()
+  endforeach()
+  # name|define|expected verdict
+  set(_dyng_hyper_sssp_mutants
+      "control||pass"
+      "pull_adds_neighbour_weight|DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT|fail"
+      "non_tight_parent|DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT|fail"
+  )
+  set(_dyng_hsosp_mutant_suite
+      algorithms/hyper_sssp/hyper_sssp_test.cpp
+      parity/hsosp/hsosp_results_test.cpp
+      parity/hsosp/hsosp_results.cpp
+      parity/hsosp/hsosp_replay.cpp
+      parity/hsosp/hsosp_dump.cpp
+      parity/escher/cbst_trace.cpp
+      parity/escher/escher_dump.cpp
+      parity/escher/cbst_compare.cpp
+      $<TARGET_OBJECTS:dyng_testing_cbst_model>
+      $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+      $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
+  )
+  foreach(_entry IN LISTS _dyng_hyper_sssp_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _expect)
+    set(_lib dyng_hyper_sssp_mutant_${_name})
+    add_library(${_lib}_module OBJECT ${_dyng_hsosp_sources})
+    add_library(${_lib} STATIC ${_dyng_hsosp_other_objects} $<TARGET_OBJECTS:${_lib}_module>)
+    set(_exes dyng_hyper_sssp_mutant_${_name}_tests)
+    add_executable(dyng_hyper_sssp_mutant_${_name}_tests ${_dyng_hsosp_mutant_suite})
+    if(DYNG_ENABLE_CUDA)
+      add_executable(dyng_hyper_sssp_cuda_mutant_${_name}_tests ${_dyng_hsosp_mutant_suite})
+      target_compile_definitions(dyng_hyper_sssp_cuda_mutant_${_name}_tests PRIVATE DYNG_TEST_CUDA=1)
+      list(APPEND _exes dyng_hyper_sssp_cuda_mutant_${_name}_tests)
+    endif()
+    foreach(_target ${_lib}_module ${_lib} ${_exes})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_module PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_module)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
+    endif()
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    foreach(_exe ${_exes})
+      target_compile_definitions(${_exe} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      if(_exe MATCHES "_cuda_mutant_")
+        dyng_mutant_cuda_architectures(${_exe})
+        add_test(NAME hyper_sssp.mutation.cuda.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=hyper_sssp.cuda.${_name} -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          hyper_sssp.mutation.cuda.${_name} PROPERTIES LABELS "gpu;mutation;hyper_sssp" ENVIRONMENT
+                                                       "${DYNG_TEST_ENVIRONMENT}"
+        )
+      else()
+        add_test(NAME hyper_sssp.mutation.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=hyper_sssp.${_name} -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          hyper_sssp.mutation.${_name} PROPERTIES LABELS "cpu;mutation;hyper_sssp" ENVIRONMENT
+                                                  "${DYNG_TEST_ENVIRONMENT}"
+        )
+      endif()
+    endforeach()
+  endforeach()
+endif()
+
 # triad_count's mutations (M9a criterion 11; PLAN 8.4: a wrong bin sign, a skipped frontier
 # filter, an unfill that drops its last value): a copy of libdyng whose triad_count module is
 # rebuilt with DYNG_MUTATION_TRIAD_<NAME> (the hooks are in the code both engines share:

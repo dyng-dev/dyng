@@ -100,18 +100,35 @@ std::int64_t emulate_loop(const hyper_sssp_graph& g, std::vector<std::int64_t>& 
       if (v == source) continue;
       long long best = inf;
       int best_p = -1;
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+      int any_p = -1;
+#endif
       if (holds_source(holds, v)) best = g.weight(v);  // dynG: the public mode's base offer
       const std::int64_t base = lg.row_start[v];
       for (long long k = 0; k < lg.deg[v]; ++k) {
         const int p = lg.col_ind[base + k];
         const long long dp = dist[static_cast<std::size_t>(p)];
         if (dp >= inf / 2) continue;
+#if defined(DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT)
+        // MUTATION (PLAN 8.4; M11a criterion 16 #1, the sequential twin): the pull adds the
+        // neighbour's weight instead of the node's.
+        const long long cd = dp + g.weight(p);
+#else
         const long long cd = dp + g.weight(v);
+#endif
         if (cd < best || (cd == best && p < best_p)) {
           best = cd;
           best_p = p;
         }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+        if (p > any_p) any_p = p;
+#endif
       }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+      // MUTATION (PLAN 8.4; M11a criterion 16 #2, the sequential twin): the pull records the
+      // highest reached neighbour as the parent, tight or not; the distances are unchanged.
+      if (best_p >= 0) best_p = any_p;
+#endif
       if (best != dist[static_cast<std::size_t>(v)]) {
         dist[static_cast<std::size_t>(v)] = best;
         parent[static_cast<std::size_t>(v)] = best_p;
@@ -292,8 +309,14 @@ void hyper_sssp_host_seed(const hyper_sssp_graph& g, const hyper_sssp_batch& b,
     ws.work += lg.deg[v];
     for (long long k = 0; k < lg.deg[v]; ++k) {
       const int p = lg.col_ind[lg.row_start[v] + k];
+#if defined(DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT)
+      // MUTATION (PLAN 8.4; M11a criterion 16 #1, the sequential twin): see emulate_loop.
+      if (dist[static_cast<std::size_t>(p)] < inf)
+        offer(g, dist, parent, ws, v, dist[static_cast<std::size_t>(p)] + g.weight(p), p);
+#else
       if (dist[static_cast<std::size_t>(p)] < inf)
         offer(g, dist, parent, ws, v, dist[static_cast<std::size_t>(p)] + g.weight(v), p);
+#endif
     }
   }
   // dynG, the public mode: a hyperedge that gained the source (B's inserted pair with its source
