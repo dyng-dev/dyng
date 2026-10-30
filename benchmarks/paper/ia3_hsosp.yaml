@@ -179,7 +179,7 @@ readings:      # what one execution of the suite runs; configurations <dblp|geol
   - name: cuda-dblp
     kind: run
     backend: cuda
-    clocks: base     # probe-dblp: the boost lock did not hold (ADR 0021)
+    clocks: boost    # probe-dblp (M11a step 5): the boost lock held in all 3 rounds (ADR 0021)
     probe: probe-dblp
     runs: 21
     gated: true
@@ -187,7 +187,7 @@ readings:      # what one execution of the suite runs; configurations <dblp|geol
   - name: cuda-geology
     kind: run
     backend: cuda
-    clocks: base     # probe-geology: the boost lock did not hold (ADR 0021)
+    clocks: boost    # probe-geology (M11a step 5): the boost lock held in all 3 rounds (ADR 0021)
     probe: probe-geology
     runs: 21
     gated: true

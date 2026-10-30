@@ -419,8 +419,11 @@ def _write_hsosp_records(bench, suite, records: Path, commit: str, ratio: float 
         if job["kind"] == "probe":
             ds = bench.HSOSP_DATASETS[reading["dataset"]]
             sha = next(d["sha256"] for d in suite["datasets"] if d["name"] == reading["dataset"])
-            rec |= {"lock": held, "probe": {ds: {"rounds": [{}, {}, {}], "holds": False}},
-                    "clocks": {ds: "base"}, "datasets_sha256": {ds: sha}}  # fmt: skip
+            decided = next(
+                r["clocks"] for r in suite["readings"] if r.get("probe") == reading["name"]
+            )
+            rec |= {"lock": held, "probe": {ds: {"rounds": [{}, {}, {}]}},
+                    "clocks": {ds: decided}, "datasets_sha256": {ds: sha}}  # fmt: skip
         else:
             proto = {"gpu": 1 if job["kind"] == "memory" else 0, "env": bench.HSOSP_ENV}
             if job["kind"] == "memory":
@@ -3022,7 +3025,7 @@ def test_the_hsosp_suite_records_are_checked(bench, tmp_path: Path) -> None:
     run = records / "ia3_hsosp-cuda-geology-geology_vertex_100000.json"
     memory = records / "ia3_hsosp-cuda-memory.json"
     for path, edit, text in [
-        (probe, lambda d: d["clocks"].update(geology="boost"), "the probe probe-geology decided"),
+        (probe, lambda d: d["clocks"].update(geology="other"), "the probe probe-geology decided"),
         (run, lambda d: d["results"]["geology_vertex_100000"]["audit"].update(flagged=True),
          "contamination audit"),
         (run, lambda d: d["results"]["geology_vertex_100000"].update(scope_differs=True),
