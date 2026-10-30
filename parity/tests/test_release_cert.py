@@ -1926,6 +1926,21 @@ def test_gpu_local_needs_the_steps_of_its_series(cert, certified) -> None:
         assert f'record "{step}" passed' in script or f"record {step} passed" in script, step
 
 
+def test_the_0_4_gpu_local_steps_hold_label_propagations_step(cert) -> None:
+    """M10a criterion 17: label_propagation's step is in M10's sub-list of the one (0, 4) key of
+    GPU_LOCAL_STEPS (P040 created it; a second (0, 4) key would replace the first), so a 0.4.0
+    certificate needs it passed and a 0.3 one does not."""
+    step = "label_propagation (CUDA tests, kit, replays of P, in_place cloud, oracle; sanitizers)"
+    assert step in cert.gpu_local_steps("0.4.0")
+    assert step in cert.GPU_LOCAL_STEPS[(0, 4)]
+    assert step not in cert.gpu_local_steps("0.3.0")
+    source = (REPO / "parity" / "certify.py").read_text()
+    assert source.count("(0, 4): [") == 1
+    block = source.split("(0, 4): [", 1)[1].split("],", 1)[0]
+    assert block.index("# M10 label_propagation") < block.index(step)
+    assert block.index(step) < block.index("# M11 slack_csr / hyper_sssp")
+
+
 def test_a_partial_gpu_step_is_recorded_but_not_a_failure(cert, tmp_path: Path) -> None:
     results = tmp_path / "r"
     summary = tmp_path / "gpu.md"

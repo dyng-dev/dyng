@@ -342,6 +342,7 @@ GPU_LOCAL_STEPS = {
     ],
     (0, 4): [
         # M10 label_propagation
+        "label_propagation (CUDA tests, kit, replays of P, in_place cloud, oracle; sanitizers)",
         # M11 slack_csr / hyper_sssp
     ],
 }
