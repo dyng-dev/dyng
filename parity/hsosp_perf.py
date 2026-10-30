@@ -57,6 +57,12 @@ kernel of hyper_sssp's CUDA engine (build/parity-cuda) and of B's unpatched hsos
 paired by name (parity/triad_sass.py's reading: registers, stack, shared and local memory, the
 instruction count, the hot loops and the digest of the normalized instruction stream), and the
 kernels only one side has.
+
+    parity/hsosp_perf.py launches [--configs ...] [--gpu 1] [--json OUT]
+
+`launches` (M11a step 4, the as-is record; not a timed reading): both processes under `nsys
+profile -t cuda` on the development GPU (shared lock, after tools/locklog.py quiet-ok): the
+launches of every kernel and the launch, copy, memset and synchronization API calls.
 """
 
 from __future__ import annotations
@@ -901,6 +907,140 @@ def sass_main(args: argparse.Namespace) -> int:
     return 0
 
 
+# The CUDA API calls the launch record counts: the launches, the copies and memsets, and every
+# host synchronization (a synchronous cudaMemcpy blocks the host as well).
+LAUNCH_API = re.compile(r"LaunchKernel|Memcpy|Memset|Synchronize")
+
+
+def kernel_label(name: str) -> str:
+    """A demangled kernel name of nsys reduced to its identifier: no return type, no namespace,
+    no template arguments, no parameters ("void cub::...::DeviceScanKernel<...>(...)" ->
+    "DeviceScanKernel", "dyng::detail::hsosp::<unnamed>::push_kernel(...)" -> "push_kernel")."""
+    s = name.removeprefix("void ").replace("<unnamed>", "anon")
+    while True:
+        t = re.sub(r"<[^<>]*>", "", s)
+        if t == s:
+            break
+        s = t
+    return s.split("(", 1)[0].split("::")[-1].strip()
+
+
+def nsys_sums(nsys: str, rep: Path) -> tuple[dict[str, int], dict[str, int]]:
+    """Kernel launches by kernel_label() and the counted API calls of one nsys report."""
+    import csv  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    out: list[dict[str, int]] = []
+    for report, count_col in (("cuda_gpu_kern_sum", "Instances"), ("cuda_api_sum", "Num Calls")):
+        cmd = [nsys, "stats", "-q", "--force-export=true", "--report", report]
+        r = subprocess.run(
+            [*cmd, "--format", "csv", "--output", "-", str(rep)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+        start = next(i for i, ln in enumerate(lines) if "Name" in ln and count_col in ln)
+        sums: dict[str, int] = {}
+        for row in csv.DictReader(lines[start:]):
+            label = kernel_label(row["Name"]) if report == "cuda_gpu_kern_sum" else row["Name"]
+            if report == "cuda_api_sum" and not LAUNCH_API.search(label):
+                continue
+            sums[label] = sums.get(label, 0) + int(row[count_col])
+        out.append(dict(sorted(sums.items())))
+    return out[0], out[1]
+
+
+def launches_main(args: argparse.Namespace) -> int:
+    """`launches` (M11a step 4, the as-is record; not a timed reading): per configuration, B's
+    unpatched hsospBench (B's defaults, --verify none) and the port's dyng-compat-hsosp bench (the
+    golden's batches, --digests, no --sync-stages) under `nsys profile -t cuda` on the development
+    GPU, CUDA_MODULE_LOADING=EAGER: the launches of every kernel (by its identifier; the H-SOSP
+    kernels paired as in SASS_KERNELS) and the counts of the launch, copy, memset and
+    synchronization API calls of the whole process (the load, the initial solve, the three
+    batches and their static recomputes). Run it under the shared lock; every GPU-1 job first
+    checks the shared calendar (tools/locklog.py quiet-ok)."""
+    import subprocess  # noqa: PLC0415
+
+    nsys = shutil.which("nsys") or "/usr/local/cuda-13.1/bin/nsys"
+    exe = args.exe.resolve()
+    b_exe = hg.reference_dir(args.scratch, "unpatched") / "bin" / "hsospBench"
+    env = env_for(args.gpu)
+    version = subprocess.run([nsys, "--version"], capture_output=True, text=True).stdout.strip()
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="dyng-hsosp-launches-", dir=args.scratch / "runs"))
+    configs: dict[str, dict] = {}
+    try:
+        for name, dataset, kind, size in hg.p_configs():
+            if name not in args.configs:
+                continue
+            path = hg.check_dataset(args.scratch, dataset)
+            _, dump = golden_case(args.scratch, name)
+            sides = {
+                "original": [str(b_exe), *hg.p_argv(path, kind, size, str(work / CSV_NAME))],
+                "port": [
+                    str(exe),
+                    "bench",
+                    *hg.p_argv(path, kind, size, str(work / CSV_NAME)),
+                    "--golden",
+                    str(dump),
+                    "--digests",
+                    "--threads",
+                    str(os.cpu_count() or 1),
+                ],
+            }
+            configs[name] = {}
+            for side, cmd in sides.items():
+                if args.gpu == 1:
+                    hg.wait_gpu1_quiet()
+                rep = work / f"{side}-{name}"
+                subprocess.run(
+                    [nsys, "profile", "-t", "cuda", "-f", "true", "-o", str(rep), *cmd],
+                    check=True,
+                    env=env,
+                    capture_output=True,
+                )
+                kernels, api = nsys_sums(nsys, rep.with_suffix(".nsys-rep"))
+                configs[name][side] = {"kernels": kernels, "api": api}
+            port_k, orig_k = configs[name]["port"]["kernels"], configs[name]["original"]["kernels"]
+            pairs = {}
+            for label, (pp, bp) in SASS_KERNELS.items():
+                pk = pp.removeprefix(r"\d+") if pp else None
+                bk = bp.removeprefix(r"\d+") if bp else None
+                pairs[label] = {
+                    "port": port_k.get(pk, 0) if pk else None,
+                    "original": orig_k.get(bk, 0) if bk else None,
+                }
+            configs[name]["hsosp_kernels"] = pairs
+            for label, c in pairs.items():
+                print(f"{name} {label:24} port {c['port']} original {c['original']}")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    doc = {
+        "record": "Kernel launches and synchronizations of hyper_sssp's bench against "
+        "MOSP_ESCHER's hsospBench (nsys, the development GPU, not a timed reading)",
+        "tool": "parity/hsosp_perf.py launches",
+        "commit": hg.git_head(),
+        "nsys": version,
+        "gpu": args.gpu,
+        "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "scope": "the whole process of each side (load, initial solve, 3 batches with their "
+        "static recomputes); B's other kernels are its device CBST, the port's its slack_csr "
+        "store",
+        "commands": {
+            "original": "nsys profile -t cuda hsospBench --hg <hg> --kind <kind> --batch <size> "
+            "--batches 3 --del 50 --verify none --out <csv> (ref/MOSP_ESCHER@4b86159/unpatched)",
+            "port": "nsys profile -t cuda dyng-compat-hsosp bench <the same flags> --golden "
+            "<case dump> --digests --threads <cores> (" + hg.portable(exe) + ")",
+        },
+        "configs": configs,
+    }
+    if args.json:
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -961,9 +1101,23 @@ def main(argv: list[str] | None = None) -> int:
         / "ref/MOSP_ESCHER@4b86159/unpatched/build/hsosp/src/hsospDevice.cu.o",
     )
     sa.add_argument("--json", type=Path)
+    la = sub.add_parser("launches", help="kernel launches and API calls against B's (nsys)")
+    la.add_argument(
+        "--configs", nargs="+", default=["dblp_hyperedge_50000", "geology_vertex_50000"]
+    )
+    la.add_argument("--gpu", type=int, default=1, help="the development GPU (not a timed reading)")
+    la.add_argument(
+        "--exe",
+        type=Path,
+        default=REPO / "build" / "parity-cuda" / "tools" / "compat" / "dyng-compat-hsosp",
+    )
+    la.add_argument("--scratch", type=Path, default=hg.scratch_default())
+    la.add_argument("--json", type=Path)
     args = p.parse_args(argv)
     if args.cmd == "sass":
         return sass_main(args)
+    if args.cmd == "launches":
+        return launches_main(args)
     if args.cmd == "run":
         if args.dry_run:
             if args.gpu == 0:

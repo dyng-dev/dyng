@@ -219,3 +219,38 @@ def test_run_refuses_outside_a_window_and_a_dry_run_on_gpu_0(
     argv = ["run", "--configs", "dblp_hyperedge_50000", "--maintain-only"]
     assert perf.main(argv) == 2
     assert perf.main([*argv, "--dry-run", "--gpu", "0"]) == 2
+
+
+def test_the_launch_record_names_a_kernel_by_its_identifier() -> None:
+    cub = (
+        "void cub::CUB_300104_SM_860::detail::radix_sort::DeviceRadixSortOnesweepKernel<cub::"
+        "CUB_300104_SM_860::detail::radix::policy_hub<unsigned long long, int, unsigned int>::"
+        "Policy1000, (bool)0, unsigned long long>(T1 *, int)"
+    )
+    assert perf.kernel_label(cub) == "DeviceRadixSortOnesweepKernel"
+    assert perf.kernel_label("dyng::detail::hsosp::<unnamed>::push_kernel(const int *, int)") == (
+        "push_kernel"
+    )
+    assert perf.kernel_label("escher_mosp::hsosp::<unnamed>::pushKernel(const int *)") == (
+        "pushKernel"
+    )
+    assert perf.kernel_label("allocateSpace(CBSTNode *, int)") == "allocateSpace"
+
+
+def test_the_launch_record_counts_only_launches_copies_memsets_and_syncs() -> None:
+    kept = [n for n in ("cudaLaunchKernel", "cudaMemcpyAsync", "cudaMemset",
+                        "cudaStreamSynchronize", "cudaEventSynchronize", "cudaMalloc",
+                        "cudaFree", "cuLibraryLoadData") if perf.LAUNCH_API.search(n)]  # fmt: skip
+    assert kept == [
+        "cudaLaunchKernel",
+        "cudaMemcpyAsync",
+        "cudaMemset",
+        "cudaStreamSynchronize",
+        "cudaEventSynchronize",
+    ]
+
+
+def test_launches_is_a_subcommand() -> None:
+    with pytest.raises(SystemExit) as exc:
+        perf.main(["launches", "--help"])
+    assert exc.value.code == 0
