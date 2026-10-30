@@ -96,10 +96,14 @@ gets there. The original's generator never deletes a seed (its phase C deletes a
 vertices only), and AD7's bound and m were calibrated on that flow. The axis's departures follow
 the original's rule; no bound, margin or tolerance was changed. A seed's departure stays covered
 by the hand case `LabelPropagation.ASeedFreePairConverges` (the seed leaves, its neighbour and a
-new vertex converge), not by the kit's oracle. **Flagged for the author** (a new
-question in an author-reserved area, the parity rules, taken on its most conservative option:
-GOVERNANCE.md, Open decisions, `M10 (AD)`): whether AD7's class rule must hold after a seed's
-departure, which the original's flow never makes.
+new vertex converge), not by the kit's oracle. **Decided by the author on 2026-10-30** (GOVERNANCE.md, approvals log, the row "Seed departures
+and AD7's class rule"; first flagged as a new question in an author-reserved area, the parity
+rules, taken on its most conservative option): AD7's class rule need not hold after a seed's
+departure, which the original's flow never makes; the kit keeps the original's rule (departures
+of active unlabelled vertices only), the hand case covers a seed's departure, and the algorithm
+page (Limitations) and the update's doc comment in `<dyng/label_propagation.hpp>` document the
+property: after a seed is deleted, labels far from it can stay stale until later batches reach
+them.
 
 The models start with 70 % of the vertices present: IrLP's Jacobi converges slowly on the long
 chains of a sparse present subgraph (13 s for one 12,000-vertex model at 30 % present in Release,

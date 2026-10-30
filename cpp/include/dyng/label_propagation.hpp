@@ -392,6 +392,11 @@ template <typename vertex_t, typename edge_t>
  * than options::tolerance; finally every seed's label is its class. Deleted vertices keep their
  * last label; a vertex that never entered the graph (or arrived and left in one batch) stays at
  * 0.5.
+ *
+ * After a seed is deleted, labels far from it can stay stale: the propagation starts at the
+ * deleted seed's neighbours and stops where the changes fall below options::tolerance (under
+ * schedule::damped each update halves the change), so it may not reach every vertex whose
+ * harmonic label moved; those labels catch up when a later batch's affected vertices reach them.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @param[in]     res   Execution resources (sequential or cuda, the result's backend: a result

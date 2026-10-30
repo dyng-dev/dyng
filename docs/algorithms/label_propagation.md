@@ -93,6 +93,14 @@ the original's timers. The gates against the original (AD2) are read on the CUDA
 - `update()` needs `row_layout::slotted` (`graph::with_capacity()`, the full graph's degrees as
   capacities); the streaming mode (`row_layout::slack`) arrives in M10b.
 - Edge deletions are not supported (vertices leave with their edges).
+- After a seed is deleted, labels far from it can stay stale. The propagation starts at the
+  deleted seed's neighbours and stops where the changes fall below `options::tolerance` (under
+  `damped` each update halves the change, so the wave dies out within a few hops), and the
+  harmonic solution of the seed's component moves further than the wave reaches; those labels
+  catch up only when a later batch's affected vertices reach them. LabelPropagation-CUDA's flow
+  never deletes a seed (its generator deletes active unlabelled vertices only), and the harmonic
+  oracle's class rule (AD7) is checked on that flow; a seed's departure is covered by the hand
+  case `LabelPropagation.ASeedFreePairConverges` (the author's decision of 2026-10-30, ADR 0076).
 - 32-bit vertex ids and float weights only.
 
 ## 7. Differences from the paper

@@ -84,7 +84,19 @@ snapshot tests and the certificate tests are unchanged).
   requires it (nor the suite). The certificate validates every suite file it reads, so a suite
   with a changed tolerance, preset or schedule, or a `recorded_only` without its reason, fails it.
 
-### 4. The readings
+### 4. AD7's class rule at delta 1e-4
+
+AD7 gives the class rule (no flip where \|F* - 0.5\| > 3m) with C's conditions, m taken from the
+original's own delta 1e-6 runs (m = 2.9217e-3). At delta 1e-4 the original's own 50k labels (the
+damped golden's label bits) flip beyond 3m in batches 2-7, so the rule cannot be a parity rule
+there. `compare.py label_propagation oracle-port --cases L|weekly` and the certificate's oracle
+kind therefore gate, at delta 1e-4, the bound mean \|F - F*\| <= 2000 delta and the PCG
+convergence (0 skips), and report the flips beyond 3m; at delta 1e-6 (C) all three are gated.
+First taken as the most conservative option of a new question in an author-reserved area, it was
+**decided by the author on 2026-10-30** (GOVERNANCE.md, approvals log, the row "AD7's class rule
+at delta 1e-4").
+
+### 5. The readings
 
 (The readings of M10a step 5 and their outcome: section "Readings" below, added with the
 records.)
