@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The hyper_sssp manifest (PLAN Section 4.8) of a hypergraph algorithm. scripts/regen.py
+# reads it (the algorithm tables, the CODEOWNERS block and the registries; `python3
+# scripts/regen.py` after an edit); CMake does not. For a hypergraph algorithm,
+# `graph_requirements` names what it needs of the hypergraph (ADR 0043): line_graph ("required",
+# "any"), store_v2h ("required", "any"), reuse ("any", "erase_first", "insert_first") and storage
+# ("any", "escher").
+# scaffolded by scripts/new_algorithm.py: `--remove` deletes the algorithm only while this line is here
+name        = "hyper_sssp"
+title       = "Dynamic single-source shortest hyperpaths"
+computes    = "shortest hyperpaths"
+paper       = "-"
+since       = "0.4"
+family      = "fixed_point"
+container   = "hypergraph"
+tier        = "framework"
+maturity    = "experimental"
+backends    = ["sequential"]
+determinism = "exact_value"
+oracle      = "compute"
+graph_requirements = { line_graph = "any", store_v2h = "any", reuse = "any", storage = "any" }
+cite        = []
+maintainers = ["SMShovan"]
+python      = false   # true once python/dyng/<name>.py and its bindings exist (PLAN 4.8, file 17)
+# planned entry replaced by this scaffold (restored by --remove), index 2:
+# [[planned]]
+# name      = "hyper_sssp"
+# computes  = "shortest hyperpaths"
+# container = "hypergraph"
+# family    = "fixed point"
+# backends  = "sequential, CUDA"
+# paper     = "H-SOSP (IA3 2026)"
+# since     = "0.4"

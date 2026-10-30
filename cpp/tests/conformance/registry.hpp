@@ -25,6 +25,8 @@ struct dynamic_bfs;
 struct triangle_delta;
 /// The tag of triad_count.
 struct triad_count;
+/// The tag of hyper_sssp.
+struct hyper_sssp;
 }  // namespace dyng::conformance::tags
 
 #if defined(DYNG_ALGORITHM_SSSP)
@@ -45,6 +47,9 @@ struct triad_count;
 #if defined(DYNG_ALGORITHM_TRIAD_COUNT)
 #include "algorithms/triad_count/triad_count_traits.hpp"
 #endif
+#if defined(DYNG_ALGORITHM_HYPER_SSSP)
+#include "algorithms/hyper_sssp/hyper_sssp_traits.hpp"
+#endif
 
 namespace dyng::conformance {
 
@@ -57,10 +62,11 @@ using list_3 = append_t<list_2, tags::mosp>;
 using list_4 = append_t<list_3, tags::dynamic_bfs>;
 using list_5 = append_t<list_4, tags::triangle_delta>;
 using list_6 = append_t<list_5, tags::triad_count>;
+using list_7 = append_t<list_6, tags::hyper_sssp>;
 }  // namespace registry_detail
 
 /// Every algorithm with a manifest, in the order of cpp/src/algorithms/CMakeLists.txt; the kit
 /// keeps those whose test_traits this build defines (registered_algorithms, conformance.hpp).
-using manifest_algorithms = registry_detail::list_6;
+using manifest_algorithms = registry_detail::list_7;
 
 }  // namespace dyng::conformance

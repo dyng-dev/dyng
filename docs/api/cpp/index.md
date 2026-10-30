@@ -25,6 +25,7 @@ dynamic_bfs
 triangle_delta
 triad_count
 experimental
+hyper_sssp
 generators
 testing
 ```
