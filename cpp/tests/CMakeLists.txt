@@ -1375,7 +1375,10 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
       # runs it under ASan and TSan-OpenMP locally (M9a review: on a 4-vCPU runner its C2 cases
       # alone took more than the jobs' budget).
       set(_heavy)
-      if(_dyng_algorithm STREQUAL "triad_count")
+      # label_propagation's kit (the float slotted axis, both schedules, DynLP graphs of 5,000 to
+      # 8,000 vertices at delta 1e-6 with the harmonic solution after every batch; M10a step 5)
+      # likewise: about 3 minutes in Release and 18 in Debug on the development machine.
+      if(_dyng_algorithm STREQUAL "triad_count" OR _dyng_algorithm STREQUAL "label_propagation")
         set(_heavy slow)
       endif()
       dyng_add_test(
