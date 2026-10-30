@@ -859,7 +859,10 @@ distance_t result<vertex_t, distance_t>::distance_to(vertex_t target) const {
   DYNG_EXPECTS(target >= 0 && target < n, what, ": the vertex ", target, " is outside [0, ", n,
                ")");
   if (target == st.endpoints.source_vertex) return 0;
-  const std::vector<std::int64_t>& d = detail::host_distances(detail::accessor_resources(st), st);
+  // A named object: GCC 13's -Wdangling-reference reads a reference returned by a call with a
+  // temporary argument as dangling (it is the state's own cache).
+  const resources ares = detail::accessor_resources(st);
+  const std::vector<std::int64_t>& d = detail::host_distances(ares, st);
   const auto& v2h = g.store->slack()->host_v2h();
   distance_t best = detail::hyper_sssp_infinity;
   for (const std::int64_t h : v2h[static_cast<std::size_t>(target)]) {
@@ -875,7 +878,8 @@ array_view<const distance_t> result<vertex_t, distance_t>::vertex_distances() co
   const auto& st = detail::checked(impl_.get(), what);
   const detail::impl_t& g = detail::matched_graph(st, what);
   if (!st.vertex_dist_valid) {
-    const std::vector<std::int64_t>& d = detail::host_distances(detail::accessor_resources(st), st);
+    const resources ares = detail::accessor_resources(st);  // as in distance_to()
+    const std::vector<std::int64_t>& d = detail::host_distances(ares, st);
     const auto& v2h = g.store->slack()->host_v2h();
     st.vertex_dist.assign(v2h.size(), detail::hyper_sssp_infinity);
     for (std::size_t v = 0; v < v2h.size(); ++v) {

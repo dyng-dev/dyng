@@ -192,6 +192,7 @@ def test_a_failed_guard_stops_the_reading(monkeypatch: pytest.MonkeyPatch, tmp_p
         max_foreign_cpu = 2.0
         scratch = tmp_path
         quiet_max = 7.03
+        maintain_only = True
 
     with perf.LoadSampler() as sampler, pytest.raises(SystemExit, match="the guard failed"):
         perf.run_config(

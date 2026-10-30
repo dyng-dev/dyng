@@ -236,6 +236,8 @@ NOT_DERIVED = {
     "and replays them; no copied code (its command-line parsing is escher_dump.cpp's)",
     "tools/compat/hsosp/hsosp_compat.cpp": "converts MOSP_ESCHER's recorded H-SOSP sessions to "
     "dynG files and replays them; no copied code (the dump reader is cpp/tests/parity/hsosp's)",
+    "cpp/src/algorithms/hyper_sssp/virtual_endpoints.hpp": "declarations of the internal "
+    "virtual-endpoint mode; describes MOSP_ESCHER's virtual rows, no copied code",
     "cpp/include/dyng/sssp.hpp": "public API; documents the semantics the port reproduces",
     "cpp/include/dyng/graph/graph.hpp": "public API; documents the MOSP apply it ports",
     "cpp/include/dyng/graph/graph_properties.hpp": "public API; names the MOSP semantics preset",

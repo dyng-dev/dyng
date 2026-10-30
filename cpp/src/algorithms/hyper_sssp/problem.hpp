@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP_ESCHER@4b86159:hsosp/include/hsosp.cuh (UpdateConfig, UpdateStats)
+// Derived from MOSP_ESCHER@4b86159:hypergraph/src/HostHypergraph.cpp (the host emulation's state)
 /**
  * @file problem.hpp
  * @brief The hyper_sssp problem on the framework (cpp/src/framework), over the hypergraph's

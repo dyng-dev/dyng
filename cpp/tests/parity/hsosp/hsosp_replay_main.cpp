@@ -113,6 +113,7 @@ int main(int argc, char** argv) {
     try {
       const auto records = dyng::test::hsosp_dump::read_dump(dumps[d]);
       if (algorithm) {
+#if defined(DYNG_HSOSP_RESULTS) && DYNG_HSOSP_RESULTS
         const auto rep = dyng::test::hsosp_results::replay(records, res, results, dumps[d]);
         std::printf(
             "%s %s %s: %lld sessions, %lld batches, %lld updates, %lld recomputes (%lld by "
@@ -128,6 +129,12 @@ int main(int argc, char** argv) {
         all_ok = all_ok && rep.ok();
         json += (d ? ",\n" : "\n") + rep.to_json();
         continue;
+#else
+        std::fprintf(stderr,
+                     "dyng_hsosp_replay: --algorithm needs hyper_sssp, which this build "
+                     "leaves out (DYNG_ALGORITHMS)\n");
+        return 2;
+#endif
       }
       const auto rep = dyng::test::hsosp_replay::replay(records, res, opt, dumps[d]);
       std::printf(
