@@ -59,8 +59,8 @@ struct slotted_rows {
   std::vector<vertex_status> status;  ///< per vertex: its state
   edge_t live_entries = 0;            ///< entries whose two endpoints are active (num_edges())
   vertex_t active_vertices = 0;       ///< vertices whose state is active
-  /// Scratch of Step 0: per vertex, bit 0 = in this batch's deletions, bit 1 = in its
-  /// insertions. All 0 between calls (Step 0 clears what it set, also when it throws).
+  /// Scratch of Step 0: per vertex, bit 0 = in deletions, bit 1 = in insertions, bits 2-7 the
+  /// tag of the Step 0 that set them; one more byte, the last tag (step_marks; no clearing).
   mutable std::vector<std::uint8_t> marks;
   /// Scratch of the capacity check: per row, the entries this batch appends (saturating). All 0
   /// between calls.
@@ -101,7 +101,8 @@ void build_slotted(std::int64_t n, array_view<const edge_t> capacity, int num_we
  * @brief Step 0 of batch_semantics::net_effect() against G_t: every check of a vertex batch
  *        (graph::apply()'s list), then the net effect (Ins_eff, its labels, Del_eff) into `out`.
  *
- * Nothing of the graph changes (the scratch arrays are cleared again, also when it throws).
+ * Nothing of the graph changes (its scratch reads as clear again, also when it throws: the
+ * marks by their tag, ADR 0079; the append counts are cleared).
  * Sets out.vertex_step; out.state_id is not set (the caller records the state).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.

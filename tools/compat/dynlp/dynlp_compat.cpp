@@ -470,17 +470,26 @@ bool write_results(const std::string& path, const std::vector<batch_result>& res
 }
 
 /// computeAccuracy: the active vertices without a seed label (the original's VERTEX_ACTIVE).
+/// Like the original, the sums run on the host's threads above 1,000,000 vertices (its `omp
+/// parallel for reduction ... if (numNodes > 1000000)`; integer sums, so the result is the same).
 float accuracy(const float* labels, const std::vector<std::int8_t>& truth,
                dyng::array_view<const dyng::vertex_status> status,
                dyng::array_view<const std::int8_t> seeds) {
   long long correct = 0;
   long long total = 0;
-  for (std::size_t i = 0; i < truth.size(); ++i) {
-    if (status[i] != dyng::vertex_status::active || seeds[i] >= 0) {
+  const auto n = static_cast<long long>(truth.size());
+  const std::int8_t* t = truth.data();
+  const dyng::vertex_status* st = status.data();
+  const std::int8_t* seed = seeds.data();
+#if defined(_OPENMP)
+#pragma omp parallel for reduction(+ : correct, total) schedule(static) if (n > 1000000)
+#endif
+  for (long long i = 0; i < n; ++i) {
+    if (st[i] != dyng::vertex_status::active || seed[i] >= 0) {
       continue;
     }
     const int predicted = labels[i] >= 0.5F ? 1 : 0;
-    const int actual = truth[i] >= 1 ? 1 : 0;
+    const int actual = t[i] >= 1 ? 1 : 0;
     correct += predicted == actual ? 1 : 0;
     ++total;
   }
@@ -865,14 +874,19 @@ int run(const config& c) {
     // --- Evaluation (after the timer) ---
     const auto e0 = std::chrono::steady_clock::now();
     const dyng::array_view<const float> view = labels.labels();
+    // e1.D2H.labels: one copy into pinned memory (the original's h_labels), which the accuracy
+    // reads; the run's host vector is filled only where it is read (the label dump, --validate,
+    // --check and the label file after the last batch).
+    const float* current = view.data();
     if (on_cuda) {
-      // e1.D2H.labels: one copy into pinned memory, then the host copy of the run's vector.
       dyng::copy(res, view,
                  dyng::array_view<float>(pinned_labels.data(), n, dyng::memory_space::pinned_host));
       res.synchronize();
-      std::memcpy(host_labels.data(), pinned_labels.data(), n * sizeof(float));
-    } else {
-      std::memcpy(host_labels.data(), view.data(), n * sizeof(float));
+      current = pinned_labels.data();
+    }
+    const bool keep = dump != nullptr || c.validate || c.check || b + 1 == stream.batches.size();
+    if (keep) {
+      std::memcpy(host_labels.data(), current, n * sizeof(float));
     }
     // The states of the vertices after the batch, kept by the tool as the original's host pass
     // keeps h_vertexStatus (Del deleted, then Ins \ Del active), so the evaluation reads no rows.
@@ -889,7 +903,7 @@ int run(const config& c) {
       status[static_cast<std::size_t>(v)] = dyng::vertex_status::deleted;
     }
     const dyng::array_view<const dyng::vertex_status> gv_status = dyng::host_view(status);
-    r.accuracy = accuracy(host_labels.data(), stream.true_labels, gv_status, labels.seed_labels());
+    r.accuracy = accuracy(current, stream.true_labels, gv_status, labels.seed_labels());
     r.eval_ms = static_cast<float>(ms_since(e0));
     if (dump != nullptr && std::fwrite(host_labels.data(), sizeof(float), n, dump) != n) {
       std::cout << "Error: could not write the label dump\n";

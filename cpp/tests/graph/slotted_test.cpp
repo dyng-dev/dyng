@@ -461,6 +461,54 @@ TEST(Slotted, ErrorsKeepTheGraphUnchanged) {
   EXPECT_EQ(g.num_edges(), 4);
 }
 
+/// Step 0's marks are tagged per call (ADR 0079): flags left by a batch that threw, and the tags
+/// reused after every 63 calls, never read as set in a later batch.
+TEST(Slotted, StepZeroMarksOverManyBatches) {
+  const dyng::resources res = dyng::resources::sequential();
+  lp_graph g = make<lp_graph>(res, std::vector<std::int32_t>(300, 2));
+  // Call 1 (tag 1) leaves vertex 299 flagged as deleted and throws; calls 2-63 (tags 2-63) throw
+  // on vertex 298; call 64 takes tag 1 again and must not read 299's old flag.
+  lp_batch twice;
+  twice.delete_vertex(299);
+  twice.delete_vertex(299);
+  EXPECT_THROW((void)g.apply(res, twice.view()), dyng::invalid_argument_error);
+  twice.clear();
+  twice.delete_vertex(298);
+  twice.delete_vertex(298);
+  for (int c = 2; c <= 63; ++c) {
+    EXPECT_THROW((void)g.apply(res, twice.view()), dyng::invalid_argument_error) << c;
+  }
+  lp_batch once;
+  once.delete_vertex(299);
+  ASSERT_NO_THROW((void)g.apply(res, once.view()));
+  ASSERT_NO_THROW(g.check_integrity(res));
+  std::int32_t next = 0;
+  for (int k = 0; k < 140; ++k) {
+    // A batch that marks `next` inserted and `next + 1` inserted and deleted, then throws on a
+    // duplicate insertion of `next`.
+    lp_batch bad;
+    bad.insert_vertex(next);
+    bad.insert_vertex(next + 1);
+    bad.delete_vertex(next + 1);
+    bad.insert_vertex(next);
+    EXPECT_THROW((void)g.apply(res, bad.view()), dyng::invalid_argument_error) << k;
+    // The same ids in a valid batch: `next` arrives (a seed), `next + 1` ends deleted.
+    lp_batch good;
+    good.insert_vertex(next, static_cast<std::int8_t>(k % 2));
+    good.insert_vertex(next + 1);
+    good.delete_vertex(next + 1);
+    if (next >= 2) {
+      good.insert_edge(next, next - 2, {0.5F});
+    }
+    ASSERT_NO_THROW((void)g.apply(res, good.view())) << k;
+    ASSERT_NO_THROW(g.check_integrity(res)) << k;
+    EXPECT_EQ(g.num_active_vertices(), k + 1);
+    EXPECT_EQ(g.view().status[static_cast<std::size_t>(next + 1)], vertex_status::deleted) << k;
+    next += 2;
+  }
+  EXPECT_EQ(g.num_edges(), 278);  // 139 edges, one entry in each endpoint's row
+}
+
 /// LabelPropagation-CUDA@a276a3a:tests/input_contract_test.cu's nine scenarios on the same
 /// three-vertex graph (ADR 0069 maps each): valid and insdel are accepted; reinsert, dupid,
 /// dupsame, range, insdelre and insdel2 raise invalid_argument_error with the graph unchanged;

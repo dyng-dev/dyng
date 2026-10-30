@@ -26,6 +26,11 @@ dyng_enable_sanitizers(dyng-compat-cycle-enum)
 if(TARGET dyng_label_propagation)
   add_executable(dyng-compat-dynlp dynlp/dynlp_compat.cpp)
   target_link_libraries(dyng-compat-dynlp PRIVATE dyng::dyng dyng::testing)
+  if(DYNG_ENABLE_OPENMP)
+    # The evaluation's accuracy sums run in an OpenMP region above 10^6 vertices, as the
+    # original's computeAccuracy.
+    target_link_libraries(dyng-compat-dynlp PRIVATE OpenMP::OpenMP_CXX)
+  endif()
   if(DYNG_ENABLE_CUDA)
     # The tool times each update() with its own CUDA events on the resources' stream (AD2).
     target_link_libraries(dyng-compat-dynlp PRIVATE CUDA::cudart)

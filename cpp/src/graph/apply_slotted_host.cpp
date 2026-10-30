@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -39,28 +40,48 @@ namespace {
 constexpr std::uint8_t mark_deleted = 1;   ///< marks: the id is in this batch's deletions
 constexpr std::uint8_t mark_inserted = 2;  ///< marks: the id is in this batch's insertions
 
-/// Clears the Step-0 marks of the listed ids when it goes out of scope (also on a throw).
-template <typename vertex_t>
-class mark_guard {
+/// The Step-0 marks of a slotted graph (slotted_rows::marks): one byte per vertex, whose low two
+/// bits are a batch's flags (mark_deleted, mark_inserted) and whose high six bits the tag of the
+/// Step 0 that set them, and one more byte at the end, the last tag taken. Each Step 0 takes the
+/// next tag, so the flags of earlier batches (also of one that threw) read as clear without a
+/// pass over the batch to clear them; every 63 tags the bytes are cleared once.
+class step_marks {
  public:
-  mark_guard(std::vector<std::uint8_t>& marks, const array_view<const vertex_t>& deleted,
-             const array_view<const vertex_t>& inserted) noexcept
-      : marks_(marks), deleted_(deleted), inserted_(inserted) {}
-  mark_guard(const mark_guard&) = delete;
-  mark_guard& operator=(const mark_guard&) = delete;
-  ~mark_guard() {
-    for (const vertex_t v : deleted_) {
-      marks_[static_cast<std::size_t>(v)] = 0;
+  explicit step_marks(std::vector<std::uint8_t>& bytes) noexcept
+      : bytes_(bytes.data()), n_(bytes.size() - 1) {
+    advance();
+  }
+  /// Take the next tag: every flag reads as clear.
+  void advance() noexcept {
+    auto tag = static_cast<unsigned>(bytes_[n_]) + 1U;
+    if (tag > max_tag) {
+      std::fill(bytes_, bytes_ + n_, std::uint8_t{0});
+      tag = 1U;
     }
-    for (const vertex_t v : inserted_) {
-      marks_[static_cast<std::size_t>(v)] = 0;
-    }
+    bytes_[n_] = static_cast<std::uint8_t>(tag);
+    tag_ = static_cast<std::uint8_t>(tag << 2U);
+  }
+  /// The flags of vertex `v` in this Step 0.
+  [[nodiscard]] std::uint8_t flags(std::size_t v) const noexcept {
+    const std::uint8_t b = bytes_[v];
+    return (b & tag_bits) == tag_ ? static_cast<std::uint8_t>(b & flag_bits) : std::uint8_t{0};
+  }
+  /// Set the flags of vertex `v` in this Step 0 (`f` holds flag bits only).
+  void set(std::size_t v, std::uint8_t f) noexcept {
+    bytes_[v] = static_cast<std::uint8_t>(tag_ | f);
+  }
+  /// The bytes (for prefetching).
+  [[nodiscard]] const std::uint8_t* data() const noexcept {
+    return bytes_;
   }
 
  private:
-  std::vector<std::uint8_t>& marks_;
-  array_view<const vertex_t> deleted_;
-  array_view<const vertex_t> inserted_;
+  static constexpr unsigned max_tag = 63U;
+  static constexpr std::uint8_t flag_bits = 3U;
+  static constexpr std::uint8_t tag_bits = 0xFCU;
+  std::uint8_t* bytes_;
+  std::size_t n_;
+  std::uint8_t tag_ = 0;
 };
 
 /// Clears the per-row append counts of the listed edges' endpoints on scope exit.
@@ -90,6 +111,48 @@ inline void count_append(std::uint32_t& c) noexcept {
   if (c != std::numeric_limits<std::uint32_t>::max()) {
     ++c;
   }
+}
+
+/// How far ahead the loops over a batch's ids prefetch the per-vertex scratch and states they
+/// read at random (the ids of a batch are in no order; the arrays outgrow the L2 cache).
+constexpr std::size_t prefetch_distance = 16;
+
+/// Prefetch the byte of a per-vertex array that the loop reads `prefetch_distance` ids later.
+template <typename value_t, typename vertex_t>
+inline void prefetch_ahead(const value_t* base, const array_view<const vertex_t>& ids,
+                           std::size_t i) noexcept {
+#if defined(__GNUC__) || defined(__clang__)
+  if (i + prefetch_distance < ids.size()) {
+    __builtin_prefetch(base + static_cast<std::size_t>(ids[i + prefetch_distance]), 1);
+  }
+#else
+  (void)base;
+  (void)ids;
+  (void)i;
+#endif
+}
+
+/// Whether an id of `ids` is outside [0, n): one branch-free pass (it vectorizes); the caller
+/// finds the first such id for the message only when there is one.
+template <typename vertex_t>
+bool any_out_of_range(const array_view<const vertex_t>& ids, std::int64_t n) noexcept {
+  using unsigned_t = std::make_unsigned_t<vertex_t>;
+  const vertex_t* data = ids.data();
+  unsigned_t largest = 0;  // a negative id is a large unsigned value
+  for (std::size_t i = 0; i < ids.size(); ++i) {
+    largest = std::max(largest, static_cast<unsigned_t>(data[i]));
+  }
+  return !ids.empty() && static_cast<std::uint64_t>(largest) >= static_cast<std::uint64_t>(n);
+}
+
+/// Whether a seed label of `labels` is outside {-1, 0, 1}: one branch-free pass.
+inline bool any_bad_label(const array_view<const std::int8_t>& labels) noexcept {
+  const std::int8_t* data = labels.data();
+  std::uint8_t largest = 0;  // label + 1 is 0, 1 or 2 for a valid label
+  for (std::size_t i = 0; i < labels.size(); ++i) {
+    largest = std::max(largest, static_cast<std::uint8_t>(data[i] + 1));
+  }
+  return largest > 2U;
 }
 
 }  // namespace
@@ -172,7 +235,7 @@ void build_slotted(std::int64_t n, array_view<const edge_t> capacity, int num_we
   rows.status.assign(nn, vertex_status::inactive);
   rows.live_entries = 0;
   rows.active_vertices = 0;
-  rows.marks.assign(nn, 0);
+  rows.marks.assign(nn + 1, 0);  // the last byte: the tag of the last Step 0 (step_marks)
   rows.counts.assign(nn, 0);
 }
 
@@ -214,50 +277,102 @@ void normalize_vertex_batch(const csr<vertex_t, edge_t, weight_t>& slots,
         " x ", slots.num_weights);
   }
   // --- Ranges and labels (before any id is used as an index) ------------------------------------
+  // Each check is one branch-free pass; only a failing one looks for its first offender (the
+  // message names it), in the same order: deletions, insertions, labels, edge endpoints.
   const auto in_range = [n](vertex_t v) { return v >= 0 && static_cast<std::int64_t>(v) < n; };
-  for (std::size_t i = 0; i < del.size(); ++i) {
-    DYNG_EXPECTS(in_range(del[i]), "deleted vertex ", i, " (id ", del[i], ") is out of range [0, ",
-                 n, ")");
+  if (any_out_of_range(del, n)) {
+    for (std::size_t i = 0; i < del.size(); ++i) {
+      DYNG_EXPECTS(in_range(del[i]), "deleted vertex ", i, " (id ", del[i],
+                   ") is out of range [0, ", n, ")");
+    }
   }
-  for (std::size_t i = 0; i < ins.size(); ++i) {
-    DYNG_EXPECTS(in_range(ins[i]), "inserted vertex ", i, " (id ", ins[i], ") is out of range [0, ",
-                 n, ")");
+  if (any_out_of_range(ins, n)) {
+    for (std::size_t i = 0; i < ins.size(); ++i) {
+      DYNG_EXPECTS(in_range(ins[i]), "inserted vertex ", i, " (id ", ins[i],
+                   ") is out of range [0, ", n, ")");
+    }
   }
-  for (std::size_t i = 0; i < labels.size(); ++i) {
-    DYNG_EXPECTS(labels[i] >= -1 && labels[i] <= 1, "inserted vertex ", ins[i], " has the label ",
-                 static_cast<int>(labels[i]), "; a seed label is -1 (none), 0 or 1");
+  if (any_bad_label(labels)) {
+    for (std::size_t i = 0; i < labels.size(); ++i) {
+      DYNG_EXPECTS(labels[i] >= -1 && labels[i] <= 1, "inserted vertex ", ins[i], " has the label ",
+                   static_cast<int>(labels[i]), "; a seed label is -1 (none), 0 or 1");
+    }
   }
-  for (std::size_t e = 0; e < num_edges; ++e) {
-    DYNG_EXPECTS(in_range(batch.insert_src[e]) && in_range(batch.insert_dst[e]), "inserted edge ",
-                 e, " (", batch.insert_src[e], ", ", batch.insert_dst[e],
-                 ") has an endpoint out of range [0, ", n, ")");
+  if (any_out_of_range(batch.insert_src, n) || any_out_of_range(batch.insert_dst, n)) {
+    for (std::size_t e = 0; e < num_edges; ++e) {
+      DYNG_EXPECTS(in_range(batch.insert_src[e]) && in_range(batch.insert_dst[e]), "inserted edge ",
+                   e, " (", batch.insert_src[e], ", ", batch.insert_dst[e],
+                   ") has an endpoint out of range [0, ", n, ")");
+    }
   }
   // --- Duplicates, single-use ids, seeds deleted in the same batch -----------------------------
-  std::vector<std::uint8_t>& marks = rows.marks;
-  const mark_guard<vertex_t> clear_marks(marks, del, ins);
-  for (std::size_t i = 0; i < del.size(); ++i) {
-    std::uint8_t& m = marks[static_cast<std::size_t>(del[i])];
-    DYNG_EXPECTS((m & mark_deleted) == 0, "vertex ", del[i],
-                 " is listed twice in the batch's deletions");
-    m = static_cast<std::uint8_t>(m | mark_deleted);
+  step_marks marks(rows.marks);
+  const auto mark_deletions = [&] {
+    for (std::size_t i = 0; i < del.size(); ++i) {
+      const auto v = static_cast<std::size_t>(del[i]);
+      const std::uint8_t m = marks.flags(v);
+      DYNG_EXPECTS((m & mark_deleted) == 0, "vertex ", del[i],
+                   " is listed twice in the batch's deletions");
+      marks.set(v, static_cast<std::uint8_t>(m | mark_deleted));
+    }
+  };
+  mark_deletions();
+  // The insertions: one pass marks them, checks them and collects Ins_eff = Ins \ Del with its
+  // labels in list order (the net effect); it records whether a check failed, and only then the
+  // checking pass below runs again on fresh marks to throw at the first offender.
+  out.inserted_vertices.clear();
+  out.inserted_labels.clear();
+  out.deleted_vertices.clear();
+  out.inserted_vertices.reserve(ins.size());
+  out.inserted_labels.reserve(ins.size());
+  bool insertion_error = false;
+  {
+    const vertex_status* status = rows.status.data();
+    for (std::size_t i = 0; i < ins.size(); ++i) {
+      prefetch_ahead(marks.data(), ins, i);
+      prefetch_ahead(status, ins, i);
+      const vertex_t v = ins[i];
+      const auto vv = static_cast<std::size_t>(v);
+      const std::uint8_t m = marks.flags(vv);
+      const std::int8_t label = labels.empty() ? std::int8_t{-1} : labels[i];
+      insertion_error |= (m & mark_inserted) != 0 || status[vv] != vertex_status::inactive ||
+                         (label >= 0 && (m & mark_deleted) != 0);
+      marks.set(vv, static_cast<std::uint8_t>(m | mark_inserted));
+#if defined(DYNG_MUTATION_LP_D_E_RESURRECTED)
+      // MUTATION (D-e, AD9): the insertions are applied after the deletions, so an id inserted
+      // and deleted in one batch is re-activated (the original before a38ce8c).
+      if (true) {
+#else
+      if ((m & mark_deleted) == 0) {
+#endif
+        out.inserted_vertices.push_back(v);
+        out.inserted_labels.push_back(label);
+      }
+    }
   }
-  for (std::size_t i = 0; i < ins.size(); ++i) {
-    const vertex_t v = ins[i];
-    std::uint8_t& m = marks[static_cast<std::size_t>(v)];
-    DYNG_EXPECTS((m & mark_inserted) == 0, "vertex ", v,
-                 " is listed twice in the batch's insertions (vertex ids are single-use)");
-    m = static_cast<std::uint8_t>(m | mark_inserted);
-    const vertex_status st = rows.status[static_cast<std::size_t>(v)];
-    DYNG_EXPECTS(st == vertex_status::inactive, "inserted vertex ", v, " was ",
-                 st == vertex_status::active ? "inserted before" : "deleted before",
-                 " (vertex ids are single-use: an id inserted or named in a deletion cannot be "
-                 "inserted again)");
-    DYNG_EXPECTS(labels.empty() || labels[i] < 0 || (m & mark_deleted) == 0, "inserted vertex ", v,
-                 " has a seed label and is deleted in the same batch");
+  if (insertion_error) {
+    marks.advance();
+    mark_deletions();
+    for (std::size_t i = 0; i < ins.size(); ++i) {
+      const vertex_t v = ins[i];
+      const auto vv = static_cast<std::size_t>(v);
+      const std::uint8_t m = marks.flags(vv);
+      DYNG_EXPECTS((m & mark_inserted) == 0, "vertex ", v,
+                   " is listed twice in the batch's insertions (vertex ids are single-use)");
+      marks.set(vv, static_cast<std::uint8_t>(m | mark_inserted));
+      const vertex_status st = rows.status[vv];
+      DYNG_EXPECTS(st == vertex_status::inactive, "inserted vertex ", v, " was ",
+                   st == vertex_status::active ? "inserted before" : "deleted before",
+                   " (vertex ids are single-use: an id inserted or named in a deletion cannot be "
+                   "inserted again)");
+      DYNG_EXPECTS(labels.empty() || labels[i] < 0 || (m & mark_deleted) == 0, "inserted vertex ",
+                   v, " has a seed label and is deleted in the same batch");
+    }
+    DYNG_FAIL("Step 0 of a vertex batch found a failed check that its checking pass did not");
   }
   // --- Capacity: the entries each row receives (both endpoints active after the batch) ---------
   const auto active_after = [&](vertex_t v) {
-    const std::uint8_t m = marks[static_cast<std::size_t>(v)];
+    const std::uint8_t m = marks.flags(static_cast<std::size_t>(v));
     if ((m & mark_deleted) != 0) {
       return false;
     }
@@ -290,22 +405,7 @@ void normalize_vertex_batch(const csr<vertex_t, edge_t, weight_t>& slots,
       }
     }
   }
-  // --- The net effect ------------------------------------------------------------------------
-  out.inserted_vertices.clear();
-  out.inserted_labels.clear();
-  out.deleted_vertices.clear();
-  for (std::size_t i = 0; i < ins.size(); ++i) {
-#if defined(DYNG_MUTATION_LP_D_E_RESURRECTED)
-    // MUTATION (D-e, AD9): the insertions are applied after the deletions, so an id inserted and
-    // deleted in one batch is re-activated (the original before a38ce8c).
-    if (true) {
-#else
-    if ((marks[static_cast<std::size_t>(ins[i])] & mark_deleted) == 0) {
-#endif
-      out.inserted_vertices.push_back(ins[i]);
-      out.inserted_labels.push_back(labels.empty() ? std::int8_t{-1} : labels[i]);
-    }
-  }
+  // --- The net effect (Ins_eff was collected above) ------------------------------------------
   for (std::size_t i = 0; i < del.size(); ++i) {
     if (rows.status[static_cast<std::size_t>(del[i])] == vertex_status::active) {
       out.deleted_vertices.push_back(del[i]);
@@ -425,17 +525,21 @@ apply_summary apply_vertex_states_host(slotted_rows<vertex_t, edge_t>& rows,
     delta->edges_on_device = true;
   }
   // As apply_vertex_batch_host(): Del_eff leaves, every listed id ends deleted, Ins_eff arrives.
+  vertex_status* status = rows.status.data();
   for (const vertex_t v : normalized.deleted_vertices) {
-    rows.status[static_cast<std::size_t>(v)] = vertex_status::deleted;
-    --rows.active_vertices;
+    status[static_cast<std::size_t>(v)] = vertex_status::deleted;
   }
-  for (const vertex_t v : deleted) {
-    rows.status[static_cast<std::size_t>(v)] = vertex_status::deleted;
+  rows.active_vertices -= static_cast<vertex_t>(normalized.deleted_vertices.size());
+  for (std::size_t i = 0; i < deleted.size(); ++i) {
+    prefetch_ahead(status, deleted, i);
+    status[static_cast<std::size_t>(deleted[i])] = vertex_status::deleted;
   }
-  for (const vertex_t v : normalized.inserted_vertices) {
-    rows.status[static_cast<std::size_t>(v)] = vertex_status::active;
-    ++rows.active_vertices;
+  const array_view<const vertex_t> inserted = host_view(normalized.inserted_vertices);
+  for (std::size_t i = 0; i < inserted.size(); ++i) {
+    prefetch_ahead(status, inserted, i);
+    status[static_cast<std::size_t>(inserted[i])] = vertex_status::active;
   }
+  rows.active_vertices += static_cast<vertex_t>(inserted.size());
   summary.inserted_vertices = static_cast<std::int64_t>(normalized.inserted_vertices.size());
   summary.deleted_vertices = static_cast<std::int64_t>(normalized.deleted_vertices.size());
   summary.num_vertices_after = static_cast<std::int64_t>(rows.status.size());
@@ -510,9 +614,12 @@ std::string slotted_integrity_violation(const csr<vertex_t, edge_t, weight_t>& s
       slots.weights.size() != m * static_cast<std::size_t>(num_weights)) {
     return "the weight slots do not match num_weights x the slots";
   }
-  if (rows.row_end.size() != nn || rows.status.size() != nn || rows.marks.size() != nn ||
+  if (rows.row_end.size() != nn || rows.status.size() != nn || rows.marks.size() != nn + 1 ||
       rows.counts.size() != nn) {
     return "the row ends, states or scratch do not have one entry per vertex";
+  }
+  if (rows.marks[nn] > 63) {
+    return "the tag of the Step-0 marks is out of range";
   }
   std::int64_t active = 0;
   std::int64_t live = 0;
@@ -524,7 +631,7 @@ std::string slotted_integrity_violation(const csr<vertex_t, edge_t, weight_t>& s
         st != vertex_status::inactive) {
       return "vertex " + std::to_string(u) + " has an invalid state";
     }
-    if (rows.marks[u] != 0 || rows.counts[u] != 0) {
+    if (rows.counts[u] != 0) {
       return "the scratch of vertex " + std::to_string(u) + " is not clear";
     }
     active += st == vertex_status::active ? 1 : 0;
