@@ -121,6 +121,9 @@ class slack_host_store final : public incidence_store, public slack_access {
   [[nodiscard]] const std::vector<std::vector<std::int32_t>>& host_rows() const noexcept override {
     return rows_;
   }
+  [[nodiscard]] const std::vector<std::vector<std::int64_t>>& host_v2h() const noexcept override {
+    return v2h_;
+  }
 
   /// @brief The allocator (tests). @return It.
   [[nodiscard]] const id_allocator& allocator() const noexcept {

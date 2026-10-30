@@ -101,6 +101,10 @@ class slack_access {
   /// Step 0 of an apply reads them in place. @return They.
   [[nodiscard]] virtual const std::vector<std::vector<std::int32_t>>& host_rows()
       const noexcept = 0;
+  /// @brief The hyperedges of every vertex in the host incidence model (0-based ids, unordered;
+  /// MOSP_ESCHER's HostHypergraph::v2h), which both stores keep: hyper_sssp reads the source
+  /// vertex's hyperedges and distance_to()'s from it (M11a step 4). @return They.
+  [[nodiscard]] virtual const std::vector<std::vector<std::int64_t>>& host_v2h() const noexcept = 0;
   /// @brief The last batch's pair delta on the device (the CUDA store). @return The view (null
   /// pointers on the host stores, whose pairs are in the applied record).
   [[nodiscard]] virtual slack_delta_view last_delta() const noexcept {

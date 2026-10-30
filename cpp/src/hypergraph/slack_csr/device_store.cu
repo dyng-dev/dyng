@@ -700,6 +700,9 @@ class slack_device_store final : public incidence_store, public slack_access {
   [[nodiscard]] const std::vector<std::vector<std::int32_t>>& host_rows() const noexcept override {
     return host_->rows_by_id();
   }
+  [[nodiscard]] const std::vector<std::vector<std::int64_t>>& host_v2h() const noexcept override {
+    return host_->v2h_by_vertex();
+  }
 
  private:
   // MOSP_ESCHER's HostHypergraph over the host model (rows by 0-based id, v2h, weights; the ids

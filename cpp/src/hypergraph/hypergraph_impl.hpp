@@ -231,6 +231,10 @@ class hypergraph_impl {
   /// record's sorted ids; scratch, not cloned).
   std::vector<std::uint64_t> sort_words, sort_scratch;
   hyper::slack::knobs knobs;  ///< the internal knobs of slack_csr storage (ADR 0086)
+  /// The lifetime token of this state object: a result that reads its hypergraph after the call
+  /// that produced it (hyper_sssp's distance_to()) keeps a weak reference and refuses an expired
+  /// one (every hypergraph_impl is built new; nothing copies one).
+  std::shared_ptr<const int> lifetime = std::make_shared<const int>(0);
 };
 
 /**
