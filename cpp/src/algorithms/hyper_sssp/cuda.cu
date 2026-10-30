@@ -123,9 +123,8 @@ void hyper_sssp_cuda_reserve(const resources& res, hyper_sssp_state& st, std::in
   if (st.dev != nullptr && st.dev->max_nodes >= n) return;
   note_reservation();  // the result's device state grows (invariant I9)
   hyper_sssp_device_ptr bigger(new hsosp::device_state);
-  bigger->stream = stream_of(res);
-  bigger->allocate(n);
-  if (!st.endpoints.is_virtual()) bigger->allocate_holds();
+  bigger->allocate(res, n);
+  if (!st.endpoints.is_virtual()) bigger->allocate_holds(res);
   if (st.dev != nullptr) {
     // A growth of the store's node arrays: the distances, parents and flags carry over (the new
     // slots are infinite, -1 and 0); the epoch stamps start again from 0 (any epoch is newer).

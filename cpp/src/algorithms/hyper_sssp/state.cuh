@@ -12,6 +12,8 @@
  * (M11a, ADR 0091).
  */
 #pragma once
+#include <dyng/core/buffer.hpp>
+#include <dyng/core/resources.hpp>
 #include <dyng/hyper_sssp.hpp>
 
 #include <cuda_runtime.h>
@@ -53,17 +55,19 @@ struct device_state {
   // dynG (transplant hunk): the public mode's source flags (one byte per node: the hyperedge holds
   // the source vertex), allocated by allocate_holds() for a result of the public mode only.
   unsigned char* d_holds = nullptr;
+  // dynG: the arrays above are owned by buffers of the result's resources (their memory resource
+  // and stream; the counters' host mirror from the pinned staging resource); the raw pointers
+  // alias them (MOSP_ESCHER swaps d_front and d_next).
+  buffer<long long> b_dist;
+  buffer<int> b_parent, b_is_affected, b_is_candidate, b_cand_list, b_aff_list, b_counters;
+  buffer<unsigned long long> b_packed;
+  buffer<int> b_inv_a, b_inv_b, b_jump_a, b_jump_b, b_front, b_next, b_stamp;
+  buffer<unsigned long long> b_upd_counters, b_host_upd_counters;
+  buffer<unsigned char> b_holds;
 
-  device_state() = default;
-  ~device_state();
-  device_state(const device_state&) = delete;
-  device_state& operator=(const device_state&) = delete;
-  device_state(device_state&&) noexcept;
-  device_state& operator=(device_state&&) noexcept;
-
-  void allocate(int max_nodes);
+  void allocate(const resources& res, int max_nodes);
   /// dynG (transplant hunk): the public mode's source flags, all 0.
-  void allocate_holds();
+  void allocate_holds(const resources& res);
   long long device_bytes() const;
   void free();
 

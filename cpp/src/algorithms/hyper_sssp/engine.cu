@@ -13,6 +13,7 @@
 
 #include "algorithms/hyper_sssp/kernels.cuh"
 #include "algorithms/hyper_sssp/state.cuh"
+#include "core/resources_access.hpp"
 #include "util/cuda_check.hpp"
 
 #include <dyng/core/error.hpp>
@@ -29,108 +30,49 @@ namespace dyng::detail::hsosp {
 // ---------------------------------------------------------------------------
 
 void device_state::free() {
-  if (d_dist) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_dist));
-  if (d_parent) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_parent));
-  if (d_is_affected) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_is_affected));
-  if (d_is_candidate) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_is_candidate));
-  if (d_cand_list) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_cand_list));
-  if (d_aff_list) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_aff_list));
-  if (d_counters) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_counters));
-  if (d_packed) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_packed));
-  if (d_inv_a) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_inv_a));
-  if (d_inv_b) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_inv_b));
-  if (d_jump_a) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_jump_a));
-  if (d_jump_b) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_jump_b));
-  if (d_front) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_front));
-  if (d_next) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_next));
-  if (d_stamp) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_stamp));
-  if (d_upd_counters) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_upd_counters));
-  if (h_upd_counters) DYNG_CUDA_TRY_NO_THROW(cudaFreeHost(h_upd_counters));
-  if (d_holds) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_holds));
-  d_holds = nullptr;
-  d_packed = nullptr;
-  d_inv_a = d_inv_b = d_jump_a = d_jump_b = nullptr;
-  d_front = d_next = d_stamp = nullptr;
-  d_upd_counters = nullptr;
-  h_upd_counters = nullptr;
-  epoch = 0;
-  d_dist = nullptr;
-  d_parent = nullptr;
-  d_is_affected = nullptr;
-  d_is_candidate = nullptr;
-  d_cand_list = nullptr;
-  d_aff_list = nullptr;
-  d_counters = nullptr;
+  *this = device_state();
 }
 
-device_state::~device_state() {
+void device_state::allocate(const resources& res, int n) {
   free();
-}
-
-device_state::device_state(device_state&& o) noexcept {
-  *this = std::move(o);
-}
-
-device_state& device_state::operator=(device_state&& o) noexcept {
-  if (this != &o) {
-    free();
-    max_nodes = o.max_nodes;
-    d_dist = o.d_dist;
-    d_parent = o.d_parent;
-    d_is_affected = o.d_is_affected;
-    d_is_candidate = o.d_is_candidate;
-    d_cand_list = o.d_cand_list;
-    d_aff_list = o.d_aff_list;
-    d_counters = o.d_counters;
-    d_packed = o.d_packed;
-    d_inv_a = o.d_inv_a;
-    d_inv_b = o.d_inv_b;
-    d_jump_a = o.d_jump_a;
-    d_jump_b = o.d_jump_b;
-    d_front = o.d_front;
-    d_next = o.d_next;
-    d_stamp = o.d_stamp;
-    d_upd_counters = o.d_upd_counters;
-    h_upd_counters = o.h_upd_counters;
-    epoch = o.epoch;
-    d_holds = o.d_holds;
-    o.d_holds = nullptr;
-    o.d_packed = nullptr;
-    o.d_inv_a = o.d_inv_b = o.d_jump_a = o.d_jump_b = nullptr;
-    o.d_front = o.d_next = o.d_stamp = nullptr;
-    o.d_upd_counters = nullptr;
-    o.h_upd_counters = nullptr;
-    o.d_dist = nullptr;
-    o.d_parent = nullptr;
-    o.d_is_affected = nullptr;
-    o.d_is_candidate = nullptr;
-    o.d_cand_list = nullptr;
-    o.d_aff_list = nullptr;
-    o.d_counters = nullptr;
-  }
-  return *this;
-}
-
-void device_state::allocate(int n) {
-  free();
+  stream = static_cast<cudaStream_t>(res.stream().get());
   max_nodes = n;
-  DYNG_CUDA_TRY(cudaMalloc(&d_dist, sizeof(long long) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_parent, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_is_affected, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_is_candidate, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_cand_list, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_aff_list, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_counters, sizeof(int) * 2));
-  DYNG_CUDA_TRY(cudaMalloc(&d_packed, sizeof(unsigned long long) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_inv_a, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_inv_b, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_jump_a, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_jump_b, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_front, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_next, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_stamp, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMalloc(&d_upd_counters, sizeof(unsigned long long) * upd_counters));
-  DYNG_CUDA_TRY(cudaMallocHost(&h_upd_counters, sizeof(unsigned long long) * upd_counters));
+  const auto un = static_cast<std::size_t>(n);
+  b_dist = buffer<long long>(res, un);
+  b_parent = buffer<int>(res, un);
+  b_is_affected = buffer<int>(res, un);
+  b_is_candidate = buffer<int>(res, un);
+  b_cand_list = buffer<int>(res, un);
+  b_aff_list = buffer<int>(res, un);
+  b_counters = buffer<int>(res, 2);
+  b_packed = buffer<unsigned long long>(res, un);
+  b_inv_a = buffer<int>(res, un);
+  b_inv_b = buffer<int>(res, un);
+  b_jump_a = buffer<int>(res, un);
+  b_jump_b = buffer<int>(res, un);
+  b_front = buffer<int>(res, un);
+  b_next = buffer<int>(res, un);
+  b_stamp = buffer<int>(res, un);
+  b_upd_counters = buffer<unsigned long long>(res, upd_counters);
+  b_host_upd_counters = buffer<unsigned long long>(
+      upd_counters, res.stream(), resources_access::staging_memory(res), res.device());
+  d_dist = b_dist.data();
+  d_parent = b_parent.data();
+  d_is_affected = b_is_affected.data();
+  d_is_candidate = b_is_candidate.data();
+  d_cand_list = b_cand_list.data();
+  d_aff_list = b_aff_list.data();
+  d_counters = b_counters.data();
+  d_packed = b_packed.data();
+  d_inv_a = b_inv_a.data();
+  d_inv_b = b_inv_b.data();
+  d_jump_a = b_jump_a.data();
+  d_jump_b = b_jump_b.data();
+  d_front = b_front.data();
+  d_next = b_next.data();
+  d_stamp = b_stamp.data();
+  d_upd_counters = b_upd_counters.data();
+  h_upd_counters = b_host_upd_counters.data();
   DYNG_CUDA_TRY(cudaMemsetAsync(d_stamp, 0, sizeof(int) * n, stream));
   epoch = 0;
 
@@ -142,10 +84,9 @@ void device_state::allocate(int n) {
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
-void device_state::allocate_holds() {
-  if (d_holds) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_holds));
-  d_holds = nullptr;
-  DYNG_CUDA_TRY(cudaMalloc(&d_holds, static_cast<std::size_t>(max_nodes)));
+void device_state::allocate_holds(const resources& res) {
+  b_holds = buffer<unsigned char>(res, static_cast<std::size_t>(max_nodes));
+  d_holds = b_holds.data();
   DYNG_CUDA_TRY(cudaMemsetAsync(d_holds, 0, static_cast<std::size_t>(max_nodes), stream));
 }
 
