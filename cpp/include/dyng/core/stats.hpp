@@ -23,6 +23,9 @@ namespace dyng {
  * one backend only) or *schedule-dependent* (it may vary with the thread schedule; log it only).
  * Timing is never a statistic: it goes through the profiler.
  *
+ * An algorithm's stats documentation may state a weaker level (deterministic per backend, or
+ * schedule-dependent) for an inherited field; that statement governs for that algorithm.
+ *
  * @ingroup core
  */
 struct update_stats {

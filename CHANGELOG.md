@@ -109,6 +109,34 @@ Before 0.1.0 anything may change.
   vertex-kind batches included (`dyng_hsosp_replay`, `parity/compare.py hyper_sssp --part delta`;
   `dyng_hypergraph_ids --storage slack_csr`); `dyng-compat-hsosp to-dgb` converts the H-SOSP
   dumps to `.hg` / `.dgb` files (`tools/compat/hsosp`; the digests in `parity/goldens.toml`).
+- Added (api-change: a new tracked header, a draft until the freeze at the end of M11b, HD17):
+  **`hyper_sssp`** (`<dyng/hyper_sssp.hpp>`, included by `<dyng/dyng.hpp>`): dynamic
+  single-source shortest hyperpaths on a weighted slack_csr hypergraph (weights in [1, 2^28]),
+  kept exact under hyperedge and incidence batches; `compute()` / `update()` from a source vertex,
+  `options` (`work_budget`, `max_iterations`, `on_budget`, `cuda_engine`, `validate_inputs`),
+  `budget_action`, `fallback_reason`, `stats` (`batch`, `line_graph_insertions`,
+  `line_graph_deletions`, `invalidated`, `relaxations`, `fallback_reason`) and `result`
+  (`hyperedge_distances`, int32 `hyperedge_parents`, `distance_to` and `vertex_distances`: the
+  minimum of D(h) over the vertex's hyperedges, D(h) already holding w(h), HD11); on sequential
+  (MOSP_ESCHER@4b86159's host emulation) and cuda (its kernels transplanted as is,
+  `engine::fused`); openmp resources raise `not_supported_error` (HD14). Exact against
+  MOSP_ESCHER on its golden set in the three parity modes (ADRs 0090-0092).
+- Changed (api-change: documentation of the frozen `<dyng/core/stats.hpp>`, HD7 jointly with
+  M10's AD20): `update_stats` says that an algorithm's stats documentation may state a weaker
+  determinism level for an inherited field, which governs for that algorithm; `hyper_sssp`
+  states that `fallback_used` is schedule-dependent on cuda near the budget.
+- Changed (api-change: an include added to the frozen umbrella header `<dyng/dyng.hpp>`):
+  `<dyng/hyper_sssp.hpp>`.
+- Internal: the framework's problems may provide `over_budget(ctx)`, a work budget asked after
+  every loop call of an update (ADR 0092); a fixed-point hypergraph fake checks the update path.
+- Parity harness: `--part results` of `parity/compare.py hyper_sssp` and `dyng_hsosp_replay
+  --algorithm` (every update and recompute of MOSP_ESCHER's sessions against hyper_sssp's: by_id,
+  by_id_public, by_key; update == compute; repeats and backends by digest),
+  `dyng-compat-hsosp replay --algorithm` and the full `bench` (the update and static rows, the
+  44-column CSV, the `[e2e]` line), `parity/hsosp_perf.py run` over every row and `sass`; the
+  hyper_sssp steps of `ci/gpu_local.sh` (`GPU_LOCAL_STEPS`); the mutation CTests
+  `hyper_sssp.mutation.*` of sites #1 and #2 (the pull adds the neighbour's weight; a non-tight
+  parent) in both engines.
 
 ## [0.3.0] - 2026-10-29
 

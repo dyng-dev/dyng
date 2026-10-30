@@ -391,6 +391,7 @@
   #include <dyng/graph/graph.hpp>
   #include <dyng/graph/graph_properties.hpp>
   #include <dyng/graph/graph_view.hpp>
+  #include <dyng/hyper_sssp.hpp>
   #include <dyng/hypergraph/hyper_apply_summary.hpp>
   #include <dyng/hypergraph/hyperedge_batch.hpp>
   #include <dyng/hypergraph/hyperedge_list.hpp>
@@ -732,6 +733,47 @@
       [[nodiscard]] vertex_t num_vertices() const noexcept
       [[nodiscard]] edge_t num_edges() const noexcept
       [[nodiscard]] int num_weights() const noexcept
+
+[dyng/hyper_sssp.hpp] tracked
+  enum class dyng::hyper_sssp::budget_action : std::uint8_t { recompute, error }
+  enum class dyng::hyper_sssp::fallback_reason : std::uint8_t { none, work_budget, iterations, distance_width, invalidation_depth }
+  [[nodiscard]] std::string_view dyng::hyper_sssp::to_string(budget_action a) noexcept
+  [[nodiscard]] std::string_view dyng::hyper_sssp::to_string(fallback_reason r) noexcept
+  struct dyng::hyper_sssp::options
+      double work_budget = 1.0
+      std::int64_t max_iterations = 4096
+      budget_action on_budget = budget_action::recompute
+      engine cuda_engine = engine::automatic
+      bool validate_inputs = true
+  struct dyng::hyper_sssp::stats : public dyng::update_stats
+      hyper_apply_summary batch
+      std::int64_t line_graph_insertions = 0
+      std::int64_t line_graph_deletions = 0
+      std::int64_t invalidated = 0
+      std::int64_t relaxations = 0
+      hyper_sssp::fallback_reason fallback_reason = hyper_sssp::fallback_reason::none
+  #define DYNG_HYPER_SSSP_TYPES_MESSAGE
+  #define DYNG_HYPER_SSSP_CONTAINER_MESSAGE
+  template <typename vertex_t, typename distance_t = std::int64_t> class dyng::hyper_sssp::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] vertex_t source() const noexcept
+      [[nodiscard]] array_view< const distance_t > hyperedge_distances() const
+      [[nodiscard]] array_view< const std::int32_t > hyperedge_parents() const
+      [[nodiscard]] distance_t distance_to(vertex_t target) const
+      [[nodiscard]] array_view< const distance_t > vertex_distances() const
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+  template <typename vertex_t, typename weight_t> [[nodiscard]] result< vertex_t > dyng::hyper_sssp::compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, vertex_t source, const options &opt={})
+  template <typename vertex_t, typename weight_t> stats dyng::hyper_sssp::update(const resources &res, hypergraph< vertex_t, weight_t > &h, const hyperedge_batch_view< vertex_t, weight_t > &batch, result< vertex_t > &r)
+  detail: template <typename vertex_t, typename weight_t> inline constexpr bool hyper_sssp_supported_v = std::is_same_v<vertex_t, std::int32_t> && std::is_same_v<weight_t, std::int32_t>;
+  detail: template <typename vertex_t, typename distance_t> struct update_traits<hyper_sssp::result<vertex_t, distance_t>> { using stats_type = hyper_sssp::stats; }
 
 [dyng/hypergraph/hyper_apply_summary.hpp] frozen
   struct dyng::hyper_apply_summary
