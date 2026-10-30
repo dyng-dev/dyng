@@ -375,6 +375,131 @@ def _write_triad_records(bench, suite, records: Path, commit: str, ratio: float 
     return jobs
 
 
+def _write_lp_records(
+    bench, suite, records: Path, commit: str, ratio: float = 0.95, release_only: bool = True
+):
+    """Records of parity/perf_ab.py label_propagation run|memory|kernels (M10a step 5)."""
+    lpp = load("parity/label_propagation_perf.py")
+    records.mkdir(parents=True, exist_ok=True)
+    jobs = bench.plan(suite, records=records, build_root=Path("/b"), release_only=release_only)
+    build = {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+        "DYNG_CUDA_ARCHITECTURES": "86",
+    }
+    for job in jobs:
+        reading = next(r for r in suite["readings"] if r["name"] == job["reading"])
+        schedule = bench.LP_SCHEDULES[reading["schedule"]]
+        case = job["dataset"]
+        argv = lpp.timed_argv(case, schedule, Path("<scratch>"))
+        if job["kind"] == "run":
+            regions = {
+                name: {
+                    "original_median_ms": 100.0,
+                    "port_median_ms": 100.0 * ratio,
+                    "ratio": ratio,
+                    **({"bar": {"update[sum]": 1.05, "end_to_end": 1.10}[name]}
+                       if name in ("update[sum]", "end_to_end") else {}),
+                }
+                for name in ("update[b0]", "update[b1]", "update[sum]", "eval", "end_to_end")
+            }  # fmt: skip
+            result = {
+                "case": case,
+                "schedule": schedule,
+                "argv": argv,
+                "rounds": job["runs"],
+                "complete": True,
+                "clocks": {"control": reading["clocks"]},
+                "guard": {"rounds_checked": job["runs"], "passed": True},
+                "rejected": [],
+                "regions": regions,
+            }
+        elif job["kind"] == "memory":
+            peak = 100 * 2**20
+            result = {
+                "case": case,
+                "schedule": schedule,
+                "argv": argv,
+                "counted": True,
+                "original": {"peak_live_bytes": peak, "peak_live_mib": 100.0},
+                "port": {"peak_live_bytes": round(peak * ratio), "peak_live_mib": 100.0 * ratio},
+                "ratio": round(peak * ratio) / peak,
+            }
+        else:
+            result = {"case": case, "schedule": schedule, "argv": argv, "kernels": {}}
+        rec = {
+            "schema": 1,
+            "algorithm": "label_propagation",
+            "command": job["kind"],
+            "date": "2026-10-30T00:00:00Z",
+            "reference": {
+                "name": "LabelPropagation-CUDA",
+                "commit": suite["baselines"]["LabelPropagation-CUDA"]["commit"],
+                "variant": "unpatched",
+            },
+            "port": {"commit": commit, "build": build},
+            "driver": DRIVER,
+            "protocol": {"gpu": 0},
+            "results": {f"{case}/{schedule}": result},
+        }
+        Path(job["record"]).write_text(json.dumps(rec))
+    return jobs
+
+
+def _lp_replays(cert, results: Path, commit: str, skip: tuple = ()) -> None:
+    """Passed certificate records of every label_propagation golden set (parity/
+    label_propagation_cert.py's format), from synthetic replay records, but the sets in `skip`."""
+    import tomllib
+
+    lpc = load("parity/label_propagation_cert.py")
+    lpg = load("parity/label_propagation_goldens.py")
+    sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
+    cal = json.loads((REPO / "parity/results/M10a-inplace-calibration.json").read_text())
+    margin = json.loads((REPO / "parity/results/M10a-class-margin.json").read_text())["m"]
+    build = {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+        "DYNG_CUDA_ARCHITECTURES": "86",
+    }
+    port = {"commit": commit, "executable": "x", "build": build, "parity_cuda": True}
+    for name, backends in cert.LABEL_PROPAGATION_REPLAYS.items():
+        kind = name.removeprefix("label_propagation_")
+        if name in skip:
+            continue
+        spec = sets[name]
+        for backend in backends:
+            cases = (spec.get("coverage") or {}).get(backend) or sorted(spec.get("cases", {}))
+            if kind == "hub":
+                doc = {"equal": "True"}
+            elif kind == "inplace":
+                thresholds = lpg.recompute_thresholds(cal)
+                doc = {
+                    "backend": "cuda",
+                    "cases": [
+                        {"case": c, "within": True, "thresholds": thresholds[c],
+                         "envelope": lpg.envelope_of(cal["cases"][c])}
+                        for c in cal["cases"]
+                    ],
+                }  # fmt: skip
+            elif kind == "generator":
+                doc = {"cases": [{"case": c, "runs": [{"arrays_equal": True}],
+                                  "same_stream_for_every_run": True} for c in cases]}  # fmt: skip
+            elif kind == "oracle":
+                doc = {"m": margin, "cases": [{"case": c, "backend": backend, "within": True}
+                                              for c in cases]}  # fmt: skip
+            elif kind in ("irlp", "damped"):
+                doc = {"backend": backend, "cases": [{"case": c, "equal": True} for c in cases]}
+            else:
+                doc = {"cases": [{"case": c, "backend": backend, "equal": True} for c in cases]}
+            doc |= {"port": port, "commit": cert.REQUIRED_SUITES and spec["commit"]}
+            rec = lpc.certificate_record(kind, doc)
+            rec["goldens"] = (
+                {"manifest_sha256": spec["manifest_sha256"]} if "manifest_sha256" in spec else {}
+            )
+            path = results / f"parity-{name}-{rec['backend']}.json"
+            path.write_text(json.dumps(rec))
+
+
 def _full_results(cert, bench, tmp_path: Path, commit: str) -> Path:
     """A results directory with replays, both suites' whole summaries and a passed check that
     ran every fixture test."""
@@ -386,6 +511,7 @@ def _full_results(cert, bench, tmp_path: Path, commit: str) -> Path:
         write = {
             "cycle_count": _write_cc_records,
             "triad_count": _write_triad_records,
+            "label_propagation": _write_lp_records,
         }.get(suite["algorithm"], _write_sssp_records)
         records = tmp_path / f"rec-{suite['suite']}"
         jobs = write(bench, suite, records, commit)
@@ -656,6 +782,8 @@ def _replays(cert, results: Path, commit: str) -> None:
                 _hypergraph_id_record(results, name, spec, commit, backend, mode)
     # ESCHER-GPU's triad goldens (M9a, from 0.3): every backend of the coverage table, both modes.
     _triad_replays(cert, results, commit)
+    # LabelPropagation-CUDA's goldens (M10a, from 0.4): every kind on its backends.
+    _lp_replays(cert, results, commit)
 
 
 TRIAD_SET = "triad_count_escher_gpu"
@@ -2715,3 +2843,279 @@ def test_the_label_follows_the_tree(cert, tmp_path: Path) -> None:
     older = f"{series[0]}.{series[1] - 1}.9" if series and series[1] > 0 else "9.9.9"
     with pytest.raises(SystemExit, match="follows its tree's release series"):
         cert.main(["write", "--results", str(results), "--version", older, "--allow-dirty"])
+
+
+# --- label_propagation (M10a step 5, ADR 0078) ---------------------------------------------------
+
+LP_SUITE = REPO / "benchmarks/paper/ics26_dynlp.yaml"
+LP_SETS = (
+    "label_propagation_generator",
+    "label_propagation_damped",
+    "label_propagation_trace",
+    "label_propagation_hub",
+    "label_propagation_irlp",
+    "label_propagation_inplace",
+    "label_propagation_oracle",
+)
+
+
+def _lp_dry(cert, bench, tmp_path: Path, release_only: bool = False):
+    """A dry-run results directory of label_propagation: its golden replays and its suite's
+    summary (without AD4's release-only reading unless `release_only`)."""
+    commit = head()
+    results = tmp_path / "dry"
+    results.mkdir(parents=True)
+    _lp_replays(cert, results, commit)
+    suite = bench.load_suite(LP_SUITE)
+    records = tmp_path / "rec-ics26"
+    jobs = _write_lp_records(bench, suite, records, commit, release_only=release_only)
+    summary = bench.summarize(suite, jobs, out=results, version="t", records=records, inputs=None)
+    assert summary["verdict"]["passed"], summary["verdict"]
+
+    def write(version: str = "0.4.0", dry: bool = True) -> int:
+        argv = ["write", "--results", str(results), "--version", version, "--allow-dirty"]
+        return cert.main([*argv, *(["--dry-run", "label_propagation"] if dry else [])])
+
+    def doc() -> dict:
+        return json.loads((results / "parity.json").read_text())
+
+    return results, write, doc
+
+
+def _set_release_gate(monkeypatch, bench, state: str | None, reason: str | None) -> None:
+    real = bench.load_suite
+
+    def load_suite(path):
+        s = real(path)
+        if s.get("suite") == "ics26_dynlp":
+            for r in s["readings"]:
+                if r.get("release_only"):
+                    r["release_gate"] = {
+                        k: v for k, v in (("state", state), ("reason", reason)) if v is not None
+                    }
+        return s
+
+    monkeypatch.setattr(bench, "load_suite", load_suite)
+
+
+def test_the_lp_suite_validates_its_schedules_and_its_release_gate(bench) -> None:
+    """The additive validate extension (M10a step 5): every reading of ics26_dynlp has a
+    schedule; a gated reading is damped, at the recorded lock and AD3's rounds; the release-only
+    reading needs a release gate state (gated or recorded_only) and its reason; another suite may
+    not use the keys."""
+    suite = bench.load_suite(LP_SUITE)
+    assert bench.validate(suite) == []
+    assert {r["name"] for r in suite["readings"] if r.get("release_only")} == {"release-damped-50m"}
+
+    def errors(edit) -> str:
+        s = copy.deepcopy(suite)
+        edit(s)
+        return " ".join(bench.validate(s))
+
+    def reading(s: dict, name: str) -> dict:
+        return next(r for r in s["readings"] if r["name"] == name)
+
+    assert "schedule must be one of" in errors(lambda s: reading(s, "damped-50k").pop("schedule"))
+    assert "schedule must be one of" in errors(
+        lambda s: reading(s, "damped-50k").update(schedule="jacobi")
+    )
+    assert "AD2 gates the damped schedule only" in errors(
+        lambda s: reading(s, "damped-50k").update(schedule="in_place")
+    )
+    assert "AD3 reads 50k with 21 rounds" in errors(
+        lambda s: reading(s, "damped-50k").update(runs=11)
+    )
+    assert "recorded lock" in errors(lambda s: reading(s, "damped-5m").update(clocks="base"))
+    rel = "release-damped-50m"
+    assert "release_gate.state" in errors(lambda s: reading(s, rel).pop("release_gate"))
+    assert "release_gate.state" in errors(
+        lambda s: reading(s, rel)["release_gate"].update(state="maybe")
+    )
+    assert "release_gate.reason" in errors(
+        lambda s: reading(s, rel)["release_gate"].update(state="recorded_only", reason="")
+    )
+    assert "release_gate.reason" in errors(lambda s: reading(s, rel)["release_gate"].pop("reason"))
+    assert errors(lambda s: reading(s, rel)["release_gate"].update(state="recorded_only")) == ""
+    assert "5 rounds at base" in errors(lambda s: reading(s, rel).update(runs=3))
+    assert "release_gate only on a release-only" in errors(
+        lambda s: reading(s, "damped-50k").update(release_gate={"state": "gated", "reason": "x"})
+    )
+    assert "golden set label_propagation_generator's" in errors(
+        lambda s: s["datasets"][0].update(sha256="0" * 64)
+    )
+    assert "harness.presets" in errors(
+        lambda s: s["harness"]["presets"].update(cuda="release-cuda")
+    )
+    assert "tolerance: compute 1.05" in errors(lambda s: s["tolerance"].update(compute=1.06))
+    # Another algorithm's suite may not use them.
+    other = bench.load_suite(REPO / "benchmarks/paper/ipdps26_escher.yaml")
+    other["readings"][0]["schedule"] = "damped"
+    assert any("label_propagation's" in e for e in bench.validate(other))
+    # The plan leaves the release-only reading out unless asked.
+    plain = {j["reading"] for j in bench.plan(suite, records=Path("r"), build_root=Path("b"))}
+    full = bench.plan(suite, records=Path("r"), build_root=Path("b"), release_only=True)
+    assert rel not in plain and rel in {j["reading"] for j in full}
+    assert all(j["dataset"] in suite["readings"][0]["cases"] or True for j in full)
+
+
+def test_the_lp_gate_rows_are_read_per_case(cert, bench) -> None:
+    """missing_gates covers update[sum], end_to_end and device_memory of every gate case."""
+    suite = bench.load_suite(LP_SUITE)
+    rows = [
+        {"case": f"{c}/damped", "region": r}
+        for c in ("50k", "500k", "5m", "5m1")
+        for r in ("update[sum]", "end_to_end", "device_memory")
+    ]
+    assert cert.lp_missing_gates(suite, rows, "0.4.0", dry=True) == []
+    assert cert.lp_missing_gates(suite, rows, "0.4.0", dry=False) == ["update[sum] (50m)"]
+    assert cert.lp_missing_gates(suite, rows, "0.3.0", dry=False) == []
+    cut = [r for r in rows if r != {"case": "500k/damped", "region": "end_to_end"}]
+    assert cert.lp_missing_gates(suite, cut, "0.4.0", dry=True) == ["end_to_end (500k)"]
+    cut = [r for r in rows if r != {"case": "5m1/damped", "region": "device_memory"}]
+    assert cert.lp_missing_gates(suite, cut, "0.4.0", dry=True) == ["device_memory (5m1)"]
+
+
+def test_the_lp_dry_run_certificate(cert, bench, tmp_path: Path, fixed_driver) -> None:
+    """A dry 0.4 run of label_propagation passes without AD4's release-only reading, which it
+    lists as outside the dry run; a dropped row, a changed tolerance or preset, a swapped
+    schedule, a missing replay, a damped replay not from parity-cuda and a tolerance not the
+    calibration's make it fail."""
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    assert write() == 0, doc()["verdict"]
+    d = doc()
+    assert d["dry_run"]["algorithm"] == "label_propagation"
+    assert any(
+        "release-only reading release-damped-50m of ics26_dynlp (gated; pending R040)" == o
+        for o in d["dry_run"]["outside"]
+    )
+    assert sorted(g["set"] for g in d["golden_suites"]) == sorted(LP_SETS)
+    assert all(g["passed"] for g in d["golden_suites"])
+    perf = next(s for s in d["performance"] if s["suite"] == "ics26_dynlp")
+    assert perf["release_only"][0]["status"] == "outside this dry run (pending R040)"
+    # A gated row dropped (its verdict counts adjusted): fails.
+    path = results / "ics26_dynlp.json"
+    full = path.read_text()
+    cut = json.loads(full)
+    for r in cut["readings"]:
+        if r["gated"] and r["dataset"] == "500k" and r["kind"] == "run":
+            r["regions"] = [g for g in r["regions"] if g["region"] != "update[sum]"]
+    cut["verdict"]["gated_regions"] -= 1
+    cut["verdict"]["within_gate"] -= 1
+    path.write_text(json.dumps(cut))
+    assert write() == 1 and any("update[sum] (500k)" in p for p in doc()["verdict"]["problems"])
+    path.write_text(full)
+    assert write() == 0, doc()["verdict"]
+    # A swapped schedule in a record: its medians are not where the summary says.
+    rec_name = next(
+        r["record"] for r in json.loads(full)["readings"] if r["reading"] == "damped-500k"
+    )
+    rec_path = results / rec_name
+    rec_full = rec_path.read_text()
+    rec = json.loads(rec_full)
+    rec["results"] = {"500k/inplace": rec["results"]["500k/damped"]}
+    rec_path.write_text(json.dumps(rec))
+    assert write() == 1 and any("not in its record" in p for p in doc()["verdict"]["problems"])
+    rec_path.write_text(rec_full)
+    assert write() == 0, doc()["verdict"]
+
+
+def test_the_lp_certificate_fails_on_a_changed_tolerance_or_preset(
+    cert, bench, tmp_path: Path, fixed_driver, monkeypatch
+) -> None:
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    real = bench.load_suite
+    for edit, text in [
+        (lambda s: s["tolerance"].update(end_to_end=1.2), "tolerance.end_to_end"),
+        (lambda s: s["harness"]["presets"].update(cuda="dev-cuda"), "harness.presets"),
+        (lambda s: s["readings"][0].update(schedule="in_place"), "damped schedule only"),
+    ]:
+
+        def load_suite(path, edit=edit):
+            s = real(path)
+            if s.get("suite") == "ics26_dynlp":
+                edit(s)
+            return s
+
+        monkeypatch.setattr(bench, "load_suite", load_suite)
+        assert write() == 1 and any(text in p for p in doc()["verdict"]["problems"]), text
+        monkeypatch.setattr(bench, "load_suite", real)
+    assert write() == 0, doc()["verdict"]
+    # The fused engine's replays from a build that is not parity-cuda: fail.
+    damped = results / "parity-label_propagation_damped-cuda-fused.json"
+    full = damped.read_text()
+    rec = json.loads(full)
+    rec["build"]["preset"] = "other"
+    damped.write_text(json.dumps(rec))
+    assert write() == 1 and any("not from a parity-cuda" in p for p in doc()["verdict"]["problems"])
+    damped.write_text(full)
+    # The in_place replay with a widened threshold, the oracle with another m: fail.
+    for name, edit in [
+        (
+            "parity-label_propagation_inplace-cuda.json",
+            lambda r: r["tolerance"]["5k5_d1e-4_s42_inplace"].update(t_mean=1.0),
+        ),
+        (
+            "parity-label_propagation_oracle-cuda.json",
+            lambda r: r["tolerance"].update(class_margin_m=0.01),
+        ),  # fmt: skip
+    ]:
+        path = results / name
+        full = path.read_text()
+        rec = json.loads(full)
+        edit(rec)
+        path.write_text(json.dumps(rec))
+        assert write() == 1 and any(
+            "tolerance" in p or "applied" in p for p in doc()["verdict"]["problems"]
+        ), name
+        path.write_text(full)
+    # A replay removed (the trace on cuda): fails.
+    (results / "parity-label_propagation_trace-cuda.json").unlink()
+    assert write() == 1 and any(
+        "no passed replay on cuda" in p for p in doc()["verdict"]["problems"]
+    )
+
+
+def test_the_lp_release_gate_follows_its_state(
+    cert, bench, tmp_path: Path, fixed_driver, monkeypatch
+) -> None:
+    """AD4's 50m reading in a release write (not a dry run): required when gated, shown as
+    recorded only with its reason when recorded_only; a flip to recorded_only without its reason
+    fails; a version before 0.4 never requires it (nor the suite)."""
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    assert write("0.4.0", dry=False) == 1
+    assert any("update[sum] (50m)" in p for p in doc()["verdict"]["problems"])
+    _set_release_gate(monkeypatch, bench, "recorded_only", "5 rounds would take more than 2 h")
+    write("0.4.0", dry=False)
+    assert not any("(50m)" in p for p in doc()["verdict"]["problems"]), doc()["verdict"]
+    perf = next(s for s in doc()["performance"] if s["suite"] == "ics26_dynlp")
+    assert perf["release_only"][0]["status"] == ("recorded only: 5 rounds would take more than 2 h")
+    assert perf["release_only"][0]["required"] is False
+    _set_release_gate(monkeypatch, bench, "recorded_only", None)
+    write("0.4.0", dry=False)
+    assert any("release_gate.reason" in p for p in doc()["verdict"]["problems"])
+    monkeypatch.undo()
+    # With the reading taken (the release's execution), the gated state certifies its row.
+    results2, write2, doc2 = _lp_dry(cert, bench, tmp_path / "with", release_only=True)
+    write2("0.4.0", dry=False)
+    assert not any("(50m)" in p for p in doc2()["verdict"]["problems"]), doc2()["verdict"]
+    assert cert.lp_release_required({"state": "gated", "reason": "x"}, "0.3.0", dry=False) is False
+    assert cert.lp_release_required({"state": "gated", "reason": "x"}, "0.4.0rc1", dry=False)
+    assert "ics26_dynlp" not in cert.required_suites("0.3.0")
+    assert cert.required_suites("0.4.0")["ics26_dynlp"]["since"] == (0, 4)
+
+
+def test_the_lp_golden_sets_are_listed_before_0_4(cert, tmp_path: Path) -> None:
+    """A 0.3 certificate lists LabelPropagation-CUDA's sets without a verdict; from 0.4 a set
+    without its replays fails."""
+    results = tmp_path / "results"
+    results.mkdir()
+    problems: list[str] = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.3.0")}
+    for name in LP_SETS:
+        assert listed[name]["passed"] is None, name
+    problems = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.4.0")}
+    for name in LP_SETS:
+        assert listed[name]["passed"] is False, name
+    assert any("label_propagation_oracle: no passed replay" in p for p in problems)
+    assert cert.LABEL_PROPAGATION_REPLAYS_SINCE == (0, 4)

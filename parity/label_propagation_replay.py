@@ -626,7 +626,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("subset")
     args = ap.parse_args(argv)
     try:
-        return {
+        rc = {
             "generator": cmd_generator,
             "model": cmd_model,
             "check-runs": cmd_check_runs,
@@ -637,6 +637,11 @@ def main(argv: list[str] | None = None) -> int:
     except g.GoldenError as err:
         print(f"compare.py label_propagation {args.command}: {err}", file=sys.stderr)
         return 1
+    if args.command == "generator":  # the certificate record's port stamp (M10a step 5)
+        import label_propagation_cert
+
+        label_propagation_cert.stamp_port(args.json, args.exe[0])
+    return rc
 
 
 if __name__ == "__main__":

@@ -1668,6 +1668,10 @@ def compare_main(argv: list[str] | None = None) -> int:
         import label_propagation_port
 
         return label_propagation_port.main(argv)
+    if argv[:1] == ["certificate"]:  # the certificate records of the replays (M10a step 5)
+        import label_propagation_cert
+
+        return label_propagation_cert.main(argv[1:])
     if "--verify" not in argv:
         print(
             "compare.py label_propagation: --verify, or one of " + ", ".join(REPLAY_COMMANDS),

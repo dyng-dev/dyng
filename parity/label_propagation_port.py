@@ -66,6 +66,8 @@ TRACE_FIELDS = {
 C_CASES = [
     g.Case(s, delta="1e-6", schedule=r) for s in ("5k5", "50k") for r in ("damped", "inplace")
 ]
+# L: the release replay of AD7 (delta 1e-4 at 500k and 5m, both rules; M10a step 5).
+L_CASES = [g.Case(s, schedule=r) for s in ("500k", "5m") for r in ("damped", "inplace")]
 MARGIN_RECORD = REPO / "parity" / "results" / "M10a-class-margin.json"
 
 
@@ -281,8 +283,9 @@ def labels_of_dump(path: Path, n: int) -> list:
 def cmd_oracle_port(args: argparse.Namespace) -> int:
     margin = class_margin()
     results, ok = [], True
-    for case in C_CASES:
-        validate = case.size == "5k5" or args.backend == "cuda"  # IrLP on CUDA at 50k too
+    for case in select(C_CASES + L_CASES, args.cases or [c.name for c in C_CASES]):
+        # IrLP on every snapshot of C (at 50k on CUDA too); L is the update chain only.
+        validate = case in C_CASES and (case.size == "5k5" or args.backend == "cuda")
         c = g.Case(case.size, delta=case.delta, schedule=case.schedule, validate=validate)
         with tempfile.TemporaryDirectory(prefix="lp-oracle-", dir=runs_dir()) as t:
             tmp = Path(t)
@@ -874,6 +877,7 @@ def main(argv: list[str] | None = None) -> int:
     op.add_argument("--replay", type=Path, required=True, help="dyng_lp_replay (the oracle)")
     op.add_argument("--backend", choices=["sequential", "cuda"], default="sequential")
     op.add_argument("--threads", type=int, default=8)
+    op.add_argument("--cases", type=names, help="cases of C and L (default: C)")
     op.add_argument("--json", type=Path)
     dp = sub.add_parser("determinism")
     dp.add_argument("--exe", type=Path, required=True, help="dyng-compat-dynlp")
@@ -898,10 +902,16 @@ def main(argv: list[str] | None = None) -> int:
     hp.add_argument("--json", type=Path)
     args = ap.parse_args(argv)
     try:
-        return COMMANDS[args.command](args)
+        rc = COMMANDS[args.command](args)
     except g.GoldenError as err:
         print(f"compare.py label_propagation {args.command}: {err}", file=sys.stderr)
         return 1
+    import label_propagation_cert
+
+    # The port's commit, executable and build in the record (its certificate record, M10a step 5).
+    label_propagation_cert.stamp_port(getattr(args, "json", None), getattr(args, "exe", None)
+                                      or getattr(args, "tests", None))  # fmt: skip
+    return rc
 
 
 if __name__ == "__main__":

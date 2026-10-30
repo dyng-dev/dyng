@@ -1,0 +1,244 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Benchmark-suite record (PLAN Section 8.5) of dynG's `label_propagation`: DynLP (ICS 2026), as
+# LabelPropagation-CUDA@a276a3a computes it (`bin/dynLP`, its Makefile's build) and as its
+# results/README.md reports it. The suite reads the gates of M10a (parity/results/M10a.md; PLAN
+# Sections 6.4.7 and 8.6; ADRs 0064 and 0078; the author's decisions AD2-AD4 and B5 of 2026-10-28,
+# GOVERNANCE.md's approvals log): on the damped schedule `update[sum]` (the sum of the per-batch
+# CUDA-event time over b0..b(B-1)), the end-to-end time and the device memory (the D1 nsys peak)
+# against the UNPATCHED bin/dynLP, re-measured in the same session at the lock the pre-port
+# baseline recorded per case (parity/results/M10-baseline-2026-10-29.json). The in_place
+# schedule, the default clocks, the kernels and the 50m readings are recorded, not gated; the 50m
+# damped `update[sum]` gate is a release-only reading (AD4), taken once for the 0.4.0 certificate.
+#
+# Machine-readable: parity/bench_suite.py validates this file (the configurations against the
+# golden set label_propagation_generator's digests, the recorded locks, AD3's rounds, the release
+# gate's state and reason) and runs every reading through the A/B harness (parity/perf_ab.py
+# label_propagation run|memory|kernels), one window per case: the timing readings under the
+# exclusive perf lock on GPU 0, the memory reading in a GPU-1 quiet window under the shared lock.
+# From 0.4.0 on parity/certify.py requires this suite's summary, with every gated row below per
+# case, in a release certificate (REQUIRED_SUITES; M10a step 5).
+schema: 1
+suite: ics26_dynlp
+title: "DynLP: dynamic label propagation under vertex batches (dynG label_propagation)"
+algorithm: label_propagation
+paper:
+  short: DynLP
+  venue: ICS 2026
+  scope: >-
+    the paper-timed GPU update per batch (the host net effect of the batch, the transfer of the
+    batch from page-locked memory, the vertex changes and the edge append, the sparsification,
+    the components, the label initialization and the iterative propagation, as
+    LabelPropagation-CUDA@a276a3a's runDynLP times it between its batchStart and batchEnd events),
+    summed over the batches b0..b(B-1), b0 (the 1 % ground truth) an ordinary batch; the
+    process's wall time with bench/run.sh's argv; the peak of live device allocations
+    (GOVERNANCE D1). One process per case, O's argv `--totalNodes N --numBatches B --avgDegree 5
+    --delta 0.0001 --seed 42 --update damped|inplace --quiet --noValidate`.
+harness:
+  tool: perf_ab.label_propagation   # parity/perf_ab.py label_propagation (parity/label_propagation_perf.py)
+  inputs: $DYNG_SCRATCH
+  executable: tools/compat/dyng-compat-dynlp
+  presets: {openmp: parity, cuda: parity-cuda}
+  region_map: parity/timed_regions/label_propagation.toml
+  goldens: label_propagation_damped   # every damped round's labels and counts equal the original's
+datasets:      # generated in-process by both sides; pinned by the golden set's digest of the
+               # configuration (its CSR, labels and batches: label_propagation_generator)
+  - name: 50k
+    source: {collection: LabelPropagation-CUDA, id: "the synthetic generator (bench/run.sh configs)"}
+    generator: {name: "generators::legacy::dynlp_vertex_arrival_stream", parameters: {total_vertices: 50000, num_batches: 10, average_degree: 5, seed: 42}}
+    recipe: >-
+      O's generateSparseGraph and its batches (ground truth 1 %, deletions 9 %); dynG's
+      generators::legacy reproduces them byte for byte (M10a step 2, ADR 0067)
+    sha256: 1d65cc2c75a6ed221f7fa9d95a6e88331f656741f80145e4b5f63ac18585f410
+  - name: 500k
+    source: {collection: LabelPropagation-CUDA, id: "the synthetic generator (bench/run.sh configs)"}
+    generator: {name: "generators::legacy::dynlp_vertex_arrival_stream", parameters: {total_vertices: 500000, num_batches: 10, average_degree: 5, seed: 42}}
+    recipe: as 50k
+    sha256: 97bab0f6ecd31812508598a15c58ad7090b339cce1d9bf0737aaa3de20e163d6
+  - name: 5m
+    source: {collection: LabelPropagation-CUDA, id: "the synthetic generator (bench/run.sh configs)"}
+    generator: {name: "generators::legacy::dynlp_vertex_arrival_stream", parameters: {total_vertices: 5000000, num_batches: 10, average_degree: 5, seed: 42}}
+    recipe: as 50k (the digest of every array; the files are never written)
+    sha256: 459adb0c18914c6a438f7af87bc4488cbd5576215129a210ac74339b22652f81
+  - name: 5m1
+    source: {collection: LabelPropagation-CUDA, id: "the synthetic generator (bench/run.sh configs)"}
+    generator: {name: "generators::legacy::dynlp_vertex_arrival_stream", parameters: {total_vertices: 5000000, num_batches: 2, average_degree: 5, seed: 42}}
+    recipe: as 5m (one batch of 4.95M vertices after the ground truth)
+    sha256: 59121d8e5adadbbd6d7cd4849620bb0cc819c10aa50ce812c3ed1888e0a7d943
+  - name: 50m
+    source: {collection: LabelPropagation-CUDA, id: "the synthetic generator (bench/run.sh configs)"}
+    generator: {name: "generators::legacy::dynlp_vertex_arrival_stream", parameters: {total_vertices: 50000000, num_batches: 11, average_degree: 5, seed: 42}}
+    recipe: as 5m (11 batches of 4.95M new vertices; --noGraphFiles on both sides, AD2)
+    sha256: a79e5d97a0edc48e5d9f460296153dbb310179e92eb34865c451c2ebd9965e7c
+batches:       # O's vertex-arrival configurations (bench/run.sh configArgs; the seed of the graph)
+  - {name: 50k, generator: legacy.dynlp_vertex_arrival, total_vertices: 50000, num_batches: 10, seed: 42}
+  - {name: 500k, generator: legacy.dynlp_vertex_arrival, total_vertices: 500000, num_batches: 10, seed: 42}
+  - {name: 5m, generator: legacy.dynlp_vertex_arrival, total_vertices: 5000000, num_batches: 10, seed: 42}
+  - {name: 5m1, generator: legacy.dynlp_vertex_arrival, total_vertices: 5000000, num_batches: 2, seed: 42}
+  - {name: 50m, generator: legacy.dynlp_vertex_arrival, total_vertices: 50000000, num_batches: 11, seed: 42}
+backends:
+  cuda:
+    gpu: 0
+    environment: CUDA_MODULE_LOADING=EAGER on both sides, no OMP_* variables
+    port: dyng-compat-dynlp with O's argv and --backend cuda (the fused engine)
+    baseline: LabelPropagation-CUDA
+metrics:       # region (parity/timed_regions/label_propagation.toml) -> the dynG profiler stages it sums
+  update[sum]:   # AD2: the gated row (damped)
+    gate: compute
+    cuda: {original: "csv:time_ms summed over b0..b(B-1)", port: [label_propagation.update]}
+  end_to_end:
+    gate: end_to_end
+    cuda: {original: "process wall time (bench/run.sh's argv, the graph files written)", port: ["process wall time of dyng-compat-dynlp with the same argv"]}
+  device_memory:
+    gate: memory
+    cuda: {original: "nsys: the peak of live device allocations of the whole process (D1)", port: ["the same peak of dyng-compat-dynlp's whole process"]}
+  # Reported, not gated.
+  update[b0]:
+    gate: none
+    cuda: {original: "csv:time_ms of b0", port: [label_propagation.update]}
+  update[b1]:
+    gate: none
+    cuda: {original: "csv:time_ms of b1", port: [label_propagation.update]}
+  eval:
+    gate: none
+    cuda: {original: "csv:eval_ms summed", port: ["dyng-compat-dynlp evaluation (the labels to the host and the accuracy, after the update timer)"]}
+baselines:     # the pinned original, built from the UNPATCHED scratch copy by its own Makefile
+  LabelPropagation-CUDA: {commit: a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87, variant: unpatched, backend: cuda}
+tolerance:     # PLAN 8.6: port / original median
+  compute: 1.05
+  compute_short: 1.10
+  short_region_ms: 10.0
+  end_to_end: 1.10
+  memory: 1.05
+readings:      # one window per case; the lock is the baseline's recorded 3-round boost probe's (AD3)
+  - name: damped-50k
+    kind: run
+    backend: cuda
+    schedule: damped
+    clocks: boost
+    runs: 21
+    gated: true
+    cases: [50k]
+  - name: damped-500k
+    kind: run
+    backend: cuda
+    schedule: damped
+    clocks: boost
+    runs: 21
+    gated: true
+    cases: [500k]
+  - name: damped-5m
+    kind: run
+    backend: cuda
+    schedule: damped
+    clocks: boost
+    runs: 11
+    gated: true
+    cases: [5m]
+  - name: damped-5m1
+    kind: run
+    backend: cuda
+    schedule: damped
+    clocks: boost
+    runs: 11
+    gated: true
+    cases: [5m1]
+  - name: memory-damped
+    kind: memory
+    backend: cuda
+    schedule: damped
+    gpu: 1           # D1 / B5: GPU 1, the shared lock, a GPU-1 quiet window, no foreign process
+    gated: true
+    cases: [50k, 500k, 5m, 5m1]
+  - name: in_place-50k
+    kind: run
+    backend: cuda
+    schedule: in_place
+    clocks: boost
+    runs: 21
+    gated: false     # AD2: in_place is reported (its iterations vary between runs)
+    cases: [50k]
+  - name: in_place-500k
+    kind: run
+    backend: cuda
+    schedule: in_place
+    clocks: boost
+    runs: 21
+    gated: false
+    cases: [500k]
+  - name: in_place-5m
+    kind: run
+    backend: cuda
+    schedule: in_place
+    clocks: boost
+    runs: 11
+    gated: false
+    cases: [5m]
+  - name: in_place-5m1
+    kind: run
+    backend: cuda
+    schedule: in_place
+    clocks: boost
+    runs: 11
+    gated: false
+    cases: [5m1]
+  - name: damped-default-clocks
+    kind: run
+    backend: cuda
+    schedule: damped
+    clocks: none     # ADR 0018 / AD3: recorded, not gated
+    runs: 11
+    gated: false
+    cases: [50k, 500k, 5m]
+  - name: kernels-500k
+    kind: kernels    # ncu --clock-control base: registers and occupancy per kernel (reported)
+    backend: cuda
+    schedule: damped
+    gated: false
+    cases: [500k]
+  - name: damped-50m
+    kind: run
+    backend: cuda
+    schedule: damped
+    clocks: base     # AD4: recorded in M10, 3 rounds at base, --noGraphFiles on both sides
+    runs: 3
+    gated: false
+    cases: [50m]
+  - name: in_place-50m
+    kind: run
+    backend: cuda
+    schedule: in_place
+    clocks: base
+    runs: 1          # AD4: one in_place run, recorded
+    gated: false
+    cases: [50m]
+  - name: release-damped-50m
+    kind: run
+    backend: cuda
+    schedule: damped
+    clocks: base     # AD4: 5 rounds at base, --noGraphFiles on both sides, CUDA_MODULE_LOADING=EAGER
+    runs: 5
+    gated: true
+    cases: [50m]
+    release_only: true   # read once for the 0.4.0 certificate (R040), not in M10
+    release_gate:
+      state: gated
+      reason: >-
+        AD4's feasibility statement, from the pre-port baseline's 50m probe at base (one damped
+        round of the original 98 s of wall time, 0 of 6 rounds rejected;
+        parity/results/M10-baseline-2026-10-29.json): 5 A/B rounds take well under 2 h and none
+        was rejected (the limits: 2 h, 30 %), so the reading is gated at R040; M10a step 5's 3
+        rounds of the port against the original state the final basis (parity/results/M10a.md)
+paper_reference:   # informational: LabelPropagation-CUDA results/README.md (3ecb438, "new", RTX A5000)
+  hardware: RTX A5000 (sm_86), 56 host threads (shared, load average 40-60), CUDA 13.1, driver 590.48
+  schedule: in_place (the default update rule of 3ecb438)
+  dynlp_ms: {50k: 82.3, 500k: 316.6, 5m: 3276, 5m1: 628.8, 50m: 35841}
+  end_to_end_s: {50k: 0.57, 500k: 1.23, 5m: 8.85, 5m1: 5.75, 50m: 73.85}
+  note: >-
+    O's figures (3ecb438, before a276a3a) were taken at default clocks without a clock lock, as
+    medians of 3 runs, on a loaded host (GPU 1): paper_reference only, never a gate reference
+    (AD3). The pre-port baseline of the unpatched a276a3a alone, at the recorded locks
+    (parity/results/M10-baseline-2026-10-29.json; never a gate reference either): damped
+    update[sum] 106.2 / 481.6 / 5,623.7 / 1,387.2 ms and in place 81.3 / 317.4 / 3,269.2 / 616.6 ms
+    at 50k / 500k / 5m / 5m1; 50m at base 63,327 ms damped, 37,307 ms in place.

@@ -1980,3 +1980,39 @@ iterations_lo = [0, 1134.9, 1461.6, 1333.8, 1128.6, 806.4, 774, 554.4, 303.3, 33
 iterations_hi = [2, 1395.9, 1988.8, 1806.2, 1535.6, 1052.7, 1028.5, 722.7, 383.9, 419.1]
 iterations_sum_lo = 7964.1
 iterations_sum_hi = 10140.9
+
+# The harmonic oracle of AD7 (M10a step 5, ADR 0078): a calibrated kind without golden files.
+# dynG's labels are compared with dyng::testing::harmonic_solution of every batch's graph (mean
+# |F - F*| <= bound_factor x delta, the PCG converged, no class flip where |F* - 0.5| >
+# class_margin_k x m, m from LabelPropagation-CUDA's own delta 1e-6 runs: class_margin_record,
+# frozen by its SHA-256). C (delta 1e-6, both rules, IrLP per snapshot) on every backend in CI; L
+# (delta 1e-4 at 500k and 5m) on cuda, the release replay (the coverage table). The location
+# holds O's --check logs of C and L (M10a step 1; the cases' digests), O's own margins.
+[sets.label_propagation_oracle]
+reference = "LabelPropagation-CUDA"
+commit = "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+kind = "label_propagation_oracle"
+what = "AD7's harmonic oracle on C (delta 1e-6: 5k5, 50k; both rules; IrLP) and L (delta 1e-4: 500k, 5m); O's --check logs of the same cases"
+location = "$DYNG_SCRATCH/goldens/label_propagation_check"
+generated_by = "parity/label_propagation_goldens.py margins (O's --check runs, M10a step 1); the class margin: compare.py label_propagation margin (M10a step 2)"
+num_cases = 8
+num_files = 8
+num_bytes = 22456
+bound_factor = 2000
+class_margin_k = 3
+class_margin_record = "parity/results/M10a-class-margin.json"
+class_margin_sha256 = "90473eea8ab9870de82c03d52233f5a45fe079004ca957a9e472a4b0515c8b37"
+
+[sets.label_propagation_oracle.cases]
+"5k5_d1e-6_s42" = { sha256 = "168d2f3202b0cab588a0c57eb4fc801bc1458e2a11eb857d196dc9042eb5f258", files = 1 }
+"5k5_d1e-6_s42_inplace" = { sha256 = "897a65f4b0ee8ed513d2ca6e253ea23564a3dd4ea42c5dd537fab9f4f5d7f846", files = 1 }
+"50k_d1e-6_s42" = { sha256 = "c4de7732883fddf3b7599ba297bbce39ee749d9860d1b3b1690b1ac1cd39b1d9", files = 1 }
+"50k_d1e-6_s42_inplace" = { sha256 = "04c239064f5f98a75fc4f6e4d7d552d70f7cda8771fa4f8bd5a49020ec7aff77", files = 1 }
+"500k_d1e-4_s42" = { sha256 = "9a9baa49c5686d66455fe13ca76a57024e00861a25b86121881d3992140ed2d7", files = 1 }
+"500k_d1e-4_s42_inplace" = { sha256 = "5919386683a0866cee3c5b3e4030bba289d5b730b8cdcbbd4c98a02b972d77aa", files = 1 }
+"5m_d1e-4_s42" = { sha256 = "40e73ff01d06bfa01c242a73aa28cec42e336894cf01b780d03cd7e38c6eecad", files = 1 }
+"5m_d1e-4_s42_inplace" = { sha256 = "3b5f448bc54d1566c669e7239f83a0c01c28ec67d50b74265100d70e25efb238", files = 1 }
+
+[sets.label_propagation_oracle.coverage]
+sequential = ["5k5_d1e-6_s42", "5k5_d1e-6_s42_inplace", "50k_d1e-6_s42", "50k_d1e-6_s42_inplace"]
+cuda = ["5k5_d1e-6_s42", "5k5_d1e-6_s42_inplace", "50k_d1e-6_s42", "50k_d1e-6_s42_inplace", "500k_d1e-4_s42", "500k_d1e-4_s42_inplace", "5m_d1e-4_s42", "5m_d1e-4_s42_inplace"]
