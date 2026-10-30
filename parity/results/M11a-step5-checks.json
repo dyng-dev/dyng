@@ -1,0 +1,21 @@
+{
+ "record": "M11a step 5 (mutations-noregression-gates-certificate): the final check of the step's tree (BUILD 9; criteria 17 and 22)",
+ "tree": "eef136e (the library, the drivers and the build files as at the code freeze c78e4ef; the later commits change records and harness only)",
+ "driver": "$DYNG_SCRATCH/runs/m11a-step5/final.sh (its logs beside it), run 2026-10-30 17:15-20:56 UTC under flock -s / nice -n 10, after the step's last exclusive window",
+ "ci_check_sh": "full ci/check.sh: all checks passed (format, cpu-only ctest -L cpu 1450/1450, dev ctest -L cpu 1488/1488, consumer, tidy, reuse, provenance 299 files, testdata 1,074,029 of 1,250,000 B, regen, harness pytest 426 passed, python 737 passed / 81 skipped, api: no breaking change of the frozen C++ or Python API against origin/main, scaffold 80 + 54 + 41 tests, docs with the API baseline's 1294 declarations, pre-commit)",
+ "openmp_off": "a fresh cpu-only build with DYNG_ENABLE_OPENMP=OFF: built, ctest -L cpu 1247/1247",
+ "fortified": "a fresh cpu-only build with -D_FORTIFY_SOURCE=3 and DYNG_BUILD_PYTHON=ON: built, 0 warnings",
+ "clang18_syntax": "ci-local/clang_syntax.py: the fortified build's database with the Python bindings, 629 files, 0 failures; the dev-cuda database, 1271 files, 0 failures",
+ "gcc13": "GCC 13.4.0 (the conda package cache; no GCC 13 on the machine) at -O2 -D_FORTIFY_SOURCE=3 -Werror over the 296 host .cpp translation units of the dev-cuda database: 3 failures, the test files of step 2's open issue, unchanged since b2b1524 (cpp/tests/graph/allocation_failure_test.cpp, cpp/tests/io/fuzz_regression_test.cpp, cpp/tests/algorithms/mosp/mosp_allocation_failure_test.cpp: -Wmismatched-new-delete on their replaced global operator new / delete)",
+ "asan_ubsan": "ci/sanitizers.sh asan (fresh build/asan): 1342/1342",
+ "tsan_openmp": "ci/sanitizers.sh tsan-openmp (fresh build/tsan-openmp; CXX = the local wrapper of the conda Clang 18.1.8, DYNG_ARCHER_LIBRARY = dyng-clang's libarcher.so.bak): 1342/1342",
+ "wheels": {
+  "how": "DYNG_WHEEL_SKIP_TESTS=1 DYNG_PLUGINS=cu13 ci/plugin_wheels.sh (the core sdist and wheel by ci/wheels.sh, the dyng-cu13 plugin with CUDA 13.1; auditwheel, twine check, ci/wheel_check.py with the 90 MB budget and the code objects of the release list): rc 0; cu12 not built (no CUDA 12 toolkit on the machine)",
+  "dyng-0.4.0.dev0-cp312-abi3-manylinux_2_28_x86_64.whl": {"bytes": 2216474, "0.3.0rc1": "1.96 MB", "growth": "+0.26 MB"},
+  "dyng_cu13-0.4.0.dev0-cp312-abi3-manylinux_2_28_x86_64.whl": {"bytes": 10070989, "0.3.0rc1": "8.72 MB", "growth": "+1.35 MB (hyper_sssp's kernels and the slack_csr store for SASS sm_75-sm_120 and PTX sm_120)"},
+  "budget": "90 MB: both within"
+ },
+ "gpu_local": "ci/gpu_local.sh (dev-cuda, GPU 1, commit eef136e; DYNG_GPU_SKIP='cpu parity memcheck synccheck racecheck plugin experimental tidy'; DYNG_LOCKLOG_MILESTONE=M11a, every heavy command after locklog.py quiet-ok): build passed; ctest -L gpu 943/943; the cbst sanitizers, replays and lockstep; the hypergraph sanitizers and replays; triad_count's sanitizers and replays; slack_csr's four compute-sanitizer tools, a forced-overflow session and the make-test replays on cuda; hyper_sssp's four tools, forced fallbacks and the make-test replays in the three modes with update == compute: every step passed; 33 ERROR SUMMARY lines, all 0 errors; 15 RACECHECK SUMMARY 0 hazards; 3 LEAK SUMMARY 0 bytes",
+ "suite": "parity/bench_suite.py validate benchmarks/paper/ia3_hsosp.yaml: valid",
+ "locklog": "tools/locklog.py validate: valid; open --track M11: exit 0"
+}
