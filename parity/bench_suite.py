@@ -87,12 +87,14 @@ TOOLS = {
     "sssp": "perf_ab.sssp",
     "mosp": "perf_ab.mosp",
     "cycle_count": "perf_ab.cycle_count",
+    "hyper_sssp": "perf_ab.hyper_sssp",  # parity/hsosp_perf.py (M11a)
     "triad_count": "perf_ab.triad_count",  # parity/triad_perf.py (M9a step 2)
 }
 REGION_MAPS = {
     "sssp": "parity/timed_regions/sssp.toml",
     "mosp": "parity/timed_regions/mosp.toml",
     "cycle_count": "parity/timed_regions/cycle_count.toml",
+    "hyper_sssp": "parity/timed_regions/hyper_sssp.toml",  # M11a (ADR 0080)
     "triad_count": "parity/timed_regions/triad_count.toml",
 }
 # The region map's section per backend.
@@ -100,12 +102,14 @@ MAP_KEYS = {
     "sssp": {"openmp": "mosp_openmp", "cuda": "mosp_cuda"},
     "mosp": {"openmp": "mosp_openmp", "cuda": "mosp_cuda"},
     "cycle_count": {"openmp": "cycle_enum_openmp", "cuda": "cycle_enum_cuda"},
+    "hyper_sssp": {"cuda": "mosp_escher"},
     "triad_count": {"cuda": "escher_gpu"},
 }
 EXECUTABLES = {
     "sssp": "dyng-compat-mosp",
     "mosp": "dyng-compat-mosp",
     "cycle_count": "dyng-compat-cycle-enum",
+    "hyper_sssp": "dyng-compat-hsosp",  # `dyng-compat-hsosp bench` (M11a)
     "triad_count": "dyng-compat-escher",  # `dyng-compat-escher run` (M9a step 2)
 }
 # The algorithms whose harness runs one command per dataset over the MOSP bench inputs
@@ -207,6 +211,579 @@ def triad_digest(suite: dict, case: str) -> str | None:
         return None
     digest = d.get("sha256")
     return digest.get(f"s{m['seed']}") if isinstance(digest, dict) else digest
+
+
+# --- hyper_sssp (M11a, criterion 18; ADR 0093) ---------------------------------------------------
+
+# hyper_sssp's memory metrics: the Nsight Systems peak (D1) and the graph-scope accounting of
+# MOSP_ESCHER's graph_mb (HD6).
+MEMORY_METRICS["hyper_sssp"] = ("device_memory", "graph_memory")
+# The kinds of hyper_sssp's readings (parity/hsosp_perf.py): the timed A/B (run), the two-sided
+# memory reading, and, recorded only, the clock probe of each dataset and the ncu kernel table.
+HSOSP_KINDS = ("run", "memory", "probe", "kernels")
+# The suite's datasets -> the golden set's names (hsosp_goldens.DATASETS).
+HSOSP_DATASETS = {"coauth": "dblp", "geology": "geology"}
+HSOSP_ROUNDS = 21  # HD3 / HD4: the gated readings' alternating rounds
+HSOSP_PROBE_ROUNDS = 3  # HD4: the recorded boost probe of each dataset
+HSOSP_SEED = 20260725  # MOSP_ESCHER's default seed, the golden set's batches (HD4, HD5)
+HSOSP_ENV = "CUDA_MODULE_LOADING=EAGER, no OMP_* variables"
+HSOSP_NSYS = "nsys profile -t cuda,nvtx --cuda-memory-usage=true"
+
+
+def hsosp_goldens():
+    import hsosp_goldens
+
+    return hsosp_goldens
+
+
+def hsosp_configs() -> dict[str, tuple[str, str, int]]:
+    """{configuration: (the suite's dataset, kind, batch size)} of the golden set's paper cases
+    (P: <dblp|geology>_<hyperedge|vertex>_<size>)."""
+    back = {v: k for k, v in HSOSP_DATASETS.items()}
+    return {name: (back[d], kind, size) for name, d, kind, size in hsosp_goldens().p_configs()}
+
+
+def hsosp_memory_configs() -> tuple[str, ...]:
+    import hsosp_perf
+
+    return tuple(hsosp_perf.MEMORY_CONFIGS)
+
+
+def validate_hsosp(suite: dict, datasets: dict, batches: dict, need) -> None:
+    """hyper_sssp's suite (M11a, ADR 0093): the datasets are the golden set's inputs with their
+    digests (coauth-DBLP and coauth-MAG-Geology, HD15); the batches are the golden set's, replayed
+    (HD5); the readings: a recorded 3-round boost probe per dataset, the gated runs of the 16
+    paper configurations (one dataset per reading, at least 21 rounds, at the clocks its dataset's
+    probe names: boost if it held, else base; HD4), the recorded default-clock reading, the gated
+    memory reading of HD6's three configurations on GPU 1 and the recorded ones, and the recorded
+    kernel table at the base clocks."""
+    hg = hsosp_goldens()
+    configs = hsosp_configs()
+    need(set(datasets) == set(HSOSP_DATASETS), f"datasets must be {sorted(HSOSP_DATASETS)} (P)")
+    for dname, d in datasets.items():
+        if dname not in HSOSP_DATASETS:
+            continue
+        rel, sha = hg.DATASETS[HSOSP_DATASETS[dname]]
+        need(d.get("file") == rel, f"dataset {dname}: file must be {rel}")
+        need(d.get("sha256") == sha, f"dataset {dname}: sha256 must be the golden set's {sha}")
+    sizes = sorted({size for _, _, size in configs.values()})
+    need(
+        sorted(b.get("size", 0) for b in batches.values()) == sizes,
+        f"batches: one per batch size {sizes}",
+    )
+    for bname, b in batches.items():
+        need(
+            b.get("generator") == f"golden.{hg.SET}",
+            f"batch {bname}: replayed from the golden set (generator golden.{hg.SET}; HD5)",
+        )
+        need(
+            b.get("batches") == 3 and b.get("del_pct") == 50 and b.get("seed") == HSOSP_SEED,
+            f"batch {bname}: B's defaults (3 batches, --del 50, seed {HSOSP_SEED})",
+        )
+    need(set(suite["backends"]) == {"cuda"}, "backends: cuda (MOSP_ESCHER's H-SOSP)")
+    names: set[str] = set()
+    probes: dict[str, str] = {}
+    gated_runs: list[dict] = []
+    covered: set[str] = set()
+    memory_gated = False
+    for r in suite["readings"]:
+        rname = r.get("name")
+        if not need(
+            isinstance(rname, str) and rname not in names,
+            f"reading name {rname!r} missing or repeated",
+        ):
+            continue
+        names.add(rname)
+        kind = r.get("kind")
+        need(kind in HSOSP_KINDS, f"reading {rname}: kind must be one of {HSOSP_KINDS}")
+        need(r.get("backend") == "cuda", f"reading {rname}: backend cuda")
+        need(isinstance(r.get("gated"), bool), f"reading {rname}: gated must be true or false")
+        runs = r.get("runs")
+        listed = r.get("configs") or []
+        for c in listed:
+            need(c in configs, f"reading {rname}: {c} is not a paper configuration of {hg.SET}")
+        if kind == "probe":
+            dataset = r.get("dataset")
+            need(dataset in datasets, f"reading {rname}: dataset {dataset!r} is not a dataset")
+            need(
+                r.get("clocks") == "boost" and runs == HSOSP_PROBE_ROUNDS and not r.get("gated"),
+                f"reading {rname}: the probe is {HSOSP_PROBE_ROUNDS} rounds at boost, recorded "
+                "(ADR 0021, HD4)",
+            )
+            need(dataset not in probes, f"reading {rname}: a second probe of {dataset}")
+            probes.setdefault(dataset, rname)
+            continue
+        need(bool(listed), f"reading {rname}: needs configs")
+        if kind == "run":
+            need(r.get("clocks") in CLOCKS, f"reading {rname}: clocks must be one of {CLOCKS}")
+            if r.get("gated"):
+                need(
+                    r.get("clocks") in ("base", "boost"),
+                    f"reading {rname}: a gated reading is at a clock lock (ADRs 0018, 0021)",
+                )
+                need(
+                    isinstance(runs, int) and runs >= HSOSP_ROUNDS,
+                    f"reading {rname}: at least {HSOSP_ROUNDS} alternating rounds (HD3)",
+                )
+                ds = {configs[c][0] for c in listed if c in configs}
+                need(len(ds) == 1, f"reading {rname}: a gated reading reads one dataset")
+                gated_runs.append(r)
+                for c in listed:
+                    need(c not in covered, f"reading {rname}: {c} is read by two gated readings")
+                    covered.add(c)
+            else:
+                need(isinstance(runs, int) and runs >= 5, f"reading {rname}: runs must be >= 5")
+                if r.get("clocks") != "none":
+                    need("probe" not in r, f"reading {rname}: probe names a gated reading's clocks")
+        elif kind == "memory":
+            need(r.get("gpu", 1) == 1, f"reading {rname}: the D1 peak is read on GPU 1 (HD6)")
+            if r.get("gated"):
+                memory_gated = True
+                need(
+                    sorted(listed) == sorted(hsosp_memory_configs()),
+                    f"reading {rname}: the gated memory configurations are HD6's "
+                    f"{list(hsosp_memory_configs())}",
+                )
+            else:
+                need(
+                    not set(listed) & set(hsosp_memory_configs()),
+                    f"reading {rname}: HD6's configurations are read by the gated reading",
+                )
+        elif kind == "kernels":
+            need(
+                r.get("clocks") == "base" and not r.get("gated"),
+                f"reading {rname}: the kernel table is at the base clocks, recorded (ADR 0018)",
+            )
+            need(isinstance(runs, int) and runs >= 1, f"reading {rname}: needs runs")
+    need(
+        covered == set(configs),
+        f"the gated run readings cover {sorted(covered)}, not all 16 paper configurations",
+    )
+    need(memory_gated, "a gated memory reading (HD6)")
+    for dataset in datasets:
+        need(dataset in probes, f"dataset {dataset}: no probe reading (HD4)")
+    for r in gated_runs:
+        ds = {configs[c][0] for c in r.get("configs") or [] if c in configs}
+        want = probes.get(next(iter(ds))) if len(ds) == 1 else None
+        need(
+            r.get("probe") == want,
+            f"reading {r['name']}: probe must name its dataset's probe reading {want!r} (its "
+            "clocks are the probe's: boost if it held, else base)",
+        )
+
+
+def hsosp_jobs(
+    suite: dict,
+    selected: list[dict],
+    *,
+    records: Path,
+    build_root: Path,
+    datasets: list[str] | None,
+    runs: int | None,
+) -> list[dict]:
+    """hyper_sssp's commands (`parity/perf_ab.py hyper_sssp ...`, parity/hsosp_perf.py): a probe
+    per dataset, one timed command per configuration (each its own exclusive-lock window of at most
+    2 h, taken with tools/locklog.py run EXCL --reset-gpu 0), one memory command per reading (a
+    GPU1-QUIET window), one kernel command per reading."""
+    py = sys.executable
+    harness = str(REPO / "parity" / "perf_ab.py")
+    exe = build_root / PRESETS["cuda"] / "tools" / "compat" / EXECUTABLES["hyper_sssp"]
+    configs = hsosp_configs()
+    cuda = suite["backends"]["cuda"]
+    jobs = []
+    for r in selected:
+        kind = r["kind"]
+        gpu = int(r.get("gpu", 1 if kind == "memory" else cuda.get("gpu", 0)))
+        base = {"reading": r["name"], "kind": kind, "gated": r["gated"]}
+        if kind == "probe":
+            if datasets and r["dataset"] not in datasets:
+                continue
+            out = records / record_name(suite, r, None)
+            argv = [py, harness, "hyper_sssp", "probe", "--probe-only", "--datasets"]
+            argv += [HSOSP_DATASETS[r["dataset"]], "--rounds", str(r["runs"])]
+            argv += ["--gpu", str(gpu), "--json", str(out)]
+            jobs.append(
+                base
+                | {
+                    "dataset": None,
+                    "record": out,
+                    "argv": argv,
+                    "configs": [],
+                    "runs": r["runs"],
+                    "lock": "exclusive (an EXCL window)",
+                }
+            )
+            continue
+        listed = [c for c in r["configs"] if not datasets or configs[c][0] in datasets]
+        if not listed:
+            continue
+        if kind == "run":
+            n = runs if runs is not None else int(r["runs"])
+            for c in listed:
+                out = records / record_name(suite, r, c)
+                argv = [py, harness, "hyper_sssp", "run", "--configs", c, "--rounds", str(n)]
+                argv += ["--gpu", str(gpu), "--clocks", r["clocks"], "--exe", str(exe)]
+                argv += ["--json", str(out)]
+                jobs.append(
+                    base
+                    | {
+                        "dataset": c,
+                        "record": out,
+                        "argv": argv,
+                        "configs": [c],
+                        "runs": n,
+                        "lock": "exclusive (an EXCL window)",
+                    }
+                )
+            continue
+        out = records / record_name(suite, r, None)
+        argv = [py, harness, "hyper_sssp", kind, "--configs", *listed, "--gpu", str(gpu)]
+        if kind == "kernels":
+            argv += ["--rounds", str(r["runs"])]
+        argv += ["--exe", str(exe), "--json", str(out)]
+        lock = (
+            "shared, in a GPU1-QUIET window" if kind == "memory" else "exclusive (an EXCL window)"
+        )
+        jobs.append(
+            base
+            | {
+                "dataset": None,
+                "record": out,
+                "argv": argv,
+                "configs": listed,
+                "runs": r.get("runs"),
+                "lock": lock,
+            }
+        )
+    return jobs
+
+
+HSOSP_GATED_ROWS = ("maintain", "sosp_update", "static", "dynamic_comparable", "dynamic")
+
+
+def hsosp_required_rows(batches: int) -> list[str]:
+    """The gated rows of a timed configuration (HD3): every per-batch row and load_plus_dynamic."""
+    return [f"{r}[b{k}]" for r in HSOSP_GATED_ROWS for k in range(1, batches + 1)] + [
+        "load_plus_dynamic"
+    ]
+
+
+def hsosp_sample_problems(result: dict, need_rounds: int | None) -> list[str]:
+    """A timed configuration's samples: at least the reading's rounds, one per round on both sides
+    of every row that has them (every gated row must), its medians those of its samples."""
+    out = []
+    n = result.get("rounds")
+    if not isinstance(n, int) or n < 1:
+        return [f"rounds {n!r} is not a count"]
+    if need_rounds and n < need_rounds:
+        out.append(f"{n} rounds, the reading needs {need_rounds}")
+    if len(result.get("port_rounds") or []) not in (0, n):
+        out.append(f"port_rounds: {len(result['port_rounds'])} rounds, the record says {n}")
+    for reg in result.get("regions") or []:
+        name = reg.get("region")
+        gated = "gate" in reg
+        for side in ("original", "port"):
+            samples = reg.get(f"{side}_runs")
+            if not samples and not gated:
+                continue
+            if not isinstance(samples, list) or len(samples) != n:
+                count = len(samples) if isinstance(samples, list) else "no"
+                out.append(f"{name}: {count} {side} samples for {n} rounds")
+                continue
+            med = statistics.median(samples)
+            got = reg.get(f"{side}_ms")
+            if not isinstance(got, int | float) or abs(med - got) > 1e-6 * max(1.0, abs(med)):
+                out.append(f"{name}: the {side} median {got} is not its samples' {med}")
+    return out
+
+
+def hsosp_protocol_problems(job: dict, reading: dict, record: dict) -> list[str]:
+    """The protocol fields of a hyper_sssp record against its reading (HD4, ADRs 0018 / 0021 /
+    0024, D1): a timed reading or probe on its GPU inside an exclusive-lock window, EAGER and no
+    OMP_*, one heap layout, the unpatched original, the port with --sync-stages; a memory reading
+    on GPU 1 under the shared lock with D1's nsys command and no foreign GPU process."""
+    proto = record.get("protocol") or {}
+    out = []
+    kind = job["kind"]
+    if kind == "probe":
+        lock = record.get("lock") or {}
+        if lock.get("DYNG_PERF_LOCK_HELD") != "1":
+            out.append("not taken inside an exclusive-lock window (DYNG_PERF_LOCK_HELD)")
+        return out
+    gpu = int(reading.get("gpu", 1 if kind == "memory" else 0))
+    if proto.get("gpu") != gpu:
+        out.append(f"GPU {proto.get('gpu')!r}, the reading's is {gpu}")
+    if kind in ("run", "kernels"):
+        if (proto.get("lock") or {}).get("DYNG_PERF_LOCK_HELD") != "1":
+            out.append("not taken inside an exclusive-lock window (DYNG_PERF_LOCK_HELD)")
+        if proto.get("env") != HSOSP_ENV:
+            out.append(f"environment {proto.get('env')!r}, the protocol's is {HSOSP_ENV!r}")
+    if kind == "run":
+        if not str(proto.get("layout", "")).startswith("one"):
+            out.append(f"layout {proto.get('layout')!r}: the protocol runs one heap layout")
+        if "--sync-stages" not in str(proto.get("port", "")):
+            out.append(f"port {proto.get('port')!r}: the port runs with --sync-stages")
+        if "UNPATCHED" not in str(proto.get("original", "")):
+            out.append("the original is not the unpatched copy")
+        if clock_control(record) != reading.get("clocks"):
+            out.append(f"clocks {clock_control(record)!r}, the reading's {reading.get('clocks')!r}")
+    if kind == "memory":
+        if not str(proto.get("lock", "")).startswith("shared"):
+            out.append(f"lock {proto.get('lock')!r}: a memory reading runs under the shared lock")
+        if not str(proto.get("nsys", "")).startswith(HSOSP_NSYS):
+            out.append(f"nsys {proto.get('nsys')!r}: D1's command is {HSOSP_NSYS!r}")
+        if record.get("counts") is not True or (record.get("gpu_samples") or {}).get("foreign"):
+            out.append("a foreign process on the GPU during the reading: it does not count")
+    return out
+
+
+def hsosp_read_record(
+    suite: dict,
+    job: dict,
+    reading: dict,
+    record: dict,
+    tol: dict,
+    problems: list[str],
+    where: str,
+    base_name: str,
+) -> dict:
+    """A hyper_sssp reading's rows with their verdicts, checked against the suite (check_hsosp
+    rules: the configurations, the protocol, the samples, the guards, the audit, HD7's scope, every
+    gated row; the memory gates in bytes; the probe's and the kernels' records recorded)."""
+    base = suite["baselines"][base_name]
+    ref = record.get("reference") if isinstance(record.get("reference"), dict) else {}
+    if ref.get("name") != base_name or ref.get("commit") != base["commit"]:
+        problems.append(
+            f"{where}: reference {ref.get('name')}@{ref.get('commit')} is not "
+            f"{base_name}@{base['commit']}"
+        )
+    if ref.get("variant") != "unpatched" or "/patched" in str(ref.get("exe", "")):
+        problems.append(f"{where}: not the unpatched original")
+    if record.get("algorithm") != "hyper_sssp":
+        problems.append(
+            f"{where}: a record of {record.get('algorithm')!r}, the suite's is hyper_sssp"
+        )
+    for problem in hsosp_protocol_problems(job, reading, record):
+        problems.append(f"{where}: {problem}")
+    port = record.get("port") or {}
+    if (
+        job["kind"] in ("run", "memory", "kernels")
+        and (port.get("build") or {}).get("parity_preset") is not True
+    ):
+        problems.append(f"{where}: the port was not a parity-cuda build")
+    by_name = {d["name"]: d for d in suite["datasets"]}
+    configs = hsosp_configs()
+    results = record.get("results") or {}
+    regions: list[dict] = []
+    complete = True
+    inputs_problems: list[str] = []
+    if job["kind"] == "probe":
+        ds = HSOSP_DATASETS[reading["dataset"]]
+        probe = (record.get("probe") or {}).get(ds)
+        if not probe or len(probe.get("rounds") or []) < int(reading["runs"]):
+            problems.append(f"{where}: no probe of {ds} with {reading['runs']} rounds")
+            complete = False
+        got = (record.get("datasets_sha256") or {}).get(ds)
+        if got != by_name[reading["dataset"]]["sha256"]:
+            inputs_problems.append(f"{ds}: SHA-256 {got} is not the suite's")
+    else:
+        if sorted(results) != sorted(job["configs"]):
+            problems.append(
+                f"{where}: configurations {sorted(results)}, the reading's are "
+                f"{sorted(job['configs'])}"
+            )
+            complete = False
+        for name, res in results.items():
+            dataset = configs.get(name, (None,))[0]
+            want = by_name.get(dataset, {}).get("sha256")
+            if (res.get("input") or {}).get("sha256") != want:
+                inputs_problems.append(f"{name}: input SHA-256 is not the suite's {want}")
+            nb = int(res.get("batches") or 0)
+            if job["kind"] == "run":
+                for problem in hsosp_sample_problems(res, job.get("runs")):
+                    problems.append(f"{where}: {name}: {problem}")
+                g = res.get("guard") or {}
+                if g.get("passed") is not True or g.get("rounds_checked", 0) < res.get("rounds", 1):
+                    problems.append(
+                        f"{where}: {name}: the per-round guard did not pass in every round"
+                    )
+                audit = res.get("audit") or {}
+                if reading.get("gated") and (audit.get("flagged") or "flagged" not in audit):
+                    problems.append(
+                        f"{where}: {name}: the contamination audit flags rounds "
+                        f"{audit.get('flagged_rounds')}: take the reading again"
+                    )
+                monitor = res.get("monitor") or {}
+                if (
+                    reading.get("gated")
+                    and reading.get("clocks") != "none"
+                    and monitor.get("clocks_locked_in_every_round") is False
+                ):
+                    problems.append(f"{where}: {name}: the clocks did not hold in every round")
+                if res.get("scope_differs"):
+                    problems.append(
+                        f"{where}: {name}: scope differs (the fallback decisions "
+                        "differ from the golden's in more than a third of the "
+                        "rounds; HD7: listed for the author)"
+                    )
+                have = {reg.get("region") for reg in res.get("regions") or [] if "gate" in reg}
+                missing = [r for r in hsosp_required_rows(nb) if r not in have]
+                if reading.get("gated") and (missing or nb != 3):
+                    problems.append(
+                        f"{where}: {name}: {nb} batches; no gated row {', '.join(missing)}"
+                    )
+                    complete = False
+                for reg in res.get("regions") or []:
+                    row = {
+                        "case": name,
+                        "region": reg["region"],
+                        "gate_kind": reg.get("gate_kind", "none"),
+                        "original_ms": reg.get("original_ms"),
+                        "port_ms": reg.get("port_ms"),
+                        "ratio": reg.get("ratio"),
+                    }
+                    if "gate" in reg and reg.get("original_ms"):
+                        want_gate = expected_gate(tol, row["gate_kind"], reg["original_ms"])
+                        if want_gate is None or abs(reg["gate"] - want_gate) > 1e-9:
+                            problems.append(
+                                f"{where}: {name} {reg['region']}: the harness gated "
+                                f"at {reg['gate']}, the suite says {want_gate}"
+                            )
+                        row["gate"] = reg["gate"]
+                        row["within_gate"] = bool(reg["ratio"] <= reg["gate"])
+                        if row["within_gate"] != bool(reg.get("within_gate")):
+                            problems.append(
+                                f"{where}: {name} {reg['region']}: the harness's "
+                                "verdict disagrees with ratio <= gate"
+                            )
+                        row["provisional"] = False
+                        row["noisy"] = False
+                    regions.append(row)
+            elif job["kind"] == "memory":
+                g = res.get("guard") or {}
+                if g.get("passed") is not True or g.get("runs_checked", 0) < 4:
+                    problems.append(f"{where}: {name}: no guard on the measured processes")
+                gated = bool(reading.get("gated"))
+                orig, mine = res.get("original") or {}, res.get("port") or {}
+                if not all(isinstance(x.get("peak_live_bytes"), int) for x in (orig, mine)):
+                    problems.append(f"{where}: {name}: no device_memory peak (both sides' bytes)")
+                    complete = False
+                else:
+                    o, p = peak_mib(orig), peak_mib(mine)
+                    regions.append(
+                        {
+                            "case": name,
+                            "region": "device_memory",
+                            "gate_kind": "memory",
+                            "original_mib": o,
+                            "port_mib": p,
+                            "ratio": p / o,
+                            **(
+                                {
+                                    "gate": tol["memory"],
+                                    "within_gate": p / o <= tol["memory"],
+                                    "provisional": False,
+                                    "noisy": False,
+                                }
+                                if gated
+                                else {}
+                            ),
+                        }
+                    )
+                points = {pt.get("row"): pt for pt in res.get("graph_accounting") or []}
+                for k in range(nb + 1):
+                    row = "graph_memory[build]" if k == 0 else f"graph_memory[b{k}]"
+                    pt = points.get(row) or {}
+                    o, p = pt.get("mosp_escher_graph_bytes"), pt.get("dyng_graph_bytes")
+                    if not o or not p:
+                        problems.append(f"{where}: {name}: no graph-scope accounting at {row}")
+                        complete = False
+                        continue
+                    regions.append(
+                        {
+                            "case": name,
+                            "region": row,
+                            "gate_kind": "memory",
+                            "original_bytes": o,
+                            "port_bytes": p,
+                            "ratio": p / o,
+                            **(
+                                {
+                                    "gate": tol["memory"],
+                                    "within_gate": p / o <= tol["memory"],
+                                    "provisional": False,
+                                    "noisy": False,
+                                }
+                                if gated
+                                else {}
+                            ),
+                        }
+                    )
+            else:  # kernels: recorded
+                for reg in res.get("regions") or []:
+                    regions.append(
+                        {
+                            "case": name,
+                            "region": reg["region"],
+                            "gate_kind": "none",
+                            "original_ms": reg.get("original_ms"),
+                            "port_ms": reg.get("port_ms"),
+                            "ratio": reg.get("ratio"),
+                            "clock_reading": reg.get("reading"),
+                        }
+                    )
+    # The clocks of a gated reading are its dataset's probe's (HD4): boost if it held.
+    if job["kind"] == "run" and reading.get("gated") and reading.get("probe"):
+        probe_reading = next((r for r in suite["readings"] if r["name"] == reading["probe"]), None)
+        path = Path(job["record"]).parent / record_name(suite, probe_reading or {}, None)
+        decided = None
+        if probe_reading and path.is_file():
+            doc = json.loads(path.read_text())
+            decided = (doc.get("clocks") or {}).get(HSOSP_DATASETS[probe_reading["dataset"]])
+        if decided != reading.get("clocks"):
+            problems.append(
+                f"{where}: clocks {reading.get('clocks')!r}, the probe "
+                f"{reading['probe']} decided {decided!r} (HD4)"
+            )
+    for problem in inputs_problems:
+        problems.append(f"{where}: {problem}")
+    inputs = {
+        "datasets": sorted({configs[c][0] for c in results if c in configs})
+        or ([reading["dataset"]] if reading.get("dataset") else []),
+        "verified": not inputs_problems,
+        "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each "
+        "configuration; the probe's datasets likewise)",
+    }
+    if inputs_problems:
+        inputs["problems"] = inputs_problems
+    return {
+        "reading": job["reading"],
+        "dataset": job["dataset"],
+        "kind": job["kind"],
+        "backend": "cuda",
+        "clocks": reading.get("clocks"),
+        "gated": reading["gated"],
+        "record": Path(job["record"]).name,
+        "date": record.get("date"),
+        "port_commit": port.get("commit"),
+        "reference": {
+            "name": ref.get("name"),
+            "commit": ref.get("commit") or base["commit"],
+            "variant": ref.get("variant", "unpatched"),
+        },
+        "protocol": {
+            k: v
+            for k, v in (record.get("protocol") or {}).items()
+            if k in ("rounds", "env", "lock", "statistic", "order", "gpu")
+        },
+        "host": record.get("host"),
+        "driver": record.get("driver") or record.get("versions"),
+        "inputs": inputs,
+        "complete": complete,
+        "contaminated_runs": {},
+        "regions": regions,
+        "_raw": record,
+    }
 
 
 def validate_triad(suite: dict, datasets: dict, batches: dict, need) -> None:
@@ -503,6 +1080,10 @@ def validate(suite: dict) -> list[str]:
                 engine in CUDA_ENGINES,
                 f"backends.cuda.engine must be one of {CUDA_ENGINES} (perf_ab.py --cuda-engine)",
             )
+    elif algorithm == "hyper_sssp":
+        # Its readings (their kinds, clocks, configurations and probes) are checked there.
+        validate_hsosp(suite, datasets, batches, need)
+        return errors
     elif algorithm == "triad_count":
         validate_triad(suite, datasets, batches, need)
     else:
@@ -616,6 +1197,10 @@ def plan(
         batch_names = [b for b in batch_names if b in batches]
     if keep_contaminated and algorithm not in PER_DATASET:
         raise SuiteError(f"--keep-contaminated is for the suites of {PER_DATASET}")
+    if algorithm == "hyper_sssp":
+        return hsosp_jobs(
+            suite, selected, records=records, build_root=build_root, datasets=datasets, runs=runs
+        )
     py = sys.executable
     harness = str(REPO / "parity" / "perf_ab.py")
     jobs = []
@@ -1060,6 +1645,8 @@ def read_record(
     backend = reading["backend"]
     base_name = suite["backends"][backend]["baseline"]
     base = suite["baselines"][base_name]
+    if suite["algorithm"] == "hyper_sssp":
+        return hsosp_read_record(suite, job, reading, record, tol, problems, where, base_name)
     ref = record.get("reference", {})
     if ref.get("name") != base_name or (ref.get("commit") and ref["commit"] != base["commit"]):
         problems.append(

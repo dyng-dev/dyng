@@ -1,0 +1,240 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Benchmark-suite record (PLAN Section 8.5) of dynG's `hyper_sssp`: the dynamic single-source
+# shortest hyperpath update of H-SOSP ("Parallel Shortest Hyperpath Update in Large Dynamic
+# Hypergraphs", IA3 at SC26), as MOSP_ESCHER@4b86159 computes it (`bin/hsospBench --hg`, the
+# paper's batch model) and as its results/README.md reports it. The suite reads the gates of M11a
+# (parity/results/M11a.md; PLAN Sections 6.4.8 and 8.6; ADR 0080, ADR 0093): per batch of every
+# paper configuration the maintain, sosp_update, static, dynamic_comparable and dynamic rows and
+# end to end load_plus_dynamic, against the UNPATCHED hsospBench re-measured in the same session
+# (HD3, HD4), and the device memory of both processes (HD6, GOVERNANCE D1).
+#
+# Machine-readable: parity/bench_suite.py validates this file, checks the inputs against the
+# digests below and plans every reading through the A/B harness (parity/perf_ab.py hyper_sssp,
+# parity/hsosp_perf.py); each timed command runs in its own exclusive-lock window of the shared
+# calendar (tools/locklog.py run --reset-gpu 0 EXCL ...), the memory reading in a GPU1-QUIET
+# window. docs/developer/benchmarks.md describes the format. From 0.4.0 on parity/certify.py
+# requires this suite's summary, with every gated row below, in a release certificate
+# (REQUIRED_SUITES; the protocol decided by the author on 2026-10-28, HD3-HD7).
+schema: 1
+suite: ia3_hsosp
+title: "H-SOSP: dynamic shortest hyperpaths under hyperedge and vertex batches (dynG hyper_sssp)"
+algorithm: hyper_sssp
+paper:
+  short: H-SOSP
+  venue: IA3 2026 (SC26 Workshops)
+  scope: >-
+    per batch the paper's dynamic time (ESCHER maintenance + unification + CSR apply + SOSP
+    update with its budget fallback; hsospBench's t_dynamic_total_ms), its maintain part
+    (t_delta_ms + t_csr_apply_ms), the SOSP update (t_sosp_update_ms) and the static recompute
+    baseline (t_static_ms), and the load plus the three batches end to end ([e2e] load +
+    dynamic), as MOSP_ESCHER@4b86159's results/README.md defines them; one process per
+    configuration, B's argv (`--hg <file> --kind <kind> --batch <size> --batches 3 --del 50
+    --verify none`, its defaults seed 20260725, --maxcard 25, maxIterations 4096,
+    workBudget 1.0).
+harness:
+  tool: perf_ab.hyper_sssp         # parity/perf_ab.py hyper_sssp run|memory|probe|kernels (parity/hsosp_perf.py)
+  inputs: $DYNG_SCRATCH
+  executable: tools/compat/dyng-compat-hsosp
+  presets: {openmp: parity, cuda: parity-cuda}
+  region_map: parity/timed_regions/hyper_sssp.toml
+  goldens: hyper_sssp_mosp_escher   # every round's pairs, distances, parents and B's counters are compared with the golden's
+datasets:
+  - name: coauth
+    file: datasets/hyper/coauth.hg
+    source: {collection: "A. R. Benson's hypergraph collection", id: coauth-DBLP-full, url: "https://www.cs.cornell.edu/~arb/data/coauth-DBLP/"}
+    recipe: >-
+      the .hg of datasets/registry.toml's coauth-DBLP-hsosp (MOSP_ESCHER's scripts/benson_to_hg.py
+      and dynG's datasets/preprocess/benson_to_hg.py give the same bytes); B's loader at
+      --maxcard 25 keeps 2,466,792 hyperedges and 1,924,991 vertices
+    sha256: 65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6
+  - name: geology
+    file: datasets/hyper/geology.hg
+    source: {collection: "A. R. Benson's hypergraph collection", id: coauth-MAG-Geology, url: "https://www.cs.cornell.edu/~arb/data/coauth-MAG-Geology/"}
+    recipe: >-
+      the .hg of datasets/registry.toml's coauth-MAG-Geology-hsosp, re-derived byte for byte by
+      both converters from Benson's restricted archive coauth-MAG-Geology (MOSP_ESCHER's README
+      names coauth-MAG-Geology-full, which gives a different file; the author's decision of
+      2026-10-29, HD15); B's loader at --maxcard 25 keeps 1,203,895 hyperedges and 1,256,385
+      vertices
+    sha256: 884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1
+batches:       # B's paper batch model, its batches exported and replayed by the port (HD5)
+  - {name: b25000, generator: golden.hyper_sssp_mosp_escher, size: 25000, batches: 3, del_pct: 50, seed: 20260725, kinds: [hyperedge, vertex]}
+  - {name: b50000, generator: golden.hyper_sssp_mosp_escher, size: 50000, batches: 3, del_pct: 50, seed: 20260725, kinds: [hyperedge, vertex]}
+  - {name: b100000, generator: golden.hyper_sssp_mosp_escher, size: 100000, batches: 3, del_pct: 50, seed: 20260725, kinds: [hyperedge, vertex]}
+  - {name: b200000, generator: golden.hyper_sssp_mosp_escher, size: 200000, batches: 3, del_pct: 50, seed: 20260725, kinds: [hyperedge, vertex]}
+backends:
+  cuda:
+    gpu: 0
+    environment: CUDA_MODULE_LOADING=EAGER on both sides, no OMP_* variables (B runs its host work on 56 unpinned threads); resources::warm_up() (dynG)
+    port: dyng-compat-hsosp bench --golden <the configuration's dump> --sync-stages --digests --threads <hardware threads>
+    baseline: MOSP_ESCHER
+metrics:       # region (parity/timed_regions/hyper_sssp.toml) -> the dynG profiler stages it sums
+  maintain[b1]:
+    gate: compute
+    cuda: {original: "csv:t_delta_ms + csv:t_csr_apply_ms of batch 1", port: [hypergraph.apply]}
+  maintain[b2]:
+    gate: compute
+    cuda: {original: "csv:t_delta_ms + csv:t_csr_apply_ms of batch 2", port: [hypergraph.apply]}
+  maintain[b3]:
+    gate: compute
+    cuda: {original: "csv:t_delta_ms + csv:t_csr_apply_ms of batch 3", port: [hypergraph.apply]}
+  sosp_update[b1]:
+    gate: compute
+    cuda: {original: "csv:t_sosp_update_ms of batch 1", port: [hyper_sssp.identify_affected, hyper_sssp.seed, hyper_sssp.loop, hyper_sssp.recompute, hyper_sssp.finalize]}
+  sosp_update[b2]:
+    gate: compute
+    cuda: {original: "csv:t_sosp_update_ms of batch 2", port: [hyper_sssp.identify_affected, hyper_sssp.seed, hyper_sssp.loop, hyper_sssp.recompute, hyper_sssp.finalize]}
+  sosp_update[b3]:
+    gate: compute
+    cuda: {original: "csv:t_sosp_update_ms of batch 3", port: [hyper_sssp.identify_affected, hyper_sssp.seed, hyper_sssp.loop, hyper_sssp.recompute, hyper_sssp.finalize]}
+  static[b1]:
+    gate: compute
+    cuda: {original: "csv:t_static_ms of batch 1", port: [hyper_sssp.compute]}
+  static[b2]:
+    gate: compute
+    cuda: {original: "csv:t_static_ms of batch 2", port: [hyper_sssp.compute]}
+  static[b3]:
+    gate: compute
+    cuda: {original: "csv:t_static_ms of batch 3", port: [hyper_sssp.compute]}
+  dynamic_comparable[b1]:
+    gate: compute
+    cuda: {original: "csv:t_delta_ms + csv:t_csr_apply_ms + csv:t_sosp_update_ms of batch 1", port: [hyper_sssp.update]}
+  dynamic_comparable[b2]:
+    gate: compute
+    cuda: {original: "csv:t_delta_ms + csv:t_csr_apply_ms + csv:t_sosp_update_ms of batch 2", port: [hyper_sssp.update]}
+  dynamic_comparable[b3]:
+    gate: compute
+    cuda: {original: "csv:t_delta_ms + csv:t_csr_apply_ms + csv:t_sosp_update_ms of batch 3", port: [hyper_sssp.update]}
+  dynamic[b1]:
+    gate: compute
+    cuda: {original: "csv:t_dynamic_total_ms of batch 1 (PLAN 6.4.8's figure; flagged in the improvement table)", port: [hyper_sssp.update]}
+  dynamic[b2]:
+    gate: compute
+    cuda: {original: "csv:t_dynamic_total_ms of batch 2 (PLAN 6.4.8's figure; flagged in the improvement table)", port: [hyper_sssp.update]}
+  dynamic[b3]:
+    gate: compute
+    cuda: {original: "csv:t_dynamic_total_ms of batch 3 (PLAN 6.4.8's figure; flagged in the improvement table)", port: [hyper_sssp.update]}
+  load_plus_dynamic:
+    gate: end_to_end
+    cuda: {original: "e2e:load + e2e:dynamic ([e2e] line: the load from main and the summed batches)", port: [driver.load, hyper_sssp.update]}
+  # Reported, not gated (HD3): the stages B times inside the maintain row.
+  escher[b1]:
+    gate: none
+    cuda: {original: "csv:t_escher_ms of batch 1", port: [hypergraph.apply.ids]}
+  escher[b2]:
+    gate: none
+    cuda: {original: "csv:t_escher_ms of batch 2", port: [hypergraph.apply.ids]}
+  escher[b3]:
+    gate: none
+    cuda: {original: "csv:t_escher_ms of batch 3", port: [hypergraph.apply.ids]}
+  delta[b1]:
+    gate: none
+    cuda: {original: "csv:t_delta_ms of batch 1", port: [hypergraph.apply.normalize, hypergraph.apply.incidence, hypergraph.apply.translate]}
+  delta[b2]:
+    gate: none
+    cuda: {original: "csv:t_delta_ms of batch 2", port: [hypergraph.apply.normalize, hypergraph.apply.incidence, hypergraph.apply.translate]}
+  delta[b3]:
+    gate: none
+    cuda: {original: "csv:t_delta_ms of batch 3", port: [hypergraph.apply.normalize, hypergraph.apply.incidence, hypergraph.apply.translate]}
+  csr_apply[b1]:
+    gate: none
+    cuda: {original: "csv:t_csr_apply_ms of batch 1", port: [hypergraph.apply.line_graph]}
+  csr_apply[b2]:
+    gate: none
+    cuda: {original: "csv:t_csr_apply_ms of batch 2", port: [hypergraph.apply.line_graph]}
+  csr_apply[b3]:
+    gate: none
+    cuda: {original: "csv:t_csr_apply_ms of batch 3", port: [hypergraph.apply.line_graph]}
+  device_memory:
+    gate: memory
+    cuda: {original: "peak live device allocations of hsospBench --verify none (nsys; B has no NVTX ranges)", port: "peak live device allocations of dyng-compat-hsosp bench --nvtx (nsys)"}
+  graph_memory:
+    gate: memory
+    cuda: {original: "graph_mb's scope after the build and after each batch: DeviceH2H::deviceBytes() (the golden's recording) + both states, checked against B's printed graph_mb", port: "the slack_csr store, its mirror and both results at the same points (the driver's [memory] lines)"}
+baselines:     # the pinned original, built from the UNPATCHED scratch copy by its own Makefile
+  MOSP_ESCHER: {commit: 4b86159ec0b3bfe6e18c718ff4bef1494d7276a5, variant: unpatched, backend: cuda}
+tolerance:     # PLAN 8.6 (HD3): port / original median
+  compute: 1.05
+  compute_short: 1.10
+  short_region_ms: 10.0
+  end_to_end: 1.10
+  memory: 1.05
+readings:      # what one execution of the suite runs; configurations <dblp|geology>_<kind>_<size>
+  - name: probe-dblp
+    kind: probe          # ADR 0021, HD4: B's heaviest configuration 3 rounds at boost, recorded
+    backend: cuda
+    dataset: coauth
+    clocks: boost
+    runs: 3
+    gated: false
+  - name: probe-geology
+    kind: probe
+    backend: cuda
+    dataset: geology
+    clocks: boost
+    runs: 3
+    gated: false
+  - name: cuda-dblp
+    kind: run
+    backend: cuda
+    clocks: base     # probe-dblp: the boost lock did not hold (ADR 0021)
+    probe: probe-dblp
+    runs: 21
+    gated: true
+    configs: [dblp_hyperedge_25000, dblp_hyperedge_50000, dblp_hyperedge_100000, dblp_hyperedge_200000, dblp_vertex_25000, dblp_vertex_50000, dblp_vertex_100000, dblp_vertex_200000]
+  - name: cuda-geology
+    kind: run
+    backend: cuda
+    clocks: base     # probe-geology: the boost lock did not hold (ADR 0021)
+    probe: probe-geology
+    runs: 21
+    gated: true
+    configs: [geology_hyperedge_25000, geology_hyperedge_50000, geology_hyperedge_100000, geology_hyperedge_200000, geology_vertex_25000, geology_vertex_50000, geology_vertex_100000, geology_vertex_200000]
+  - name: cuda-default-clocks
+    kind: run
+    backend: cuda
+    clocks: none     # ADR 0018: recorded, not gated (HD4)
+    runs: 11
+    gated: false
+    configs: [dblp_hyperedge_50000, dblp_vertex_50000, geology_hyperedge_50000, geology_vertex_50000]
+  - name: cuda-memory
+    kind: memory
+    backend: cuda
+    gpu: 1           # GOVERNANCE D1: under the shared lock, in a GPU1-QUIET window
+    gated: true
+    configs: [dblp_hyperedge_50000, dblp_vertex_50000, geology_hyperedge_50000]
+  - name: cuda-memory-large
+    kind: memory
+    backend: cuda
+    gpu: 1
+    gated: false     # HD6: the 200K configurations recorded
+    configs: [dblp_hyperedge_200000, dblp_vertex_200000, geology_hyperedge_200000, geology_vertex_200000]
+  - name: cuda-kernels
+    kind: kernels
+    backend: cuda
+    clocks: base     # ncu --clock-control base, recorded (ADR 0018 rule 1)
+    runs: 3
+    gated: false
+    configs: [dblp_hyperedge_50000, dblp_vertex_50000, geology_hyperedge_50000, geology_vertex_50000]
+paper_reference:   # informational: MOSP_ESCHER results/README.md (commit 07bbceb, CUDA 12.9, default clocks, RTX A5000, medians of 3 runs of the per-run mean over 3 batches); no gate uses them
+  hardware: RTX A5000 (sm_86), 56 host threads, CUDA 12.9 (final build)
+  dynamic_ms:
+    dblp: {hyperedge_25000: 107, hyperedge_50000: 169, hyperedge_100000: 275, hyperedge_200000: 470, vertex_25000: 60.6, vertex_50000: 92.2, vertex_100000: 144, vertex_200000: 250}
+    geology: {hyperedge_25000: 70.0, hyperedge_50000: 113, hyperedge_100000: 199, hyperedge_200000: 337, vertex_25000: 35.3, vertex_50000: 63.4, vertex_100000: 96.0, vertex_200000: 165}
+  static_ms:
+    dblp: {hyperedge_25000: 78.3, hyperedge_50000: 79.3, hyperedge_100000: 79.9, hyperedge_200000: 82.0, vertex_25000: 77.6, vertex_50000: 78.2, vertex_100000: 78.3, vertex_200000: 78.6}
+    geology: {hyperedge_25000: 26.8, hyperedge_50000: 26.7, hyperedge_100000: 27.4, hyperedge_200000: 27.2, vertex_25000: 27.3, vertex_50000: 27.4, vertex_100000: 26.7, vertex_200000: 26.9}
+  update_stage_ms:
+    dblp: {hyperedge_25000: 3.2, hyperedge_50000: 6.2, hyperedge_100000: 10.1, hyperedge_200000: 20.2, vertex_25000: 2.7, vertex_50000: 3.8, vertex_100000: 5.7, vertex_200000: 10.5}
+    geology: {hyperedge_25000: 2.3, hyperedge_50000: 3.3, hyperedge_100000: 17.7, hyperedge_200000: 19.6, vertex_25000: 1.5, vertex_50000: 2.3, vertex_100000: 5.9, vertex_200000: 6.6}
+  load_plus_3_batches_s:
+    dblp: {hyperedge_25000: 5.33, hyperedge_50000: 5.53, hyperedge_100000: 5.84, hyperedge_200000: 6.42, vertex_25000: 5.20, vertex_50000: 5.24, vertex_100000: 5.38, vertex_200000: 5.72}
+    geology: {hyperedge_25000: 2.34, hyperedge_50000: 2.51, hyperedge_100000: 2.75, hyperedge_200000: 3.14, vertex_25000: 2.25, vertex_50000: 2.30, vertex_100000: 2.41, vertex_200000: 2.65}
+  note: >-
+    B's figures were taken at commit 07bbceb with CUDA 12.9 at default clocks without a clock
+    lock (its README: "The tables were not re-measured after them" for the later commits); its
+    static/dynamic ratios are 0.08-1.28, against the 1.3-12.1x the paper reports on DBLP (A100).
+    The gates compare against the unpatched B@4b86159 re-measured in the same session under the
+    protocol above (PLAN 8.6), never against these figures.

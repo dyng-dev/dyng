@@ -268,6 +268,7 @@ def probe(args: argparse.Namespace) -> int:
         with LoadSampler() as sampler:
             for dataset in [d for d in hg.DATASETS if d in args.datasets]:
                 path = hg.check_dataset(args.scratch, dataset)
+                record.setdefault("datasets_sha256", {})[dataset] = hg.DATASETS[dataset][1]
                 with (
                     perf_ab.ClockLock(args.gpu, args.probe_lock) as clocks,
                     perf_ab.MachineMonitor(
@@ -1617,6 +1618,8 @@ def kernels_main(args: argparse.Namespace) -> int:
             results[name] = {
                 "config": name,
                 "dataset": dataset,
+                "batches": len(golden),
+                "input": {"file": hg.portable(path), "sha256": hg.DATASETS[dataset][1]},
                 "rounds": args.rounds,
                 "regions": rows,
                 "launch": launch,
