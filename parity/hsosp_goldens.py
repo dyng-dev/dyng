@@ -2115,7 +2115,17 @@ def results_main(args) -> int:
                     rep = json.loads(js.read_text())[0]
                 rep["file"] = f"{case}/dump.hsd.zst"
                 rep["wall_seconds"] = round(time.monotonic() - t0, 1)
-                calls = rep.get("calls", [])
+                calls = rep.pop("calls", [])
+                # The per-call digests by their own digest (a record stays small): equal digests
+                # are equal results of every call, in order. The fallback decisions (logged per
+                # backend: HD7) are digested apart and not compared across backends.
+                results = [c[:6] for c in calls]
+                rep["calls_count"] = len(calls)
+                rep["calls_sha256"] = hashlib.sha256(json.dumps(results).encode()).hexdigest()
+                rep["fallbacks_sha256"] = hashlib.sha256(
+                    json.dumps([c[6:] for c in calls]).encode()
+                ).hexdigest()
+                calls = results
                 if digests is None:
                     digests = calls
                 elif calls != digests:
@@ -2141,14 +2151,14 @@ def results_main(args) -> int:
                 dump.unlink()
     if args.same_as:
         other = json.loads(Path(args.same_as).read_text())
-        theirs = {c["file"]: c.get("calls") for c in other.get("cases", [])}
+        theirs = {c["file"]: c.get("calls_sha256") for c in other.get("cases", [])}
         compared = 0
         for rep in reports:
             if rep.get("repeat_of"):
                 continue
             if rep["file"] in theirs:
                 compared += 1
-                if theirs[rep["file"]] != rep.get("calls"):
+                if theirs[rep["file"]] != rep.get("calls_sha256"):
                     problems.append(f"{rep['file']}: the digests differ from {args.same_as}")
         print(f"--same-as {args.same_as}: {compared} cases compared")
     totals = {

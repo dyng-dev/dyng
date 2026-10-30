@@ -75,8 +75,15 @@ EARLY_GO = 1.03
 EARLY_FIX = 1.05
 PORT_BATCH = re.compile(
     r"^\[batch (\d+)\] pairs ([0-9a-f]{64}) deleted (\d+) inserted (\d+) h2h_pairs (-?\d+) "
-    r"csr_rebuilds (\d+)$"
+    r"csr_rebuilds (\d+)(?: distances ([0-9a-f]{64}) parents ([0-9a-f]{64}) fallback (\d) "
+    r"mismatch_static (-?\d+))?$"
 )
+# The gate bars of HD3 (parity/timed_regions/hyper_sssp.toml): a compute row at 1.05 where B's
+# median is at least 10 ms, else 1.10 (with at least 21 rounds); an end-to-end row at 1.10.
+COMPUTE_BAR = 1.05
+SHORT_BAR = 1.10
+SHORT_MS = 10.0
+END_TO_END_BAR = 1.10
 # The contamination audit of ADR 0056 section 4 and HD4's rule for H-SOSP.
 AUDIT_LOAD = 16.0
 AUDIT_BLOCKED = 4
@@ -322,10 +329,15 @@ def golden_case(scratch: Path, name: str) -> tuple[dict, Path]:
 
 def golden_batches(case: dict) -> list[dict]:
     """Per batch what the guards compare: B's pair count and pairs digest, and the CSR rebuilds so
-    far (overflow_rebuilds counts them over the run)."""
+    far (overflow_rebuilds counts them over the run); and of its update of state A after the batch
+    the digests of the distances and parents, the invalidated count (seeds) and the fallback
+    decision (HD7)."""
     out, rebuilds = [], 0
-    for a in case["sessions"][0]["apply"]:
+    session = case["sessions"][0]
+    updates = {int(c["batches"]): c for c in session.get("sssp", []) if c.get("kind") == "update"}
+    for k, a in enumerate(session["apply"], 1):
         rebuilds += int(a["counters"]["bt.csr_rebuilt"])
+        u = updates.get(k, {})
         out.append(
             {
                 "h2h_pairs": int(a["h2h_pair_count"]),
@@ -333,6 +345,10 @@ def golden_batches(case: dict) -> list[dict]:
                 "pairs_deleted": int(a["pairs.deleted"]),
                 "pairs_inserted": int(a["pairs.inserted"]),
                 "overflow_rebuilds": rebuilds,
+                "distances_sha256": u.get("distances.sha256"),
+                "parents_sha256": u.get("parents.sha256"),
+                "seeds": int(u["seed_count"]) if "seed_count" in u else None,
+                "fallback": int(u["fallback"]) if "fallback" in u else None,
             }
         )
     return out
@@ -354,7 +370,31 @@ def guard_original(rows: list[dict], golden: list[dict]) -> list[str]:
             )
         if int(r["mismatch_static"]) != 0:
             problems.append(f"original b{k}: mismatch_static {r['mismatch_static']}")
+        if "seeds" in r and g.get("seeds") is not None and int(r["seeds"]) != g["seeds"]:
+            problems.append(f"original b{k}: seeds {r['seeds']} != the golden's {g['seeds']}")
     return problems
+
+
+def decisions_differ(rows: list[dict], port: list[dict], golden: list[dict]) -> list[str]:
+    """The per-batch fallback decisions of both sides against the golden's (HD7: a differing round
+    is repeated, not a guard failure)."""
+    out = []
+    for k, g in enumerate(golden, 1):
+        if g.get("fallback") is None:
+            continue
+        if (
+            k <= len(rows)
+            and "fallback" in rows[k - 1]
+            and int(rows[k - 1]["fallback"]) != g["fallback"]
+        ):
+            out.append(f"original b{k}: fallback {rows[k - 1]['fallback']} != {g['fallback']}")
+        if (
+            k <= len(port)
+            and port[k - 1].get("fallback") is not None
+            and port[k - 1]["fallback"] != g["fallback"]
+        ):
+            out.append(f"port b{k}: fallback {port[k - 1]['fallback']} != {g['fallback']}")
+    return out
 
 
 def parse_port_batches(out: str) -> list[dict]:
@@ -370,6 +410,10 @@ def parse_port_batches(out: str) -> list[dict]:
                     "pairs_inserted": int(m.group(4)),
                     "h2h_pairs": int(m.group(5)),
                     "csr_rebuilds": int(m.group(6)),
+                    "distances_sha256": m.group(7),
+                    "parents_sha256": m.group(8),
+                    "fallback": int(m.group(9)) if m.group(9) is not None else None,
+                    "mismatch_static": int(m.group(10)) if m.group(10) is not None else None,
                 }
             )
     return rows
@@ -392,10 +436,25 @@ def guard_port(out: str, golden: list[dict]) -> list[str]:
         ):
             if r[key] != want:
                 problems.append(f"port b{k}: {key} {r[key]} != the golden's {want}")
+        # The full update (not --maintain-only): its result's digests and update == static.
+        if r.get("distances_sha256") is not None:
+            for key in ("distances_sha256", "parents_sha256"):
+                if r[key] != g.get(key):
+                    problems.append(f"port b{k}: {key} {r[key]} != the golden's {g.get(key)}")
+            if r.get("mismatch_static"):
+                problems.append(f"port b{k}: mismatch_static {r['mismatch_static']}")
     return problems
 
 
-def port_argv(exe: Path, path: Path, kind: str, size: int, golden: Path, work: Path) -> list:
+def port_argv(
+    exe: Path,
+    path: Path,
+    kind: str,
+    size: int,
+    golden: Path,
+    work: Path,
+    maintain_only: bool = True,
+) -> list:
     return [
         str(exe),
         "bench",
@@ -404,7 +463,7 @@ def port_argv(exe: Path, path: Path, kind: str, size: int, golden: Path, work: P
         str(golden),
         "--timing",
         str(work / TIMING_NAME),
-        "--maintain-only",
+        *(["--maintain-only"] if maintain_only else []),
         "--sync-stages",
         "--digests",
         "--threads",
@@ -461,6 +520,74 @@ def maintain_rows(b_rounds: list[list[dict]], p_rounds: list[dict], batches: int
     return out
 
 
+def bar_of(region: dict, original_ms: float, rounds: int) -> float | None:
+    """The gate bar of a gated row (HD3), None for a reported one."""
+    gate = region.get("gate", "none")
+    if gate == "end_to_end":
+        return END_TO_END_BAR
+    if gate == "compute":
+        return COMPUTE_BAR if original_ms >= SHORT_MS else SHORT_BAR
+    return None
+
+
+def port_value(region: dict, times: dict, batch: int) -> float:
+    """The port's value of a region in one round: its driver timers (port_report: steady_clock
+    around the call after a synchronization) where the map names them, else its stages."""
+    names = [n for n in region.get("port_report", []) if n != perf_ab.PROCESS_WALL_TIME]
+    if not names:
+        names = list(region.get("port", []))
+    return hypergraph_perf.region_value(times, names, batch)
+
+
+def full_rows(
+    regions: list[dict],
+    b_rounds: list[list[dict]],
+    b_e2e: list[dict],
+    p_rounds: list[dict],
+    b_wall: list[float],
+    p_wall: list[float],
+    batches: int,
+) -> list[dict]:
+    """Every row of parity/timed_regions/hyper_sssp.toml (ADR 0080): medians over the rounds, ratio
+    port / original, the bar of the gated rows (HD3) and the verdict."""
+    out = []
+    for region in regions:
+        keys = [(f"{region['name']}[b{k}]", k) for k in range(1, batches + 1)]
+        if not region.get("per_batch"):
+            keys = [(region["name"], None)]
+        for row, k in keys:
+            if region["name"] == "process":
+                a, b = b_wall, p_wall
+            else:
+                a = [
+                    perf_ab.hsosp_original_value(rows, e2e, region, k)
+                    for rows, e2e in zip(b_rounds, b_e2e, strict=True)
+                ]
+                b = [port_value(region, t, 0 if k is None else k) for t in p_rounds]
+            if not region.get("original_report") and region["name"] != "process":
+                a = []
+            ma = statistics.median(a) if a else None
+            mb = statistics.median(b) if b else None
+            ratio = mb / ma if ma and mb is not None else None
+            bar = bar_of(region, ma or 0.0, len(b_rounds)) if ma is not None else None
+            out.append(
+                {
+                    "row": row,
+                    "gate": region.get("gate", "none"),
+                    "original": region.get("original_report", []),
+                    "port": region.get("port_report") or region.get("port", []),
+                    "original_ms": ma,
+                    "port_ms": mb,
+                    "ratio": ratio,
+                    "bar": bar,
+                    "within": None if bar is None or ratio is None else ratio <= bar,
+                    "original_rounds": a,
+                    "port_rounds": b,
+                }
+            )
+    return out
+
+
 def audit(loads: list[dict], rule: dict) -> dict:
     flagged = [
         i + 1
@@ -476,9 +603,11 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
     case, dump = golden_case(args.scratch, name)
     golden = golden_batches(case)
     b_cmd = [str(b_exe), *hg.p_argv(path, kind, size, str(work / CSV_NAME))]
-    p_cmd = port_argv(exe, path, kind, size, dump, work)
+    p_cmd = port_argv(exe, path, kind, size, dump, work, args.maintain_only)
     b_rounds, p_rounds, windows, rejected, loads = [], [], [], [], []
+    b_e2e, b_wall, p_wall, differing = [], [], [], []
     guarded = 0
+    attempts = 0
     with perf_ab.MachineMonitor(
         args.gpu,
         args.max_foreign_cpu,
@@ -500,6 +629,18 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
             if bad:
                 raise SystemExit(f"{name}: round {r + 1}: the guard failed: {bad}")
             guarded += 1
+            attempts += 1
+            if not args.maintain_only:
+                # HD7: a round whose fallback decisions differ from the golden's is repeated (at
+                # most doubling the rounds); more than a third of differing rounds: scope differs.
+                diff = decisions_differ(rows, parse_port_batches(out_p), golden)
+                if diff:
+                    differing.append({"attempt": attempts, "decisions": diff})
+                    print(f"{name}: attempt {attempts}: decisions differ ({'; '.join(diff)})",
+                          flush=True)  # fmt: skip
+                    if attempts >= 2 * args.rounds:
+                        break
+                    continue
             reasons = win_b.get("reasons", []) + win_p.get("reasons", [])
             load = sampler.between(t0, t1)
             if reasons:
@@ -513,6 +654,10 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
             p_rounds.append(timing)
             windows.append({"original": win_b, "port": win_p})
             loads.append(load)
+            if not args.maintain_only:
+                b_e2e.append(perf_ab.parse_hsosp_e2e(out_b))
+                b_wall.append(float(win_b.get("wall_s", 0.0)) * 1000.0)
+                p_wall.append(float(win_p.get("wall_s", 0.0)) * 1000.0)
             m = [
                 (
                     round(
@@ -523,6 +668,36 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
                 for k in range(1, len(golden) + 1)
             ]
             print(f"{name} round {r}/{args.rounds}: maintain (B, port) {m}", flush=True)
+    if not args.maintain_only:
+        scope = len(differing) > attempts / 3
+        return {
+            "config": name,
+            "dataset": dataset,
+            "kind": kind,
+            "batch": size,
+            "rounds": len(b_rounds),
+            "attempts": attempts,
+            "decisions_differ": differing,
+            "scope_differs": scope,
+            "rows": full_rows(
+                perf_ab.load_hsosp_regions(),
+                b_rounds,
+                b_e2e,
+                p_rounds,
+                b_wall,
+                p_wall,
+                len(golden),
+            ),
+            "monitor": perf_ab.monitor_summary(windows, rejected, args.max_foreign_cpu),
+            "loads": loads,
+            "audit": audit(loads, audit_rule(args.quiet_max)),
+            "guard": {"rounds_checked": guarded, "passed": True},
+            "original_csv": [
+                [{k: r[k] for k in perf_ab.HSOSP_CSV_TIMES} for r in x] for x in b_rounds
+            ],
+            "original_e2e": b_e2e,
+            "port_rounds": [{f"{s}@{b}": v for (s, b), v in t.items()} for t in p_rounds],
+        }
     return {
         "config": name,
         "dataset": dataset,
@@ -542,10 +717,6 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
 
 
 def run(args: argparse.Namespace) -> int:
-    if not args.maintain_only:
-        print("hsosp_perf.py run: the full rows arrive with hyper_sssp (M11a step 5); use "
-              "--maintain-only", file=sys.stderr)  # fmt: skip
-        return 2
     exe = args.exe.resolve()
     b_exe = hg.reference_dir(args.scratch, "unpatched") / "bin" / "hsospBench"
     env = env_for(args.gpu)
@@ -568,19 +739,33 @@ def run(args: argparse.Namespace) -> int:
         print(f"{name} (GPU {args.gpu}; clocks {clocks.record.get('locked')}):")
         for row in res["rows"]:
             ratio = row["ratio"]
+            om = row["original_ms"]
+            verdict = row.get("verdict", "")
+            if row.get("bar") is not None:
+                verdict = f"bar {row['bar']}: " + ("within" if row["within"] else "ABOVE")
             print(
-                f"  {row['row']:16} original {row['original_ms']:9.2f} port {row['port_ms']:9.2f} "
-                f"ratio {ratio if ratio is None else round(ratio, 3)} {row.get('verdict', '')}"
+                f"  {row['row']:28} original {'-' if om is None else f'{om:9.2f}'} port "
+                f"{row['port_ms']:9.2f} ratio {ratio if ratio is None else round(ratio, 3)} "
+                f"{verdict}"
             )
+        if res.get("scope_differs"):
+            print(f"  scope differs: {len(res['decisions_differ'])} of {res['attempts']} attempts")
         if res["audit"]["flagged"]:
             print(f"  contamination audit: FLAGGED {res['audit']['flagged_rounds']}")
     if args.json:
         doc = {
             "schema": 1,
-            "algorithm": "hyper_sssp (the container's maintain row)",
-            "what": "M11a criterion 12: the early maintain reading against MOSP_ESCHER@4b86159 "
-            "(dyng-compat-hsosp bench --maintain-only; a go/no-go on the host costs, not the "
-            "binding gate)",
+            "algorithm": "hyper_sssp"
+            + (" (the container's maintain row)" if args.maintain_only else ""),
+            "what": (
+                "M11a criterion 12: the early maintain reading against MOSP_ESCHER@4b86159 "
+                "(dyng-compat-hsosp bench --maintain-only; a go/no-go on the host costs, not the "
+                "binding gate)"
+                if args.maintain_only
+                else args.what
+                or "hyper_sssp against MOSP_ESCHER@4b86159: every row of "
+                "parity/timed_regions/hyper_sssp.toml (dyng-compat-hsosp bench)"
+            ),
             "date": started,
             "date_end": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "protocol": {
@@ -592,14 +777,20 @@ def run(args: argparse.Namespace) -> int:
                 "layout": f"one (--out <work>/{CSV_NAME}, --timing <work>/{TIMING_NAME})",
                 "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
                 "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify none",
-                "port": "dyng-compat-hsosp bench --maintain-only --sync-stages --digests "
+                "port": "dyng-compat-hsosp bench"
+                + (" --maintain-only" if args.maintain_only else "")
+                + " --sync-stages --digests "
                 "(the golden's batches; --threads = the machine's hardware threads, as B's "
                 "OpenMP default)",
                 "statistic": "median",
                 "contamination_monitor": "rejected rounds repeated (perf_ab.MachineMonitor)",
-                "guard": "every round: B's h2h_pairs, overflow_rebuilds and mismatch_static "
-                "and the port's pairs digest, pair count and CSR rebuilds of every batch against "
-                "the golden; a failure stops the reading",
+                "guard": "every round: B's h2h_pairs, overflow_rebuilds, seeds and "
+                "mismatch_static and the port's pairs digest, pair count, CSR rebuilds and (the "
+                "full update) its distances' and parents' digests and mismatch_static of every "
+                "batch against the golden; a failure stops the reading. The fallback decisions "
+                "of both sides against the golden's: a differing round is repeated (at most "
+                "doubling the rounds), more than a third of differing rounds records 'scope "
+                "differs' (HD7)",
                 "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above "
                 "1.05 fixed (criterion 12)",
             },
@@ -637,12 +828,13 @@ def main(argv: list[str] | None = None) -> int:
         help="a check of the harness outside any window: GPU 1, default clocks, no "
         "record of a reading",
     )
-    ru = sub.add_parser("run", help="the A/B rounds (M11a step 3: --maintain-only)")
+    ru = sub.add_parser("run", help="the A/B rounds (every row; --maintain-only: criterion 12's)")
     ru.add_argument("--configs", nargs="+", required=True)
     ru.add_argument("--rounds", type=int, default=11)
     ru.add_argument("--gpu", type=int, default=0)
     ru.add_argument("--clocks", default="base", choices=["base", "boost", "none"])
     ru.add_argument("--maintain-only", action="store_true")
+    ru.add_argument("--what", help="the record's description (the reading it is)")
     ru.add_argument(
         "--exe",
         type=Path,

@@ -35,10 +35,19 @@
  * incidence mirror and the device CSR against the host model). --backend cuda runs it on the
  * CUDA store (M11a step 3, ADR 0089).
  *
+ *     dyng-compat-hsosp replay <dump.hsd[.zst]> --algorithm by_id|by_id_public|by_key
+ *         [--backend sequential|cuda] [--device D] [--check-compute] [--json OUT]
+ *
+ * replay --algorithm (M11a step 4, criterion 14) replays every session of a dump through
+ * hyper_sssp and compares every update and recompute MOSP_ESCHER recorded, in the three parity
+ * modes of HD2 (cpp/tests/parity/hsosp/hsosp_results.hpp; the per-call UpdateConfig of the dump).
+ *
  *     dyng-compat-hsosp bench --hg <file.hg> --kind hyperedge|vertex --batch N [--batches 3]
- *         [--del 50] [--seed 20260725] [--maxcard 25] [--verify none] --golden <dump.hsd[.zst]>
- *         [--out <csv>] [--timing <file.json>] --maintain-only [--sync-stages] [--digests]
- *         [--device D] [--threads T] [--check-load <loads/<dataset>.hsd.zst>]
+ *         [--del 50] [--seed 20260725] [--maxcard 25] [--maxiter 4096] [--work-budget 1]
+ *         [--verify none|first|all] --golden <dump.hsd[.zst]> [--out <csv>] [--timing <file.json>]
+ *         [--maintain-only] [--public] [--backend cuda|sequential]
+ *         [--cuda-engine automatic|fused|operators] [--sync-stages] [--digests] [--device D]
+ *         [--threads T] [--check-load <loads/<dataset>.hsd.zst>]
  *
  * bench is the port side of hyper_sssp's timed regions (parity/timed_regions/hyper_sssp.toml; HD3,
  * HD4, HD5): hsospBench --hg with B's options on the cuda backend. It loads the .hg file as B's
@@ -51,15 +60,31 @@
  * mirror's entry headroom 1.6); then replays the batches B exported (the golden dump's
  * begin_batch records, HD5), each converted to a host batch before its timer. --maintain-only (M11a
  * step 3, criterion 12) times hypergraph::apply alone (the maintain row: the stage
- * hypergraph.apply). --timing writes the profiler's stages per batch and the driver timers
- * (load_ms from the start of main to the end of the build, maintain_ms per batch, total_ms),
- * --out B's CSV columns the port fills, --digests prints after every batch (untimed) the SHA-256
- * of its canonical pairs, its pair count and its CSR rebuilds (the per-round guards of
- * parity/hsosp_perf.py), --check-load compares the loaded rows and weights with B's dumped ones
- * once. Exit status: 0, 1 a check failed, 2 a usage or input error.
+ * hypergraph.apply). Without it (M11a step 4) the bench is hsospBench's: the initial solve into
+ * result A in the load (hyper_sssp's virtual-endpoint mode from B's source row; --public: the
+ * public API from B's source vertex), result B allocated (B's state B), then per batch
+ * hyper_sssp::update of A (update_ms: the dynamic_comparable and dynamic rows) and the static
+ * recompute into B (static_ms; stage hyper_sssp.compute), each after a synchronization; untimed
+ * after them update == static (mismatch_static), with --verify first|all the oracle
+ * (testing::check_hyper_sssp_tree: mismatch_oracle, parent_errors), and the digests. --timing
+ * writes the profiler's stages per batch and the driver timers (load_ms from the start of main to
+ * the end of the initial solve and the reachable fraction, maintain_ms or update_ms and static_ms
+ * per batch, dynamic_ms and static_sum_ms, total_ms); --out hsospBench's CSV (the 44 columns of
+ * hsospBench.cu:155-165, in its default number format) with the port's values, except
+ * timestamp, dev_mem_mb (cudaMemGetInfo; the memory gate reads nsys instead) and escher_mb (dynG
+ * keeps no CBST), which are left empty (the merged results/data CSVs of B add a leading `run`
+ * column; B writes seedCount to both `seeds` and `invalidated`, and so does the port: stats
+ * invalidated); stderr gets hsospBench's [e2e] line. --digests prints after every batch
+ * (untimed) the SHA-256 of its canonical pairs, its pair count and its CSR rebuilds, and without
+ * --maintain-only the digests of A's distances and parents, its fallback decision and
+ * mismatch_static (the per-round guards of parity/hsosp_perf.py); --check-load compares the
+ * loaded rows and weights with B's dumped ones once. Exit status: 0, 1 a check failed, 2 a usage
+ * or input error.
  */
+#include "algorithms/hyper_sssp/virtual_endpoints.hpp"
 #include "hypergraph/hypergraph_impl.hpp"
 #include "parity/hsosp/hsosp_dump.hpp"
+#include "parity/hsosp/hsosp_results.hpp"
 #include "support/sha256.hpp"
 #include "util/rng.hpp"
 
@@ -67,6 +92,7 @@
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/hyper_sssp.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/hypergraph_io.hpp>
@@ -84,9 +110,11 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace {
@@ -104,10 +132,14 @@ int usage() {
                "usage: dyng-compat-hsosp to-dgb <dump.hsd[.zst]> <out-prefix>\n"
                "       dyng-compat-hsosp replay <out-prefix>.s<k> "
                "[--backend sequential|openmp|cuda] [--threads N] [--device D] [--line-graph]\n"
+               "       dyng-compat-hsosp replay <dump> --algorithm by_id|by_id_public|by_key "
+               "[--backend sequential|cuda] [--device D] [--check-compute] [--json OUT]\n"
                "       dyng-compat-hsosp bench --hg <file.hg> --kind hyperedge|vertex --batch N "
-               "[--batches 3] [--del 50] [--seed S] [--maxcard 25] [--verify none] "
-               "--golden <dump> [--out CSV] [--timing JSON] --maintain-only [--sync-stages] "
-               "[--digests] [--device D] [--threads T] [--check-load <load dump>]\n");
+               "[--batches 3] [--del 50] [--seed S] [--maxcard 25] [--maxiter 4096] "
+               "[--work-budget 1] [--verify none|first|all] --golden <dump> [--out CSV] "
+               "[--timing JSON] [--maintain-only] [--public] [--backend cuda|sequential] "
+               "[--cuda-engine automatic|fused|operators] [--sync-stages] [--digests] "
+               "[--device D] [--threads T] [--check-load <load dump>]\n");
   return 2;
 }
 
@@ -453,10 +485,11 @@ int replay(const std::string& prefix, const std::string& backend, int threads, i
 
 struct bench_options {
   std::string hg, kind = "hyperedge", verify = "first", golden, out, timing, check_load;
-  std::int64_t batch = 50000, batches = 3, maxcard = 25;
-  double del = 50.0;
+  std::string backend = "cuda", cuda_engine = "automatic";
+  std::int64_t batch = 50000, batches = 3, maxcard = 25, max_iterations = 4096;
+  double del = 50.0, work_budget = 1.0;
   std::uint64_t seed = 20260725U;
-  bool maintain_only = false, sync_stages = false, digests = false;
+  bool maintain_only = false, sync_stages = false, digests = false, public_source = false;
   int device = 0, threads = 0;
   std::vector<std::string> argv;  // as given (the --timing file's meta)
 };
@@ -487,7 +520,8 @@ class timing_log {
     for (std::size_t i = 0; i < o.argv.size(); ++i) out << (i ? " " : "") << o.argv[i];
     out << "\", \"seed\": \"" << o.seed << "\", \"batches\": \"" << o.batches
         << "\", \"maintain_only\": \"" << (o.maintain_only ? 1 : 0) << "\", \"sync_stages\": \""
-        << (o.sync_stages ? 1 : 0) << "\"},\n  \"stages\": [\n";
+        << (o.sync_stages ? 1 : 0) << "\", \"backend\": \"" << o.backend
+        << "\"},\n  \"stages\": [\n";
     for (std::size_t i = 0; i < records_.size(); ++i) {
       out << "    {\"stage\": \"" << records_[i].name << "\", \"batch\": " << records_[i].batch
           << ", \"ms\": " << records_[i].ms << "}" << (i + 1 < records_.size() ? "," : "") << "\n";
@@ -515,8 +549,33 @@ struct golden_batch {
   std::int64_t b_pairs = 0;  // h2hPairCount after it
 };
 
+/// The SHA-256 of distances (int64 little-endian) and parents (int32) by id: the golden's
+/// canonical encodings of a result (ADR 0080).
+std::pair<std::string, std::string> result_digests(
+    const dyng::resources& res, const dyng::hyper_sssp::result<std::int32_t>& r) {
+  const std::vector<std::int64_t> d = dyng::to_vector(res, r.hyperedge_distances());
+  const std::vector<std::int32_t> p = dyng::to_vector(res, r.hyperedge_parents());
+  dyng::test::sha256 hd64;
+  for (const std::int64_t v : d) {
+    const auto u = static_cast<std::uint64_t>(v);
+    unsigned char b[8];
+    for (int k = 0; k < 8; ++k) b[k] = static_cast<unsigned char>(u >> (8 * k));
+    hd64.update(b, 8);
+  }
+  dyng::test::sha256 hp;
+  hp.update_le(p);
+  return {hd64.hex(), hp.hex()};
+}
+
+/// The engine of --cuda-engine.
+dyng::engine engine_of(const std::string& e) {
+  if (e == "fused") return dyng::engine::fused;
+  if (e == "operators") return dyng::engine::operators;
+  return dyng::engine::automatic;
+}
+
 int bench(const bench_options& o, clock_type::time_point start) {
-  const dyng::resources res = resources_of("cuda", o.threads, o.device);
+  const dyng::resources res = resources_of(o.backend, o.threads, o.device);
   dyng::profiler_options popt;
   popt.sync_stages = o.sync_stages;
   dyng::profiler prof(popt);
@@ -570,6 +629,32 @@ int bench(const bench_options& o, clock_type::time_point start) {
   knobs.entry_headroom = 1.6;  // kEntryHeadroom
   knobs.node_capacity = rows + planned + 1024;
   whgraph h = access::hypergraph_access::build(r, list.view(), props, knobs);
+  // The two results, as B's two states: A computed (the initial solve), B allocated (the static
+  // recompute of every batch writes it; MOSP_ESCHER's stateB, ADR 0080's scope rule).
+  dyng::hyper_sssp::options sopt;
+  sopt.max_iterations = o.max_iterations;
+  sopt.work_budget = o.work_budget;
+  sopt.cuda_engine = engine_of(o.cuda_engine);
+  dyng::detail::hyper_sssp_endpoints ends;
+  ends.source_hyperedge = 0;  // B's source row (B id 1)
+  ends.zero_weight_a = 0;
+  ends.zero_weight_b = rows - 1;  // B's target row (B id m + 2)
+  std::optional<dyng::hyper_sssp::result<std::int32_t>> state_a, state_b;
+  double reachable = 0;
+  if (!o.maintain_only) {
+    if (o.public_source) {
+      state_a.emplace(dyng::hyper_sssp::compute(r, h, s_vertex, sopt));
+      state_b.emplace(dyng::hyper_sssp::compute(r, h, s_vertex, sopt));
+    } else {
+      state_a.emplace(dyng::detail::hyper_sssp_virtual::compute(r, h, ends, sopt));
+      state_b.emplace(dyng::detail::hyper_sssp_virtual::allocate(r, h, ends, sopt));
+    }
+    // The reachable fraction from the initial solve (B downloads it inside its load).
+    const std::vector<std::int64_t> d = dyng::to_vector(r, state_a->hyperedge_distances());
+    std::int64_t reach = 0;
+    for (const std::int64_t x : d) reach += x < INT64_MAX / 8 ? 1 : 0;
+    reachable = h.num_hyperedges() ? static_cast<double>(reach) / h.num_hyperedges() : 0.0;
+  }
   r.synchronize();
   log.timer("load_ms", 0, ms_since(start));
   log.stages(0);
@@ -647,32 +732,99 @@ int bench(const bench_options& o, clock_type::time_point start) {
   std::ofstream csv;
   if (!o.out.empty()) {
     csv.open(o.out);
-    csv << "suite,experiment,dataset,m_hyperedges,n_vertices,c_min,c_max,batch_kind,batch_size,"
-           "del_pct,rep,seed,t_delta_ms,t_csr_apply_ms,h2h_pairs,overflow_rebuilds,graph_mb\n";
+    if (o.maintain_only) {
+      csv << "suite,experiment,dataset,m_hyperedges,n_vertices,c_min,c_max,batch_kind,batch_size,"
+             "del_pct,rep,seed,t_delta_ms,t_csr_apply_ms,h2h_pairs,overflow_rebuilds,graph_mb\n";
+    } else {
+      // hsospBench's 44 columns (hsospBench.cu:155-165); see the file comment for the columns
+      // the port does not fill.
+      csv << "timestamp,suite,experiment,dataset,m_hyperedges,n_vertices,c_min,c_max,pool_size,"
+             "bridge_frac,avg_h2h_deg,h2h_pairs,batch_kind,batch_size,del_pct,placement,rep,seed,"
+             "t_escher_ms,t_delta_ms,t_csr_apply_ms,t_sosp_update_ms,t_dynamic_total_ms,"
+             "t_static_ms,speedup,iters,fallback,seeds,max_frontier,overflow_rebuilds,"
+             "dev_mem_mb,escher_mb,graph_mb,reachable_frac,verified,correct,oracle,"
+             "mismatch_static,mismatch_oracle,parent_errors,fallback_iters,invalidated,"
+             "update_work,static_iters\n";
+    }
   }
   auto* slack = access::hypergraph_access::slack(h);
   std::string name = o.hg;
   if (name.find_last_of('/') != std::string::npos) name = name.substr(name.find_last_of('/') + 1);
+  double dynamic_sum = 0, static_sum = 0;
   for (std::size_t b = 0; b < batches.size(); ++b) {
     slack->set_entry_headroom(batches[b].entry_headroom);
-    r.synchronize();
-    const auto t0 = clock_type::now();
-    (void)h.apply(r, batches[b].batch.view());
-    r.synchronize();
-    const double maintain = ms_since(t0);
     const auto batch = static_cast<std::int64_t>(b) + 1;
-    log.timer("maintain_ms", batch, maintain);
+    r.synchronize();
+    dyng::hyper_sssp::stats st;
+    double update = 0, statik = 0;
+    if (o.maintain_only) {
+      const auto t0 = clock_type::now();
+      (void)h.apply(r, batches[b].batch.view());
+      r.synchronize();
+      log.timer("maintain_ms", batch, ms_since(t0));
+    } else {
+      auto t0 = clock_type::now();
+      st = dyng::hyper_sssp::update(r, h, batches[b].batch.view(), *state_a);
+      r.synchronize();
+      update = ms_since(t0);
+      log.timer("update_ms", batch, update);
+      // The static baseline: a recompute into the second, pre-allocated result.
+      t0 = clock_type::now();
+      dyng::detail::hyper_sssp_virtual::recompute(r, h, *state_b);
+      r.synchronize();
+      statik = ms_since(t0);
+      log.timer("static_ms", batch, statik);
+      dynamic_sum += update;
+      static_sum += statik;
+    }
     log.stages(batch);
     const auto rows_now = slack->rows();
     const auto counters = slack->counters();
+    // Untimed from here: update == static, the oracle (--verify), the round guards' digests.
+    std::int64_t mismatch_static = 0, mismatch_oracle = -1, parent_errors = -1;
+    std::string dist_sha, par_sha;
+    if (!o.maintain_only) {
+      const std::vector<std::int64_t> da = dyng::to_vector(r, state_a->hyperedge_distances());
+      const std::vector<std::int64_t> db = dyng::to_vector(r, state_b->hyperedge_distances());
+      for (std::size_t k = 0; k < da.size() && k < db.size(); ++k)
+        mismatch_static += da[k] != db[k] ? 1 : 0;
+      const bool verify = o.verify == "all" || (o.verify == "first" && b == 0);
+      if (verify) {
+        const auto v = h.h2v();
+        const std::vector<std::int64_t> off = dyng::to_vector(r, v.row_ptr);
+        const std::vector<std::int32_t> mem = dyng::to_vector(r, v.col_ind);
+        const auto hw = h.weights();
+        std::vector<std::int64_t> w(hw.begin(), hw.end());
+        const std::vector<std::int32_t> pa = dyng::to_vector(r, state_a->hyperedge_parents());
+        std::pair<std::int64_t, std::int64_t> bad;
+        if (o.public_source) {
+          bad = dyng::testing::check_hyper_sssp_tree(off, mem, h.num_vertices(), w, s_vertex, true,
+                                                     da, pa);
+        } else {
+          w.front() = 0;
+          w[static_cast<std::size_t>(rows - 1)] = 0;
+          bad =
+              dyng::testing::check_hyper_sssp_tree(off, mem, h.num_vertices(), w, 0, false, da, pa);
+        }
+        mismatch_oracle = bad.first;
+        parent_errors = bad.second;
+      }
+      if (o.digests) std::tie(dist_sha, par_sha) = result_digests(r, *state_a);
+      if (mismatch_static != 0 || mismatch_oracle > 0 || parent_errors > 0) status = 1;
+    }
     if (o.digests) {
       // Untimed: the round's guard reads these (parity/hsosp_perf.py).
       const auto& d = access::hypergraph_access::pairs(h);
-      std::printf(
-          "[batch %lld] pairs %s deleted %zu inserted %zu h2h_pairs %lld csr_rebuilds %lld\n",
-          static_cast<long long>(batch), pairs_digest(d).c_str(), d.deleted_a.size(),
-          d.inserted_a.size(), static_cast<long long>(rows_now.pair_count),
-          static_cast<long long>(counters.csr_rebuilds));
+      std::printf("[batch %lld] pairs %s deleted %zu inserted %zu h2h_pairs %lld csr_rebuilds %lld",
+                  static_cast<long long>(batch), pairs_digest(d).c_str(), d.deleted_a.size(),
+                  d.inserted_a.size(), static_cast<long long>(rows_now.pair_count),
+                  static_cast<long long>(counters.csr_rebuilds));
+      if (!o.maintain_only) {
+        std::printf(" distances %s parents %s fallback %d mismatch_static %lld", dist_sha.c_str(),
+                    par_sha.c_str(), st.fallback_used ? 1 : 0,
+                    static_cast<long long>(mismatch_static));
+      }
+      std::printf("\n");
       std::fflush(stdout);
     }
     if (csv.is_open()) {
@@ -680,23 +832,102 @@ int bench(const bench_options& o, clock_type::time_point start) {
                            log.sum("hypergraph.apply.ids", batch) +
                            log.sum("hypergraph.apply.incidence", batch) +
                            log.sum("hypergraph.apply.translate", batch);
-      csv << std::fixed << std::setprecision(4) << "real,paper," << name << "," << (rows - 2) << ","
-          << n << ",1," << o.maxcard << "," << o.kind << "," << o.batch << "," << o.del << "," << b
-          << "," << o.seed << "," << delta << "," << log.sum("hypergraph.apply.line_graph", batch)
-          << "," << rows_now.pair_count << "," << counters.csr_rebuilds << ","
-          << static_cast<double>(slack->graph_scope_bytes()) / (1024.0 * 1024.0) << "\n";
+      const double graph_mb =
+          static_cast<double>(
+              slack->graph_scope_bytes() +
+              (state_a ? dyng::detail::hyper_sssp_virtual::state_bytes(*state_a) : 0) +
+              (state_b ? dyng::detail::hyper_sssp_virtual::state_bytes(*state_b) : 0)) /
+          (1024.0 * 1024.0);
+      if (o.maintain_only) {
+        csv << std::fixed << std::setprecision(4) << "real,paper," << name << "," << (rows - 2)
+            << "," << n << ",1," << o.maxcard << "," << o.kind << "," << o.batch << "," << o.del
+            << "," << b << "," << o.seed << "," << delta << ","
+            << log.sum("hypergraph.apply.line_graph", batch) << "," << rows_now.pair_count << ","
+            << counters.csr_rebuilds << "," << graph_mb << "\n";
+      } else {
+        const auto& c = dyng::detail::hyper_sssp_virtual::last_counters(*state_a);
+        const double escher = log.sum("hypergraph.apply.ids", batch);
+        const double csr = log.sum("hypergraph.apply.line_graph", batch);
+        const double sosp = log.sum("hyper_sssp.identify_affected", batch) +
+                            log.sum("hyper_sssp.seed", batch) + log.sum("hyper_sssp.loop", batch) +
+                            log.sum("hyper_sssp.recompute", batch) +
+                            log.sum("hyper_sssp.finalize", batch);
+        const double avg_deg = h.num_hyperedges() ? 2.0 * static_cast<double>(rows_now.pair_count) /
+                                                        static_cast<double>(h.num_hyperedges())
+                                                  : 0.0;
+        const bool verified = mismatch_oracle == 0 && parent_errors == 0;
+        const bool correct = mismatch_static == 0 && mismatch_oracle <= 0 && parent_errors <= 0;
+        // hsospBench's default stream format (its deterministic columns compare as text);
+        // dev_mem_mb (cudaMemGetInfo) and escher_mb are not filled (see the file comment).
+        csv << std::defaultfloat << std::setprecision(6) << "," << "real,paper," << name << ","
+            << (rows - 2) << "," << n << ",1," << o.maxcard << ",0,0," << avg_deg << ","
+            << rows_now.pair_count << "," << o.kind << "," << o.batch << "," << o.del << ",random,"
+            << b << "," << o.seed << "," << escher << "," << delta << "," << csr << "," << sosp
+            << "," << update << "," << statik << "," << (update > 0 ? statik / update : 0.0) << ","
+            << c.iterations << "," << (st.fallback_used ? 1 : 0) << "," << st.invalidated << ","
+            << c.max_frontier << "," << counters.csr_rebuilds << ",,," << graph_mb << ","
+            << reachable << "," << (verified ? 1 : 0) << "," << (correct ? 1 : 0) << ","
+            << (mismatch_oracle >= 0 ? "host" : "none") << "," << mismatch_static << ","
+            << mismatch_oracle << "," << parent_errors << "," << c.fallback_iterations << ","
+            << st.invalidated << "," << st.relaxations << ","
+            << dyng::detail::hyper_sssp_virtual::last_counters(*state_b).iterations << "\n";
+      }
     }
   }
   const double total = ms_since(start);
-  log.timer("total_ms", static_cast<std::int64_t>(batches.size()), total);
-  double maintain_sum = 0;
-  for (std::size_t b = 0; b < batches.size(); ++b)
-    maintain_sum += log.sum("maintain_ms", static_cast<std::int64_t>(b) + 1);
-  std::fprintf(stderr, "[e2e] %s: load %.0f ms, %lld batches: maintain %.0f ms, wall %.0f ms\n",
-               name.c_str(), log.sum("load_ms", 0), static_cast<long long>(batches.size()),
-               maintain_sum, total);
+  log.timer("total_ms", 0, total);
+  if (o.maintain_only) {
+    double maintain_sum = 0;
+    for (std::size_t b = 0; b < batches.size(); ++b)
+      maintain_sum += log.sum("maintain_ms", static_cast<std::int64_t>(b) + 1);
+    std::fprintf(stderr, "[e2e] %s: load %.0f ms, %lld batches: maintain %.0f ms, wall %.0f ms\n",
+                 name.c_str(), log.sum("load_ms", 0), static_cast<long long>(batches.size()),
+                 maintain_sum, total);
+  } else {
+    log.timer("dynamic_ms", 0, dynamic_sum);
+    log.timer("static_sum_ms", 0, static_sum);
+    // hsospBench's [e2e] line (hsospBench.cu:532-536).
+    std::fprintf(stderr,
+                 "[e2e] %s: load %.0f ms, %lld batches: dynamic %.0f ms, static %.0f ms, wall "
+                 "%.0f ms\n",
+                 name.c_str(), log.sum("load_ms", 0), static_cast<long long>(batches.size()),
+                 dynamic_sum, static_sum, total);
+  }
   if (!o.timing.empty()) log.write(o.timing, o);
   return status;
+}
+
+// --- replay --algorithm --------------------------------------------------------------------------
+
+int replay_results(const std::string& dump, const std::string& mode, const std::string& backend,
+                   int device, bool check_compute, const std::string& json) {
+  dyng::test::hsosp_results::options opt;
+  if (mode == "by_id") {
+    opt.mode = dyng::test::hsosp_results::mode::by_id;
+  } else if (mode == "by_id_public") {
+    opt.mode = dyng::test::hsosp_results::mode::by_id_public;
+  } else if (mode == "by_key") {
+    opt.mode = dyng::test::hsosp_results::mode::by_key;
+  } else {
+    return usage();
+  }
+  opt.check_compute = check_compute;
+  if (backend != "sequential" && backend != "cuda") return usage();
+  const auto rep = dyng::test::hsosp_results::replay(hd::read_dump(dump),
+                                                     resources_of(backend, 0, device), opt, dump);
+  std::printf(
+      "%s %s %s: %lld sessions, %lld batches, %lld updates, %lld recomputes, %lld ids, "
+      "%lld mismatches%s\n",
+      rep.ok() ? "ok" : "MISMATCH", rep.mode.c_str(), dump.c_str(),
+      static_cast<long long>(rep.sessions), static_cast<long long>(rep.batches),
+      static_cast<long long>(rep.updates), static_cast<long long>(rep.recomputes),
+      static_cast<long long>(rep.ids_compared), static_cast<long long>(rep.mismatch_count),
+      rep.mismatches.empty() ? "" : (" (first: " + rep.mismatches[0] + ")").c_str());
+  if (!json.empty()) {
+    std::ofstream out(json);
+    out << "[\n" << rep.to_json() << "\n]\n";
+  }
+  return rep.ok() ? 0 : 1;
 }
 
 }  // namespace
@@ -711,9 +942,9 @@ int main(int argc, char** argv) {
       return to_dgb(argv[2], argv[3]);
     }
     if (cmd == "replay") {
-      std::string backend = "sequential";
+      std::string backend = "sequential", algorithm, json;
       int threads = 0, device = 0;
-      bool line_graph = false;
+      bool line_graph = false, check_compute = false;
       for (int i = 3; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--backend" && i + 1 < argc) {
@@ -724,10 +955,18 @@ int main(int argc, char** argv) {
           device = std::atoi(argv[++i]);
         } else if (a == "--line-graph") {
           line_graph = true;
+        } else if (a == "--algorithm" && i + 1 < argc) {
+          algorithm = argv[++i];
+        } else if (a == "--check-compute") {
+          check_compute = true;
+        } else if (a == "--json" && i + 1 < argc) {
+          json = argv[++i];
         } else {
           return usage();
         }
       }
+      if (!algorithm.empty())
+        return replay_results(argv[2], algorithm, backend, device, check_compute, json);
       if (backend != "sequential" && backend != "openmp" && backend != "cuda") return usage();
       return replay(argv[2], backend, threads, device, line_graph);
     }
@@ -774,24 +1013,26 @@ int main(int argc, char** argv) {
           o.sync_stages = true;
         else if (a == "--digests")
           o.digests = true;
+        else if (a == "--maxiter")
+          o.max_iterations = std::stoll(value());
+        else if (a == "--work-budget")
+          o.work_budget = std::stod(value());
+        else if (a == "--public")
+          o.public_source = true;
+        else if (a == "--backend")
+          o.backend = value();
+        else if (a == "--cuda-engine")
+          o.cuda_engine = value();
         else
           return usage();
       }
       if (o.hg.empty() || o.golden.empty() || (o.kind != "hyperedge" && o.kind != "vertex") ||
           o.batch < 1 || o.batches < 0 || o.maxcard < 1)
         return usage();
-      if (o.verify != "none") {
-        std::fprintf(stderr,
-                     "dyng-compat-hsosp bench: only --verify none (the timed rounds run "
-                     "no oracle; the replays check the results)\n");
-        return 2;
-      }
-      if (!o.maintain_only) {
-        std::fprintf(stderr,
-                     "dyng-compat-hsosp bench: hyper_sssp's update and static rows arrive "
-                     "with hyper_sssp (M11a step 4); use --maintain-only\n");
-        return 2;
-      }
+      if (o.verify != "none" && o.verify != "first" && o.verify != "all") return usage();
+      if (o.backend != "cuda" && o.backend != "sequential") return usage();
+      if (o.cuda_engine != "automatic" && o.cuda_engine != "fused" && o.cuda_engine != "operators")
+        return usage();
       return bench(o, start);
     }
   } catch (const std::exception& e) {

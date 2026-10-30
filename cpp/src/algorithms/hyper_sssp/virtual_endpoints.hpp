@@ -47,6 +47,23 @@ hyper_sssp::result<std::int32_t> compute(const resources& res,
                                          const hyper_sssp::options& opt, int block_size = 256);
 
 /**
+ * @brief A result of the virtual-endpoint mode with its arrays sized for `h` and nothing computed
+ *        (MOSP_ESCHER's state B, allocated at the load and first written by the static recompute
+ *        of the first batch): unusable (poisoned) until recompute() fills it.
+ * @param[in] res        Execution resources (sequential or cuda).
+ * @param[in] h          The hypergraph (as compute()).
+ * @param[in] endpoints  As compute().
+ * @param[in] opt        Options.
+ * @param[in] block_size As compute().
+ * @return The result.
+ * @throws as compute().
+ */
+hyper_sssp::result<std::int32_t> allocate(const resources& res,
+                                          const hypergraph<std::int32_t, std::int32_t>& h,
+                                          const hyper_sssp_endpoints& endpoints,
+                                          const hyper_sssp::options& opt, int block_size = 256);
+
+/**
  * @brief Recompute `r` from scratch on `h` into its own arrays (hsospRecompute into B's
  *        pre-allocated state B: the bench's static row). Stage hyper_sssp.compute.
  * @param[in]     res Execution resources.

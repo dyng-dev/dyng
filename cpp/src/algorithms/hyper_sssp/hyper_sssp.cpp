@@ -731,6 +731,36 @@ hyper_sssp::result<std::int32_t> compute(const resources& res,
 DYNG_TRANSLATE_ALLOCATION_FAILURE("hyper_sssp::compute (", h.hyperedge_id_bound(),
                                   " hyperedge ids, virtual endpoints)")
 
+hyper_sssp::result<std::int32_t> allocate(const resources& res,
+                                          const hypergraph<std::int32_t, std::int32_t>& h,
+                                          const hyper_sssp_endpoints& endpoints,
+                                          const hyper_sssp::options& opt, int block_size) try {
+  constexpr const char* what = "hyper_sssp::allocate (virtual endpoints)";
+  DYNG_EXPECTS(
+      endpoints.source_hyperedge >= 0 && endpoints.source_hyperedge < h.hyperedge_id_bound(), what,
+      ": the source row ", endpoints.source_hyperedge, " is outside [0, ", h.hyperedge_id_bound(),
+      ")");
+  auto st = new_state(res, h, opt, block_size, what);
+  st->endpoints = endpoints;
+  st->endpoints.source_vertex = -1;
+  // The arrays of the store's node capacity (as compute() sizes them), nothing computed.
+  const hyper::slack_row_view rows = slack_of(h, what).rows();
+  const auto capacity = static_cast<std::size_t>(std::max(rows.num_nodes, rows.node_capacity));
+  if (res.get_backend() == backend::cuda) {
+    hyper_sssp_cuda_reserve(res, *st, static_cast<std::int64_t>(capacity));
+  } else {
+    st->dist.reserve(capacity);
+    st->parent.reserve(capacity);
+    st->dist.assign(static_cast<std::size_t>(rows.num_nodes), hyper_sssp_infinity);
+    st->parent.assign(static_cast<std::size_t>(rows.num_nodes), -1);
+  }
+  link(*st, h);
+  st->poisoned = true;  // until recompute() writes it
+  return hyper_sssp_access::make(std::move(st));
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("hyper_sssp::allocate (", h.hyperedge_id_bound(),
+                                  " hyperedge ids, virtual endpoints)")
+
 void recompute(const resources& res, const hypergraph<std::int32_t, std::int32_t>& h,
                hyper_sssp::result<std::int32_t>& r) {
   constexpr const char* what = "hyper_sssp::recompute";

@@ -36,11 +36,13 @@ dyng_set_warnings(dyng-compat-escher)
 dyng_enable_sanitizers(dyng-compat-escher)
 
 # MOSP_ESCHER@4b86159's H-SOSP dumps (the golden set hyper_sssp_mosp_escher) as .hg / .dgb files
-# per session, and their replay through dyng::hypergraph on slack_csr storage (M11a step 2). The
-# dump reader is the parity side's (cpp/tests/parity/hsosp).
+# per session, and their replay through dyng::hypergraph on slack_csr storage (M11a step 2); with
+# --algorithm their replay through hyper_sssp, and the bench of the timed regions (M11a step 4).
+# The dump reader and the result replay are the parity side's (cpp/tests/parity/hsosp).
 add_executable(
   dyng-compat-hsosp hsosp/hsosp_compat.cpp
                     "${PROJECT_SOURCE_DIR}/cpp/tests/parity/hsosp/hsosp_dump.cpp"
+                    "${PROJECT_SOURCE_DIR}/cpp/tests/parity/hsosp/hsosp_results.cpp"
 )
 # The bench sets MOSP_ESCHER's capacities through the internal knobs of slack_csr storage
 # (detail::hypergraph_access::build, ADR 0086) and reads the device pairs of the applied record.
@@ -116,6 +118,35 @@ if(DYNG_BUILD_TESTS)
     set_tests_properties(${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT
                                              "${DYNG_TEST_ENVIRONMENT}"
     )
+  endforeach()
+endif()
+
+if(DYNG_BUILD_TESTS)
+  # The committed H-SOSP dump through hyper_sssp (replay --algorithm, M11a step 4): every update and
+  # recompute MOSP_ESCHER recorded, in the three parity modes, on hyper_sssp's backends.
+  set(_hsosp_algorithm_backends sequential)
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _hsosp_algorithm_backends cuda)
+  endif()
+  foreach(_backend IN LISTS _hsosp_algorithm_backends)
+    foreach(_mode by_id by_id_public by_key)
+      set(_test compat_hsosp.algorithm.${_mode}.${_backend})
+      add_test(
+        NAME ${_test}
+        COMMAND
+          $<TARGET_FILE:dyng-compat-hsosp> replay
+          ${PROJECT_SOURCE_DIR}/cpp/tests/data/goldens/hyper_sssp/test_hsosp_matches_dijkstra.hsd
+          --algorithm ${_mode} --backend ${_backend} --check-compute
+      )
+      if(_backend STREQUAL "cuda")
+        set(_labels "gpu;compat;hyper_sssp")
+      else()
+        set(_labels "cpu;compat;hyper_sssp")
+      endif()
+      set_tests_properties(${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT
+                                               "${DYNG_TEST_ENVIRONMENT}"
+      )
+    endforeach()
   endforeach()
 endif()
 
