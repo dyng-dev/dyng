@@ -60,7 +60,7 @@ def c1_commit() -> str | None:
 
 def test_the_transplant_commit_is_reproducible() -> None:
     t = load()
-    original = t.default_original()
+    original = t.default_original(t.load_map())
     if not (original / ".git").exists():
         pytest.skip(f"the original's clone is not at {original}")
     if shutil.which("clang-format") is None:

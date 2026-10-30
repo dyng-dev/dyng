@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file device_store.hpp
- * @brief The store of slack_csr storage on the CUDA backend (ADR 0089): MOSP_ESCHER@4b86159's
- *        H-SOSP device graph (the incidence mirror, the slack CSR line graph with its node weights,
+ * @brief The store of slack_csr storage on the CUDA backend (ADR 0089): MOSP_ESCHER's H-SOSP
+ *        device graph (the incidence mirror, the slack CSR line graph with its node weights,
  *        the order-free pair delta on the device; slack_csr_store.hpp) over the host incidence
  *        model and id allocator that stay authoritative, as MOSP_ESCHER keeps its HostHypergraph.
  *
