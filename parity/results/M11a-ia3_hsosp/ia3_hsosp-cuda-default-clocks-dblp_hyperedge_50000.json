@@ -1,0 +1,3464 @@
+{
+ "schema": 1,
+ "algorithm": "hyper_sssp",
+ "what": "hyper_sssp against MOSP_ESCHER@4b86159: every row of parity/timed_regions/hyper_sssp.toml (dyng-compat-hsosp bench)",
+ "date": "2026-10-30T12:25:45Z",
+ "date_end": "2026-10-30T12:28:34Z",
+ "protocol": {
+  "rounds": 11,
+  "order": "A/B alternation (B first in every round)",
+  "gpu": 0,
+  "clocks": {
+   "control": "none",
+   "note": "default GPU clocks (DVFS), as measured"
+  },
+  "lock": {
+   "DYNG_PERF_LOCK": "",
+   "DYNG_PERF_LOCK_HELD": "1"
+  },
+  "layout": "one (--out <work>/hsosp-ab.csv, --timing <work>/hsosp-ab.json)",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify none",
+  "port": "dyng-compat-hsosp bench --sync-stages --digests (the golden's batches; --threads = the machine's hardware threads, as B's OpenMP default)",
+  "statistic": "median",
+  "contamination_monitor": "rejected rounds repeated (perf_ab.MachineMonitor)",
+  "guard": "every round: B's h2h_pairs, overflow_rebuilds, seeds and mismatch_static and the port's pairs digest, pair count, CSR rebuilds and (the full update) its distances' and parents' digests and mismatch_static of every batch against the golden; a failure stops the reading. The fallback decisions of both sides against the golden's: a differing round is repeated (at most doubling the rounds), more than a third of differing rounds records 'scope differs' (HD7)",
+  "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above 1.05 fixed (criterion 12)"
+ },
+ "reference": {
+  "name": "MOSP_ESCHER",
+  "repo": "MOSP_ESCHER",
+  "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+  "variant": "unpatched",
+  "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
+ },
+ "port": {
+  "commit": "e3d52036842bbe8b6565b56c29c6b36dfe4fd84f",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-hsosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "datasets_sha256": {
+  "dblp": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+ },
+ "results": {
+  "dblp_hyperedge_50000": {
+   "config": "dblp_hyperedge_50000",
+   "dataset": "dblp",
+   "kind": "hyperedge",
+   "batch": 50000,
+   "batches": 3,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/coauth.hg",
+    "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+   },
+   "rounds": 11,
+   "attempts": 11,
+   "decisions_differ": [],
+   "scope_differs": false,
+   "rows": [
+    {
+     "row": "maintain[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 69.5904,
+     "port_ms": 40.386,
+     "ratio": 0.5803386674024004,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      69.5904,
+      69.4813,
+      70.7899,
+      68.7105,
+      70.52029999999999,
+      69.6959,
+      69.5721,
+      70.3686,
+      69.5382,
+      69.6535,
+      68.84700000000001
+     ],
+     "port_rounds": [
+      39.916,
+      40.157,
+      40.503,
+      40.386,
+      41.398,
+      40.142,
+      40.217,
+      40.146,
+      40.86,
+      40.454,
+      40.878
+     ]
+    },
+    {
+     "row": "maintain[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 56.66073,
+     "port_ms": 33.88,
+     "ratio": 0.5979449964728658,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      56.66073,
+      56.6205,
+      56.9245,
+      55.5401,
+      58.085899999999995,
+      57.3786,
+      56.7277,
+      56.3351,
+      56.2254,
+      56.7246,
+      55.9011
+     ],
+     "port_rounds": [
+      33.838,
+      33.672,
+      33.802,
+      33.88,
+      34.637,
+      33.918,
+      33.834,
+      33.749,
+      34.218,
+      34.036,
+      35.134
+     ]
+    },
+    {
+     "row": "maintain[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 55.124559999999995,
+     "port_ms": 34.087,
+     "ratio": 0.6183632123322165,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      58.561840000000004,
+      55.865840000000006,
+      55.48946,
+      54.20191,
+      60.945359999999994,
+      55.330330000000004,
+      55.124559999999995,
+      54.83053,
+      54.81899,
+      55.1126,
+      55.1071
+     ],
+     "port_rounds": [
+      33.793,
+      34.023,
+      34.087,
+      33.846,
+      34.753,
+      34.034,
+      35.608,
+      34.263,
+      34.215,
+      33.965,
+      34.158
+     ]
+    },
+    {
+     "row": "sosp_update[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 9.53582,
+     "port_ms": 9.38,
+     "ratio": 0.9836595069957278,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      9.52585,
+      9.5866,
+      9.48001,
+      9.29619,
+      9.58267,
+      9.59436,
+      9.56454,
+      9.51961,
+      9.54703,
+      9.52411,
+      9.53582
+     ],
+     "port_rounds": [
+      9.382,
+      9.387,
+      9.352,
+      9.353,
+      9.377,
+      9.36,
+      9.38,
+      9.344000000000001,
+      9.397,
+      9.381,
+      9.389
+     ]
+    },
+    {
+     "row": "sosp_update[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 4.87831,
+     "port_ms": 4.785,
+     "ratio": 0.9808724742790024,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      4.87791,
+      4.88994,
+      4.87912,
+      4.74448,
+      4.88653,
+      4.8521,
+      4.85932,
+      4.87303,
+      4.90603,
+      4.89102,
+      4.87831
+     ],
+     "port_rounds": [
+      4.801,
+      4.785,
+      4.805,
+      4.774,
+      4.797,
+      4.777,
+      4.787,
+      4.78,
+      4.776,
+      4.7749999999999995,
+      4.824
+     ]
+    },
+    {
+     "row": "sosp_update[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 4.33851,
+     "port_ms": 4.2989999999999995,
+     "ratio": 0.9908931868314235,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      4.35061,
+      4.32983,
+      4.32782,
+      4.28434,
+      4.39666,
+      4.33522,
+      4.3873,
+      4.35911,
+      4.31874,
+      4.33851,
+      4.36895
+     ],
+     "port_rounds": [
+      4.299,
+      4.2989999999999995,
+      4.302,
+      4.274,
+      4.2989999999999995,
+      4.325,
+      4.292,
+      4.301,
+      4.306,
+      4.293,
+      4.285
+     ]
+    },
+    {
+     "row": "static[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 79.6499,
+     "port_ms": 79.327,
+     "ratio": 0.9959460087206637,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      79.6385,
+      79.793,
+      79.0681,
+      79.9578,
+      78.6995,
+      79.47,
+      80.4637,
+      79.8857,
+      79.4695,
+      79.8672,
+      79.6499
+     ],
+     "port_rounds": [
+      79.513,
+      79.327,
+      79.005,
+      79.3,
+      79.914,
+      79.531,
+      79.306,
+      79.066,
+      79.498,
+      79.359,
+      79.127
+     ]
+    },
+    {
+     "row": "static[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 79.289,
+     "port_ms": 79.145,
+     "ratio": 0.9981838590472827,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      79.2077,
+      78.8309,
+      79.3786,
+      79.3573,
+      79.9607,
+      78.9325,
+      79.289,
+      78.6634,
+      80.3939,
+      79.3523,
+      79.0374
+     ],
+     "port_rounds": [
+      78.582,
+      79.197,
+      78.788,
+      79.312,
+      80.244,
+      78.671,
+      79.579,
+      78.641,
+      79.216,
+      79.145,
+      79.077
+     ]
+    },
+    {
+     "row": "static[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 79.8257,
+     "port_ms": 79.54,
+     "ratio": 0.9964209521494958,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      79.7486,
+      79.8257,
+      79.4453,
+      80.499,
+      79.9463,
+      80.3007,
+      79.5105,
+      80.3279,
+      79.6504,
+      79.6351,
+      80.3045
+     ],
+     "port_rounds": [
+      79.514,
+      79.982,
+      79.54,
+      79.55,
+      79.292,
+      80.377,
+      80.241,
+      79.975,
+      79.467,
+      79.333,
+      79.486
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 79.13664,
+     "port_ms": 52.239,
+     "ratio": 0.6601114224713104,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      79.11625000000001,
+      79.06790000000001,
+      80.26991000000001,
+      78.00668999999999,
+      80.10297,
+      79.29025999999999,
+      79.13664,
+      79.88821,
+      79.08523,
+      79.17760999999999,
+      78.38282000000001
+     ],
+     "port_rounds": [
+      51.668,
+      51.985,
+      52.239,
+      52.264,
+      53.32,
+      51.892,
+      52.093,
+      51.968,
+      52.705,
+      52.27,
+      52.749
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 61.53864,
+     "port_ms": 41.159,
+     "ratio": 0.6688318103877499,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      61.53864,
+      61.51044,
+      61.80362,
+      60.284580000000005,
+      62.972429999999996,
+      62.2307,
+      61.587019999999995,
+      61.20813,
+      61.13143,
+      61.61562,
+      60.77941
+     ],
+     "port_rounds": [
+      41.159,
+      40.911,
+      41.126,
+      41.129,
+      42.01,
+      41.242,
+      40.983,
+      40.981,
+      41.495,
+      41.226,
+      42.484
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 59.51186,
+     "port_ms": 40.89,
+     "ratio": 0.6870899346785666,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      62.91245000000001,
+      60.19567000000001,
+      59.817280000000004,
+      58.48625,
+      65.34201999999999,
+      59.66555,
+      59.51186,
+      59.189640000000004,
+      59.13773,
+      59.45111,
+      59.47605
+     ],
+     "port_rounds": [
+      40.469,
+      40.787,
+      40.939,
+      40.494,
+      41.657,
+      40.808,
+      42.463,
+      41.101,
+      41.044,
+      40.73,
+      40.89
+     ]
+    },
+    {
+     "row": "dynamic[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 203.298,
+     "port_ms": 52.239,
+     "ratio": 0.25695776643154383,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      205.895,
+      212.817,
+      207.35,
+      204.376,
+      216.65,
+      203.109,
+      200.197,
+      203.298,
+      200.837,
+      199.801,
+      203.222
+     ],
+     "port_rounds": [
+      51.668,
+      51.985,
+      52.239,
+      52.264,
+      53.32,
+      51.892,
+      52.093,
+      51.968,
+      52.705,
+      52.27,
+      52.749
+     ]
+    },
+    {
+     "row": "dynamic[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 145.97,
+     "port_ms": 41.159,
+     "ratio": 0.2819688977187093,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      145.97,
+      144.095,
+      136.201,
+      148.993,
+      161.572,
+      139.628,
+      154.764,
+      145.65,
+      151.274,
+      140.16,
+      153.273
+     ],
+     "port_rounds": [
+      41.159,
+      40.911,
+      41.126,
+      41.129,
+      42.01,
+      41.242,
+      40.983,
+      40.981,
+      41.495,
+      41.226,
+      42.484
+     ]
+    },
+    {
+     "row": "dynamic[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 146.452,
+     "port_ms": 40.89,
+     "ratio": 0.279204107830552,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      155.205,
+      144.7,
+      143.42,
+      146.452,
+      159.454,
+      158.507,
+      140.242,
+      141.856,
+      145.843,
+      156.952,
+      146.894
+     ],
+     "port_rounds": [
+      40.469,
+      40.787,
+      40.939,
+      40.494,
+      41.657,
+      40.808,
+      42.463,
+      41.101,
+      41.044,
+      40.73,
+      40.89
+     ]
+    },
+    {
+     "row": "load_plus_dynamic",
+     "gate": "end_to_end",
+     "original": [
+      "e2e:load",
+      "e2e:dynamic"
+     ],
+     "port": [
+      "load_ms",
+      "dynamic_ms"
+     ],
+     "original_ms": 6085.0,
+     "port_ms": 4460.522000000001,
+     "ratio": 0.7330356614626131,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      6284.0,
+      6102.0,
+      6040.0,
+      6068.0,
+      6173.0,
+      6491.0,
+      6075.0,
+      6085.0,
+      6072.0,
+      6135.0,
+      6076.0
+     ],
+     "port_rounds": [
+      4451.545,
+      4459.968,
+      4445.195,
+      4460.522000000001,
+      4562.651,
+      4441.383,
+      4454.839,
+      4491.141,
+      4494.455,
+      4605.113,
+      4477.379999999999
+     ]
+    },
+    {
+     "row": "escher[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 124.839,
+     "port_ms": 8.598,
+     "ratio": 0.06887270804796579,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      126.778,
+      133.749,
+      127.08,
+      126.369,
+      136.547,
+      123.819,
+      121.06,
+      123.409,
+      121.752,
+      120.623,
+      124.839
+     ],
+     "port_rounds": [
+      8.438,
+      8.646,
+      8.58,
+      8.7,
+      9.207,
+      8.481,
+      8.54,
+      8.598,
+      8.97,
+      8.512,
+      8.953
+     ]
+    },
+    {
+     "row": "escher[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 84.442,
+     "port_ms": 4.836,
+     "ratio": 0.057270078870704164,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      84.4312,
+      82.5841,
+      74.3971,
+      88.7081,
+      98.5997,
+      77.3972,
+      93.1767,
+      84.442,
+      90.1428,
+      78.5444,
+      92.4934
+     ],
+     "port_rounds": [
+      4.812,
+      4.787,
+      4.787,
+      4.847,
+      4.963,
+      4.847,
+      4.836,
+      4.79,
+      4.863,
+      4.78,
+      4.986
+     ]
+    },
+    {
+     "row": "escher[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 87.4183,
+     "port_ms": 4.869,
+     "ratio": 0.05569772004259977,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      92.2923,
+      84.5042,
+      83.6025,
+      87.966,
+      94.1118,
+      98.8418,
+      80.7305,
+      82.6662,
+      86.7054,
+      97.5009,
+      87.4183
+     ],
+     "port_rounds": [
+      4.81,
+      4.943,
+      4.889,
+      4.832,
+      5.015,
+      4.914,
+      5.704,
+      4.845,
+      4.869,
+      4.784,
+      4.829
+     ]
+    },
+    {
+     "row": "delta[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 59.3636,
+     "port_ms": 15.77,
+     "ratio": 0.26565100499295863,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      59.3871,
+      59.2685,
+      60.5414,
+      58.4551,
+      60.2557,
+      59.4486,
+      59.2715,
+      60.0475,
+      59.2429,
+      59.3636,
+      58.527
+     ],
+     "port_rounds": [
+      15.759,
+      15.721,
+      15.77,
+      15.902999999999999,
+      16.145,
+      15.730999999999998,
+      15.757,
+      15.605,
+      15.809999999999999,
+      15.847999999999999,
+      15.84
+     ]
+    },
+    {
+     "row": "delta[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 46.6139,
+     "port_ms": 16.255000000000003,
+     "ratio": 0.3487157264249505,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      46.6871,
+      46.5874,
+      46.9071,
+      45.5245,
+      48.046,
+      47.3386,
+      46.6211,
+      46.2305,
+      46.11,
+      46.6139,
+      45.8182
+     ],
+     "port_rounds": [
+      16.255000000000003,
+      16.141,
+      16.27,
+      16.249,
+      16.829,
+      16.21,
+      16.13,
+      16.098999999999997,
+      16.418,
+      16.375,
+      16.398
+     ]
+    },
+    {
+     "row": "delta[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 45.1581,
+     "port_ms": 16.386000000000003,
+     "ratio": 0.36285849050336494,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      48.6573,
+      45.9307,
+      45.5426,
+      44.2688,
+      51.0014,
+      45.3695,
+      45.1581,
+      44.8391,
+      44.8512,
+      45.1213,
+      45.1422
+     ],
+     "port_rounds": [
+      16.355,
+      16.368000000000002,
+      16.386000000000003,
+      16.314,
+      16.913,
+      16.281999999999996,
+      17.101999999999997,
+      16.543,
+      16.480999999999998,
+      16.357,
+      16.500999999999998
+     ]
+    },
+    {
+     "row": "csr_apply[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 10.2646,
+     "port_ms": 12.685,
+     "ratio": 1.2358007131305653,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      10.2033,
+      10.2128,
+      10.2485,
+      10.2554,
+      10.2646,
+      10.2473,
+      10.3006,
+      10.3211,
+      10.2953,
+      10.2899,
+      10.32
+     ],
+     "port_rounds": [
+      12.554,
+      12.614,
+      12.904,
+      12.607,
+      12.727,
+      12.664,
+      12.685,
+      12.672,
+      12.777,
+      12.697,
+      12.744
+     ]
+    },
+    {
+     "row": "csr_apply[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 10.04,
+     "port_ms": 10.475,
+     "ratio": 1.0433266932270917,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      9.97363,
+      10.0331,
+      10.0174,
+      10.0156,
+      10.0399,
+      10.04,
+      10.1066,
+      10.1046,
+      10.1154,
+      10.1107,
+      10.0829
+     ],
+     "port_rounds": [
+      10.375,
+      10.415,
+      10.43,
+      10.436,
+      10.456,
+      10.476,
+      10.509,
+      10.475,
+      10.491,
+      10.499,
+      11.324
+     ]
+    },
+    {
+     "row": "csr_apply[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 9.96083,
+     "port_ms": 10.434,
+     "ratio": 1.0475030695233227,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      9.90454,
+      9.93514,
+      9.94686,
+      9.93311,
+      9.94396,
+      9.96083,
+      9.96646,
+      9.99143,
+      9.96779,
+      9.9913,
+      9.9649
+     ],
+     "port_rounds": [
+      10.313,
+      10.374,
+      10.379,
+      10.381,
+      10.389,
+      10.458,
+      10.434,
+      10.462,
+      10.439,
+      10.44,
+      10.436
+     ]
+    },
+    {
+     "row": "update.identify_affected[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 0.904,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.907,
+      0.911,
+      0.904,
+      0.902,
+      0.909,
+      0.903,
+      0.9,
+      0.896,
+      0.912,
+      0.903,
+      0.912
+     ]
+    },
+    {
+     "row": "update.identify_affected[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 0.906,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.906,
+      0.919,
+      0.914,
+      0.9,
+      0.919,
+      0.904,
+      0.905,
+      0.904,
+      0.901,
+      0.907,
+      0.917
+     ]
+    },
+    {
+     "row": "update.identify_affected[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 0.909,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.909,
+      0.9,
+      0.91,
+      0.906,
+      0.909,
+      0.901,
+      0.903,
+      0.911,
+      0.909,
+      0.913,
+      0.902
+     ]
+    },
+    {
+     "row": "update.seed[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 1.785,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.785,
+      1.778,
+      1.782,
+      1.775,
+      1.788,
+      1.781,
+      1.796,
+      1.781,
+      1.792,
+      1.789,
+      1.801
+     ]
+    },
+    {
+     "row": "update.seed[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 1.095,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.104,
+      1.089,
+      1.1,
+      1.094,
+      1.087,
+      1.095,
+      1.095,
+      1.086,
+      1.093,
+      1.097,
+      1.111
+     ]
+    },
+    {
+     "row": "update.seed[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 1.052,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.053,
+      1.059,
+      1.049,
+      1.046,
+      1.06,
+      1.052,
+      1.052,
+      1.051,
+      1.066,
+      1.054,
+      1.041
+     ]
+    },
+    {
+     "row": "update.loop[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 6.602,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      6.613,
+      6.604,
+      6.589,
+      6.599,
+      6.602,
+      6.599,
+      6.607,
+      6.589,
+      6.615,
+      6.611,
+      6.598
+     ]
+    },
+    {
+     "row": "update.loop[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 2.71,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      2.714,
+      2.7,
+      2.714,
+      2.703,
+      2.714,
+      2.701,
+      2.71,
+      2.711,
+      2.705,
+      2.695,
+      2.718
+     ]
+    },
+    {
+     "row": "update.loop[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 2.261,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      2.261,
+      2.263,
+      2.266,
+      2.245,
+      2.252,
+      2.293,
+      2.26,
+      2.262,
+      2.254,
+      2.249,
+      2.266
+     ]
+    },
+    {
+     "row": "update.recompute[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.recompute[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.recompute[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.finalize[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.077,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.076,
+      0.093,
+      0.076,
+      0.076,
+      0.077,
+      0.076,
+      0.076,
+      0.077,
+      0.077,
+      0.077,
+      0.077
+     ]
+    },
+    {
+     "row": "update.finalize[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.076,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.078,
+      0.076,
+      0.075,
+      0.077
+     ]
+    },
+    {
+     "row": "update.finalize[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.076,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.075,
+      0.076,
+      0.076,
+      0.076,
+      0.077,
+      0.078,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.075
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original": [
+      "e2e:load"
+     ],
+     "port": [
+      "load_ms"
+     ],
+     "original_ms": 5594.0,
+     "port_ms": 4326.636,
+     "ratio": 0.7734422595638184,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      5777.0,
+      5600.0,
+      5553.0,
+      5568.0,
+      5635.0,
+      5990.0,
+      5580.0,
+      5594.0,
+      5574.0,
+      5638.0,
+      5573.0
+     ],
+     "port_rounds": [
+      4318.249,
+      4326.285,
+      4310.891,
+      4326.636,
+      4425.664,
+      4307.441,
+      4319.299,
+      4357.092,
+      4359.211,
+      4470.888,
+      4341.257
+     ]
+    },
+    {
+     "row": "static_sum",
+     "gate": "none",
+     "original": [
+      "e2e:static"
+     ],
+     "port": [
+      "static_sum_ms"
+     ],
+     "original_ms": 239.0,
+     "port_ms": 238.163,
+     "ratio": 0.9964979079497909,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      239.0,
+      238.0,
+      238.0,
+      240.0,
+      239.0,
+      239.0,
+      239.0,
+      239.0,
+      240.0,
+      239.0,
+      239.0
+     ],
+     "port_rounds": [
+      237.609,
+      238.506,
+      237.333,
+      238.163,
+      239.45,
+      238.58,
+      239.126,
+      237.682,
+      238.18,
+      237.837,
+      237.69
+     ]
+    },
+    {
+     "row": "wall",
+     "gate": "none",
+     "original": [
+      "e2e:wall"
+     ],
+     "port": [
+      "total_ms"
+     ],
+     "original_ms": 6412.0,
+     "port_ms": 7792.9,
+     "ratio": 1.215361821584529,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      6626.0,
+      6427.0,
+      6386.0,
+      6395.0,
+      6519.0,
+      6819.0,
+      6404.0,
+      6412.0,
+      6400.0,
+      6463.0,
+      6403.0
+     ],
+     "port_rounds": [
+      7860.596,
+      7741.142,
+      7724.394,
+      7749.004,
+      8038.132,
+      7740.646,
+      7770.894,
+      7796.677,
+      7792.9,
+      7876.412,
+      7825.354
+     ]
+    },
+    {
+     "row": "process",
+     "gate": "none",
+     "original": [
+      "process wall time"
+     ],
+     "port": [
+      "process wall time"
+     ],
+     "original_ms": 6842.873334884644,
+     "port_ms": 8310.598850250244,
+     "ratio": 1.2144896512818972,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      7053.726673126221,
+      6853.074073791504,
+      6815.787553787231,
+      6822.246313095093,
+      6954.482078552246,
+      7245.423078536987,
+      6842.873334884644,
+      6842.734813690186,
+      6835.06441116333,
+      6887.8333568573,
+      6832.205295562744
+     ],
+     "port_rounds": [
+      8380.009174346924,
+      8258.025884628296,
+      8241.60623550415,
+      8262.309074401855,
+      8588.573455810547,
+      8272.379398345947,
+      8282.968997955322,
+      8320.846319198608,
+      8310.598850250244,
+      8398.254871368408,
+      8359.0407371521
+     ]
+    }
+   ],
+   "regions": [
+    {
+     "region": "maintain[b1]",
+     "gate_kind": "compute",
+     "original_ms": 69.5904,
+     "port_ms": 40.386,
+     "ratio": 0.5803386674024004,
+     "original_runs": [
+      69.5904,
+      69.4813,
+      70.7899,
+      68.7105,
+      70.52029999999999,
+      69.6959,
+      69.5721,
+      70.3686,
+      69.5382,
+      69.6535,
+      68.84700000000001
+     ],
+     "port_runs": [
+      39.916,
+      40.157,
+      40.503,
+      40.386,
+      41.398,
+      40.142,
+      40.217,
+      40.146,
+      40.86,
+      40.454,
+      40.878
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "maintain[b2]",
+     "gate_kind": "compute",
+     "original_ms": 56.66073,
+     "port_ms": 33.88,
+     "ratio": 0.5979449964728658,
+     "original_runs": [
+      56.66073,
+      56.6205,
+      56.9245,
+      55.5401,
+      58.085899999999995,
+      57.3786,
+      56.7277,
+      56.3351,
+      56.2254,
+      56.7246,
+      55.9011
+     ],
+     "port_runs": [
+      33.838,
+      33.672,
+      33.802,
+      33.88,
+      34.637,
+      33.918,
+      33.834,
+      33.749,
+      34.218,
+      34.036,
+      35.134
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "maintain[b3]",
+     "gate_kind": "compute",
+     "original_ms": 55.124559999999995,
+     "port_ms": 34.087,
+     "ratio": 0.6183632123322165,
+     "original_runs": [
+      58.561840000000004,
+      55.865840000000006,
+      55.48946,
+      54.20191,
+      60.945359999999994,
+      55.330330000000004,
+      55.124559999999995,
+      54.83053,
+      54.81899,
+      55.1126,
+      55.1071
+     ],
+     "port_runs": [
+      33.793,
+      34.023,
+      34.087,
+      33.846,
+      34.753,
+      34.034,
+      35.608,
+      34.263,
+      34.215,
+      33.965,
+      34.158
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "sosp_update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 9.53582,
+     "port_ms": 9.38,
+     "ratio": 0.9836595069957278,
+     "original_runs": [
+      9.52585,
+      9.5866,
+      9.48001,
+      9.29619,
+      9.58267,
+      9.59436,
+      9.56454,
+      9.51961,
+      9.54703,
+      9.52411,
+      9.53582
+     ],
+     "port_runs": [
+      9.382,
+      9.387,
+      9.352,
+      9.353,
+      9.377,
+      9.36,
+      9.38,
+      9.344000000000001,
+      9.397,
+      9.381,
+      9.389
+     ],
+     "gate": 1.1,
+     "within_gate": true
+    },
+    {
+     "region": "sosp_update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 4.87831,
+     "port_ms": 4.785,
+     "ratio": 0.9808724742790024,
+     "original_runs": [
+      4.87791,
+      4.88994,
+      4.87912,
+      4.74448,
+      4.88653,
+      4.8521,
+      4.85932,
+      4.87303,
+      4.90603,
+      4.89102,
+      4.87831
+     ],
+     "port_runs": [
+      4.801,
+      4.785,
+      4.805,
+      4.774,
+      4.797,
+      4.777,
+      4.787,
+      4.78,
+      4.776,
+      4.7749999999999995,
+      4.824
+     ],
+     "gate": 1.1,
+     "within_gate": true
+    },
+    {
+     "region": "sosp_update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 4.33851,
+     "port_ms": 4.2989999999999995,
+     "ratio": 0.9908931868314235,
+     "original_runs": [
+      4.35061,
+      4.32983,
+      4.32782,
+      4.28434,
+      4.39666,
+      4.33522,
+      4.3873,
+      4.35911,
+      4.31874,
+      4.33851,
+      4.36895
+     ],
+     "port_runs": [
+      4.299,
+      4.2989999999999995,
+      4.302,
+      4.274,
+      4.2989999999999995,
+      4.325,
+      4.292,
+      4.301,
+      4.306,
+      4.293,
+      4.285
+     ],
+     "gate": 1.1,
+     "within_gate": true
+    },
+    {
+     "region": "static[b1]",
+     "gate_kind": "compute",
+     "original_ms": 79.6499,
+     "port_ms": 79.327,
+     "ratio": 0.9959460087206637,
+     "original_runs": [
+      79.6385,
+      79.793,
+      79.0681,
+      79.9578,
+      78.6995,
+      79.47,
+      80.4637,
+      79.8857,
+      79.4695,
+      79.8672,
+      79.6499
+     ],
+     "port_runs": [
+      79.513,
+      79.327,
+      79.005,
+      79.3,
+      79.914,
+      79.531,
+      79.306,
+      79.066,
+      79.498,
+      79.359,
+      79.127
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "static[b2]",
+     "gate_kind": "compute",
+     "original_ms": 79.289,
+     "port_ms": 79.145,
+     "ratio": 0.9981838590472827,
+     "original_runs": [
+      79.2077,
+      78.8309,
+      79.3786,
+      79.3573,
+      79.9607,
+      78.9325,
+      79.289,
+      78.6634,
+      80.3939,
+      79.3523,
+      79.0374
+     ],
+     "port_runs": [
+      78.582,
+      79.197,
+      78.788,
+      79.312,
+      80.244,
+      78.671,
+      79.579,
+      78.641,
+      79.216,
+      79.145,
+      79.077
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "static[b3]",
+     "gate_kind": "compute",
+     "original_ms": 79.8257,
+     "port_ms": 79.54,
+     "ratio": 0.9964209521494958,
+     "original_runs": [
+      79.7486,
+      79.8257,
+      79.4453,
+      80.499,
+      79.9463,
+      80.3007,
+      79.5105,
+      80.3279,
+      79.6504,
+      79.6351,
+      80.3045
+     ],
+     "port_runs": [
+      79.514,
+      79.982,
+      79.54,
+      79.55,
+      79.292,
+      80.377,
+      80.241,
+      79.975,
+      79.467,
+      79.333,
+      79.486
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "dynamic_comparable[b1]",
+     "gate_kind": "compute",
+     "original_ms": 79.13664,
+     "port_ms": 52.239,
+     "ratio": 0.6601114224713104,
+     "original_runs": [
+      79.11625000000001,
+      79.06790000000001,
+      80.26991000000001,
+      78.00668999999999,
+      80.10297,
+      79.29025999999999,
+      79.13664,
+      79.88821,
+      79.08523,
+      79.17760999999999,
+      78.38282000000001
+     ],
+     "port_runs": [
+      51.668,
+      51.985,
+      52.239,
+      52.264,
+      53.32,
+      51.892,
+      52.093,
+      51.968,
+      52.705,
+      52.27,
+      52.749
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "dynamic_comparable[b2]",
+     "gate_kind": "compute",
+     "original_ms": 61.53864,
+     "port_ms": 41.159,
+     "ratio": 0.6688318103877499,
+     "original_runs": [
+      61.53864,
+      61.51044,
+      61.80362,
+      60.284580000000005,
+      62.972429999999996,
+      62.2307,
+      61.587019999999995,
+      61.20813,
+      61.13143,
+      61.61562,
+      60.77941
+     ],
+     "port_runs": [
+      41.159,
+      40.911,
+      41.126,
+      41.129,
+      42.01,
+      41.242,
+      40.983,
+      40.981,
+      41.495,
+      41.226,
+      42.484
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "dynamic_comparable[b3]",
+     "gate_kind": "compute",
+     "original_ms": 59.51186,
+     "port_ms": 40.89,
+     "ratio": 0.6870899346785666,
+     "original_runs": [
+      62.91245000000001,
+      60.19567000000001,
+      59.817280000000004,
+      58.48625,
+      65.34201999999999,
+      59.66555,
+      59.51186,
+      59.189640000000004,
+      59.13773,
+      59.45111,
+      59.47605
+     ],
+     "port_runs": [
+      40.469,
+      40.787,
+      40.939,
+      40.494,
+      41.657,
+      40.808,
+      42.463,
+      41.101,
+      41.044,
+      40.73,
+      40.89
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "dynamic[b1]",
+     "gate_kind": "compute",
+     "original_ms": 203.298,
+     "port_ms": 52.239,
+     "ratio": 0.25695776643154383,
+     "original_runs": [
+      205.895,
+      212.817,
+      207.35,
+      204.376,
+      216.65,
+      203.109,
+      200.197,
+      203.298,
+      200.837,
+      199.801,
+      203.222
+     ],
+     "port_runs": [
+      51.668,
+      51.985,
+      52.239,
+      52.264,
+      53.32,
+      51.892,
+      52.093,
+      51.968,
+      52.705,
+      52.27,
+      52.749
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "dynamic[b2]",
+     "gate_kind": "compute",
+     "original_ms": 145.97,
+     "port_ms": 41.159,
+     "ratio": 0.2819688977187093,
+     "original_runs": [
+      145.97,
+      144.095,
+      136.201,
+      148.993,
+      161.572,
+      139.628,
+      154.764,
+      145.65,
+      151.274,
+      140.16,
+      153.273
+     ],
+     "port_runs": [
+      41.159,
+      40.911,
+      41.126,
+      41.129,
+      42.01,
+      41.242,
+      40.983,
+      40.981,
+      41.495,
+      41.226,
+      42.484
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "dynamic[b3]",
+     "gate_kind": "compute",
+     "original_ms": 146.452,
+     "port_ms": 40.89,
+     "ratio": 0.279204107830552,
+     "original_runs": [
+      155.205,
+      144.7,
+      143.42,
+      146.452,
+      159.454,
+      158.507,
+      140.242,
+      141.856,
+      145.843,
+      156.952,
+      146.894
+     ],
+     "port_runs": [
+      40.469,
+      40.787,
+      40.939,
+      40.494,
+      41.657,
+      40.808,
+      42.463,
+      41.101,
+      41.044,
+      40.73,
+      40.89
+     ],
+     "gate": 1.05,
+     "within_gate": true
+    },
+    {
+     "region": "load_plus_dynamic",
+     "gate_kind": "end_to_end",
+     "original_ms": 6085.0,
+     "port_ms": 4460.522000000001,
+     "ratio": 0.7330356614626131,
+     "original_runs": [
+      6284.0,
+      6102.0,
+      6040.0,
+      6068.0,
+      6173.0,
+      6491.0,
+      6075.0,
+      6085.0,
+      6072.0,
+      6135.0,
+      6076.0
+     ],
+     "port_runs": [
+      4451.545,
+      4459.968,
+      4445.195,
+      4460.522000000001,
+      4562.651,
+      4441.383,
+      4454.839,
+      4491.141,
+      4494.455,
+      4605.113,
+      4477.379999999999
+     ],
+     "gate": 1.1,
+     "within_gate": true
+    },
+    {
+     "region": "escher[b1]",
+     "gate_kind": "none",
+     "original_ms": 124.839,
+     "port_ms": 8.598,
+     "ratio": 0.06887270804796579,
+     "original_runs": [
+      126.778,
+      133.749,
+      127.08,
+      126.369,
+      136.547,
+      123.819,
+      121.06,
+      123.409,
+      121.752,
+      120.623,
+      124.839
+     ],
+     "port_runs": [
+      8.438,
+      8.646,
+      8.58,
+      8.7,
+      9.207,
+      8.481,
+      8.54,
+      8.598,
+      8.97,
+      8.512,
+      8.953
+     ]
+    },
+    {
+     "region": "escher[b2]",
+     "gate_kind": "none",
+     "original_ms": 84.442,
+     "port_ms": 4.836,
+     "ratio": 0.057270078870704164,
+     "original_runs": [
+      84.4312,
+      82.5841,
+      74.3971,
+      88.7081,
+      98.5997,
+      77.3972,
+      93.1767,
+      84.442,
+      90.1428,
+      78.5444,
+      92.4934
+     ],
+     "port_runs": [
+      4.812,
+      4.787,
+      4.787,
+      4.847,
+      4.963,
+      4.847,
+      4.836,
+      4.79,
+      4.863,
+      4.78,
+      4.986
+     ]
+    },
+    {
+     "region": "escher[b3]",
+     "gate_kind": "none",
+     "original_ms": 87.4183,
+     "port_ms": 4.869,
+     "ratio": 0.05569772004259977,
+     "original_runs": [
+      92.2923,
+      84.5042,
+      83.6025,
+      87.966,
+      94.1118,
+      98.8418,
+      80.7305,
+      82.6662,
+      86.7054,
+      97.5009,
+      87.4183
+     ],
+     "port_runs": [
+      4.81,
+      4.943,
+      4.889,
+      4.832,
+      5.015,
+      4.914,
+      5.704,
+      4.845,
+      4.869,
+      4.784,
+      4.829
+     ]
+    },
+    {
+     "region": "delta[b1]",
+     "gate_kind": "none",
+     "original_ms": 59.3636,
+     "port_ms": 15.77,
+     "ratio": 0.26565100499295863,
+     "original_runs": [
+      59.3871,
+      59.2685,
+      60.5414,
+      58.4551,
+      60.2557,
+      59.4486,
+      59.2715,
+      60.0475,
+      59.2429,
+      59.3636,
+      58.527
+     ],
+     "port_runs": [
+      15.759,
+      15.721,
+      15.77,
+      15.902999999999999,
+      16.145,
+      15.730999999999998,
+      15.757,
+      15.605,
+      15.809999999999999,
+      15.847999999999999,
+      15.84
+     ]
+    },
+    {
+     "region": "delta[b2]",
+     "gate_kind": "none",
+     "original_ms": 46.6139,
+     "port_ms": 16.255000000000003,
+     "ratio": 0.3487157264249505,
+     "original_runs": [
+      46.6871,
+      46.5874,
+      46.9071,
+      45.5245,
+      48.046,
+      47.3386,
+      46.6211,
+      46.2305,
+      46.11,
+      46.6139,
+      45.8182
+     ],
+     "port_runs": [
+      16.255000000000003,
+      16.141,
+      16.27,
+      16.249,
+      16.829,
+      16.21,
+      16.13,
+      16.098999999999997,
+      16.418,
+      16.375,
+      16.398
+     ]
+    },
+    {
+     "region": "delta[b3]",
+     "gate_kind": "none",
+     "original_ms": 45.1581,
+     "port_ms": 16.386000000000003,
+     "ratio": 0.36285849050336494,
+     "original_runs": [
+      48.6573,
+      45.9307,
+      45.5426,
+      44.2688,
+      51.0014,
+      45.3695,
+      45.1581,
+      44.8391,
+      44.8512,
+      45.1213,
+      45.1422
+     ],
+     "port_runs": [
+      16.355,
+      16.368000000000002,
+      16.386000000000003,
+      16.314,
+      16.913,
+      16.281999999999996,
+      17.101999999999997,
+      16.543,
+      16.480999999999998,
+      16.357,
+      16.500999999999998
+     ]
+    },
+    {
+     "region": "csr_apply[b1]",
+     "gate_kind": "none",
+     "original_ms": 10.2646,
+     "port_ms": 12.685,
+     "ratio": 1.2358007131305653,
+     "original_runs": [
+      10.2033,
+      10.2128,
+      10.2485,
+      10.2554,
+      10.2646,
+      10.2473,
+      10.3006,
+      10.3211,
+      10.2953,
+      10.2899,
+      10.32
+     ],
+     "port_runs": [
+      12.554,
+      12.614,
+      12.904,
+      12.607,
+      12.727,
+      12.664,
+      12.685,
+      12.672,
+      12.777,
+      12.697,
+      12.744
+     ]
+    },
+    {
+     "region": "csr_apply[b2]",
+     "gate_kind": "none",
+     "original_ms": 10.04,
+     "port_ms": 10.475,
+     "ratio": 1.0433266932270917,
+     "original_runs": [
+      9.97363,
+      10.0331,
+      10.0174,
+      10.0156,
+      10.0399,
+      10.04,
+      10.1066,
+      10.1046,
+      10.1154,
+      10.1107,
+      10.0829
+     ],
+     "port_runs": [
+      10.375,
+      10.415,
+      10.43,
+      10.436,
+      10.456,
+      10.476,
+      10.509,
+      10.475,
+      10.491,
+      10.499,
+      11.324
+     ]
+    },
+    {
+     "region": "csr_apply[b3]",
+     "gate_kind": "none",
+     "original_ms": 9.96083,
+     "port_ms": 10.434,
+     "ratio": 1.0475030695233227,
+     "original_runs": [
+      9.90454,
+      9.93514,
+      9.94686,
+      9.93311,
+      9.94396,
+      9.96083,
+      9.96646,
+      9.99143,
+      9.96779,
+      9.9913,
+      9.9649
+     ],
+     "port_runs": [
+      10.313,
+      10.374,
+      10.379,
+      10.381,
+      10.389,
+      10.458,
+      10.434,
+      10.462,
+      10.439,
+      10.44,
+      10.436
+     ]
+    },
+    {
+     "region": "update.identify_affected[b1]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.904,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.907,
+      0.911,
+      0.904,
+      0.902,
+      0.909,
+      0.903,
+      0.9,
+      0.896,
+      0.912,
+      0.903,
+      0.912
+     ]
+    },
+    {
+     "region": "update.identify_affected[b2]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.906,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.906,
+      0.919,
+      0.914,
+      0.9,
+      0.919,
+      0.904,
+      0.905,
+      0.904,
+      0.901,
+      0.907,
+      0.917
+     ]
+    },
+    {
+     "region": "update.identify_affected[b3]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.909,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.909,
+      0.9,
+      0.91,
+      0.906,
+      0.909,
+      0.901,
+      0.903,
+      0.911,
+      0.909,
+      0.913,
+      0.902
+     ]
+    },
+    {
+     "region": "update.seed[b1]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 1.785,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      1.785,
+      1.778,
+      1.782,
+      1.775,
+      1.788,
+      1.781,
+      1.796,
+      1.781,
+      1.792,
+      1.789,
+      1.801
+     ]
+    },
+    {
+     "region": "update.seed[b2]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 1.095,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      1.104,
+      1.089,
+      1.1,
+      1.094,
+      1.087,
+      1.095,
+      1.095,
+      1.086,
+      1.093,
+      1.097,
+      1.111
+     ]
+    },
+    {
+     "region": "update.seed[b3]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 1.052,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      1.053,
+      1.059,
+      1.049,
+      1.046,
+      1.06,
+      1.052,
+      1.052,
+      1.051,
+      1.066,
+      1.054,
+      1.041
+     ]
+    },
+    {
+     "region": "update.loop[b1]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 6.602,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      6.613,
+      6.604,
+      6.589,
+      6.599,
+      6.602,
+      6.599,
+      6.607,
+      6.589,
+      6.615,
+      6.611,
+      6.598
+     ]
+    },
+    {
+     "region": "update.loop[b2]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 2.71,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      2.714,
+      2.7,
+      2.714,
+      2.703,
+      2.714,
+      2.701,
+      2.71,
+      2.711,
+      2.705,
+      2.695,
+      2.718
+     ]
+    },
+    {
+     "region": "update.loop[b3]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 2.261,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      2.261,
+      2.263,
+      2.266,
+      2.245,
+      2.252,
+      2.293,
+      2.26,
+      2.262,
+      2.254,
+      2.249,
+      2.266
+     ]
+    },
+    {
+     "region": "update.recompute[b1]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "region": "update.recompute[b2]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "region": "update.recompute[b3]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "region": "update.finalize[b1]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.077,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.076,
+      0.093,
+      0.076,
+      0.076,
+      0.077,
+      0.076,
+      0.076,
+      0.077,
+      0.077,
+      0.077,
+      0.077
+     ]
+    },
+    {
+     "region": "update.finalize[b2]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.076,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.078,
+      0.076,
+      0.075,
+      0.077
+     ]
+    },
+    {
+     "region": "update.finalize[b3]",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 0.076,
+     "ratio": null,
+     "original_runs": [],
+     "port_runs": [
+      0.075,
+      0.076,
+      0.076,
+      0.076,
+      0.077,
+      0.078,
+      0.076,
+      0.076,
+      0.076,
+      0.076,
+      0.075
+     ]
+    },
+    {
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 5594.0,
+     "port_ms": 4326.636,
+     "ratio": 0.7734422595638184,
+     "original_runs": [
+      5777.0,
+      5600.0,
+      5553.0,
+      5568.0,
+      5635.0,
+      5990.0,
+      5580.0,
+      5594.0,
+      5574.0,
+      5638.0,
+      5573.0
+     ],
+     "port_runs": [
+      4318.249,
+      4326.285,
+      4310.891,
+      4326.636,
+      4425.664,
+      4307.441,
+      4319.299,
+      4357.092,
+      4359.211,
+      4470.888,
+      4341.257
+     ]
+    },
+    {
+     "region": "static_sum",
+     "gate_kind": "none",
+     "original_ms": 239.0,
+     "port_ms": 238.163,
+     "ratio": 0.9964979079497909,
+     "original_runs": [
+      239.0,
+      238.0,
+      238.0,
+      240.0,
+      239.0,
+      239.0,
+      239.0,
+      239.0,
+      240.0,
+      239.0,
+      239.0
+     ],
+     "port_runs": [
+      237.609,
+      238.506,
+      237.333,
+      238.163,
+      239.45,
+      238.58,
+      239.126,
+      237.682,
+      238.18,
+      237.837,
+      237.69
+     ]
+    },
+    {
+     "region": "wall",
+     "gate_kind": "none",
+     "original_ms": 6412.0,
+     "port_ms": 7792.9,
+     "ratio": 1.215361821584529,
+     "original_runs": [
+      6626.0,
+      6427.0,
+      6386.0,
+      6395.0,
+      6519.0,
+      6819.0,
+      6404.0,
+      6412.0,
+      6400.0,
+      6463.0,
+      6403.0
+     ],
+     "port_runs": [
+      7860.596,
+      7741.142,
+      7724.394,
+      7749.004,
+      8038.132,
+      7740.646,
+      7770.894,
+      7796.677,
+      7792.9,
+      7876.412,
+      7825.354
+     ]
+    },
+    {
+     "region": "process",
+     "gate_kind": "none",
+     "original_ms": 6842.873334884644,
+     "port_ms": 8310.598850250244,
+     "ratio": 1.2144896512818972,
+     "original_runs": [
+      7053.726673126221,
+      6853.074073791504,
+      6815.787553787231,
+      6822.246313095093,
+      6954.482078552246,
+      7245.423078536987,
+      6842.873334884644,
+      6842.734813690186,
+      6835.06441116333,
+      6887.8333568573,
+      6832.205295562744
+     ],
+     "port_runs": [
+      8380.009174346924,
+      8258.025884628296,
+      8241.60623550415,
+      8262.309074401855,
+      8588.573455810547,
+      8272.379398345947,
+      8282.968997955322,
+      8320.846319198608,
+      8310.598850250244,
+      8398.254871368408,
+      8359.0407371521
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.3293808401729725,
+    "original_pstates_busy": {
+     "P2": 455,
+     "P0": 30
+    },
+    "original_sm_mhz_busy_median": 1875.0,
+    "port_pstates_busy": {
+     "P0": 50,
+     "P2": 431
+    },
+    "port_sm_mhz_busy_median": 1890.0
+   },
+   "loads": [
+    {
+     "samples": 31,
+     "load_average_max": 1.8974609375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 30,
+     "load_average_max": 1.6416015625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 31,
+     "load_average_max": 1.4990234375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 30,
+     "load_average_max": 1.408203125,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 31,
+     "load_average_max": 1.73583984375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 31,
+     "load_average_max": 1.75732421875,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 31,
+     "load_average_max": 1.64013671875,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 30,
+     "load_average_max": 1.50146484375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 31,
+     "load_average_max": 1.4609375,
+     "procs_blocked_max": 1
+    },
+    {
+     "samples": 31,
+     "load_average_max": 1.43896484375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 30,
+     "load_average_max": 1.64990234375,
+     "procs_blocked_max": 0
+    }
+   ],
+   "audit": {
+    "rule": {
+     "load_average": 16.0,
+     "procs_blocked": 4,
+     "why": "B's quiet maximum 7.03 is at most 8.0: ADR 0056's thresholds kept (HD4)"
+    },
+    "flagged_rounds": [],
+    "flagged": false
+   },
+   "guard": {
+    "rounds_checked": 11,
+    "passed": true
+   },
+   "original_csv": [
+    [
+     {
+      "t_dynamic_total_ms": 205.895,
+      "t_delta_ms": 59.3871,
+      "t_static_ms": 79.6385,
+      "t_sosp_update_ms": 9.52585,
+      "t_csr_apply_ms": 10.2033,
+      "t_escher_ms": 126.778
+     },
+     {
+      "t_dynamic_total_ms": 145.97,
+      "t_delta_ms": 46.6871,
+      "t_static_ms": 79.2077,
+      "t_sosp_update_ms": 4.87791,
+      "t_csr_apply_ms": 9.97363,
+      "t_escher_ms": 84.4312
+     },
+     {
+      "t_dynamic_total_ms": 155.205,
+      "t_delta_ms": 48.6573,
+      "t_static_ms": 79.7486,
+      "t_sosp_update_ms": 4.35061,
+      "t_csr_apply_ms": 9.90454,
+      "t_escher_ms": 92.2923
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 212.817,
+      "t_delta_ms": 59.2685,
+      "t_static_ms": 79.793,
+      "t_sosp_update_ms": 9.5866,
+      "t_csr_apply_ms": 10.2128,
+      "t_escher_ms": 133.749
+     },
+     {
+      "t_dynamic_total_ms": 144.095,
+      "t_delta_ms": 46.5874,
+      "t_static_ms": 78.8309,
+      "t_sosp_update_ms": 4.88994,
+      "t_csr_apply_ms": 10.0331,
+      "t_escher_ms": 82.5841
+     },
+     {
+      "t_dynamic_total_ms": 144.7,
+      "t_delta_ms": 45.9307,
+      "t_static_ms": 79.8257,
+      "t_sosp_update_ms": 4.32983,
+      "t_csr_apply_ms": 9.93514,
+      "t_escher_ms": 84.5042
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 207.35,
+      "t_delta_ms": 60.5414,
+      "t_static_ms": 79.0681,
+      "t_sosp_update_ms": 9.48001,
+      "t_csr_apply_ms": 10.2485,
+      "t_escher_ms": 127.08
+     },
+     {
+      "t_dynamic_total_ms": 136.201,
+      "t_delta_ms": 46.9071,
+      "t_static_ms": 79.3786,
+      "t_sosp_update_ms": 4.87912,
+      "t_csr_apply_ms": 10.0174,
+      "t_escher_ms": 74.3971
+     },
+     {
+      "t_dynamic_total_ms": 143.42,
+      "t_delta_ms": 45.5426,
+      "t_static_ms": 79.4453,
+      "t_sosp_update_ms": 4.32782,
+      "t_csr_apply_ms": 9.94686,
+      "t_escher_ms": 83.6025
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 204.376,
+      "t_delta_ms": 58.4551,
+      "t_static_ms": 79.9578,
+      "t_sosp_update_ms": 9.29619,
+      "t_csr_apply_ms": 10.2554,
+      "t_escher_ms": 126.369
+     },
+     {
+      "t_dynamic_total_ms": 148.993,
+      "t_delta_ms": 45.5245,
+      "t_static_ms": 79.3573,
+      "t_sosp_update_ms": 4.74448,
+      "t_csr_apply_ms": 10.0156,
+      "t_escher_ms": 88.7081
+     },
+     {
+      "t_dynamic_total_ms": 146.452,
+      "t_delta_ms": 44.2688,
+      "t_static_ms": 80.499,
+      "t_sosp_update_ms": 4.28434,
+      "t_csr_apply_ms": 9.93311,
+      "t_escher_ms": 87.966
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 216.65,
+      "t_delta_ms": 60.2557,
+      "t_static_ms": 78.6995,
+      "t_sosp_update_ms": 9.58267,
+      "t_csr_apply_ms": 10.2646,
+      "t_escher_ms": 136.547
+     },
+     {
+      "t_dynamic_total_ms": 161.572,
+      "t_delta_ms": 48.046,
+      "t_static_ms": 79.9607,
+      "t_sosp_update_ms": 4.88653,
+      "t_csr_apply_ms": 10.0399,
+      "t_escher_ms": 98.5997
+     },
+     {
+      "t_dynamic_total_ms": 159.454,
+      "t_delta_ms": 51.0014,
+      "t_static_ms": 79.9463,
+      "t_sosp_update_ms": 4.39666,
+      "t_csr_apply_ms": 9.94396,
+      "t_escher_ms": 94.1118
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 203.109,
+      "t_delta_ms": 59.4486,
+      "t_static_ms": 79.47,
+      "t_sosp_update_ms": 9.59436,
+      "t_csr_apply_ms": 10.2473,
+      "t_escher_ms": 123.819
+     },
+     {
+      "t_dynamic_total_ms": 139.628,
+      "t_delta_ms": 47.3386,
+      "t_static_ms": 78.9325,
+      "t_sosp_update_ms": 4.8521,
+      "t_csr_apply_ms": 10.04,
+      "t_escher_ms": 77.3972
+     },
+     {
+      "t_dynamic_total_ms": 158.507,
+      "t_delta_ms": 45.3695,
+      "t_static_ms": 80.3007,
+      "t_sosp_update_ms": 4.33522,
+      "t_csr_apply_ms": 9.96083,
+      "t_escher_ms": 98.8418
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 200.197,
+      "t_delta_ms": 59.2715,
+      "t_static_ms": 80.4637,
+      "t_sosp_update_ms": 9.56454,
+      "t_csr_apply_ms": 10.3006,
+      "t_escher_ms": 121.06
+     },
+     {
+      "t_dynamic_total_ms": 154.764,
+      "t_delta_ms": 46.6211,
+      "t_static_ms": 79.289,
+      "t_sosp_update_ms": 4.85932,
+      "t_csr_apply_ms": 10.1066,
+      "t_escher_ms": 93.1767
+     },
+     {
+      "t_dynamic_total_ms": 140.242,
+      "t_delta_ms": 45.1581,
+      "t_static_ms": 79.5105,
+      "t_sosp_update_ms": 4.3873,
+      "t_csr_apply_ms": 9.96646,
+      "t_escher_ms": 80.7305
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 203.298,
+      "t_delta_ms": 60.0475,
+      "t_static_ms": 79.8857,
+      "t_sosp_update_ms": 9.51961,
+      "t_csr_apply_ms": 10.3211,
+      "t_escher_ms": 123.409
+     },
+     {
+      "t_dynamic_total_ms": 145.65,
+      "t_delta_ms": 46.2305,
+      "t_static_ms": 78.6634,
+      "t_sosp_update_ms": 4.87303,
+      "t_csr_apply_ms": 10.1046,
+      "t_escher_ms": 84.442
+     },
+     {
+      "t_dynamic_total_ms": 141.856,
+      "t_delta_ms": 44.8391,
+      "t_static_ms": 80.3279,
+      "t_sosp_update_ms": 4.35911,
+      "t_csr_apply_ms": 9.99143,
+      "t_escher_ms": 82.6662
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 200.837,
+      "t_delta_ms": 59.2429,
+      "t_static_ms": 79.4695,
+      "t_sosp_update_ms": 9.54703,
+      "t_csr_apply_ms": 10.2953,
+      "t_escher_ms": 121.752
+     },
+     {
+      "t_dynamic_total_ms": 151.274,
+      "t_delta_ms": 46.11,
+      "t_static_ms": 80.3939,
+      "t_sosp_update_ms": 4.90603,
+      "t_csr_apply_ms": 10.1154,
+      "t_escher_ms": 90.1428
+     },
+     {
+      "t_dynamic_total_ms": 145.843,
+      "t_delta_ms": 44.8512,
+      "t_static_ms": 79.6504,
+      "t_sosp_update_ms": 4.31874,
+      "t_csr_apply_ms": 9.96779,
+      "t_escher_ms": 86.7054
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 199.801,
+      "t_delta_ms": 59.3636,
+      "t_static_ms": 79.8672,
+      "t_sosp_update_ms": 9.52411,
+      "t_csr_apply_ms": 10.2899,
+      "t_escher_ms": 120.623
+     },
+     {
+      "t_dynamic_total_ms": 140.16,
+      "t_delta_ms": 46.6139,
+      "t_static_ms": 79.3523,
+      "t_sosp_update_ms": 4.89102,
+      "t_csr_apply_ms": 10.1107,
+      "t_escher_ms": 78.5444
+     },
+     {
+      "t_dynamic_total_ms": 156.952,
+      "t_delta_ms": 45.1213,
+      "t_static_ms": 79.6351,
+      "t_sosp_update_ms": 4.33851,
+      "t_csr_apply_ms": 9.9913,
+      "t_escher_ms": 97.5009
+     }
+    ],
+    [
+     {
+      "t_dynamic_total_ms": 203.222,
+      "t_delta_ms": 58.527,
+      "t_static_ms": 79.6499,
+      "t_sosp_update_ms": 9.53582,
+      "t_csr_apply_ms": 10.32,
+      "t_escher_ms": 124.839
+     },
+     {
+      "t_dynamic_total_ms": 153.273,
+      "t_delta_ms": 45.8182,
+      "t_static_ms": 79.0374,
+      "t_sosp_update_ms": 4.87831,
+      "t_csr_apply_ms": 10.0829,
+      "t_escher_ms": 92.4934
+     },
+     {
+      "t_dynamic_total_ms": 146.894,
+      "t_delta_ms": 45.1422,
+      "t_static_ms": 80.3045,
+      "t_sosp_update_ms": 4.36895,
+      "t_csr_apply_ms": 9.9649,
+      "t_escher_ms": 87.4183
+     }
+    ]
+   ],
+   "original_e2e": [
+    {
+     "load": 5777.0,
+     "dynamic": 507.0,
+     "static": 239.0,
+     "wall": 6626.0,
+     "batches": 3
+    },
+    {
+     "load": 5600.0,
+     "dynamic": 502.0,
+     "static": 238.0,
+     "wall": 6427.0,
+     "batches": 3
+    },
+    {
+     "load": 5553.0,
+     "dynamic": 487.0,
+     "static": 238.0,
+     "wall": 6386.0,
+     "batches": 3
+    },
+    {
+     "load": 5568.0,
+     "dynamic": 500.0,
+     "static": 240.0,
+     "wall": 6395.0,
+     "batches": 3
+    },
+    {
+     "load": 5635.0,
+     "dynamic": 538.0,
+     "static": 239.0,
+     "wall": 6519.0,
+     "batches": 3
+    },
+    {
+     "load": 5990.0,
+     "dynamic": 501.0,
+     "static": 239.0,
+     "wall": 6819.0,
+     "batches": 3
+    },
+    {
+     "load": 5580.0,
+     "dynamic": 495.0,
+     "static": 239.0,
+     "wall": 6404.0,
+     "batches": 3
+    },
+    {
+     "load": 5594.0,
+     "dynamic": 491.0,
+     "static": 239.0,
+     "wall": 6412.0,
+     "batches": 3
+    },
+    {
+     "load": 5574.0,
+     "dynamic": 498.0,
+     "static": 240.0,
+     "wall": 6400.0,
+     "batches": 3
+    },
+    {
+     "load": 5638.0,
+     "dynamic": 497.0,
+     "static": 239.0,
+     "wall": 6463.0,
+     "batches": 3
+    },
+    {
+     "load": 5573.0,
+     "dynamic": 503.0,
+     "static": 239.0,
+     "wall": 6403.0,
+     "batches": 3
+    }
+   ]
+  }
+ },
+ "compacted": "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the rejected rounds) and triad_count's per-round stage timers (results.*.original_rounds and port_rounds; every row's samples stay in its region) were dropped to keep the repository small; the verdicts, samples, rejected rounds with their reasons, clock check and GPU summary are unchanged; the full record: $DYNG_SCRATCH/runs/bench/M11a/ia3_hsosp-cuda-default-clocks-dblp_hyperedge_50000.json"
+}
