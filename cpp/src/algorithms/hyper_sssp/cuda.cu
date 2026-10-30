@@ -107,10 +107,10 @@ std::vector<int> base_of(const hyper_sssp_graph& g) {
   return out;
 }
 
-/// The engine runs on the legacy default stream in this commit (MOSP_ESCHER's): the work of the
-/// resources' stream before it (the commit) completes first.
-void wait_for_stream(const resources& res) {
-  DYNG_CUDA_TRY(cudaStreamSynchronize(static_cast<cudaStream_t>(res.stream().get())));
+/// The stream of the resources: every operation of the engine runs on it (the store orders the
+/// commit's work before it: it signals the caller's stream at the end of its phase).
+cudaStream_t stream_of(const resources& res) {
+  return static_cast<cudaStream_t>(res.stream().get());
 }
 
 }  // namespace
@@ -123,19 +123,23 @@ void hyper_sssp_cuda_reserve(const resources& res, hyper_sssp_state& st, std::in
   if (st.dev != nullptr && st.dev->max_nodes >= n) return;
   note_reservation();  // the result's device state grows (invariant I9)
   hyper_sssp_device_ptr bigger(new hsosp::device_state);
+  bigger->stream = stream_of(res);
   bigger->allocate(n);
   if (!st.endpoints.is_virtual()) bigger->allocate_holds();
   if (st.dev != nullptr) {
     // A growth of the store's node arrays: the distances, parents and flags carry over (the new
     // slots are infinite, -1 and 0); the epoch stamps start again from 0 (any epoch is newer).
     const auto old = static_cast<std::size_t>(st.dev->max_nodes);
-    DYNG_CUDA_TRY(cudaMemcpy(bigger->d_dist, st.dev->d_dist, sizeof(long long) * old,
-                             cudaMemcpyDeviceToDevice));
-    DYNG_CUDA_TRY(cudaMemcpy(bigger->d_parent, st.dev->d_parent, sizeof(int) * old,
-                             cudaMemcpyDeviceToDevice));
+    const cudaStream_t stream = bigger->stream;
+    DYNG_CUDA_TRY(cudaMemcpyAsync(bigger->d_dist, st.dev->d_dist, sizeof(long long) * old,
+                                  cudaMemcpyDeviceToDevice, stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(bigger->d_parent, st.dev->d_parent, sizeof(int) * old,
+                                  cudaMemcpyDeviceToDevice, stream));
     if (st.dev->d_holds != nullptr && bigger->d_holds != nullptr) {
-      DYNG_CUDA_TRY(cudaMemcpy(bigger->d_holds, st.dev->d_holds, old, cudaMemcpyDeviceToDevice));
+      DYNG_CUDA_TRY(
+          cudaMemcpyAsync(bigger->d_holds, st.dev->d_holds, old, cudaMemcpyDeviceToDevice, stream));
     }
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
     bigger->epoch = st.dev->epoch;
   }
   st.dev = std::move(bigger);
@@ -145,15 +149,15 @@ hyper_sssp_engine_counters hyper_sssp_cuda_recompute(const resources& res, hyper
                                                      const hyper_sssp_graph& g,
                                                      const hyper_sssp_budget& budget) {
   const scoped_device guard(res.device());
-  wait_for_stream(res);
+  st.dev->stream = stream_of(res);
   hsosp::device_graph dev = device_graph_of(g, nullptr);
   std::vector<int> base;
   if (!st.endpoints.is_virtual()) {
     // The source flags on the device (the host copy is current: compute() rebuilt it).
-    DYNG_CUDA_TRY(cudaMemcpy(
+    DYNG_CUDA_TRY(cudaMemcpyAsync(
         st.dev->d_holds, st.holds_source.data(),
         std::min<std::size_t>(st.holds_source.size(), static_cast<std::size_t>(st.dev->max_nodes)),
-        cudaMemcpyHostToDevice));
+        cudaMemcpyHostToDevice, st.dev->stream));
     dev.d_holds = st.dev->d_holds;
     base = base_of(g);
     dev.base = &base;
@@ -169,7 +173,7 @@ hyper_sssp_engine_counters hyper_sssp_cuda_update(const resources& res, hyper_ss
                                                   const hyper_sssp_budget& budget,
                                                   const framework::hook_stages& /*names*/) {
   const scoped_device guard(res.device());
-  wait_for_stream(res);
+  st.dev->stream = stream_of(res);
   hsosp::device_graph dev = device_graph_of(g, &b);
   std::vector<int> base, lost, gained;
   if (!st.endpoints.is_virtual()) {
@@ -193,10 +197,12 @@ void hyper_sssp_cuda_download(const resources& res, const hyper_sssp_state& st,
   dist.resize(n);
   parent.resize(n);
   if (n == 0) return;
-  DYNG_CUDA_TRY(
-      cudaMemcpy(dist.data(), st.dev->d_dist, sizeof(long long) * n, cudaMemcpyDeviceToHost));
-  DYNG_CUDA_TRY(
-      cudaMemcpy(parent.data(), st.dev->d_parent, sizeof(int) * n, cudaMemcpyDeviceToHost));
+  const cudaStream_t stream = stream_of(res);
+  DYNG_CUDA_TRY(cudaMemcpyAsync(dist.data(), st.dev->d_dist, sizeof(long long) * n,
+                                cudaMemcpyDeviceToHost, stream));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(parent.data(), st.dev->d_parent, sizeof(int) * n,
+                                cudaMemcpyDeviceToHost, stream));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
 void hyper_sssp_cuda_upload(const resources& res, hyper_sssp_state& st,
@@ -205,16 +211,18 @@ void hyper_sssp_cuda_upload(const resources& res, hyper_sssp_state& st,
   const scoped_device guard(res.device());
   const std::size_t n = std::min(dist.size(), static_cast<std::size_t>(st.dev->max_nodes));
   if (n == 0) return;
-  DYNG_CUDA_TRY(
-      cudaMemcpy(st.dev->d_dist, dist.data(), sizeof(long long) * n, cudaMemcpyHostToDevice));
-  DYNG_CUDA_TRY(
-      cudaMemcpy(st.dev->d_parent, parent.data(), sizeof(int) * n, cudaMemcpyHostToDevice));
+  const cudaStream_t stream = stream_of(res);
+  DYNG_CUDA_TRY(cudaMemcpyAsync(st.dev->d_dist, dist.data(), sizeof(long long) * n,
+                                cudaMemcpyHostToDevice, stream));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(st.dev->d_parent, parent.data(), sizeof(int) * n,
+                                cudaMemcpyHostToDevice, stream));
   if (st.dev->d_holds != nullptr && !st.holds_source.empty()) {
-    DYNG_CUDA_TRY(
-        cudaMemcpy(st.dev->d_holds, st.holds_source.data(),
-                   std::min(st.holds_source.size(), static_cast<std::size_t>(st.dev->max_nodes)),
-                   cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(
+        st.dev->d_holds, st.holds_source.data(),
+        std::min(st.holds_source.size(), static_cast<std::size_t>(st.dev->max_nodes)),
+        cudaMemcpyHostToDevice, stream));
   }
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
 const std::int64_t* hyper_sssp_cuda_distances(const hyper_sssp_state& st) noexcept {
@@ -228,8 +236,9 @@ const std::int32_t* hyper_sssp_cuda_parents(const hyper_sssp_state& st) noexcept
 void hyper_sssp_cuda_set_holds(const resources& res, hyper_sssp_state& st,
                                const std::vector<std::int64_t>& ids, std::uint8_t value) {
   const scoped_device guard(res.device());
+  const cudaStream_t stream = stream_of(res);
   for (const std::int64_t id : ids) {
-    DYNG_CUDA_TRY(cudaMemset(st.dev->d_holds + id, value, 1));
+    DYNG_CUDA_TRY(cudaMemsetAsync(st.dev->d_holds + id, value, 1, stream));
   }
 }
 

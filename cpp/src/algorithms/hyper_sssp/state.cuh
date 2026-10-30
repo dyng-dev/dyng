@@ -48,6 +48,8 @@ struct device_state {
   unsigned long long* d_upd_counters = nullptr;
   unsigned long long* h_upd_counters = nullptr;
   int epoch = 0;
+  /// dynG: the stream of every operation (the resources' of the call; set by its entry point).
+  cudaStream_t stream = nullptr;
   // dynG (transplant hunk): the public mode's source flags (one byte per node: the hyperedge holds
   // the source vertex), allocated by allocate_holds() for a result of the public mode only.
   unsigned char* d_holds = nullptr;

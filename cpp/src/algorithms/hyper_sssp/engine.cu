@@ -131,22 +131,22 @@ void device_state::allocate(int n) {
   DYNG_CUDA_TRY(cudaMalloc(&d_stamp, sizeof(int) * n));
   DYNG_CUDA_TRY(cudaMalloc(&d_upd_counters, sizeof(unsigned long long) * upd_counters));
   DYNG_CUDA_TRY(cudaMallocHost(&h_upd_counters, sizeof(unsigned long long) * upd_counters));
-  DYNG_CUDA_TRY(cudaMemset(d_stamp, 0, sizeof(int) * n));
+  DYNG_CUDA_TRY(cudaMemsetAsync(d_stamp, 0, sizeof(int) * n, stream));
   epoch = 0;
 
   const int block = 256;
-  fill_ll_kernel<<<grid_for(n, block), block>>>(d_dist, n, inf_value);
-  fill_int_kernel<<<grid_for(n, block), block>>>(d_parent, n, -1);
-  DYNG_CUDA_TRY(cudaMemset(d_is_affected, 0, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMemset(d_is_candidate, 0, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaDeviceSynchronize());
+  fill_ll_kernel<<<grid_for(n, block), block, 0, stream>>>(d_dist, n, inf_value);
+  fill_int_kernel<<<grid_for(n, block), block, 0, stream>>>(d_parent, n, -1);
+  DYNG_CUDA_TRY(cudaMemsetAsync(d_is_affected, 0, sizeof(int) * n, stream));
+  DYNG_CUDA_TRY(cudaMemsetAsync(d_is_candidate, 0, sizeof(int) * n, stream));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
 void device_state::allocate_holds() {
   if (d_holds) DYNG_CUDA_TRY_NO_THROW(cudaFree(d_holds));
   d_holds = nullptr;
   DYNG_CUDA_TRY(cudaMalloc(&d_holds, static_cast<std::size_t>(max_nodes)));
-  DYNG_CUDA_TRY(cudaMemset(d_holds, 0, static_cast<std::size_t>(max_nodes)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(d_holds, 0, static_cast<std::size_t>(max_nodes), stream));
 }
 
 long long device_state::device_bytes() const {
@@ -160,12 +160,16 @@ long long device_state::device_bytes() const {
 
 void device_state::download_distances(std::vector<long long>& dist, int n) const {
   dist.resize(n);
-  DYNG_CUDA_TRY(cudaMemcpy(dist.data(), d_dist, sizeof(long long) * n, cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(
+      cudaMemcpyAsync(dist.data(), d_dist, sizeof(long long) * n, cudaMemcpyDeviceToHost, stream));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
 void device_state::download_parents(std::vector<int>& parent, int n) const {
   parent.resize(n);
-  DYNG_CUDA_TRY(cudaMemcpy(parent.data(), d_parent, sizeof(int) * n, cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(
+      cudaMemcpyAsync(parent.data(), d_parent, sizeof(int) * n, cudaMemcpyDeviceToHost, stream));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
 void device_state::download_parent_ids(std::vector<int>& parent_ids, int n) const {
@@ -200,8 +204,8 @@ int propagate(const device_graph& dev, device_state& st, const std::vector<int>&
   if (list_count == 0) return 0;
 
   int* d_initial = start_with_candidates ? st.d_cand_list : st.d_aff_list;
-  DYNG_CUDA_TRY(
-      cudaMemcpy(d_initial, initial_list.data(), sizeof(int) * list_count, cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(d_initial, initial_list.data(), sizeof(int) * list_count,
+                                cudaMemcpyHostToDevice, st.stream));
 
   int iterations = 0;
   int max_frontier = list_count;
@@ -209,12 +213,14 @@ int propagate(const device_graph& dev, device_state& st, const std::vector<int>&
 
   if (!start_with_candidates) {
     // Prime: collect candidates from the initial affected list.
-    DYNG_CUDA_TRY(cudaMemset(d_cand_count, 0, sizeof(int)));
-    collect_candidates_warp_kernel<<<grid_for(32LL * list_count, block), block>>>(
+    DYNG_CUDA_TRY(cudaMemsetAsync(d_cand_count, 0, sizeof(int), st.stream));
+    collect_candidates_warp_kernel<<<grid_for(32LL * list_count, block), block, 0, st.stream>>>(
         st.d_aff_list, list_count, dev.d_row_start, dev.d_deg, dev.d_col_ind, st.d_is_candidate,
         st.d_cand_list, d_cand_count, st.d_is_affected, source0);
     DYNG_CUDA_TRY(cudaGetLastError());
-    DYNG_CUDA_TRY(cudaMemcpy(&cand_count, d_cand_count, sizeof(int), cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(
+        cudaMemcpyAsync(&cand_count, d_cand_count, sizeof(int), cudaMemcpyDeviceToHost, st.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
   } else {
     cand_count = list_count;
   }
@@ -224,26 +230,30 @@ int propagate(const device_graph& dev, device_state& st, const std::vector<int>&
     ++iterations;
     max_frontier = std::max(max_frontier, cand_count);
 
-    DYNG_CUDA_TRY(cudaMemset(d_aff_count, 0, sizeof(int)));
-    pull_distances_warp_kernel<<<grid_for(32LL * cand_count, block), block>>>(
+    DYNG_CUDA_TRY(cudaMemsetAsync(d_aff_count, 0, sizeof(int), st.stream));
+    pull_distances_warp_kernel<<<grid_for(32LL * cand_count, block), block, 0, st.stream>>>(
         st.d_cand_list, cand_count, dev.d_row_start, dev.d_deg, dev.d_col_ind, dev.d_node_w,
         st.d_dist, st.d_parent, st.d_is_candidate, st.d_is_affected, st.d_aff_list, d_aff_count,
         source0, dev.zero_a, dev.zero_b, dev.d_holds);
     DYNG_CUDA_TRY(cudaGetLastError());
 
     int aff_count = 0;
-    DYNG_CUDA_TRY(cudaMemcpy(&aff_count, d_aff_count, sizeof(int), cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(
+        cudaMemcpyAsync(&aff_count, d_aff_count, sizeof(int), cudaMemcpyDeviceToHost, st.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
     if (aff_count == 0) {
       cand_count = 0;
       break;
     }
 
-    DYNG_CUDA_TRY(cudaMemset(d_cand_count, 0, sizeof(int)));
-    collect_candidates_warp_kernel<<<grid_for(32LL * aff_count, block), block>>>(
+    DYNG_CUDA_TRY(cudaMemsetAsync(d_cand_count, 0, sizeof(int), st.stream));
+    collect_candidates_warp_kernel<<<grid_for(32LL * aff_count, block), block, 0, st.stream>>>(
         st.d_aff_list, aff_count, dev.d_row_start, dev.d_deg, dev.d_col_ind, st.d_is_candidate,
         st.d_cand_list, d_cand_count, st.d_is_affected, source0);
     DYNG_CUDA_TRY(cudaGetLastError());
-    DYNG_CUDA_TRY(cudaMemcpy(&cand_count, d_cand_count, sizeof(int), cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(
+        cudaMemcpyAsync(&cand_count, d_cand_count, sizeof(int), cudaMemcpyDeviceToHost, st.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
   }
 
   if (max_frontier_out) *max_frontier_out = max_frontier;
@@ -263,23 +273,24 @@ void check_block_size(const engine_config& cfg, const char* where) {
 void reset_for_recompute(const device_graph& dev, device_state& st, int source0) {
   const int n = dev.num_nodes;
   const int block = 256;
-  fill_ll_kernel<<<grid_for(n, block), block>>>(st.d_dist, n, inf_value);
-  fill_int_kernel<<<grid_for(n, block), block>>>(st.d_parent, n, -1);
-  DYNG_CUDA_TRY(cudaMemset(st.d_is_affected, 0, sizeof(int) * n));
-  DYNG_CUDA_TRY(cudaMemset(st.d_is_candidate, 0, sizeof(int) * n));
+  fill_ll_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_dist, n, inf_value);
+  fill_int_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_parent, n, -1);
+  DYNG_CUDA_TRY(cudaMemsetAsync(st.d_is_affected, 0, sizeof(int) * n, st.stream));
+  DYNG_CUDA_TRY(cudaMemsetAsync(st.d_is_candidate, 0, sizeof(int) * n, st.stream));
   if (source0 >= 0) {
     const long long zero = 0;
-    DYNG_CUDA_TRY(
-        cudaMemcpy(st.d_dist + source0, &zero, sizeof(long long), cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(st.d_dist + source0, &zero, sizeof(long long),
+                                  cudaMemcpyHostToDevice, st.stream));
   } else if (dev.base != nullptr && !dev.base->empty()) {
     // dynG (transplant hunk), the public mode: the hyperedges holding the source at their own
     // weight (the source row's role; propagate collects their neighbours first).
     const int nb = static_cast<int>(dev.base->size());
-    DYNG_CUDA_TRY(
-        cudaMemcpy(st.d_aff_list, dev.base->data(), sizeof(int) * nb, cudaMemcpyHostToDevice));
-    seed_base_kernel<<<grid_for(nb, block), block>>>(st.d_aff_list, nb, dev.d_node_w, st.d_dist);
+    DYNG_CUDA_TRY(cudaMemcpyAsync(st.d_aff_list, dev.base->data(), sizeof(int) * nb,
+                                  cudaMemcpyHostToDevice, st.stream));
+    seed_base_kernel<<<grid_for(nb, block), block, 0, st.stream>>>(st.d_aff_list, nb, dev.d_node_w,
+                                                                   st.d_dist);
   }
-  DYNG_CUDA_TRY(cudaDeviceSynchronize());
+  DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
 }
 
 }  // namespace
@@ -321,45 +332,49 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
   u64* cnt = st.d_upd_counters;
   u64* hcnt = st.h_upd_counters;
   auto read_counters = [&]() {
-    DYNG_CUDA_TRY(cudaMemcpy(hcnt, cnt, sizeof(u64) * upd_counters, cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(
+        cudaMemcpyAsync(hcnt, cnt, sizeof(u64) * upd_counters, cudaMemcpyDeviceToHost, st.stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
   };
 
   // dynG (transplant hunk): the dead nodes' degrees are zeroed by the slack_csr store's CSR apply
   // (ADR 0089), so the engine writes no container state.
 
   // 1. Pack the pre-batch state; mark the roots.
-  DYNG_CUDA_TRY(cudaMemset(cnt, 0, sizeof(u64) * upd_counters));
-  pack_state_kernel<<<grid_for(n, block), block>>>(st.d_dist, st.d_parent, st.d_packed, n, cnt);
-  DYNG_CUDA_TRY(cudaMemset(st.d_inv_a, 0, sizeof(int) * n));
+  DYNG_CUDA_TRY(cudaMemsetAsync(cnt, 0, sizeof(u64) * upd_counters, st.stream));
+  pack_state_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_dist, st.d_parent,
+                                                                 st.d_packed, n, cnt);
+  DYNG_CUDA_TRY(cudaMemsetAsync(st.d_inv_a, 0, sizeof(int) * n, st.stream));
   if (dd.num_del > 0)
-    mark_deleted_tree_edges_kernel<<<grid_for(dd.num_del, block), block>>>(del_pairs, dd.num_del,
-                                                                           st.d_packed, st.d_inv_a);
+    mark_deleted_tree_edges_kernel<<<grid_for(dd.num_del, block), block, 0, st.stream>>>(
+        del_pairs, dd.num_del, st.d_packed, st.d_inv_a);
   if (dd.num_new + dd.num_dead > 0)
-    mark_ids_kernel<<<grid_for(dd.num_new + dd.num_dead, block), block>>>(
+    mark_ids_kernel<<<grid_for(dd.num_new + dd.num_dead, block), block, 0, st.stream>>>(
         new_ids, dd.num_new + dd.num_dead, st.d_inv_a);
   // dynG (transplant hunk), the public mode: a hyperedge that lost the source is a root if it was
   // reached from the source directly (uploaded into the unused candidate list).
   if (dev.lost != nullptr && !dev.lost->empty()) {
     const int nl = static_cast<int>(dev.lost->size());
-    DYNG_CUDA_TRY(
-        cudaMemcpy(st.d_cand_list, dev.lost->data(), sizeof(int) * nl, cudaMemcpyHostToDevice));
-    mark_lost_source_kernel<<<grid_for(nl, block), block>>>(st.d_cand_list, nl, st.d_packed,
-                                                            st.d_inv_a);
+    DYNG_CUDA_TRY(cudaMemcpyAsync(st.d_cand_list, dev.lost->data(), sizeof(int) * nl,
+                                  cudaMemcpyHostToDevice, st.stream));
+    mark_lost_source_kernel<<<grid_for(nl, block), block, 0, st.stream>>>(st.d_cand_list, nl,
+                                                                          st.d_packed, st.d_inv_a);
   }
   DYNG_CUDA_TRY(cudaGetLastError());
 
   // 2. Invalidate the subtrees of the roots by pointer jumping. A parent
   //    cycle cannot occur with positive weights; the round cap only
   //    guards against a corrupt tree (then: fall back).
-  init_jump_kernel<<<grid_for(n, block), block>>>(st.d_packed, st.d_jump_a, n);
+  init_jump_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_packed, st.d_jump_a, n);
   int* inv_in = st.d_inv_a;
   int* inv_out = st.d_inv_b;
   int* jump_in = st.d_jump_a;
   int* jump_out = st.d_jump_b;
   bool tree_ok = false;
   for (int round = 0; round < 64; ++round) {
-    DYNG_CUDA_TRY(cudaMemset(cnt + cnt_active, 0, sizeof(u64)));
-    jump_kernel<<<grid_for(n, block), block>>>(inv_in, inv_out, jump_in, jump_out, n, cnt);
+    DYNG_CUDA_TRY(cudaMemsetAsync(cnt + cnt_active, 0, sizeof(u64), st.stream));
+    jump_kernel<<<grid_for(n, block), block, 0, st.stream>>>(inv_in, inv_out, jump_in, jump_out, n,
+                                                             cnt);
     DYNG_CUDA_TRY(cudaGetLastError());
     std::swap(inv_in, inv_out);
     std::swap(jump_in, jump_out);
@@ -375,8 +390,8 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
   if (!tree_ok) stats.reason = hyper_sssp::fallback_reason::invalidation_depth;
 
   if (!budget_exceeded) {
-    invalidate_kernel<<<grid_for(n, block), block>>>(inv_in, st.d_packed, st.d_front, cnt, n,
-                                                     source0);
+    invalidate_kernel<<<grid_for(n, block), block, 0, st.stream>>>(inv_in, st.d_packed, st.d_front,
+                                                                   cnt, n, source0);
     read_counters();
     const int n_inv = static_cast<int>(hcnt[cnt_list]);
     stats.seed_count = n_inv;
@@ -384,22 +399,22 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
     // 3. Pull for the invalidated nodes, relax the inserted pairs; the
     //    improved nodes form the first frontier (epoch stamps).
     const int ep0 = ++st.epoch;
-    DYNG_CUDA_TRY(cudaMemset(cnt + cnt_next, 0, sizeof(u64)));
+    DYNG_CUDA_TRY(cudaMemsetAsync(cnt + cnt_next, 0, sizeof(u64), st.stream));
     if (n_inv > 0)
-      pull_invalidated_kernel<<<grid_for(32LL * n_inv, block), block>>>(
+      pull_invalidated_kernel<<<grid_for(32LL * n_inv, block), block, 0, st.stream>>>(
           st.d_front, n_inv, dev.d_row_start, dev.d_deg, dev.d_col_ind, dev.d_node_w, st.d_packed,
           st.d_stamp, ep0, st.d_next, cnt, dev.zero_a, dev.zero_b, dev.d_holds);
     if (dd.num_ins > 0)
-      relax_inserted_kernel<<<grid_for(dd.num_ins, block), block>>>(
+      relax_inserted_kernel<<<grid_for(dd.num_ins, block), block, 0, st.stream>>>(
           ins_pairs, dd.num_ins, dev.d_node_w, st.d_packed, st.d_stamp, ep0, st.d_next, cnt,
           source0, dev.zero_a, dev.zero_b);
     // dynG (transplant hunk), the public mode: the hyperedges that gained the source are offered
     // their own weight (uploaded into the unused candidate list).
     if (dev.gained != nullptr && !dev.gained->empty()) {
       const int ng = static_cast<int>(dev.gained->size());
-      DYNG_CUDA_TRY(
-          cudaMemcpy(st.d_cand_list, dev.gained->data(), sizeof(int) * ng, cudaMemcpyHostToDevice));
-      relax_base_kernel<<<grid_for(ng, block), block>>>(
+      DYNG_CUDA_TRY(cudaMemcpyAsync(st.d_cand_list, dev.gained->data(), sizeof(int) * ng,
+                                    cudaMemcpyHostToDevice, st.stream));
+      relax_base_kernel<<<grid_for(ng, block), block, 0, st.stream>>>(
           st.d_cand_list, ng, dev.d_node_w, st.d_packed, st.d_stamp, ep0, st.d_next, cnt);
     }
     DYNG_CUDA_TRY(cudaGetLastError());
@@ -423,8 +438,8 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
       ++stats.iterations;
       std::swap(st.d_front, st.d_next);
       const int ep = ++st.epoch;
-      DYNG_CUDA_TRY(cudaMemset(cnt + cnt_next, 0, sizeof(u64)));
-      push_kernel<<<grid_for(32LL * frontier, block), block>>>(
+      DYNG_CUDA_TRY(cudaMemsetAsync(cnt + cnt_next, 0, sizeof(u64), st.stream));
+      push_kernel<<<grid_for(32LL * frontier, block), block, 0, st.stream>>>(
           st.d_front, frontier, dev.d_row_start, dev.d_deg, dev.d_col_ind, dev.d_node_w,
           st.d_packed, st.d_stamp, ep, st.d_next, cnt, source0, dev.zero_a, dev.zero_b);
       DYNG_CUDA_TRY(cudaGetLastError());
@@ -459,9 +474,10 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
     stats.fallback_iterations = rs.iterations;
     stats.max_frontier = std::max(stats.max_frontier, rs.max_frontier);
   } else {
-    unpack_state_kernel<<<grid_for(n, block), block>>>(st.d_packed, st.d_dist, st.d_parent, n);
+    unpack_state_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_packed, st.d_dist,
+                                                                     st.d_parent, n);
     DYNG_CUDA_TRY(cudaGetLastError());
-    DYNG_CUDA_TRY(cudaDeviceSynchronize());
+    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
   }
   return stats;
 }
