@@ -39,10 +39,24 @@ t_delta_ms + t_csr_apply_ms against the port's stage hypergraph.apply), delta an
 (reported). Verdict of criterion 12 per row: at most 1.03 GO, 1.03-1.05 recorded with a fix plan,
 above 1.05 fixed before the acceptance.
 
+Without --maintain-only (M11a step 4) every row of the region map: the port runs the full bench
+(the update and static rows, `--digests`), each round also guarded by the distances' and parents'
+digests of every batch against the golden's, and the rows of HD3 (sosp_update, static,
+dynamic_comparable, dynamic per batch, load_plus_dynamic) carry their bars (1.05, 1.10 below
+10 ms, 1.10 end to end).
+
 Run them only in an exclusive-lock window of the shared calendar on GPU 0, as
 `tools/locklog.py run --reset-gpu 0 EXCL M11a <step key> <what> <minutes> -- parity/hsosp_perf.py
 <probe|run> ...` (the clock reset after the window runs inside the lock); `perf_ab.py hyper_sssp
-...` dispatches here. Step 5 adds the gated rows of the full update, `memory` and `kernels`.
+...` dispatches here.
+
+    parity/hsosp_perf.py sass [--object engine.cu.o] [--original hsospDevice.cu.o] [--json OUT]
+
+`sass` (M11a step 4, the as-is record; no GPU): `cuobjdump -res-usage` and `-sass` of every
+kernel of hyper_sssp's CUDA engine (build/parity-cuda) and of B's unpatched hsospDevice.cu.o,
+paired by name (parity/triad_sass.py's reading: registers, stack, shared and local memory, the
+instruction count, the hot loops and the digest of the normalized instruction stream), and the
+kernels only one side has.
 """
 
 from __future__ import annotations
@@ -809,6 +823,84 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
+# hyper_sssp's kernels (cpp/src/algorithms/hyper_sssp/kernels.cuh) and B's of the same code
+# (hsosp/src/hsospDevice.cu): label -> (the port's mangled-name pattern, B's).
+SASS_KERNELS = {
+    "fill_ll": (r"\d+fill_ll_kernel", r"\d+fillLLKernel"),
+    "fill_int": (r"\d+fill_int_kernel", r"\d+fillIntKernel"),
+    "pull_distances_warp": (r"\d+pull_distances_warp_kernel", r"\d+pullDistancesWarp"),
+    "collect_candidates_warp": (r"\d+collect_candidates_warp_kernel", r"\d+collectCandidatesWarp"),
+    "pack_state": (r"\d+pack_state_kernel", r"\d+packStateKernel"),
+    "unpack_state": (r"\d+unpack_state_kernel", r"\d+unpackStateKernel"),
+    "mark_deleted_tree_edges": (
+        r"\d+mark_deleted_tree_edges_kernel",
+        r"\d+markDeletedTreeEdgesKernel",
+    ),
+    "mark_ids": (r"\d+mark_ids_kernel", r"\d+markIdsKernel"),
+    "init_jump": (r"\d+init_jump_kernel", r"\d+initJumpKernel"),
+    "jump": (r"\d+jump_kernel", r"\d+jumpKernel"),
+    "invalidate": (r"\d+invalidate_kernel", r"\d+invalidateKernel"),
+    "pull_invalidated": (r"\d+pull_invalidated_kernel", r"\d+pullInvalidatedKernel"),
+    "relax_inserted": (r"\d+relax_inserted_kernel", r"\d+relaxInsertedKernel"),
+    "push": (r"\d+push_kernel", r"\d+pushKernel"),
+    # The public mode's (dynG only: B has a virtual source row instead).
+    "mark_lost_source": (r"\d+mark_lost_source_kernel", None),
+    "relax_base": (r"\d+relax_base_kernel", None),
+    "seed_base": (r"\d+seed_base_kernel", None),
+    # B's that the port does not have: the dead degrees are zeroed by the CUDA store's apply
+    # (ADR 0089), the bench's mismatch count is the compat tool's host comparison.
+    "zero_degree": (None, r"\d+zeroDegreeKernel"),
+    "count_mismatches": (None, r"\d+countMismatchesKernel"),
+}
+
+
+def sass_side(obj: Path, index: int) -> dict[str, dict]:
+    import triad_sass  # noqa: PLC0415
+
+    res = triad_sass.resource_usage(obj)
+    code = triad_sass.sass(obj)
+    out: dict[str, dict] = {}
+    for label, patterns in SASS_KERNELS.items():
+        pattern = patterns[index]
+        if pattern is None:
+            continue
+        for name, body in code.items():
+            if re.search(pattern, name):
+                entry = triad_sass.analyse(name, body)
+                entry.update({"function": name, "resources": res.get(name, {})})
+                out[label] = entry
+                break
+    return out
+
+
+def sass_main(args: argparse.Namespace) -> int:
+    import triad_sass  # noqa: PLC0415
+
+    port = sass_side(args.object, 0)
+    orig = sass_side(args.original, 1)
+    rows = []
+    for label in SASS_KERNELS:
+        a, b = port.get(label), orig.get(label)
+        row = {"kernel": label, "port": a, "original": b}
+        if a and b:
+            row["same_resources"] = a["resources"] == b["resources"]
+            row["same_code"] = a["digest"] == b["digest"]
+        rows.append(row)
+        ra = a["resources"] if a else {}
+        rb = b["resources"] if b else {}
+        print(
+            f"{label:24} REG {ra.get('REG', '-'):>3} / {rb.get('REG', '-'):>3}  instructions "
+            f"{a['instructions'] if a else '-':>5} / {b['instructions'] if b else '-':>5}"
+        )
+    prov = triad_sass.provenance([args.object, args.original], False)
+    prov["what"] = "hyper_sssp's CUDA engine (port) and MOSP_ESCHER@4b86159's hsospDevice.cu.o"
+    doc = {"record": "hyper_sssp's kernels against B's (as-is port)", "provenance": prov,
+           "kernels": rows}  # fmt: skip
+    if args.json:
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -854,7 +946,24 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="a check of the harness outside any window: GPU 1, default clocks, no record",
     )
+    sa = sub.add_parser("sass", help="the kernels' SASS and resources against B's (no GPU)")
+    sa.add_argument(
+        "--object",
+        type=Path,
+        default=REPO
+        / "build/parity-cuda/cpp/src/algorithms/hyper_sssp/CMakeFiles/dyng_hyper_sssp.dir"
+        / "engine.cu.o",
+    )
+    sa.add_argument(
+        "--original",
+        type=Path,
+        default=hg.scratch_default()
+        / "ref/MOSP_ESCHER@4b86159/unpatched/build/hsosp/src/hsospDevice.cu.o",
+    )
+    sa.add_argument("--json", type=Path)
     args = p.parse_args(argv)
+    if args.cmd == "sass":
+        return sass_main(args)
     if args.cmd == "run":
         if args.dry_run:
             if args.gpu == 0:
