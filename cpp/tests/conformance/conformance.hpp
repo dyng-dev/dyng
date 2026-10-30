@@ -17,7 +17,7 @@
  * | C2  | the oracle over random graphs x sizes x batch mixes x 3 batches: oracle = compute: after every batch the result equals compute(G_i) (and an independent oracle, if the traits have one); oracle = reference: both are near the converged reference |
  * | C3  | the backends agree (sequential == OpenMP == CUDA) at the declared level, deterministic counters included |
  * | C4  | fused engine == operators engine where a backend has both |
- * | C5  | a batch followed by its inverse returns the original result (history-independent algorithms) |
+ * | C5  | a batch followed by its inverse returns the original result (history-independent algorithms; by content where the traits give content_snapshot) |
  * | C6  | two runs give identical output and deterministic counters |
  * | C7  | invalid input is rejected with the documented exception (nothing changes) or counted as skipped |
  * | C8  | budgets (DYNG_DEBUG_BUDGETS builds): once reserved, the algorithm phase allocates nothing (library memory resources and, where the counting operator new is linked, the host heap) and synchronizes at most the problem's budget; the commit is reported separately |
@@ -213,6 +213,18 @@ struct has_near_reference<traits_t, graph_t,
                               std::declval<const resources&>(), std::declval<const graph_t&>(),
                               std::declval<const typename traits_t::snapshot&>()))>>
     : std::true_type {};
+
+/// Whether the traits compare C5 by content (test_traits::content_snapshot(res, r, g)): an
+/// algorithm whose result is indexed by ids the container chooses (hyper_sssp's distances by
+/// hyperedge id) is history-independent by content, not by id.
+template <typename traits_t, typename graph_t, typename = void>
+struct has_content_snapshot : std::false_type {};
+template <typename traits_t, typename graph_t>
+struct has_content_snapshot<traits_t, graph_t,
+                            std::void_t<decltype(traits_t::template content_snapshot<graph_t>(
+                                std::declval<const resources&>(),
+                                std::declval<const typename traits_t::template result<graph_t>&>(),
+                                std::declval<const graph_t&>()))>> : std::true_type {};
 
 template <typename traits_t, typename = void>
 struct has_run_budget : std::false_type {};
@@ -1134,6 +1146,16 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
           typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
           kit_detail::chain<TypeParam> c(kit_detail::resources_for<TypeParam>(b), model, p.props);
           const auto before = c.take();
+          // By content where the traits say so (content_snapshot: a result indexed by ids the
+          // container chooses), else the snapshot itself.
+          const auto content = [&c]() {
+            if constexpr (kit_detail::has_content_snapshot<traits, graph_t>::value) {
+              return traits::template content_snapshot<graph_t>(c.res, *c.r, *c.g);
+            } else {
+              return c.take();
+            }
+          };
+          const auto before_content = content();
           const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
           ASSERT_TRUE(ct::invertible(gen));
           const auto forward = c.step(ct::batch_of(gen));
@@ -1143,7 +1165,13 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
           // member sets.
           const typename ct::generated_type inverse = ct::inverse(model, gen, forward.batch);
           ct::observe(model, inverse, c.step(ct::batch_of(inverse)).batch);
-          EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+          if constexpr (kit_detail::has_content_snapshot<traits, graph_t>::value) {
+            (void)before;
+            EXPECT_EQ(before_content, content()) << "the result by content differs";
+          } else {
+            (void)before_content;
+            EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+          }
           (void)sizeof(graph_t);
         }
       }

@@ -670,13 +670,29 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
   static std::vector<kit_preset<hypergraph_properties>> composition_presets() {
     std::vector<kit_preset<hypergraph_properties>> out;
     for (const id_reuse reuse : {id_reuse::erase_first, id_reuse::insert_first}) {
-      hypergraph_properties p;
-      p.reuse = reuse;
-      p.capacity = reuse == id_reuse::erase_first ? capacity_policy::escher_gpu()
-                                                  : capacity_policy::mosp_escher();
-      traits_t::require(p);
-      partner_t::require(p);
-      out.push_back({std::string(to_string(reuse)), p});
+      // escher storage, else slack_csr storage with its line graph (0.4: an algorithm that reads
+      // one storage only, accepts()); none when the two accept no common storage (triad_count
+      // and hyper_sssp: HD9), so C10 skips that pair.
+      for (const hypergraph_storage storage :
+           {hypergraph_storage::escher, hypergraph_storage::slack_csr}) {
+        hypergraph_properties p;
+        p.reuse = reuse;
+        p.capacity = reuse == id_reuse::erase_first && storage == hypergraph_storage::escher
+                         ? capacity_policy::escher_gpu()
+                         : capacity_policy::mosp_escher();
+        if (storage == hypergraph_storage::slack_csr) {
+          p.storage = storage;
+          p.line_graph = line_graph_policy::slack_csr;
+        }
+        traits_t::require(p);
+        partner_t::require(p);
+        if (kit_detail::accepts<traits_t>(p) && kit_detail::accepts<partner_t>(p)) {
+          out.push_back({std::string(to_string(reuse)) +
+                             (storage == hypergraph_storage::slack_csr ? ", slack_csr" : ""),
+                         p});
+          break;
+        }
+      }
     }
     return out;
   }

@@ -52,12 +52,12 @@
 /cpp/include/dyng/triangle_delta.hpp @SMShovan
 /cpp/tests/algorithms/triangle_delta/ @SMShovan
 /docs/algorithms/triangle_delta.md  @SMShovan
-/cpp/src/algorithms/triad_count/    @SMShovan
-/cpp/include/dyng/triad_count.hpp   @SMShovan
-/cpp/tests/algorithms/triad_count/  @SMShovan
-/docs/algorithms/triad_count.md     @SMShovan
 /cpp/src/algorithms/hyper_sssp/     @SMShovan
 /cpp/include/dyng/hyper_sssp.hpp    @SMShovan
 /cpp/tests/algorithms/hyper_sssp/   @SMShovan
 /docs/algorithms/hyper_sssp.md      @SMShovan
+/cpp/src/algorithms/triad_count/    @SMShovan
+/cpp/include/dyng/triad_count.hpp   @SMShovan
+/cpp/tests/algorithms/triad_count/  @SMShovan
+/docs/algorithms/triad_count.md     @SMShovan
 # regen:algorithms end
