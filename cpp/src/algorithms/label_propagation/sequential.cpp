@@ -90,6 +90,19 @@ lp_propagation_report propagate_sequential(const lp_rows<edge_t>& rows,
     }
   }
   report.initial_frontier = static_cast<std::int64_t>(frontier.size());
+  // The recorded mutations (AD9; parity/mutate.py, the CTests label_propagation.mutation.*):
+  // in_place as plain Jacobi (every update reads the previous labels: the side array committed
+  // after the sweep, no damping), and the stale double buffer of the original's refactor (D-c:
+  // the damped commit goes to the other of two full label arrays, whose entries not updated in
+  // the iteration are two iterations old).
+#if defined(DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI)
+  const bool deferred = true;  // MUTATION: in_place reads the previous labels
+#else
+  const bool deferred = damped;
+#endif
+#if defined(DYNG_MUTATION_LP_D_C_STALE_BUFFER)
+  std::vector<float> stale_buffer = labels;  // MUTATION: the other buffer
+#endif
   std::int64_t tag = first;
   while (!frontier.empty() && report.iterations < max_iterations) {
     const std::int64_t out_tag = tag + 1;
@@ -110,7 +123,7 @@ lp_propagation_report propagate_sequential(const lp_rows<edge_t>& rows,
     }
     std::sort(halves.begin(), halves.begin() + static_cast<std::ptrdiff_t>(middle));
     std::sort(halves.begin() + static_cast<std::ptrdiff_t>(middle), halves.end());
-    if (damped) {
+    if (deferred) {
       side.resize(halves.size());
     }
     const auto append = [&](std::int32_t v) {
@@ -141,11 +154,13 @@ lp_propagation_report propagate_sequential(const lp_rows<edge_t>& rows,
       // updateLabel.
       const float old = labels[uu];
       float updated = (w_all > 1e-10F) ? weighted / w_all : old;
+#if !defined(DYNG_MUTATION_LP_DAMPED_NO_DAMPING)  // MUTATION when defined: F' = the average
       if (damped) {
         updated = 0.5F * (old + updated);
       }
+#endif
       updated = std::fmin(std::fmax(updated, 0.0F), 1.0F);
-      if (damped) {
+      if (deferred) {
         side[i] = updated;
       } else {
         labels[uu] = updated;
@@ -161,7 +176,15 @@ lp_propagation_report propagate_sequential(const lp_rows<edge_t>& rows,
         append(u);
       }
     }
-    if (damped) {
+#if defined(DYNG_MUTATION_LP_D_C_STALE_BUFFER)
+    if (damped) {  // MUTATION: commit into the other buffer and swap the two
+      for (std::size_t i = 0; i < halves.size(); ++i) {
+        stale_buffer[static_cast<std::size_t>(halves[i])] = side[i];
+      }
+      labels.swap(stale_buffer);
+    } else
+#endif
+        if (deferred) {
       for (std::size_t i = 0; i < halves.size(); ++i) {
         labels[static_cast<std::size_t>(halves[i])] = side[i];
       }

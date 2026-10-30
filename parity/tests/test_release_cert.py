@@ -1025,6 +1025,25 @@ def test_mutation_points_match_the_code_once() -> None:
         "dyng_cbst_graph_tests",
     ]
     assert mutate.suite_targets("sssp") == ["dyng-compat-mosp"]
+    # label_propagation's mutations (M10a criterion 16, AD9): in its sources (both backends) and,
+    # for D-e, the graph's Step 0 of vertex batches; a GoogleTest suite, so a record of it needs
+    # the release's cpp/tests (ADR 0061 section 4).
+    for path in sorted((REPO / "cpp/src/algorithms/label_propagation").iterdir()):
+        hooks += path.read_text()
+    hooks += (REPO / "cpp/src/graph/apply_slotted_host.cpp").read_text()
+    assert [m["name"] for m in mutate.MUTATIONS if m["suite"] == "label_propagation"] == [
+        "inplace_plain_jacobi",
+        "damped_no_damping",
+        "lp_d_a_unfiltered_components",
+        "lp_d_b_affected_too_small",
+        "lp_d_c_stale_buffer",
+        "lp_d_e_resurrected",
+    ]
+    assert mutate.SUITES["label_propagation"]["runner"] == "gtest"
+    assert {"dyng_label_propagation_tests", "dyng_label_propagation_cuda_tests"} <= set(
+        mutate.suite_targets("label_propagation")
+    )
+    assert "cpp/tests" in load("parity/certify.py").GTEST_MUTATION_PATHS
     for m in mutate.MUTATIONS:
         assert m["suite"] in mutate.SUITES, m["name"]
         if "defines" in m:

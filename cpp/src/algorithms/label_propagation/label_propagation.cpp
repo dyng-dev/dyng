@@ -375,8 +375,17 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::identify_affected(
     ws.inserted[static_cast<std::size_t>(v)] = 1;
   }
   for (std::size_t i = 0; i < delta.insert_src.size(); ++i) {
+#if defined(DYNG_MUTATION_LP_D_B_AFFECTED_TOO_SMALL)
+    // MUTATION (D-b, AD9): the endpoints of a new edge that were present before are not marked.
+    for (const vertex_t x : {delta.insert_src[i], delta.insert_dst[i]}) {
+      if (ws.inserted[static_cast<std::size_t>(x)] != 0) {
+        ws.affected[static_cast<std::size_t>(x)] = 1;
+      }
+    }
+#else
     ws.affected[static_cast<std::size_t>(delta.insert_src[i])] = 1;
     ws.affected[static_cast<std::size_t>(delta.insert_dst[i])] = 1;
+#endif
   }
   tau_ = state_->opt.similarity_threshold ? *state_->opt.similarity_threshold
                                           : average_live_weight(rows);
@@ -428,8 +437,14 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::identify_affected(
       const vertex_t u = delta.insert_src[i];
       const vertex_t v = delta.insert_dst[i];
       const float w = batch_->insert_weights[delta.insert_index[i] * k];
+#if defined(DYNG_MUTATION_LP_D_A_UNFILTERED_COMPONENTS)
+      // MUTATION (D-a, AD9): G' and its components over the unfiltered new edges
+      if ((w > tau_ || true) && ws.inserted[static_cast<std::size_t>(u)] != 0 &&
+          ws.inserted[static_cast<std::size_t>(v)] != 0) {
+#else
       if (w > tau_ && ws.inserted[static_cast<std::size_t>(u)] != 0 &&
           ws.inserted[static_cast<std::size_t>(v)] != 0) {
+#endif
         sub.push_back(std::min(u, v));
         sub.push_back(std::max(u, v));
       }

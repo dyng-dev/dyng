@@ -295,7 +295,13 @@ void normalize_vertex_batch(const csr<vertex_t, edge_t, weight_t>& slots,
   out.inserted_labels.clear();
   out.deleted_vertices.clear();
   for (std::size_t i = 0; i < ins.size(); ++i) {
+#if defined(DYNG_MUTATION_LP_D_E_RESURRECTED)
+    // MUTATION (D-e, AD9): the insertions are applied after the deletions, so an id inserted and
+    // deleted in one batch is re-activated (the original before a38ce8c).
+    if (true) {
+#else
     if ((marks[static_cast<std::size_t>(ins[i])] & mark_deleted) == 0) {
+#endif
       out.inserted_vertices.push_back(ins[i]);
       out.inserted_labels.push_back(labels.empty() ? std::int8_t{-1} : labels[i]);
     }

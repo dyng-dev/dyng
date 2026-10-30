@@ -86,15 +86,26 @@ __global__ void build_subgraph_kernel(const std::int32_t* d_newEdgeSrc,
     return;  // edge is not in the updated graph
   }
   // Sparsification: only strong new-to-new edges enter G'
+#if defined(DYNG_MUTATION_LP_D_A_UNFILTERED_COMPONENTS)
+  // MUTATION (D-a, AD9): G' and its components over the unfiltered new edges
+  if ((w > tau || true) && d_newStamp[u] == batchStamp && d_newStamp[v] == batchStamp) {
+#else
   if (w > tau && d_newStamp[u] == batchStamp && d_newStamp[v] == batchStamp) {
+#endif
     // Both new -> add to subgraph G'
     int idx = atomicAdd(d_subEdgeCount, 1);
     d_subEdgeSrc[idx] = u;
     d_subEdgeDst[idx] = v;
   }
   // Mark endpoints as affected (both new and existing neighbors)
+#if defined(DYNG_MUTATION_LP_D_B_AFFECTED_TOO_SMALL)
+  // MUTATION (D-b, AD9): the endpoints that were present before the batch are not marked.
+  if (d_newStamp[u] == batchStamp) d_isAffected[u] = 1;
+  if (d_newStamp[v] == batchStamp) d_isAffected[v] = 1;
+#else
   d_isAffected[u] = 1;
   d_isAffected[v] = 1;
+#endif
 }
 
 /**
@@ -131,8 +142,10 @@ __global__ void mark_edge_endpoints_kernel(const std::int32_t* d_newEdgeSrc,
   int v = d_newEdgeDst[tid];
   if (u < 0 || u >= numNodes || v < 0 || v >= numNodes) return;
   if (d_vertexStatus[u] == vertex_deleted || d_vertexStatus[v] == vertex_deleted) return;
+#if !defined(DYNG_MUTATION_LP_D_B_AFFECTED_TOO_SMALL)  // MUTATION when defined: nothing marked
   d_isAffected[u] = 1;
   d_isAffected[v] = 1;
+#endif
 }
 
 }  // namespace

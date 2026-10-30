@@ -1227,6 +1227,147 @@ if(DYNG_TRIAD_MUTATION_TESTS AND TARGET dyng_triad_count AND TARGET dyng_hypergr
   endforeach()
 endif()
 
+# label_propagation's mutations (M10a criterion 16; PLAN 8.4; AD9: plain Jacobi in place,
+# damped without damping, and LabelPropagation-CUDA's D-a, D-b, D-c and D-e): a copy of libdyng
+# whose label_propagation module (D-e: the graph module, whose Step 0 of vertex batches is shared
+# by the host and the device apply) is rebuilt with DYNG_MUTATION_LP_<NAME> (the hooks are in
+# sequential.cpp, label_propagation.cpp, sparsify.cu, propagation.cu, cuda.cu and
+# apply_slotted_host.cpp), linked with label_propagation's hand cases and its checker at 5k5 on the
+# host backends (label_propagation.mutation.<name>, labels cpu;mutation;label_propagation, every
+# build) and, in CUDA builds, the same on cuda with the fused engine's own cases
+# (label_propagation.mutation.cuda.<name>, labels gpu;mutation;label_propagation). The mutated
+# module keeps the original's compile options (--use_fast_math on its CUDA sources; the host
+# sources without floating-point contraction), so the control reproduces the original's damped
+# iteration counts. The CTest passes when the suite fails; the control copy must pass.
+# lp_d_c_stale_buffer and lp_d_e_resurrected apply to both backends; the hosted mutation rows of
+# parity/mutate.py (suite label_propagation) run the full suites.
+option(DYNG_LP_MUTATION_TESTS "Build the mutation tests of label_propagation" ${DYNG_MUTATION_TESTS})
+if(DYNG_LP_MUTATION_TESTS AND TARGET dyng_label_propagation AND TARGET dyng_graph)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_target_property(_dyng_lp_options dyng_label_propagation COMPILE_OPTIONS)
+  if(NOT _dyng_lp_options)
+    set(_dyng_lp_options)
+  endif()
+  # name|define|module
+  set(_dyng_lp_mutants
+      "control||dyng_label_propagation"
+      "inplace_plain_jacobi|DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI|dyng_label_propagation"
+      "damped_no_damping|DYNG_MUTATION_LP_DAMPED_NO_DAMPING|dyng_label_propagation"
+      "lp_d_a_unfiltered_components|DYNG_MUTATION_LP_D_A_UNFILTERED_COMPONENTS|dyng_label_propagation"
+      "lp_d_b_affected_too_small|DYNG_MUTATION_LP_D_B_AFFECTED_TOO_SMALL|dyng_label_propagation"
+      "lp_d_c_stale_buffer|DYNG_MUTATION_LP_D_C_STALE_BUFFER|dyng_label_propagation"
+      "lp_d_e_resurrected|DYNG_MUTATION_LP_D_E_RESURRECTED|dyng_graph"
+  )
+  set(_dyng_lp_mutant_filter "LabelPropagation.*:LabelPropagationChecker.*5k5")
+  set(_dyng_lp_mutant_cuda_filter
+      "LabelPropagation.*:LabelPropagationChecker.*5k5:LabelPropagationCuda.HubGolden")
+  foreach(_entry IN LISTS _dyng_lp_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _module)
+    set(_expect fail)
+    if(_name STREQUAL "control")
+      set(_expect pass)
+    endif()
+    get_property(_dyng_mutated_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_${_module})
+    set(_dyng_mutated_sources)
+    foreach(_source IN LISTS _dyng_mutated_relative)
+      if(NOT IS_ABSOLUTE "${_source}")
+        set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+      endif()
+      list(APPEND _dyng_mutated_sources "${_source}")
+    endforeach()
+    set(_dyng_unmutated_objects)
+    foreach(_other IN LISTS _dyng_modules)
+      if(NOT _other STREQUAL _module)
+        list(APPEND _dyng_unmutated_objects $<TARGET_OBJECTS:${_other}>)
+      endif()
+    endforeach()
+    set(_lib dyng_lp_mutant_${_name})
+    add_library(${_lib}_module OBJECT ${_dyng_mutated_sources})
+    add_library(
+      ${_lib} STATIC ${_dyng_unmutated_objects} $<TARGET_OBJECTS:${_lib}_module>
+                     $<TARGET_OBJECTS:dyng_testing_label_propagation>
+    )
+    if(_module STREQUAL "dyng_label_propagation")
+      target_compile_options(${_lib}_module PRIVATE ${_dyng_lp_options}
+                                                    $<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
+    endif()
+    add_executable(
+      dyng_label_propagation_mutant_${_name}
+      algorithms/label_propagation/label_propagation_test.cpp
+      algorithms/label_propagation/label_propagation_checker_test.cpp
+      conformance/allocation_counter.cpp
+    )
+    set(_exes dyng_label_propagation_mutant_${_name})
+    if(DYNG_ENABLE_CUDA)
+      add_executable(
+        dyng_label_propagation_cuda_mutant_${_name}
+        algorithms/label_propagation/label_propagation_test.cpp
+        algorithms/label_propagation/label_propagation_checker_test.cpp
+        algorithms/label_propagation/label_propagation_cuda_test.cpp
+        conformance/allocation_counter.cpp
+      )
+      target_compile_definitions(dyng_label_propagation_cuda_mutant_${_name} PRIVATE DYNG_TEST_CUDA=1)
+      list(APPEND _exes dyng_label_propagation_cuda_mutant_${_name})
+    endif()
+    foreach(_target ${_lib}_module ${_lib} ${_exes})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src" "${CMAKE_CURRENT_SOURCE_DIR}"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_module PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_module)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
+    endif()
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    foreach(_exe ${_exes})
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      if(_exe MATCHES "_cuda_mutant_")
+        dyng_mutant_cuda_architectures(${_exe})
+        add_test(NAME label_propagation.mutation.cuda.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=label_propagation.cuda.${_name}
+                         "-DFILTER=${_dyng_lp_mutant_cuda_filter}" -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          label_propagation.mutation.cuda.${_name}
+          PROPERTIES LABELS "gpu;mutation;label_propagation" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+        )
+      else()
+        add_test(NAME label_propagation.mutation.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=label_propagation.${_name} "-DFILTER=${_dyng_lp_mutant_filter}" -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          label_propagation.mutation.${_name}
+          PROPERTIES LABELS "cpu;mutation;label_propagation" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+        )
+      endif()
+    endforeach()
+  endforeach()
+endif()
+
 dyng_add_test(
   NAME dyng_testing_tests
   SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp testing/lp_oracles_test.cpp

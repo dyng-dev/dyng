@@ -39,6 +39,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <utility>
 
 namespace dyng::detail::lp_cuda {
 
@@ -162,7 +163,13 @@ __device__ __forceinline__ bool updateLabel(const GraphView<edge_t>& g, int u, f
   float oldLabel = g.labels[u];
   // F'_u = sum alpha_{u,v} * F_v = (sum w(u,v) * F_v) / (sum w(u,v))
   float newLabel = (wAll > 1e-10f) ? weightedLabel / wAll : oldLabel;
+#if defined(DYNG_MUTATION_LP_DAMPED_NO_DAMPING)
+  // MUTATION (AD9): damped without the damping, F' = the average.
+#elif defined(DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI)
+  if (damped == 1) newLabel = 0.5f * (oldLabel + newLabel);  // MUTATION: 2 = plain Jacobi
+#else
   if (damped) newLabel = 0.5f * (oldLabel + newLabel);
+#endif
   // Clamp to [0, 1] for numerical stability
   newLabel = fminf(fmaxf(newLabel, 0.0f), 1.0f);
   if (damped) {
@@ -504,9 +511,32 @@ propagation_report launch_iterative_propagation(const rows<edge_t>& view, float*
                                                 void (*after_first_sync)(void*), void* arg) {
   const cudaStream_t stream = as_stream(s);
   const int numNodes = static_cast<int>(view.n);
+#if defined(DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI)
+  // MUTATION (AD9): in_place as plain Jacobi (the side arrays and the commit of damped, without
+  // the damping: every update reads the previous labels).
+  const int damped = is_damped ? 1 : 2;
+#else
   const int damped = is_damped ? 1 : 0;
+#endif
+#if defined(DYNG_MUTATION_LP_D_C_STALE_BUFFER)
+  // MUTATION (D-c, AD9): the damped commit goes to the other of two full label arrays, whose
+  // entries not updated in the iteration are two iterations old (the original's refactor before
+  // 8419483); the head path only, the labels copied back at the end.
+  GraphView<edge_t> g = {view.row_start, view.row_end, view.col_ind, view.values,
+                         view.status,    d_gtClass,    d_labels};
+  float* stale_other = nullptr;
+  if (damped) {
+    DYNG_CUDA_TRY(
+        cudaMallocAsync(&stale_other, static_cast<std::size_t>(numNodes) * sizeof(float), stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(stale_other, d_labels,
+                                  static_cast<std::size_t>(numNodes) * sizeof(float),
+                                  cudaMemcpyDeviceToDevice, stream));
+  }
+  float* stale_current = d_labels;
+#else
   const GraphView<edge_t> g = {view.row_start, view.row_end, view.col_ind, view.values,
                                view.status,    d_gtClass,    d_labels};
+#endif
   propagation_report report;
   report.tag_before = st.next_tag;
   std::int32_t* h_counts = ws.host_counts.data();
@@ -545,7 +575,11 @@ propagation_report launch_iterative_propagation(const rows<edge_t>& view, float*
   // Converged when the frontier is empty: every vertex that changed by more than delta
   // re-appends itself, so an empty queue means no change.
   while (total > 0 && iterationsUsed < maxIterations) {
+#if defined(DYNG_MUTATION_LP_D_C_STALE_BUFFER)
+    if (!damped && total <= small_frontier_limit) {  // MUTATION: damped takes the head path
+#else
     if (total <= small_frontier_limit) {
+#endif
       // --- Tail: persistent single-block iterations ---
       QueueSets qs;
       for (int b = 0; b < num_degree_bins; ++b) {
@@ -599,11 +633,21 @@ propagation_report launch_iterative_propagation(const rows<edge_t>& view, float*
           const int count = counts[b * 2 + half];
           if (count == 0) continue;
           const int offset = halfOffset(half, st.capacity[b], count);
+#if defined(DYNG_MUTATION_LP_D_C_STALE_BUFFER)
+          commit_labels_kernel<<<blocksFor(count), BLOCK_THREADS, 0, stream>>>(
+              stale_other, ws.new_labels[b].data() + offset, ws.queue[cur][b].data() + offset,
+              count);  // MUTATION: into the other buffer
+#else
           commit_labels_kernel<<<blocksFor(count), BLOCK_THREADS, 0, stream>>>(
               d_labels, ws.new_labels[b].data() + offset, ws.queue[cur][b].data() + offset, count);
+#endif
           DYNG_CHECK_KERNEL(stream);
         }
       }
+#if defined(DYNG_MUTATION_LP_D_C_STALE_BUFFER)
+      std::swap(stale_current, stale_other);  // MUTATION: the buffers swap
+      g.labels = stale_current;
+#endif
     }
     // The only host synchronization of the iteration: next queue sizes.
     DYNG_CUDA_TRY(cudaMemcpyAsync(h_counts + next * counters_per_set, out.counts,
@@ -621,6 +665,17 @@ propagation_report launch_iterative_propagation(const rows<edge_t>& view, float*
   report.frontier_visits = frontierVisits;
   report.persistent_iterations = persistentIterations;
   report.capped = total > 0;
+#if defined(DYNG_MUTATION_LP_D_C_STALE_BUFFER)
+  if (damped) {  // MUTATION: the current buffer back into the result's labels
+    if (stale_current != d_labels) {
+      DYNG_CUDA_TRY(cudaMemcpyAsync(d_labels, stale_current,
+                                    static_cast<std::size_t>(numNodes) * sizeof(float),
+                                    cudaMemcpyDeviceToDevice, stream));
+      stale_other = stale_current;
+    }
+    DYNG_CUDA_TRY(cudaFreeAsync(stale_other, stream));
+  }
+#endif
 
   // --- Enforce ground-truth labels (safety net) ---
   enforce_ground_truth_kernel<<<blocksFor(numNodes), BLOCK_THREADS, 0, stream>>>(

@@ -357,6 +357,9 @@ void before_apply(const resources& res, const graph<std::int32_t, edge_t, float>
                   bool damped) {
   const scoped_device guard(res.device());
   const auto& dev = graph_access::slotted_device(res, g);
+#if defined(DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI)
+  damped = true;  // MUTATION (AD9): in_place uses the damped side arrays (plain Jacobi)
+#endif
   ws.reserve(res, st.n, st.capacity, std::max(inserted, dev.num_inserted),
              std::max(edges, dev.num_edges), damped);
   const cudaStream_t stream = native(res);
