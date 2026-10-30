@@ -123,6 +123,34 @@ Before 0.1.0 anything may change.
   SASS against the original's objects), `perf_ab.py label_propagation run` and `memory --side port`
   (the A/B gates and the port's nsys peak), `ci/fast_math_scope.py` (`--use_fast_math` on
   label_propagation's CUDA TUs only).
+- M10a step 5 (ADR 0076): **the conformance kit's float slotted axis** (`container_axis`,
+  `slotted_axis`: DynLP graphs of at least 5,000 vertices with vertex batches, the mixes
+  arrival_with_labels, departure, mixed, insert_and_delete_same_batch and edges_between_present,
+  a model with vertex states, C7 and C9 of vertex batches) and label_propagation's kit traits on
+  sequential and cuda (near_reference = the harmonic solution with AD7's bound and class rule,
+  compare damped bitwise and in_place by its exact parts and the mean, AD20's counter levels,
+  C5 skipped with its reason); the near_reference documentation of `test_traits.hpp` fixed; the
+  original's checker oracles as GoogleTests on both backends (5k5 and 50k, both schedules).
+- M10a step 5 (ADR 0077): label_propagation's six recorded mutations (AD9) in `parity/mutate.py`
+  and as the CTests `label_propagation.mutation.*`; `mutate.py run` waits before each GPU-1 job
+  while another track's GPU-1 quiet window is open, when `DYNG_GPU1_QUIET_OK` names the caller.
+- M10a step 5: the label_propagation step of `ci/gpu_local.sh` (its CUDA tests, the kit, the
+  replays of P, the in_place cloud, the oracle and compute-sanitizer), required by the 0.4
+  certificate (`GPU_LOCAL_STEPS[(0, 4)]`); the weekly hosted workflow `oracle.yml` (the harmonic
+  oracle at delta 1e-4 on sequential 50k, AD7; `ci/oracle_weekly.sh`).
+- M10a step 5 (ADR 0078): the suite `benchmarks/paper/ics26_dynlp.yaml` (readings with a schedule
+  key, AD4's release-only 50m reading with its release-gate state and reason; `bench_suite.validate`
+  extended for these keys) and the 0.4 certificate rules of label_propagation in
+  `parity/certify.py` (`REQUIRED_SUITES['ics26_dynlp']`, `LABEL_PROPAGATION_REPLAYS_SINCE`, the
+  frozen-tolerance check of the calibrated kinds, the per-case gates and the release-only row,
+  `dyng-compat-dynlp` in the equivalence lists; `compare.py label_propagation certificate`).
+- M10a step 5 (ADR 0079): Step 0 of a vertex batch (the graph's checks before a slotted apply)
+  in fewer passes over the batch: the same checks, order, messages and guarantees (the 5m1 gate
+  reading had missed AD2's bar on the host cost of Step 0). `dyng-compat-dynlp`'s evaluation
+  reads the page-locked labels, as the original reads `h_labels`.
+- M10a step 5 (provisional `<dyng/label_propagation.hpp>`, documentation only): the update's doc
+  comment and the algorithm page state that after a seed's departure labels far from it can stay
+  stale until later batches reach them (the author's decision of 2026-10-30).
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
