@@ -107,12 +107,28 @@ def test_record_shapes(tmp_path: Path, monkeypatch) -> None:
         assert {"record", "result"} <= set(lp.RECORD[command])
 
 
-@pytest.mark.parametrize("command", ["kernels", "engines"])
-def test_the_later_port_commands_parse_and_wait_for_their_steps(command: str) -> None:
-    args = lp.parser().parse_args([command, "--exe", "x", "--cases", "50k"])
+def test_engines_parses_and_waits_for_m10b() -> None:
+    args = lp.parser().parse_args(["engines", "--exe", "x", "--cases", "50k"])
     assert args.cases == ["50k"] and args.exe == Path("x")
-    with pytest.raises(SystemExit, match="arrives in M10a step 5"):
-        lp.main([command, "--exe", "x", "--cases", "50k"])
+    with pytest.raises(SystemExit, match="arrives in M10b"):
+        lp.main(["engines", "--exe", "x", "--cases", "50k"])
+
+
+def test_kernels_parses_and_needs_the_port(tmp_path: Path) -> None:
+    """M10a step 5: kernels runs both sides under ncu at base (reported)."""
+    args = lp.parser().parse_args(["kernels", "--exe", "x", "--cases", "500k"])
+    assert args.cases == ["500k"] and args.launches == lp.NCU_LAUNCHES
+    assert "launch__registers_per_thread" in lp.NCU_METRICS
+    with pytest.raises(SystemExit, match="no such dyng-compat-dynlp"):
+        lp.main(["kernels", "--exe", str(tmp_path / "missing"), "--cases", "500k"])
+
+
+def test_memory_both_needs_the_port(tmp_path: Path) -> None:
+    """M10a step 5: memory --side both reads O's and the port's process in one window."""
+    args = lp.parser().parse_args(["memory", "--side", "both", "--exe", "x", "--cases", "50k"])
+    assert args.side == "both"
+    with pytest.raises(SystemExit, match="needs --exe"):
+        lp.main(["memory", "--side", "both", "--cases", "50k"])
 
 
 def test_run_needs_the_port_and_reads_the_recorded_locks(tmp_path: Path) -> None:

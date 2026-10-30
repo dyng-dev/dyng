@@ -9,11 +9,11 @@ PLAN 6.4.7, 8.6; ADRs 0018, 0021, 0024, 0064; the author's decisions AD2-AD4, B5
                       [--schedules damped,inplace] [--rounds N] [--probe-rounds 3]
                       [--default-rounds 11] [--lock-clocks probe|boost|base|none]
                       [--no-default] [--gpu 0] [--json FILE] [--skip-existing]
-    parity/perf_ab.py label_propagation memory --side original [--cases ...]
-                      [--schedules ...] [--gpu 1] [--json FILE] [--skip-existing]
-    parity/perf_ab.py label_propagation run      --exe <dyng-compat-dynlp> ...   (M10a step 4-5)
-    parity/perf_ab.py label_propagation kernels  --exe <dyng-compat-dynlp> ...   (M10a step 4-5)
-    parity/perf_ab.py label_propagation engines  --exe <dyng-compat-dynlp> ...   (M10a step 4-5)
+    parity/perf_ab.py label_propagation memory --side original|port|both [--exe ...]
+                      [--cases ...] [--schedules ...] [--gpu 1] [--json FILE] [--skip-existing]
+    parity/perf_ab.py label_propagation run      --exe <dyng-compat-dynlp> ...   (M10a step 4)
+    parity/perf_ab.py label_propagation kernels  --exe <dyng-compat-dynlp> ...   (M10a step 5)
+    parity/perf_ab.py label_propagation engines  --exe <dyng-compat-dynlp> ...   (M10b)
 
 (or `parity/label_propagation_perf.py <command> ...`). A case is one of CASES (O's argv
 '--totalNodes N --numBatches B --avgDegree 5 --delta 0.0001 --seed 42'); a schedule is damped or
@@ -51,15 +51,19 @@ used_memory` before and after the reading and every 5 s during it; a reading dur
 process other than the reading's own was on the GPU is discarded (marked not counted) and taken
 again later. The peak of live device allocations (cudaMalloc + cudaMallocAsync, kind Device; the
 gated metric), the NVTX ranges containing it and the live bytes at the end of every batch's
-range ("batch"). `--side port` arrives with dyng-compat-dynlp (M10a step 4).
+range ("batch"). `--side port` reads dyng-compat-dynlp (M10a step 4); `--side both` (the suite's
+gated reading, M10a step 5) reads O's process and then the port's in the same window, the result
+"<case>/<schedule>" holding both sides and the ratio, counted only when neither saw a foreign
+process.
 
 `run`, `kernels` and `engines` have their command lines and record shapes fixed here (RECORD
-below; tests in parity/tests/test_label_propagation_perf.py); their port side arrives in M10a
-steps 4-5:
+below; tests in parity/tests/test_label_propagation_perf.py); `run` since M10a step 4 (with the
+port's host time of every update() beside its CUDA-event time per batch, a disagreement above 2 %
+flagged), `kernels` since step 5, `engines` in M10b:
   run      A/B/A/B of O and dyng-compat-dynlp on GPU 0 (the gates of the map: update[sum] damped,
            end_to_end; in_place reported), at the recorded lock per case and schedule
-  kernels  both sides under `ncu --clock-control base`: per kernel the time, registers and
-           occupancy limits (reported)
+  kernels  both sides under `ncu --clock-control base` (the first NCU_LAUNCHES launches of each
+           process): per kernel the launches, the time, registers and occupancy (reported)
   engines  the port's fused against its operators engine (AD6; reported)
 """
 
@@ -815,6 +819,8 @@ class GpuProcesses:
 
 
 def memory(args: argparse.Namespace) -> int:
+    if args.side == "both":
+        return memory_both(args)
     import hypergraph_perf
 
     if args.side == "port":
@@ -884,6 +890,88 @@ def memory(args: argparse.Namespace) -> int:
     return 0 if all(r["counted"] for r in results.values()) else 1
 
 
+def memory_side(exe: Path, extra: list[str], case: str, schedule: str, env: dict, gpu: int,
+                work: Path) -> dict:  # fmt: skip
+    """One profiled process of one side: its D1 peak and the GPU processes seen meanwhile."""
+    import hypergraph_perf
+
+    if free_bytes(work) < MIN_FREE_BYTES:
+        raise SystemExit("STOP: below 20 GB free on the output's filesystem")
+    out = work / "out"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir()
+    cmd = [str(exe), *timed_argv(case, schedule, out), *extra]
+    with GpuProcesses(gpu) as gp:
+        nsys = hypergraph_perf.memory_by_range(cmd, env, work / "nsys", "batch", capture=True)
+    shutil.rmtree(out, ignore_errors=True)
+    return {
+        "argv": timed_argv(case, schedule, Path("<scratch>")) + extra,
+        "counted": not gp.foreign,
+        "peak_live_bytes": nsys["peak_live_bytes"],
+        "peak_live_mib": nsys["peak_live_mib"],
+        "peak_in": nsys["peak_in"],
+        "batches": nsys["batches"],
+        "footprint_peak_mib": nsys["footprint_peak_mib"],
+        "gpu_processes": {
+            "foreign": gp.foreign,
+            "samples": len(gp.samples),
+            "own_seen_in_samples": sum(
+                1 for x in gp.samples if any(p["own"] for p in x["processes"])
+            ),
+            "all": gp.samples,
+        },
+    }
+
+
+def memory_both(args: argparse.Namespace) -> int:
+    """memory --side both (the suite's gated reading, M10a step 5): per case and schedule O's
+    process, then the port's, each profiled alone in the caller's GPU-1 quiet window; the result
+    "<case>/<schedule>" holds both sides ("original", "port") and the ratio of their peaks,
+    counted only when neither side saw a foreign process."""
+    if args.exe is None:
+        raise SystemExit("memory --side both needs --exe <dyng-compat-dynlp>")
+    p_exe = port_exe(args.exe)
+    o_exe = original_exe()
+    env = clean_env(args.gpu)
+    (perf_ab.SCRATCH / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="lp-memory-", dir=perf_ab.SCRATCH / "runs"))
+    old = load_record(args.json)
+    results: dict = dict(old.get("results", {}))
+    started = now()
+    try:
+        for case in args.cases:
+            for schedule in args.schedules:
+                key = f"{case}/{schedule}"
+                if args.skip_existing and results.get(key, {}).get("counted"):
+                    print(f"{key}: skipped (counted in {args.json})")
+                    continue
+                o = memory_side(o_exe, [], case, schedule, env, args.gpu, work)
+                p = memory_side(p_exe, ["--backend", "cuda"], case, schedule, env, args.gpu, work)
+                counted = o["counted"] and p["counted"]
+                peak = o["peak_live_bytes"]
+                ratio = p["peak_live_bytes"] / peak if peak else None
+                results[key] = {
+                    "case": case,
+                    "schedule": schedule,
+                    "side": "both",
+                    "argv": o["argv"],
+                    "counted": counted,
+                    "ratio": ratio,
+                    "original": o,
+                    "port": p,
+                }
+                note = "" if counted else " (NOT COUNTED: a foreign process on the GPU)"
+                print(
+                    f"{key}: peak of live device allocations O {o['peak_live_mib']} MiB, port "
+                    f"{p['peak_live_mib']} MiB, ratio {ratio:.4f}{note}",
+                    flush=True,
+                )
+                write_memory(args, old, results, started)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return 0 if all(r.get("counted") for r in results.values()) else 1
+
+
 def write_memory(args, old: dict, results: dict, started: str) -> None:
     if not args.json:
         return
@@ -898,7 +986,7 @@ def write_memory(args, old: dict, results: dict, started: str) -> None:
         "reference": reference_record(),
         **(
             {"port": port_record(port_exe(args.exe))}
-            if getattr(args, "side", "original") == "port"
+            if getattr(args, "side", "original") in ("port", "both")
             else {}
         ),
         "harness_commit": perf_ab.port_commit(),
@@ -924,10 +1012,150 @@ def write_memory(args, old: dict, results: dict, started: str) -> None:
 
 def port_side(args: argparse.Namespace) -> int:
     raise SystemExit(
-        f"label_propagation {args.command}: its port side arrives in M10a step 5 (kernels) and "
-        "M10b (engines: the operators engine); the command line and the record shape (RECORD) "
-        "are fixed here"
+        f"label_propagation {args.command}: its port side arrives in M10b (engines: the "
+        "operators engine); the command line and the record shape (RECORD) are fixed here"
     )
+
+
+# --- The kernels under Nsight Compute (kernels; reported) ----------------------------------------
+
+NCU_METRICS = (
+    "gpu__time_duration.sum",
+    "launch__registers_per_thread",
+    "launch__occupancy_limit_registers",
+    "launch__occupancy_limit_warps",
+    "launch__occupancy_limit_shared_mem",
+    "launch__occupancy_limit_blocks",
+    "sm__maximum_warps_per_active_cycle_pct",
+    "sm__warps_active.avg.pct_of_peak_sustained_active",
+    "launch__grid_size",
+    "launch__block_size",
+)
+NCU_LAUNCHES = 4000  # the first launches of a process (the setup and the first batches)
+
+
+def ncu_side(exe: Path, extra: list[str], case: str, schedule: str, env: dict, work: Path,
+             launches: int) -> list[dict]:  # fmt: skip
+    """One process under `ncu --clock-control base` (its first `launches` kernel launches): per
+    kernel name the launches, the time (sum, median), the registers per thread, the theoretical
+    occupancy (the limits by registers, warps, shared memory and blocks, and the theoretical
+    warps per cycle) and the achieved occupancy (median)."""
+    ncu = os.environ.get("NCU", "/usr/local/cuda-13.1/bin/ncu")
+    out = work / "out"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir()
+    log = work / "ncu.csv"
+    log.unlink(missing_ok=True)
+    cmd = [ncu, "--clock-control", "base", "--launch-count", str(launches), "--csv", "--page",
+           "raw", "--log-file", str(log), "--metrics", ",".join(NCU_METRICS),
+           str(exe), *timed_argv(case, schedule, out), *extra]  # fmt: skip
+    subprocess.run(cmd, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    shutil.rmtree(out, ignore_errors=True)
+    rows = list(csv.reader(line for line in log.read_text().splitlines() if line.startswith('"')))
+    head, body = rows[0], rows[2:]
+    col = {name: head.index(name) for name in ("Kernel Name", *NCU_METRICS)}
+
+    def num(row: list[str], name: str) -> float:
+        return float(row[col[name]].replace(",", ""))
+
+    by: dict[str, list] = {}
+    for row in body:
+        by.setdefault(row[col["Kernel Name"]], []).append(row)
+    kernels = []
+    for name, launches_of in sorted(by.items()):
+        times = [num(r, "gpu__time_duration.sum") / 1e3 for r in launches_of]  # us
+        first = launches_of[0]
+        kernels.append(
+            {
+                "kernel": name,
+                "launches": len(launches_of),
+                "time_us_sum": round(sum(times), 3),
+                "time_us_median": round(statistics.median(times), 3),
+                "registers_per_thread": int(num(first, "launch__registers_per_thread")),
+                "block_size": int(num(first, "launch__block_size")),
+                "occupancy_limit_blocks": {
+                    k: int(num(first, f"launch__occupancy_limit_{k}"))
+                    for k in ("registers", "warps", "shared_mem", "blocks")
+                },
+                "theoretical_occupancy_pct": num(first, "sm__maximum_warps_per_active_cycle_pct"),
+                "achieved_occupancy_pct_median": round(
+                    statistics.median(
+                        num(r, "sm__warps_active.avg.pct_of_peak_sustained_active")
+                        for r in launches_of
+                    ),
+                    2,
+                ),
+            }
+        )
+    return kernels
+
+
+def kernels(args: argparse.Namespace) -> int:
+    """`kernels` (reported, never gated): both sides under `ncu --clock-control base` on GPU
+    --gpu (the caller's exclusive-lock window), the timed argv, the first NCU_LAUNCHES launches
+    of each process; per kernel the registers and the occupancy. The fp32 hot-loop SASS of every
+    ported kernel is compared with O's objects by parity/label_propagation_sass.py port (its
+    record is named here)."""
+    p_exe = port_exe(args.exe)
+    o_exe = original_exe()
+    env = clean_env(args.gpu)
+    (perf_ab.SCRATCH / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="lp-ncu-", dir=perf_ab.SCRATCH / "runs"))
+    results: dict = {}
+    started = now()
+    try:
+        with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for case in args.cases:
+                for schedule in args.schedules:
+                    kernels_of_case(args, results, case, schedule, o_exe, p_exe, env, work)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    write_kernels(args, results, started, p_exe)
+    return 0
+
+
+def kernels_of_case(args, results: dict, case: str, schedule: str, o_exe: Path, p_exe: Path,
+                    env: dict, work: Path) -> None:  # fmt: skip
+    key = f"{case}/{schedule}"
+    o = ncu_side(o_exe, [], case, schedule, env, work, args.launches)
+    p = ncu_side(p_exe, ["--backend", "cuda"], case, schedule, env, work, args.launches)
+    results[key] = {
+        "case": case,
+        "schedule": schedule,
+        "argv": timed_argv(case, schedule, Path("<scratch>")),
+        "rounds": 1,
+        "kernels": {"original": o, "port": p},
+    }
+    print(f"{key}: {len(o)} kernels of the original, {len(p)} of the port", flush=True)
+
+
+def write_kernels(args, results: dict, started: str, p_exe: Path) -> None:
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "label_propagation",
+            "command": "kernels",
+            "what": "both sides' kernels under Nsight Compute at the base clocks (reported): per "
+            "kernel the launches, the time, the registers per thread and the occupancy",
+            "date": started,
+            "date_end": now(),
+            "reference": reference_record(),
+            "port": port_record(p_exe),
+            "protocol": {
+                "gpu": args.gpu,
+                "tool": f"ncu --clock-control base --launch-count {args.launches} --metrics "
+                + ",".join(NCU_METRICS),
+                "lock": perf_ab.LOCK_STATUS,
+                "argv": "the timed argv (bench/run.sh's); the port adds --backend cuda",
+                "sass": "parity/label_propagation_sass.py port (the ported kernels' SASS against "
+                "the original's objects; parity/results/M10a-sass-port*.json)",
+            },
+            "driver": perf_ab.driver_versions(),
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}", flush=True)
 
 
 # --- The A/B gates against O (run; AD2, AD3) -------------------------------------------------
@@ -996,6 +1224,7 @@ def port_round(
         digest = hashlib.sha256(labels.read_bytes()).hexdigest() if labels.is_file() else None
         facts = {
             "batches": rows,
+            "host_ms": host,
             "update_sum_ms": sum(x["time_ms"] for x in rows),
             "update_host_sum_ms": sum(host),
             "eval_ms": sum(x["eval_ms"] for x in rows),
@@ -1110,6 +1339,14 @@ def ab_reading(args, o_exe: Path, p_exe: Path, case: str, schedule: str, env: di
             "original": {"time_ms": describe([x["batches"][k]["time_ms"] for x in o_acc])},
             "port": {"time_ms": describe([x["batches"][k]["time_ms"] for x in p_acc])},
         }
+        if all(len(x.get("host_ms", [])) > k for x in p_acc):
+            # The port's host wall time of the update() call beside its CUDA-event time; a
+            # median that disagrees by more than 2 % is flagged (reported, never gated).
+            host = describe([x["host_ms"][k] for x in p_acc])
+            event = e["port"]["time_ms"]["median"]
+            e["port"]["host_ms"] = host
+            e["port"]["host_vs_event"] = host["median"] / event if event else None
+            e["port"]["host_disagrees"] = bool(event) and abs(host["median"] / event - 1) > 0.02
         for side, acc in (("original", o_acc), ("port", p_acc)):
             for c in ("iterations", "components", "frontier_visits"):
                 vals = [x["batches"][k][c] for x in acc]
@@ -1269,7 +1506,7 @@ def parser() -> argparse.ArgumentParser:
     b.add_argument("--skip-existing", action="store_true")
     m = sub.add_parser("memory", help="the nsys peak of live device allocations (D1), GPU 1")
     common(m, 1)
-    m.add_argument("--side", choices=["original", "port"], default="original")
+    m.add_argument("--side", choices=["original", "port", "both"], default="original")
     m.add_argument("--exe", type=Path, help="--side port: dyng-compat-dynlp")
     m.add_argument("--skip-existing", action="store_true")
     for name, what in [
@@ -1292,6 +1529,8 @@ def parser() -> argparse.ArgumentParser:
             r.add_argument("--enforce-gates", action="store_true")
         if name == "engines":
             r.add_argument("--engines", default="fused,operators", type=lambda s: s.split(","))
+        if name == "kernels":
+            r.add_argument("--launches", type=int, default=NCU_LAUNCHES)
     return ap
 
 
@@ -1303,15 +1542,18 @@ def main(argv: list[str] | None = None) -> int:
     for schedule in args.schedules:
         if schedule not in SCHEDULES:
             raise SystemExit(f"unknown schedule '{schedule}' (known: {', '.join(SCHEDULES)})")
-    if getattr(args, "rounds", None) is not None and args.rounds < 3:
-        raise SystemExit("--rounds must be >= 3")
+    # At least 3 rounds (a median), but for run's single recorded process (AD4's one in_place
+    # run at 50m, M10a step 5).
+    least = 1 if args.command == "run" else 3
+    if getattr(args, "rounds", None) is not None and args.rounds < least:
+        raise SystemExit(f"--rounds must be >= {least}")
     if os.environ.get("DYNG_PERF_LOCK_HELD") == "1" and hasattr(args, "no_lock"):
         args.no_lock = True
     return {
         "baseline": baseline,
         "memory": memory,
         "run": run_gates,
-        "kernels": port_side,
+        "kernels": kernels,
         "engines": port_side,
     }[args.command](args)
 
