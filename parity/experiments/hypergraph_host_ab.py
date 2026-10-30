@@ -8,7 +8,7 @@ update (the refactor bar of ADR 0024; R030's D13 fix, ADR 0061). Not a PLAN 8.6 
         --baseline-commit SHA_A --commit SHA_B
         [--cases coauth_b50k_s1,syn1m_b50k_s1] [--backends sequential,openmp:8]
         [--modes apply,update:h_motif] [--layouts 17] [--rounds 51] [--json FILE]
-        [--lock-timeout S] [--no-lock] [--gpu 0] [--clocks base|boost|none]
+        [--lock-timeout S] [--no-lock] [--gpu 0] [--clocks base|boost|none] [--all-stages]
 
 Both sides are `dyng-compat-escher run` (built from two commits) with the golden case's argv of
 the triad_count_escher_gpu set (coauth-DBLP from $DYNG_SCRATCH/datasets/hyper/coauth.hg; the
@@ -37,6 +37,9 @@ recorded with its commit and its build: the executable's SHA-256, the build tree
 build type and flags (its CMakeCache.txt), and whether the library sources of the tree it was
 built from equal the commit's (`git ls-tree` blob ids against the files; a `git archive` copy has
 no .git).
+
+`--all-stages` also reads every other `hypergraph.apply.*` sub-stage of the profile (normalize,
+ids, incidence, line_graph, ...), to locate a region above the bar (M11a step 5, the D14 path).
 """
 
 from __future__ import annotations
@@ -105,14 +108,18 @@ def layout_timing(work: Path, r: int, layouts: int) -> Path:
     return folder / ("t" + "x" * extra + ".json")
 
 
-def stage_sums(timing: Path, stages: tuple[str, ...]) -> dict[str, float]:
-    """Per stage: the ms of every batch (`<stage>[b<N>]`) and their sum (`<stage>`)."""
+def stage_sums(timing: Path, stages: tuple[str, ...], all_stages: bool = False) -> dict[str, float]:
+    """Per stage: the ms of every batch (`<stage>[b<N>]`) and their sum (`<stage>`); with
+    `all_stages`, every `hypergraph.apply.*` sub-stage too."""
     doc = json.loads(timing.read_text())
     out: dict[str, float] = {}
     for rec in doc["stages"]:
         if rec["stage"] in BUILD_STAGES and rec["batch"] == 0:
             out[rec["stage"]] = out.get(rec["stage"], 0.0) + rec["ms"]
-        if rec["stage"] in stages and rec["batch"] > 0:
+        wanted = rec["stage"] in stages or (
+            all_stages and rec["stage"].startswith("hypergraph.apply.")
+        )
+        if wanted and rec["batch"] > 0:
             key = f"{rec['stage']}[b{rec['batch']}]"
             out[key] = out.get(key, 0.0) + rec["ms"]
             out[rec["stage"]] = out.get(rec["stage"], 0.0) + rec["ms"]
@@ -197,6 +204,7 @@ def side_record(exe: Path, commit: str) -> dict:
 
 
 def run(args: argparse.Namespace) -> int:
+    all_stages = getattr(args, "all_stages", False)
     sides = {"A": Path(args.baseline_exe).resolve(), "B": Path(args.exe).resolve()}
     for exe in sides.values():
         if not exe.is_file():
@@ -286,7 +294,7 @@ def run(args: argparse.Namespace) -> int:
                                 expected = lines
                             elif lines != expected:
                                 raise SystemExit(f"{key}: side {side}'s output differs (guard)")
-                            got[side] = stage_sums(timing, STAGES[kind])
+                            got[side] = stage_sums(timing, STAGES[kind], all_stages)
                             windows.append({"round": done, "side": side, **window})
                             contaminated = contaminated or window["contaminated"]
                         if contaminated:
@@ -353,6 +361,11 @@ def main() -> int:
     p.add_argument("--lock-timeout", type=float, default=3 * 3600.0)
     p.add_argument(
         "--no-lock", action="store_true", help="the caller holds the exclusive lock (recorded)"
+    )
+    p.add_argument(
+        "--all-stages",
+        action="store_true",
+        help="also read every other hypergraph.apply.* sub-stage (locating a region)",
     )
     args = parser.parse_args()
     return run(args)
