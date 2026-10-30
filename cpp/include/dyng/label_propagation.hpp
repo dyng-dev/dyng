@@ -107,9 +107,9 @@ struct options {
   std::int64_t max_iterations = 100000;
   on_limit on_iteration_limit = on_limit::report;  ///< see on_limit
   schedule update_schedule = schedule::in_place;   ///< the published rule by default
-  /// The CUDA engine: engine::automatic or engine::fused (the verbatim port of the original's
-  /// pipeline, bitwise the original's damped labels; ADR 0075); engine::operators arrives in M10b
-  /// (not_supported_error until then). Ignored on the host backends.
+  /** @brief The CUDA engine: engine::automatic or engine::fused (the verbatim port of the
+   *         original's pipeline, bitwise the original's damped labels; ADR 0075); engine::operators
+   *         arrives in M10b (not_supported_error until then). Ignored on the host backends. */
   engine cuda_engine = engine::automatic;
 };
 
