@@ -95,15 +95,15 @@ TEST(HyperSsspAllocationFailure, CloneAndVertexDistancesReportOutOfMemory) {
     return std::vector<std::int64_t>(v.begin(), v.end());
   }();
   std::optional<result_t> c;
-  EXPECT_GT(alloc::fail_each_allocation<dyng::out_of_memory_error>(
-                alloc::scope::calling_thread, [&] { c.emplace(r.clone(res)); },
-                [&] {
-                  // Compared without allocating (the countdown is armed inside the call).
-                  const auto v = c->vertex_distances();
-                  EXPECT_TRUE(v.size() == want.size() &&
-                              std::equal(v.begin(), v.end(), want.begin()));
-                }),
-            0);
+  EXPECT_GT(
+      alloc::fail_each_allocation<dyng::out_of_memory_error>(
+          alloc::scope::calling_thread, [&] { c.emplace(r.clone(res)); },
+          [&] {
+            // Compared without allocating (the countdown is armed inside the call).
+            const auto v = c->vertex_distances();
+            EXPECT_TRUE(v.size() == want.size() && std::equal(v.begin(), v.end(), want.begin()));
+          }),
+      0);
 }
 
 // update(): every allocation of the call fails once (the commit's host-team regions among them,
