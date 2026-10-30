@@ -1,0 +1,1003 @@
+{
+ "schema": 2,
+ "what": "mutation checks of the golden parity (PLAN 8.4): cbst, hyper_sssp",
+ "date": "2026-10-30T08:59:29Z",
+ "commit": "930e6385ea053a944dbf5506575fd233ca930a96",
+ "goldens": {
+  "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
+  "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml",
+  "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the lockstep and graph-on-CBST tests (no golden corpus)",
+  "hyper_sssp": "hyper_sssp's and the slack_csr container's tests: the committed subset of hyper_sssp_mosp_escher (cpp/tests/data/goldens/hyper_sssp) by id, the oracle dyng::testing::hyper_sssp_reference / line_graph_delta, the CBST traces",
+  "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
+  "triad_count": "triad_count's tests against the independent oracle (dyng::testing::triad_reference) on every backend (no golden corpus)"
+ },
+ "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst test executables, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "suite": "cbst,hyper_sssp",
+   "config": "cuda,sequential",
+   "build": "ok",
+   "replays": [
+    {
+     "suite": "cbst",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "tests": {
+      "dyng_cbst_device_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_cbst_policy_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_cbst_graph_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    },
+    {
+     "suite": "hyper_sssp",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "tests": {
+      "dyng_hyper_sssp_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hsosp_results_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hyper_sssp_conformance_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_ids_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    },
+    {
+     "suite": "hyper_sssp",
+     "config": "sequential",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "sequential": 0
+     },
+     "tests": {
+      "dyng_hyper_sssp_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hsosp_results_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hyper_sssp_conformance_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_ids_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    }
+   ],
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "cbst_unfill_drops_last",
+   "suite": "cbst",
+   "plan": "M8a 17: remove_values ignores the last value of each removal list (MOSP_ESCHER #4, the triad mutation)",
+   "defines": [
+    "DYNG_MUTATION_CBST_UNFILL_DROPS_LAST"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 13
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstDeviceReplay.EscherGpuTracesMatchExactly",
+      "CbstDeviceReplay.MospEscherTracesDivergeWhereTheModelDoes",
+      "CbstDeviceReplay.MospEscherTracesMatchUnderMospEscher"
+     ]
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/mosp_escher"
+     ]
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstGraphTrace.MospEschersRoundtripTraceReplays",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/dyng_default",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/escher_gpu",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/mosp_escher",
+      "Presets/CbstGraph.TheRoundtripGraph/dyng_default",
+      "Presets/CbstGraph.TheRoundtripGraph/escher_gpu",
+      "Presets/CbstGraph.TheRoundtripGraph/mosp_escher"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_graph_own_ids",
+   "suite": "cbst",
+   "plan": "M8a 17: graph-on-CBST keeps its own edge ids (MOSP_ESCHER #5)",
+   "defines": [
+    "DYNG_MUTATION_CBST_GRAPH_OWN_IDS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 6
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/dyng_default",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/escher_gpu",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/mosp_escher",
+      "Presets/CbstGraph.TheRoundtripGraph/dyng_default",
+      "Presets/CbstGraph.TheRoundtripGraph/escher_gpu",
+      "Presets/CbstGraph.TheRoundtripGraph/mosp_escher"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_pull_adds_neighbour_weight",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #1: the pull adds the neighbour's weight (CUDA engine)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 13
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ComputeEqualsTheOracleAndTheDistancesIncludeTheWeights/cuda",
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/cuda",
+      "Backends/HyperSssp.TheRequirementsAreChecked/cuda",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/cuda",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/cuda",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/cuda",
+      "Backends/HyperSssp.WeightsAboveTwoToThe28AreRefusedBeforeTheCommit/cuda"
+     ]
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheFallbackDecisionsAreTabulated",
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C3_BackendsAgree",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_pull_adds_neighbour_weight_sequential",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #1: the pull adds the neighbour's weight (the sequential twin)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 12
+   },
+   "tests": {
+    "dyng_hyper_sssp_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ComputeEqualsTheOracleAndTheDistancesIncludeTheWeights/sequential",
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/sequential",
+      "Backends/HyperSssp.TheRequirementsAreChecked/sequential",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/sequential",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/sequential",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/sequential",
+      "Backends/HyperSssp.WeightsAboveTwoToThe28AreRefusedBeforeTheCommit/sequential"
+     ]
+    },
+    "dyng_hsosp_results_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheFallbackDecisionsAreTabulated",
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_non_tight_parent",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #2: a non-tight parent (CUDA engine)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 12
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ComputeEqualsTheOracleAndTheDistancesIncludeTheWeights/cuda",
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/cuda",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/cuda",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/cuda",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/cuda",
+      "Backends/HyperSssp.WeightsOfTwoToThe28OnLongPathsStayExact/cuda"
+     ]
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheFallbackDecisionsAreTabulated",
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C3_BackendsAgree",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_non_tight_parent_sequential",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #2: a non-tight parent (the sequential twin)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 10
+   },
+   "tests": {
+    "dyng_hyper_sssp_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ComputeEqualsTheOracleAndTheDistancesIncludeTheWeights/sequential",
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/sequential",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/sequential",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/sequential",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/sequential",
+      "Backends/HyperSssp.WeightsOfTwoToThe28OnLongPathsStayExact/sequential"
+     ]
+    },
+    "dyng_hsosp_results_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_csr_skips_last_deletion",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #3: the slack CSR apply skips the last deletion of each row (CUDA store)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_CSR_SKIPS_LAST_DELETION"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 23
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ClonesKeepTheResultOnEveryBackend/cuda",
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/cuda",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/cuda",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/cuda",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/cuda"
+     ]
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C3_BackendsAgree",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphFixedPoint.TheOwnBudgetEndsStepTwoThroughTheRecompute/cuda",
+      "Backends/HypergraphFixedPoint.TheTierAHooksOfAFixedPointRunOnTheNewGraph/cuda",
+      "Backends/HypergraphFixedPoint.TwoResultsOfDifferentSourcesShareOneCommit/cuda",
+      "Backends/HypergraphFixedPoint.UpdatesEqualComputeUnderBatchesAndIncidenceEdits/cuda",
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/cuda",
+      "Backends/SlackEdits.AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped/cuda",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/cuda",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/cuda",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/cuda",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/cuda",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/cuda",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/cuda"
+     ]
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphIds.MospEscherSessionsReplayWholeOnSlackCsr"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_csr_skips_last_deletion_host",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #3: the slack CSR apply skips the last deletion of each row (the host-store twin)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_CSR_SKIPS_LAST_DELETION"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 33
+   },
+   "tests": {
+    "dyng_hyper_sssp_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/sequential",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/sequential",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/sequential",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/sequential"
+     ]
+    },
+    "dyng_hsosp_results_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphFixedPoint.TheOwnBudgetEndsStepTwoThroughTheRecompute/openmp",
+      "Backends/HypergraphFixedPoint.TheOwnBudgetEndsStepTwoThroughTheRecompute/sequential",
+      "Backends/HypergraphFixedPoint.TheTierAHooksOfAFixedPointRunOnTheNewGraph/openmp",
+      "Backends/HypergraphFixedPoint.TheTierAHooksOfAFixedPointRunOnTheNewGraph/sequential",
+      "Backends/HypergraphFixedPoint.TwoResultsOfDifferentSourcesShareOneCommit/openmp",
+      "Backends/HypergraphFixedPoint.TwoResultsOfDifferentSourcesShareOneCommit/sequential",
+      "Backends/HypergraphFixedPoint.UpdatesEqualComputeUnderBatchesAndIncidenceEdits/openmp",
+      "Backends/HypergraphFixedPoint.UpdatesEqualComputeUnderBatchesAndIncidenceEdits/sequential",
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/openmp",
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/sequential",
+      "Backends/SlackEdits.AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped/openmp",
+      "Backends/SlackEdits.AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped/sequential",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/openmp",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/sequential",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/openmp",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/sequential",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/openmp",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/sequential",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/openmp",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/sequential",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/openmp",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/sequential",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/openmp",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/sequential"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphIds.MospEscherSessionsReplayWholeOnSlackCsr"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_allocator_unfill_drops_last",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #4: the allocator's H2V unfill drops the last value (MOSP_ESCHER #4)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_ALLOCATOR_UNFILL_DROPS_LAST"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 30
+   },
+   "tests": {
+    "dyng_hyper_sssp_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hsosp_results_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hyper_sssp_conformance_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/SlackBackends.SlackCsrMovesBetweenTheHostAndCuda/openmp",
+      "Backends/SlackBackends.SlackCsrMovesBetweenTheHostAndCuda/sequential",
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/openmp",
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/sequential",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/openmp",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/sequential",
+      "Backends/SlackEdits.ClonesKeepIdsRowsTheAllocatorAndTheLineGraph/openmp",
+      "Backends/SlackEdits.ClonesKeepIdsRowsTheAllocatorAndTheLineGraph/sequential",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/openmp",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/sequential",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/openmp",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/sequential",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/openmp",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/sequential",
+      "Backends/SlackEdits.RemovingANonMemberIsSkipped/openmp",
+      "Backends/SlackEdits.RemovingANonMemberIsSkipped/sequential",
+      "Backends/SlackEdits.TheAppliedRecord/openmp",
+      "Backends/SlackEdits.TheAppliedRecord/sequential",
+      "Backends/SlackEdits.ThePhaseOrderIsDeletionsRemovalsAdditionsInsertions/openmp",
+      "Backends/SlackEdits.ThePhaseOrderIsDeletionsRemovalsAdditionsInsertions/sequential",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/openmp",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/sequential",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/openmp",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/sequential",
+      "IdAllocator.AnUnfillLeavesTheTailSegmentsOccupancy",
+      "IdAllocator.MatchesTheHostModelWithFillsAndUnfills"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "AllocatorLockstep.MakeTestsHsospTracesFromTheGoldens",
+      "AllocatorLockstep.TheCommittedTargetedTraceOfMospEscher",
+      "AllocatorLockstep.TheCommittedTestCbstOpsTraces",
+      "HypergraphIds.MospEscherSessionsReplayWholeOnSlackCsr"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hypergraph_h2v_not_deduplicated_hsosp",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #6: hypergraph_h2v_not_deduplicated (MOSP_ESCHER #6) against this suite",
+   "defines": [
+    "DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 13
+   },
+   "tests": {
+    "dyng_hyper_sssp_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hsosp_results_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hyper_sssp_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted",
+      "hyper_sssp/conformance/hv32_w32.C9_StatsAreSane"
+     ]
+    },
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphBackends.SkippedOpsCountDeadOutOfRangeRepeatedAndDuplicates/openmp",
+      "Backends/HypergraphBackends.SkippedOpsCountDeadOutOfRangeRepeatedAndDuplicates/sequential",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/openmp",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/sequential",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/openmp",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/sequential",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/openmp",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/sequential",
+      "HypergraphRandom.OpenmpThreadCountsAgree",
+      "HypergraphRandom.UnweightedStreamsMatchTheModelOnEveryBackend",
+      "HypergraphRandom.WeightedStreamsMatchTheModelOnEveryBackend"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_pair_count_adds_deletions",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #7: the maintained pair count adds the deletions (CUDA store)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 9
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/cuda",
+      "Backends/SlackEdits.AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped/cuda",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/cuda",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/cuda",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/cuda",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/cuda",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/cuda",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/cuda"
+     ]
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphIds.MospEscherSessionsReplayWholeOnSlackCsr"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_pair_count_adds_deletions_host",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #7: the maintained pair count adds the deletions (the host store)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 17
+   },
+   "tests": {
+    "dyng_hyper_sssp_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hsosp_results_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hyper_sssp_conformance_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/openmp",
+      "Backends/SlackEdits.ARemovalThatWouldEmptyItsHyperedgeIsSkipped/sequential",
+      "Backends/SlackEdits.AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped/openmp",
+      "Backends/SlackEdits.AnEditOfAnIdTheBatchDeletesOrInsertsIsSkipped/sequential",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/openmp",
+      "Backends/SlackEdits.AutomaticBuildsTheSlackCsrOnFirstReadAndNoneKeepsNone/sequential",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/openmp",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/sequential",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/openmp",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/sequential",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/openmp",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/sequential",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/openmp",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/sequential",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/openmp",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/sequential"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphIds.MospEscherSessionsReplayWholeOnSlackCsr"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_delta_no_post_pass",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #8: the pair delta drops its post-batch candidate pass (MOSP_ESCHER CHANGES.md:493-494; the device delta)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 21
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/cuda",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/cuda"
+     ]
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates",
+      "hyper_sssp/conformance/hv32_w32.C12_NonDefaultStreamsOrderTheWork",
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C3_BackendsAgree",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp/conformance/hv32_w32.C6_RunsAreDeterministic",
+      "hyper_sssp/conformance/hv32_w32.C9_StatsAreSane"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphFixedPoint.UpdatesEqualComputeUnderBatchesAndIncidenceEdits/cuda",
+      "Backends/SlackEdits.ClonesKeepIdsRowsTheAllocatorAndTheLineGraph/cuda",
+      "Backends/SlackEdits.ForcedTailRebuildAndNodeGrowth/cuda",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/cuda",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/cuda",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/cuda",
+      "Backends/SlackEdits.TheAppliedRecord/cuda",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/cuda",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/cuda",
+      "Backends/SlackOverflow.TheNodeCapacityGrows/cuda"
+     ]
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphIds.MospEscherSessionsReplayWholeOnSlackCsr"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_delta_no_post_pass_host",
+   "suite": "hyper_sssp",
+   "plan": "M11a 16 #8: the pair delta drops its post-batch candidate pass (the host delta)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 24
+   },
+   "tests": {
+    "dyng_hyper_sssp_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/sequential",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/sequential"
+     ]
+    },
+    "dyng_hsosp_results_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp/conformance/hv32_w32.C5_ABatchAndItsInverseCancel"
+     ]
+    },
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/SlackEdits.ClonesKeepIdsRowsTheAllocatorAndTheLineGraph/openmp",
+      "Backends/SlackEdits.ClonesKeepIdsRowsTheAllocatorAndTheLineGraph/sequential",
+      "Backends/SlackEdits.ForcedTailRebuildAndNodeGrowth/openmp",
+      "Backends/SlackEdits.ForcedTailRebuildAndNodeGrowth/sequential",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/openmp",
+      "Backends/SlackEdits.LargeBatchesAreTheSameOnEveryHostTeam/sequential",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/openmp",
+      "Backends/SlackEdits.PermutingAPhasesOperationsGivesTheSamePairs/sequential",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/openmp",
+      "Backends/SlackEdits.RandomBatchesKeepTheLineGraphExact/sequential",
+      "Backends/SlackEdits.TheAppliedRecord/openmp",
+      "Backends/SlackEdits.TheAppliedRecord/sequential",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/openmp",
+      "Backends/SlackOverflow.ARebuildAndAReuploadInOneBatch/sequential",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/openmp",
+      "Backends/SlackOverflow.MospEscherTestH2hDeltaPattern/sequential",
+      "Backends/SlackOverflow.TheNodeCapacityGrows/openmp",
+      "Backends/SlackOverflow.TheNodeCapacityGrows/sequential"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphIds.MospEscherSessionsReplayWholeOnSlackCsr"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}

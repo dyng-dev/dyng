@@ -137,6 +137,24 @@ Before 0.1.0 anything may change.
   hyper_sssp steps of `ci/gpu_local.sh` (`GPU_LOCAL_STEPS`); the mutation CTests
   `hyper_sssp.mutation.*` of sites #1 and #2 (the pull adds the neighbour's weight; a non-tight
   parent) in both engines.
+- Parity harness (M11a step 5): the suite `benchmarks/paper/ia3_hsosp.yaml` (hyper_sssp against
+  MOSP_ESCHER@4b86159: a 3-round boost probe per dataset, the gated per-batch rows of the 16 paper
+  configurations, end to end, the nsys peak and the graph-scope accounting of HD6, the ncu kernel
+  table) with `parity/bench_suite.py`'s hyper_sssp rules; `parity/hsosp_perf.py memory` and
+  `kernels`; `dyng-compat-hsosp bench --nvtx` and its `[memory]` lines; the mutation suite
+  `hyper_sssp` of `parity/mutate.py` (MOSP_ESCHER's sites #1-#4, #6-#8 in the CUDA code and their
+  host twins, each detected on its own executables; #5 and the CBST unfill re-run in the cbst
+  suite), which, like `ci/gpu_local.sh`, waits for the shared calendar before a GPU job;
+  `parity/sass_identity.py` and `parity/experiments/escher_store_bytes.py` (the 0.3 objects and
+  store bytes against a base build), `parity/experiments/hypergraph_host_ab.py` on cuda; `compare.py
+  hyper_sssp --certificate` and `hypergraph_ids.py --storage slack_csr --certificate` write the
+  certificate's replay records (ADR 0093).
+- Release certificate: from the 0.4 series `parity/certify.py` requires the suite `ia3_hsosp`
+  (`REQUIRED_SUITES`), the slack_csr store check of the hyper_sssp set on cuda, and MOSP_ESCHER's
+  sessions replayed whole on slack_csr storage (`HYPERGRAPH_ID_REPLAYS`, with a per-entry and a
+  per-feature `since`; the 0.3 requirements unchanged); `EQUIVALENCE_TARGETS` / `EQUIVALENCE_FILES`
+  compare `dyng-compat-hsosp` and `dyng-compat-escher` too, which widens the equivalence check of
+  every version's certificate (ADR 0093).
 
 ## [0.3.0] - 2026-10-29
 
