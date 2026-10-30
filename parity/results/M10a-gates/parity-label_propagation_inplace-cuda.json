@@ -1,0 +1,169 @@
+{
+ "schema": 1,
+ "set": "label_propagation_inplace",
+ "kind": "label_propagation_inplace",
+ "what": "parity/compare.py label_propagation: CUDA in_place against the frozen calibration (AD5): every port run against every reference run within T_mean, T_max, T_flips, the iteration envelope, components and V_aff",
+ "date": "2026-10-30T17:53:19Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+ },
+ "port": {
+  "commit": "4acb0b5ffd19c767eff2dbf1ce7ab5098dbef78c"
+ },
+ "executable": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "/home/sskg8/Projects/dyng-work/wt-m10/build/parity-cuda",
+  "preset": "parity-cuda"
+ },
+ "goldens": {
+  "manifest_sha256": "f11abd22732341466ea5defc1dbd861ae27481ceca697afdf302123f4e37986f"
+ },
+ "backend": "cuda",
+ "configs": [
+  "cuda:lp/inplace"
+ ],
+ "cases": [
+  "500k_d1e-4_s42_inplace",
+  "50k_d1e-4_s42_inplace",
+  "5k5_d1e-4_s42_inplace",
+  "5m_d1e-4_s42_inplace"
+ ],
+ "matrix": {
+  "500k_d1e-4_s42_inplace": {
+   "cuda:lp/inplace": "equal"
+  },
+  "50k_d1e-4_s42_inplace": {
+   "cuda:lp/inplace": "equal"
+  },
+  "5k5_d1e-4_s42_inplace": {
+   "cuda:lp/inplace": "equal"
+  },
+  "5m_d1e-4_s42_inplace": {
+   "cuda:lp/inplace": "equal"
+  }
+ },
+ "checks": {
+  "replay": "inplace"
+ },
+ "passed": true,
+ "tolerance": {
+  "5k5_d1e-4_s42_inplace": {
+   "t_flips": 12,
+   "t_max": 0.0069990000000000885,
+   "t_mean": 0.0004279650067294746,
+   "iterations_hi": [
+    2,
+    744.7,
+    478.5,
+    250.8,
+    170.5
+   ],
+   "iterations_lo": [
+    0,
+    609.3,
+    391.5,
+    198.9,
+    124.2
+   ],
+   "iterations_sum_hi": 1641.2,
+   "iterations_sum_lo": 1328.4
+  },
+  "50k_d1e-4_s42_inplace": {
+   "t_flips": 405,
+   "t_max": 0.00689699999999982,
+   "t_mean": 0.0005503162289562289,
+   "iterations_hi": [
+    2,
+    564.3,
+    1449.8,
+    1225.4,
+    656.7,
+    959.2,
+    258.5,
+    255.2,
+    104.5,
+    78.1
+   ],
+   "iterations_lo": [
+    0,
+    461.7,
+    1112.4,
+    927,
+    518.4,
+    369.9,
+    203.4,
+    201.6,
+    83.7,
+    51.3
+   ],
+   "iterations_sum_hi": 5437.3,
+   "iterations_sum_lo": 3977.1
+  },
+  "500k_d1e-4_s42_inplace": {
+   "t_flips": 2997,
+   "t_max": 1.2280980000000001,
+   "t_mean": 0.0003922800875420878,
+   "iterations_hi": [
+    2,
+    819.5,
+    1817.2,
+    1535.6,
+    1201.2,
+    652.3,
+    391.6,
+    503.8,
+    288.2,
+    158.4
+   ],
+   "iterations_lo": [
+    0,
+    670.5,
+    1486.8,
+    1256.4,
+    947.7,
+    529.2,
+    299.7,
+    359.1,
+    229.5,
+    82.8
+   ],
+   "iterations_sum_hi": 7320.5,
+   "iterations_sum_lo": 5887.8
+  },
+  "5m_d1e-4_s42_inplace": {
+   "t_flips": 21525,
+   "t_max": 1.306071,
+   "t_mean": 0.0002672708942760942,
+   "iterations_hi": [
+    2,
+    1395.9,
+    1988.8,
+    1806.2,
+    1535.6,
+    1052.7,
+    1028.5,
+    722.7,
+    383.9,
+    419.1
+   ],
+   "iterations_lo": [
+    0,
+    1134.9,
+    1461.6,
+    1333.8,
+    1128.6,
+    806.4,
+    774,
+    554.4,
+    303.3,
+    333.9
+   ],
+   "iterations_sum_hi": 10140.9,
+   "iterations_sum_lo": 7964.1
+  }
+ }
+}

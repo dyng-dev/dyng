@@ -1,0 +1,45 @@
+{
+ "schema": 1,
+ "set": "label_propagation_irlp",
+ "kind": "label_propagation_irlp",
+ "what": "parity/compare.py label_propagation: compute() (IrLP) on CUDA: every snapshot's label bits and iterations",
+ "date": "2026-10-30T17:51:45Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+ },
+ "port": {
+  "commit": "4acb0b5ffd19c767eff2dbf1ce7ab5098dbef78c"
+ },
+ "executable": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "/home/sskg8/Projects/dyng-work/wt-m10/build/parity-cuda",
+  "preset": "parity-cuda"
+ },
+ "goldens": {
+  "manifest_sha256": "5181540bcfb95324cee5e9ea2204e24d3247dd519bb929e6fffa08c6735b6e63"
+ },
+ "backend": "cuda",
+ "configs": [
+  "cuda:lp/irlp"
+ ],
+ "cases": [
+  "50k_d1e-4_s42",
+  "5k5_d1e-4_s42"
+ ],
+ "matrix": {
+  "50k_d1e-4_s42": {
+   "cuda:lp/irlp": "equal"
+  },
+  "5k5_d1e-4_s42": {
+   "cuda:lp/irlp": "equal"
+  }
+ },
+ "checks": {
+  "replay": "irlp"
+ },
+ "passed": true
+}

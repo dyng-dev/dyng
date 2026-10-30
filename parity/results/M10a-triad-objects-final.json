@@ -1,0 +1,60 @@
+{
+ "schema": 1,
+ "what": "M10a step 5 (criterion 10): triad_count's object files in the b2b1524 build (a) and the final M10a library's build (b, 72eb020), both parity-cuda; the CUDA objects compared by SASS, PTX, resource usage and host disassembly with nvcc's per-compile tmpxft names removed (the method of M10a-triad-objects.json, step 3)",
+ "a": "/home/sskg8/Projects/dyng-work/m10-builds/b0-parity-cuda",
+ "b": "/home/sskg8/Projects/dyng-work/m10-builds/head-parity-cuda",
+ "b_source_commit": "72eb0205e6f1379b18f730a36a78b44794bf3afc",
+ "date": "2026-10-30T18:28:40Z",
+ "files": [
+  {
+   "file": "builtin_ops.cpp.o",
+   "sha256_a": "156dc8e29bbe4ce0c57dfdc513583a090fb5633abc05b4902faf31f66bff67a0",
+   "sha256_b": "156dc8e29bbe4ce0c57dfdc513583a090fb5633abc05b4902faf31f66bff67a0",
+   "identical": true
+  },
+  {
+   "file": "cuda.cu.o",
+   "sha256_a": "184cded1502ad06c6e2e1c41ba6cd4142a28881b84891a46d918ac27c16b6827",
+   "sha256_b": "2625e2679a8dbef94bb59be11bdbdbc9e12182f4a3b0819f53050c8869607d04",
+   "identical": false,
+   "host_disassembly_equal_after_renaming": true,
+   "sass_equal": true,
+   "ptx_equal": true,
+   "resource_usage_equal": true
+  },
+  {
+   "file": "engine/counters.cu.o",
+   "sha256_a": "ee5c75b038c22e04a0d93629ca5f85a04c0835f4869753f6503a0980d12b21e2",
+   "sha256_b": "ebf821a49928ba621a64c483e5f03d84fd410dfbfa744a86d98a6c942ee29916",
+   "identical": false,
+   "host_disassembly_equal_after_renaming": true,
+   "sass_equal": true,
+   "ptx_equal": true,
+   "resource_usage_equal": true
+  },
+  {
+   "file": "local_patterns.cpp.o",
+   "sha256_a": "1d5f41cabadf0ccc3ae1fb46c8d3f4e51766f9b9748b2dff8bc23aa6f1c4ed65",
+   "sha256_b": "1d5f41cabadf0ccc3ae1fb46c8d3f4e51766f9b9748b2dff8bc23aa6f1c4ed65",
+   "identical": true
+  },
+  {
+   "file": "openmp.cpp.o",
+   "sha256_a": "574d1a05ada4d4c0486f8145886d8f4088098bfd4c9a96d31c7ed4250abe2cab",
+   "sha256_b": "574d1a05ada4d4c0486f8145886d8f4088098bfd4c9a96d31c7ed4250abe2cab",
+   "identical": true
+  },
+  {
+   "file": "sequential.cpp.o",
+   "sha256_a": "e874c36c4fe62830d5c96034d8a3ae587d51de2061a37f2f8da5eb521c3f515e",
+   "sha256_b": "e874c36c4fe62830d5c96034d8a3ae587d51de2061a37f2f8da5eb521c3f515e",
+   "identical": true
+  },
+  {
+   "file": "triad_count.cpp.o",
+   "sha256_a": "4d3447608fe12ae34b3719c9a637d4a33196c0964b760ed4610cec56ed6a7448",
+   "sha256_b": "4d3447608fe12ae34b3719c9a637d4a33196c0964b760ed4610cec56ed6a7448",
+   "identical": true
+  }
+ ]
+}

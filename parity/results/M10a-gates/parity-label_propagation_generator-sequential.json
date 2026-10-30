@@ -1,0 +1,91 @@
+{
+ "schema": 1,
+ "set": "label_propagation_generator",
+ "kind": "label_propagation_generator",
+ "what": "parity/compare.py label_propagation: generators::legacy::dynlp_vertex_arrival_stream against the golden set (the arrays and O's text files byte for byte, 5m / 5m1 / 50m by SHA-256)",
+ "date": "2026-10-30T18:44:24Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+ },
+ "port": {
+  "commit": "4acb0b5ffd19c767eff2dbf1ce7ab5098dbef78c"
+ },
+ "executable": "build/parity/cpp/tests/dyng_lp_replay",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "build": "/home/sskg8/Projects/dyng-work/wt-m10/build/parity",
+  "preset": "other"
+ },
+ "goldens": {
+  "manifest_sha256": "31a611f551db17efe475aea943d2fd33468a102d56cfb0b2a561389972060296"
+ },
+ "backend": "sequential",
+ "configs": [
+  "sequential:lp/generator"
+ ],
+ "cases": [
+  "500k_d1e-4_s42",
+  "50k_d1e-4_s1",
+  "50k_d1e-4_s2",
+  "50k_d1e-4_s3",
+  "50k_d1e-4_s42",
+  "50k_deg3_d1e-4_s42",
+  "50k_deg7_d1e-4_s42",
+  "50m_d1e-4_s42",
+  "5k5_d1e-4_s1",
+  "5k5_d1e-4_s2",
+  "5k5_d1e-4_s3",
+  "5k5_d1e-4_s42",
+  "5m1_d1e-4_s42",
+  "5m_d1e-4_s42"
+ ],
+ "matrix": {
+  "500k_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  },
+  "50k_d1e-4_s1": {
+   "sequential:lp/generator": "equal"
+  },
+  "50k_d1e-4_s2": {
+   "sequential:lp/generator": "equal"
+  },
+  "50k_d1e-4_s3": {
+   "sequential:lp/generator": "equal"
+  },
+  "50k_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  },
+  "50k_deg3_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  },
+  "50k_deg7_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  },
+  "50m_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  },
+  "5k5_d1e-4_s1": {
+   "sequential:lp/generator": "equal"
+  },
+  "5k5_d1e-4_s2": {
+   "sequential:lp/generator": "equal"
+  },
+  "5k5_d1e-4_s3": {
+   "sequential:lp/generator": "equal"
+  },
+  "5k5_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  },
+  "5m1_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  },
+  "5m_d1e-4_s42": {
+   "sequential:lp/generator": "equal"
+  }
+ },
+ "checks": {
+  "replay": "generator"
+ },
+ "passed": true
+}

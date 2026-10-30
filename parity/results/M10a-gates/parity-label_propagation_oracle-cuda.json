@@ -1,0 +1,72 @@
+{
+ "schema": 1,
+ "set": "label_propagation_oracle",
+ "kind": "label_propagation_oracle",
+ "what": "parity/compare.py label_propagation: the harmonic oracle (AD7): mean |F - F*| <= 2000 delta, the PCG converged, no class flip where |F* - 0.5| > 3m, on every batch of C (and L), both schedules, IrLP",
+ "date": "2026-10-30T18:38:29Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": null
+ },
+ "port": {
+  "commit": "4acb0b5ffd19c767eff2dbf1ce7ab5098dbef78c"
+ },
+ "executable": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "/home/sskg8/Projects/dyng-work/wt-m10/build/parity-cuda",
+  "preset": "parity-cuda"
+ },
+ "goldens": {},
+ "backend": "cuda",
+ "configs": [
+  "cuda:lp/oracle"
+ ],
+ "cases": [
+  "500k_d1e-4_s42",
+  "500k_d1e-4_s42_inplace",
+  "50k_d1e-6_s42",
+  "50k_d1e-6_s42_inplace",
+  "5k5_d1e-6_s42",
+  "5k5_d1e-6_s42_inplace",
+  "5m_d1e-4_s42",
+  "5m_d1e-4_s42_inplace"
+ ],
+ "matrix": {
+  "500k_d1e-4_s42": {
+   "cuda:lp/oracle": "equal"
+  },
+  "500k_d1e-4_s42_inplace": {
+   "cuda:lp/oracle": "equal"
+  },
+  "50k_d1e-6_s42": {
+   "cuda:lp/oracle": "equal"
+  },
+  "50k_d1e-6_s42_inplace": {
+   "cuda:lp/oracle": "equal"
+  },
+  "5k5_d1e-6_s42": {
+   "cuda:lp/oracle": "equal"
+  },
+  "5k5_d1e-6_s42_inplace": {
+   "cuda:lp/oracle": "equal"
+  },
+  "5m_d1e-4_s42": {
+   "cuda:lp/oracle": "equal"
+  },
+  "5m_d1e-4_s42_inplace": {
+   "cuda:lp/oracle": "equal"
+  }
+ },
+ "checks": {
+  "replay": "oracle"
+ },
+ "passed": true,
+ "tolerance": {
+  "bound_factor": 2000,
+  "class_margin_m": 0.002921747540180264,
+  "class_margin_k": 3
+ }
+}

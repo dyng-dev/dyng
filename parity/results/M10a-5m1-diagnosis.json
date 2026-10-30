@@ -1,0 +1,1185 @@
+{
+ "schema": 1,
+ "what": "M10a step 5: the diagnosis of the 5m1 gate miss (damped update[sum] 1.080 on 0c815a1) and the fix of ADR 0079; GPU 1, outside the gate protocol (diagnostic, not a reading); 5m1 = --totalNodes 5000000 --numBatches 2 --avgDegree 5 --delta 0.0001 --seed 42 --update damped, CUDA_MODULE_LOADING=EAGER",
+ "source": "$DYNG_SCRATCH/runs/m10a-kit-mutations-gates-certificate/diag5m1 (nsys.sh, instr.sh)",
+ "nsys": {
+  "original": {
+   "binary": "ref/LabelPropagation-CUDA@a276a3a/unpatched/bin/dynLP",
+   "nvtx_ranges": [
+    [
+     "gen.graph",
+     1236.62
+    ],
+    [
+     "gen.batches",
+     712.687
+    ],
+    [
+     "dynlp.total",
+     1483.193
+    ],
+    [
+     "dynlp.setup",
+     68.953
+    ],
+    [
+     "batch",
+     2.51
+    ],
+    [
+     "b1.host.batchIds",
+     1.634
+    ],
+    [
+     "b2.deletions+status",
+     0.035
+    ],
+    [
+     "b3.appendEdges",
+     0.051
+    ],
+    [
+     "cub::DeviceRadixSort",
+     0.011
+    ],
+    [
+     "cub::DeviceScan::ExclusiveSumByKey",
+     0.019
+    ],
+    [
+     "b4.sparsify",
+     0.01
+    ],
+    [
+     "b5.connectedComponents",
+     0.18
+    ],
+    [
+     "cub::DeviceScan::ExclusiveSum",
+     0.02
+    ],
+    [
+     "b6.labelInit",
+     0.022
+    ],
+    [
+     "b7.propagation",
+     0.46
+    ],
+    [
+     "e1.D2H.labels",
+     1.565
+    ],
+    [
+     "e2.host.accuracy",
+     0.477
+    ],
+    [
+     "batch",
+     1390.277
+    ],
+    [
+     "b1.host.batchIds",
+     53.068
+    ],
+    [
+     "b2.deletions+status",
+     0.046
+    ],
+    [
+     "b3.appendEdges",
+     0.09
+    ],
+    [
+     "cub::DeviceRadixSort",
+     0.057
+    ],
+    [
+     "cub::DeviceScan::ExclusiveSumByKey",
+     0.015
+    ],
+    [
+     "b4.sparsify",
+     0.009
+    ],
+    [
+     "b5.connectedComponents",
+     34.003
+    ],
+    [
+     "cub::DeviceScan::ExclusiveSum",
+     0.021
+    ],
+    [
+     "b6.labelInit",
+     0.025
+    ],
+    [
+     "b7.propagation",
+     1302.889
+    ],
+    [
+     "e1.D2H.labels",
+     1.543
+    ],
+    [
+     "e2.host.accuracy",
+     4.817
+    ],
+    [
+     "out.writeFiles",
+     298.286
+    ]
+   ],
+   "largest_host_gaps_between_cuda_calls": [
+    {
+     "host_gap_ms": 6.91,
+     "after": "cudaStreamSynchronize_v3020",
+     "before": "cudaHostUnregister_v4000"
+    },
+    {
+     "host_gap_ms": 53.08,
+     "after": "cudaEventRecord_v3020",
+     "before": "cudaStreamWaitEvent_v3020"
+    },
+    {
+     "host_gap_ms": 1982.26,
+     "after": "cudaFree_v3020",
+     "before": "cudaMalloc_v3020"
+    }
+   ]
+  },
+  "port_0c815a1": {
+   "binary": "m10-builds/head-parity-cuda (0c815a1) dyng-compat-dynlp",
+   "largest_host_gaps_between_cuda_calls": [
+    {
+     "host_gap_ms": 136.71,
+     "after": "cudaEventRecord_v3020",
+     "before": "cudaMallocFromPoolAsync_v11020"
+    },
+    {
+     "host_gap_ms": 340.09,
+     "after": "cudaStreamSynchronize_v3020",
+     "before": "cudaStreamSynchronize_v3020"
+    },
+    {
+     "host_gap_ms": 2119.03,
+     "after": "cudaMemPoolSetAttribute_v11020",
+     "before": "cudaMallocFromPoolAsync_v11020"
+    }
+   ],
+   "note": "the 136.71 ms gap follows the update timer of b1 (cudaEventRecord) and precedes the first allocation of the Ins \\ Del staging: the host Step 0 (no NVTX ranges in the port)"
+  }
+ },
+ "instrumented": {
+  "note": "temporary builds with DYNG_DIAG_T timers around the sections of Step 0 and the upload (not committed code); a = 0c815a1, c = the fix of ADR 0079; the first group of lines is b0, the second b1",
+  "5m1_before_fix": {
+   "sections_in_order": [
+    [
+     "step0 ranges",
+     0.08
+    ],
+    [
+     "step0 marks",
+     1.063
+    ],
+    [
+     "step0 net effect",
+     0.745
+    ],
+    [
+     "upload: ensure",
+     0.015
+    ],
+    [
+     "upload: staging alloc",
+     0.005
+    ],
+    [
+     "upload: puts",
+     0.028
+    ],
+    [
+     "run_update: staged+normalize",
+     2.134
+    ],
+    [
+     "states: delta copy",
+     0.02
+    ],
+    [
+     "states: status",
+     0.368
+    ],
+    [
+     "run_update: before_apply+commit",
+     0.491
+    ],
+    [
+     "step0 ranges",
+     28.037
+    ],
+    [
+     "step0 marks",
+     36.407
+    ],
+    [
+     "step0 net effect",
+     56.671
+    ],
+    [
+     "upload: ensure",
+     0.178
+    ],
+    [
+     "upload: staging alloc",
+     8.499
+    ],
+    [
+     "upload: puts",
+     2.618
+    ],
+    [
+     "run_update: staged+normalize",
+     151.935
+    ],
+    [
+     "states: delta copy",
+     2.797
+    ],
+    [
+     "states: status",
+     30.578
+    ],
+    [
+     "run_update: before_apply+commit",
+     33.498
+    ]
+   ],
+   "batches": [
+    {
+     "batch": 0,
+     "time_ms": 3.796,
+     "host_ms": 3.807867
+    },
+    {
+     "batch": 1,
+     "time_ms": 1503.362915,
+     "host_ms": 1503.35909
+    }
+   ]
+  },
+  "5m1_after_fix": {
+   "sections_in_order": [
+    [
+     "step0 ranges",
+     0.035
+    ],
+    [
+     "step0 marks+ins",
+     0.904
+    ],
+    [
+     "step0 net effect",
+     0.005
+    ],
+    [
+     "end(guard)",
+     0.001
+    ],
+    [
+     "upload: ensure",
+     0.021
+    ],
+    [
+     "upload: staging alloc",
+     0.003
+    ],
+    [
+     "upload: puts",
+     0.028
+    ],
+    [
+     "end(guard)",
+     0.178
+    ],
+    [
+     "step0 ranges",
+     12.759
+    ],
+    [
+     "step0 marks+ins",
+     40.552
+    ],
+    [
+     "step0 net effect",
+     1.377
+    ],
+    [
+     "end(guard)",
+     0.005
+    ],
+    [
+     "upload: ensure",
+     0.167
+    ],
+    [
+     "upload: staging alloc",
+     8.35
+    ],
+    [
+     "upload: puts",
+     2.4
+    ],
+    [
+     "end(guard)",
+     12.581
+    ]
+   ],
+   "batches": [
+    {
+     "batch": 0,
+     "time_ms": 2.50544,
+     "host_ms": 2.517011
+    },
+    {
+     "batch": 1,
+     "time_ms": 1402.494995,
+     "host_ms": 1402.491964
+    }
+   ]
+  },
+  "5m_before_fix": {
+   "sections_in_order": [
+    [
+     "step0 ranges",
+     0.084
+    ],
+    [
+     "step0 marks",
+     1.098
+    ],
+    [
+     "step0 net effect",
+     8.848
+    ],
+    [
+     "upload: ensure",
+     0.02
+    ],
+    [
+     "upload: staging alloc",
+     0.009
+    ],
+    [
+     "upload: puts",
+     0.031
+    ],
+    [
+     "run_update: staged+normalize",
+     10.334
+    ],
+    [
+     "states: delta copy",
+     0.023
+    ],
+    [
+     "states: status",
+     0.397
+    ],
+    [
+     "run_update: before_apply+commit",
+     0.537
+    ],
+    [
+     "step0 ranges",
+     1.403
+    ],
+    [
+     "step0 marks",
+     5.593
+    ],
+    [
+     "step0 net effect",
+     5.112
+    ],
+    [
+     "upload: ensure",
+     0.028
+    ],
+    [
+     "upload: staging alloc",
+     1.131
+    ],
+    [
+     "upload: puts",
+     0.25
+    ],
+    [
+     "run_update: staged+normalize",
+     15.506
+    ],
+    [
+     "states: delta copy",
+     0.239
+    ],
+    [
+     "states: status",
+     3.636
+    ],
+    [
+     "run_update: before_apply+commit",
+     3.973
+    ],
+    [
+     "step0 ranges",
+     1.559
+    ],
+    [
+     "step0 marks",
+     4.608
+    ],
+    [
+     "step0 net effect",
+     4.945
+    ],
+    [
+     "upload: ensure",
+     0.022
+    ],
+    [
+     "upload: staging alloc",
+     0.011
+    ],
+    [
+     "upload: puts",
+     0.256
+    ],
+    [
+     "run_update: staged+normalize",
+     13.389
+    ],
+    [
+     "states: delta copy",
+     0.25
+    ],
+    [
+     "states: status",
+     4.07
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.43
+    ],
+    [
+     "step0 ranges",
+     2.105
+    ],
+    [
+     "step0 marks",
+     4.645
+    ],
+    [
+     "step0 net effect",
+     5.152
+    ],
+    [
+     "upload: ensure",
+     0.028
+    ],
+    [
+     "upload: staging alloc",
+     0.01
+    ],
+    [
+     "upload: puts",
+     0.259
+    ],
+    [
+     "run_update: staged+normalize",
+     14.199
+    ],
+    [
+     "states: delta copy",
+     0.219
+    ],
+    [
+     "states: status",
+     4.09
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.415
+    ],
+    [
+     "step0 ranges",
+     2.486
+    ],
+    [
+     "step0 marks",
+     5.062
+    ],
+    [
+     "step0 net effect",
+     4.767
+    ],
+    [
+     "upload: ensure",
+     0.03
+    ],
+    [
+     "upload: staging alloc",
+     0.008
+    ],
+    [
+     "upload: puts",
+     0.293
+    ],
+    [
+     "run_update: staged+normalize",
+     14.636
+    ],
+    [
+     "states: delta copy",
+     0.216
+    ],
+    [
+     "states: status",
+     4.157
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.481
+    ],
+    [
+     "step0 ranges",
+     2.937
+    ],
+    [
+     "step0 marks",
+     5.101
+    ],
+    [
+     "step0 net effect",
+     4.707
+    ],
+    [
+     "upload: ensure",
+     0.022
+    ],
+    [
+     "upload: staging alloc",
+     0.01
+    ],
+    [
+     "upload: puts",
+     0.308
+    ],
+    [
+     "run_update: staged+normalize",
+     15.076
+    ],
+    [
+     "states: delta copy",
+     0.218
+    ],
+    [
+     "states: status",
+     4.243
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.569
+    ],
+    [
+     "step0 ranges",
+     3.419
+    ],
+    [
+     "step0 marks",
+     4.941
+    ],
+    [
+     "step0 net effect",
+     4.666
+    ],
+    [
+     "upload: ensure",
+     0.026
+    ],
+    [
+     "upload: staging alloc",
+     0.008
+    ],
+    [
+     "upload: puts",
+     0.301
+    ],
+    [
+     "run_update: staged+normalize",
+     15.376
+    ],
+    [
+     "states: delta copy",
+     0.232
+    ],
+    [
+     "states: status",
+     4.217
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.559
+    ],
+    [
+     "step0 ranges",
+     3.882
+    ],
+    [
+     "step0 marks",
+     4.942
+    ],
+    [
+     "step0 net effect",
+     4.722
+    ],
+    [
+     "upload: ensure",
+     0.026
+    ],
+    [
+     "upload: staging alloc",
+     0.007
+    ],
+    [
+     "upload: puts",
+     0.304
+    ],
+    [
+     "run_update: staged+normalize",
+     15.87
+    ],
+    [
+     "states: delta copy",
+     0.219
+    ],
+    [
+     "states: status",
+     4.236
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.563
+    ],
+    [
+     "step0 ranges",
+     4.417
+    ],
+    [
+     "step0 marks",
+     5.095
+    ],
+    [
+     "step0 net effect",
+     4.849
+    ],
+    [
+     "upload: ensure",
+     0.021
+    ],
+    [
+     "upload: staging alloc",
+     0.009
+    ],
+    [
+     "upload: puts",
+     0.313
+    ],
+    [
+     "run_update: staged+normalize",
+     16.705
+    ],
+    [
+     "states: delta copy",
+     0.244
+    ],
+    [
+     "states: status",
+     4.345
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.716
+    ],
+    [
+     "step0 ranges",
+     4.847
+    ],
+    [
+     "step0 marks",
+     4.892
+    ],
+    [
+     "step0 net effect",
+     9.284
+    ],
+    [
+     "upload: ensure",
+     0.03
+    ],
+    [
+     "upload: staging alloc",
+     0.01
+    ],
+    [
+     "upload: puts",
+     0.299
+    ],
+    [
+     "run_update: staged+normalize",
+     21.41
+    ],
+    [
+     "states: delta copy",
+     0.224
+    ],
+    [
+     "states: status",
+     4.358
+    ],
+    [
+     "run_update: before_apply+commit",
+     4.7
+    ]
+   ],
+   "batches": [
+    {
+     "batch": 0,
+     "time_ms": 12.050112,
+     "host_ms": 12.061453
+    },
+    {
+     "batch": 1,
+     "time_ms": 63.637314,
+     "host_ms": 63.642133
+    },
+    {
+     "batch": 2,
+     "time_ms": 285.494324,
+     "host_ms": 285.497576
+    },
+    {
+     "batch": 3,
+     "time_ms": 742.221008,
+     "host_ms": 742.221869
+    },
+    {
+     "batch": 4,
+     "time_ms": 895.795837,
+     "host_ms": 895.795725
+    },
+    {
+     "batch": 5,
+     "time_ms": 837.854248,
+     "host_ms": 837.855199
+    },
+    {
+     "batch": 6,
+     "time_ms": 745.593445,
+     "host_ms": 745.594723
+    },
+    {
+     "batch": 7,
+     "time_ms": 681.560059,
+     "host_ms": 681.560977
+    },
+    {
+     "batch": 8,
+     "time_ms": 660.251282,
+     "host_ms": 660.252123
+    },
+    {
+     "batch": 9,
+     "time_ms": 666.882874,
+     "host_ms": 666.884358
+    }
+   ]
+  },
+  "5m_after_fix": {
+   "sections_in_order": [
+    [
+     "step0 ranges",
+     0.032
+    ],
+    [
+     "step0 marks+ins",
+     0.923
+    ],
+    [
+     "step0 net effect",
+     0.008
+    ],
+    [
+     "end(guard)",
+     0.002
+    ],
+    [
+     "upload: ensure",
+     0.016
+    ],
+    [
+     "upload: staging alloc",
+     0.003
+    ],
+    [
+     "upload: puts",
+     0.027
+    ],
+    [
+     "end(guard)",
+     0.172
+    ],
+    [
+     "step0 ranges",
+     0.453
+    ],
+    [
+     "step0 marks+ins",
+     5.971
+    ],
+    [
+     "step0 net effect",
+     0.144
+    ],
+    [
+     "end(guard)",
+     0.004
+    ],
+    [
+     "upload: ensure",
+     0.027
+    ],
+    [
+     "upload: staging alloc",
+     1.24
+    ],
+    [
+     "upload: puts",
+     0.256
+    ],
+    [
+     "end(guard)",
+     1.194
+    ],
+    [
+     "step0 ranges",
+     0.688
+    ],
+    [
+     "step0 marks+ins",
+     4.958
+    ],
+    [
+     "step0 net effect",
+     0.381
+    ],
+    [
+     "end(guard)",
+     0.004
+    ],
+    [
+     "upload: ensure",
+     0.028
+    ],
+    [
+     "upload: staging alloc",
+     0.008
+    ],
+    [
+     "upload: puts",
+     0.258
+    ],
+    [
+     "end(guard)",
+     1.369
+    ],
+    [
+     "step0 ranges",
+     0.972
+    ],
+    [
+     "step0 marks+ins",
+     6.504
+    ],
+    [
+     "step0 net effect",
+     0.409
+    ],
+    [
+     "end(guard)",
+     0.006
+    ],
+    [
+     "upload: ensure",
+     0.041
+    ],
+    [
+     "upload: staging alloc",
+     0.008
+    ],
+    [
+     "upload: puts",
+     0.307
+    ],
+    [
+     "end(guard)",
+     1.47
+    ],
+    [
+     "step0 ranges",
+     1.173
+    ],
+    [
+     "step0 marks+ins",
+     6.239
+    ],
+    [
+     "step0 net effect",
+     2.926
+    ],
+    [
+     "end(guard)",
+     0.006
+    ],
+    [
+     "upload: ensure",
+     0.034
+    ],
+    [
+     "upload: staging alloc",
+     0.006
+    ],
+    [
+     "upload: puts",
+     0.314
+    ],
+    [
+     "end(guard)",
+     1.378
+    ],
+    [
+     "step0 ranges",
+     1.463
+    ],
+    [
+     "step0 marks+ins",
+     6.03
+    ],
+    [
+     "step0 net effect",
+     0.281
+    ],
+    [
+     "end(guard)",
+     0.005
+    ],
+    [
+     "upload: ensure",
+     0.025
+    ],
+    [
+     "upload: staging alloc",
+     0.007
+    ],
+    [
+     "upload: puts",
+     0.291
+    ],
+    [
+     "end(guard)",
+     1.415
+    ],
+    [
+     "step0 ranges",
+     1.712
+    ],
+    [
+     "step0 marks+ins",
+     4.999
+    ],
+    [
+     "step0 net effect",
+     0.251
+    ],
+    [
+     "end(guard)",
+     0.004
+    ],
+    [
+     "upload: ensure",
+     0.025
+    ],
+    [
+     "upload: staging alloc",
+     0.005
+    ],
+    [
+     "upload: puts",
+     0.257
+    ],
+    [
+     "end(guard)",
+     1.446
+    ],
+    [
+     "step0 ranges",
+     1.953
+    ],
+    [
+     "step0 marks+ins",
+     5.415
+    ],
+    [
+     "step0 net effect",
+     0.241
+    ],
+    [
+     "end(guard)",
+     0.004
+    ],
+    [
+     "upload: ensure",
+     0.028
+    ],
+    [
+     "upload: staging alloc",
+     0.005
+    ],
+    [
+     "upload: puts",
+     0.282
+    ],
+    [
+     "end(guard)",
+     1.461
+    ],
+    [
+     "step0 ranges",
+     2.209
+    ],
+    [
+     "step0 marks+ins",
+     5.138
+    ],
+    [
+     "step0 net effect",
+     0.235
+    ],
+    [
+     "end(guard)",
+     0.004
+    ],
+    [
+     "upload: ensure",
+     0.021
+    ],
+    [
+     "upload: staging alloc",
+     0.006
+    ],
+    [
+     "upload: puts",
+     0.267
+    ],
+    [
+     "end(guard)",
+     1.449
+    ],
+    [
+     "step0 ranges",
+     2.406
+    ],
+    [
+     "step0 marks+ins",
+     4.941
+    ],
+    [
+     "step0 net effect",
+     0.223
+    ],
+    [
+     "end(guard)",
+     0.004
+    ],
+    [
+     "upload: ensure",
+     0.028
+    ],
+    [
+     "upload: staging alloc",
+     0.005
+    ],
+    [
+     "upload: puts",
+     0.268
+    ],
+    [
+     "end(guard)",
+     1.434
+    ]
+   ],
+   "batches": [
+    {
+     "batch": 0,
+     "time_ms": 2.486528,
+     "host_ms": 2.496886
+    },
+    {
+     "batch": 1,
+     "time_ms": 53.949696,
+     "host_ms": 53.953957
+    },
+    {
+     "batch": 2,
+     "time_ms": 276.186066,
+     "host_ms": 276.188481
+    },
+    {
+     "batch": 3,
+     "time_ms": 734.241516,
+     "host_ms": 734.241899
+    },
+    {
+     "batch": 4,
+     "time_ms": 889.364319,
+     "host_ms": 889.363547
+    },
+    {
+     "batch": 5,
+     "time_ms": 827.96936,
+     "host_ms": 827.969016
+    },
+    {
+     "batch": 6,
+     "time_ms": 735.368591,
+     "host_ms": 735.368989
+    },
+    {
+     "batch": 7,
+     "time_ms": 672.102417,
+     "host_ms": 672.10274
+    },
+    {
+     "batch": 8,
+     "time_ms": 650.170044,
+     "host_ms": 650.170641
+    },
+    {
+     "batch": 9,
+     "time_ms": 653.15802,
+     "host_ms": 653.158668
+    }
+   ]
+  }
+ }
+}

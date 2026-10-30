@@ -1,0 +1,77 @@
+{
+ "schema": 1,
+ "set": "label_propagation_damped",
+ "kind": "label_propagation_damped",
+ "what": "parity/compare.py label_propagation: the fused engine's damped byte parity: dynlp_labels.txt, every batch's label bits, the results.csv counts and every trace field (a parity-cuda build)",
+ "date": "2026-10-30T17:51:41Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+ },
+ "port": {
+  "commit": "4acb0b5ffd19c767eff2dbf1ce7ab5098dbef78c"
+ },
+ "executable": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "/home/sskg8/Projects/dyng-work/wt-m10/build/parity-cuda",
+  "preset": "parity-cuda"
+ },
+ "goldens": {
+  "manifest_sha256": "232a98797fc2269d1cda98669a9e266b85940373ad1b7f3e75644fe0fc7fd837"
+ },
+ "backend": "cuda-fused",
+ "configs": [
+  "cuda-fused:lp/damped"
+ ],
+ "cases": [
+  "500k_d1e-4_s42",
+  "50k_d1e-4_s1",
+  "50k_d1e-4_s2",
+  "50k_d1e-4_s42",
+  "50k_d1e-6_s42",
+  "5k5_d1e-4_s1",
+  "5k5_d1e-4_s2",
+  "5k5_d1e-4_s42",
+  "5k5_d1e-6_s42",
+  "5m_d1e-4_s42"
+ ],
+ "matrix": {
+  "500k_d1e-4_s42": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "50k_d1e-4_s1": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "50k_d1e-4_s2": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "50k_d1e-4_s42": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "50k_d1e-6_s42": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "5k5_d1e-4_s1": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "5k5_d1e-4_s2": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "5k5_d1e-4_s42": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "5k5_d1e-6_s42": {
+   "cuda-fused:lp/damped": "equal"
+  },
+  "5m_d1e-4_s42": {
+   "cuda-fused:lp/damped": "equal"
+  }
+ },
+ "checks": {
+  "replay": "damped"
+ },
+ "passed": true
+}

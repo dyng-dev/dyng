@@ -1,0 +1,248 @@
+{
+ "what": "M10a step 5, C8 on CUDA: an nsys CUDA API trace of dyng-compat-dynlp over the 10 equal-shape\nbatches of 500k (damped and in_place): the allocation calls (cudaMalloc*, cudaMallocAsync and\ncudaMallocFromPoolAsync, cudaHostAlloc, cudaMallocHost, cudaHostRegister) inside each update, so\nthat the updates that reserve are counted (the kit's C8 budget: reservations in at most 2 updates\nof equal-shape batches). An update is counted from the end of the previous one (for the first update, from the last\ncudaHostRegister of the page-lock) to the end of the tool's cudaEventSynchronize on its stop event\n(the synchronization right after two or more cudaEventRecord calls: the library's own event and the\ntool's stop event; the library's other event synchronization inside an update, AD21's wait for the\nstaging copy, follows the staging allocations); the interval also holds the previous batch's\nevaluation, so an allocation there would count against the update (conservative). An update\nreserves when it makes an allocation call outside the stream-ordered pool (cudaMalloc,\ncudaHostAlloc, cudaMallocHost, cudaHostRegister) or when the pool grows during it (nsys\n--cuda-memory-usage: the pool's size at each of its allocations); a lease of the pool's reserved\nmemory (cudaMallocFromPoolAsync that does not grow the pool) is listed, not counted.",
+ "exe": "/home/sskg8/Projects/dyng-work/m10-builds/head-parity-cuda/tools/compat/dyng-compat-dynlp",
+ "cases": {
+  "damped": {
+   "updates": [
+    {
+     "update": 0,
+     "allocation_calls": 3,
+     "names": [
+      "cudaHostAlloc",
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [
+      "cudaHostAlloc"
+     ],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": true
+    },
+    {
+     "update": 1,
+     "allocation_calls": 4,
+     "names": [
+      "cudaHostAlloc",
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [
+      "cudaHostAlloc"
+     ],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": true
+    },
+    {
+     "update": 2,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 3,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 4,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 5,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 6,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 7,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 8,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 9,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    }
+   ],
+   "updates_that_reserve": 2
+  },
+  "inplace": {
+   "updates": [
+    {
+     "update": 0,
+     "allocation_calls": 3,
+     "names": [
+      "cudaHostAlloc",
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [
+      "cudaHostAlloc"
+     ],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": true
+    },
+    {
+     "update": 1,
+     "allocation_calls": 4,
+     "names": [
+      "cudaHostAlloc",
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [
+      "cudaHostAlloc"
+     ],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": true
+    },
+    {
+     "update": 2,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 3,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 4,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 5,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 6,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 7,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 8,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    },
+    {
+     "update": 9,
+     "allocation_calls": 3,
+     "names": [
+      "cudaMallocFromPoolAsync"
+     ],
+     "outside_the_pool": [],
+     "pool_bytes_before": 67108864,
+     "pool_bytes_after": 67108864,
+     "reserves": false
+    }
+   ],
+   "updates_that_reserve": 2
+  }
+ }
+}
