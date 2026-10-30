@@ -146,9 +146,9 @@ Before 0.1.0 anything may change.
   host twins, each detected on its own executables; #5 and the CBST unfill re-run in the cbst
   suite), which, like `ci/gpu_local.sh`, waits for the shared calendar before a GPU job;
   `parity/sass_identity.py` and `parity/experiments/escher_store_bytes.py` (the 0.3 objects and
-  store bytes against a base build), `parity/experiments/hypergraph_host_ab.py` on cuda; `compare.py
-  hyper_sssp --certificate` and `hypergraph_ids.py --storage slack_csr --certificate` write the
-  certificate's replay records (ADR 0093).
+  store bytes against a base build), `parity/experiments/hypergraph_host_ab.py` on cuda and with
+  `--all-stages`; `compare.py hyper_sssp --certificate` and `hypergraph_ids.py --storage slack_csr
+  --certificate` write the certificate's replay records (ADR 0093).
 - Release certificate: from the 0.4 series `parity/certify.py` requires the suite `ia3_hsosp`
   (`REQUIRED_SUITES`), the slack_csr store check of the hyper_sssp set on cuda, and MOSP_ESCHER's
   sessions replayed whole on slack_csr storage (`HYPERGRAPH_ID_REPLAYS`, with a per-entry and a

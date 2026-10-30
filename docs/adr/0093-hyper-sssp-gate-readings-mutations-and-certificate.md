@@ -119,7 +119,34 @@ carry the label `hyper_sssp`.
 
 ## Outcome (M11a step 5)
 
-(Filled in with the readings: see `parity/results/M11a.md` section 11.)
+The records are `parity/results/M11a.md` section 11 and the JSON records it names; M11a's code
+freeze is `c78e4ef` (no library, driver or build change after it).
+
+- **Mutations:** the control passes and 14 of 14 mutations are detected, each by failed tests of
+  its own configuration's executables (`M11a-mutate-hyper_sssp.json`).
+- **The 0.3 paths:** the 14 CUDA objects of the escher store, `escher_store.cu`, sorted-merge and
+  triad_count are SASS-identical to the merge base; the escher store's device bytes and batch
+  lines are identical on three cases. ADR 0024's readings put some regions of the escher-storage
+  `hypergraph.apply` above the 1.02 bar: `.apply.delete` on every backend of coauth-DBLP (up to
+  1.033 on openmp-8 and 1.035 on cuda), and on cuda `.apply` (1.021-1.029), `.apply.delete` and
+  `.apply.insert` (1.025-1.033) of syn1M, confirmed by the 85 x 170 reading. **They were located as
+  code placement**: the stages' host functions on cuda have the same instructions at other
+  alignments, the device code is identical, and both sides rebuilt with R020's flag set FB read
+  every region within the bar (apply 0.991-1.012, delete 1.001-1.009, insert 0.737-1.001). The one
+  changed function in them, the host allocator's `erase` (the dead-key bit set of ADR 0089),
+  costs 0.7-0.9 % of the host delete stage, within the bar. triad_count's PLAN 8.6 gates against
+  ESCHER-GPU@abcf9b2 hold on the final library (update 0.857-1.023, full_count 1.002-1.003,
+  end_to_end 0.971-0.996). As HD16 and the D14 precedent direct, the regions are listed for the
+  author's acknowledgement (GOVERNANCE.md, Open decisions, M11 (HD)), not fixed in code.
+- **Gates against MOSP_ESCHER:** **271 of 271 gated rows within their bars** (Geology at boost,
+  coauth-DBLP at base after its 21-round reading could not hold boost): maintain 0.402-0.795,
+  sosp_update 0.991-1.066 (1.066 under the 1.10 bar where B's median is 1.23 ms), static
+  0.980-1.037, dynamic_comparable 0.637-0.855, dynamic 0.146-0.444, load_plus_dynamic
+  0.672-0.846; no fallback decision differed from the golden's in any kept round (HD7: no
+  "scope differs"); no audit flag. Memory: the nsys peak 0.477-0.557 of B's, the graph-scope
+  accounting 1.0000 after the build and every batch.
+- **Certificate:** the dry 0.4 certify restricted to hyper_sssp passes and fails with one gate row
+  or one replay removed; M10's scoped dry run waits for M10's entries on the branch.
 
 ## Consequences
 
