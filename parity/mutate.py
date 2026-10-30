@@ -73,8 +73,10 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
 
 The control (no mutation) must pass on every (suite, configuration) the chosen mutations use;
 every mutation must fail (at least one case differs). Builds and replays take the shared perf
-lock and run niced; CUDA replays run on GPU $DYNG_TEST_GPU (default 1). The scratch copies are
-deleted unless --keep. Exit 0 only if the control passes and every mutation is detected.
+lock and run niced; CUDA replays run on GPU $DYNG_TEST_GPU (default 1), each after the shared
+calendar's `locklog.py quiet-ok $DYNG_LOCKLOG_MILESTONE` when that variable is set. The scratch
+copies are deleted unless --keep. Exit 0 only if the control passes and every mutation is
+detected.
 
 The CTests `ctest -L mutation` (cpp/tests/CMakeLists.txt, option DYNG_MUTATION_TESTS) check the
 cycle_count mutations against the unit and randomized suites as well, on every build; the runs
@@ -533,6 +535,23 @@ MUTATIONS = [
 ]
 
 
+def wait_gpu_quiet() -> None:
+    """Before a GPU job: with DYNG_LOCKLOG_MILESTONE set (M10a, M11a, ...) and the shared
+    calendar's tool at $DYNG_SCRATCH/tools/locklog.py, wait while another agent's GPU1-QUIET
+    window is open (`locklog.py quiet-ok <milestone>` exits 1), checking every minute."""
+    import time
+
+    milestone = os.environ.get("DYNG_LOCKLOG_MILESTONE")
+    tool = SCRATCH / "tools" / "locklog.py"
+    if not milestone or not tool.is_file():
+        return
+    while subprocess.run(
+        [sys.executable, str(tool), "quiet-ok", milestone], capture_output=True
+    ).returncode:
+        print("[mutate] waiting: a GPU1-QUIET window is open (locklog.py quiet-ok)", flush=True)
+        time.sleep(60)
+
+
 def heavy(argv: list[str]) -> list[str]:
     lock = os.environ.get("DYNG_PERF_LOCK", str(SCRATCH / "perf.lock"))
     return (["flock", "-s", lock] if lock else []) + ["nice", "-n", "10", *argv]
@@ -616,6 +635,7 @@ def run_gtests(suite: str, exes: dict, config: str, out: Path, log: Path) -> dic
     failed, complete, rc_all, per_exe = 0, True, 0, {}
     for target in suite_targets(suite, config):
         exe = exes[target]
+        wait_gpu_quiet()
         proc = subprocess.run(
             heavy([str(exe), "--gtest_brief=1"]), capture_output=True, text=True, env=env
         )
@@ -646,6 +666,7 @@ def replay(suite: str, exe: Path, config: str, out: Path, log: Path) -> dict:
     env.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("DYNG_TEST_GPU", "1"))
     argv = [sys.executable, str(REPO / "parity" / "compare.py"), *SUITES[suite]["compare"]]
     argv += ["--exe", str(exe), "--configs", config, "--json", str(out)]
+    wait_gpu_quiet()
     rc = sh(heavy(argv), log, env=env)
     if not out.is_file():
         return {"rc": rc, "passed": False, "failed_cases": None}
