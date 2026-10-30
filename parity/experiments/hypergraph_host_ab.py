@@ -8,12 +8,14 @@ update (the refactor bar of ADR 0024; R030's D13 fix, ADR 0061). Not a PLAN 8.6 
         --baseline-commit SHA_A --commit SHA_B
         [--cases coauth_b50k_s1,syn1m_b50k_s1] [--backends sequential,openmp:8]
         [--modes apply,update:h_motif] [--layouts 17] [--rounds 51] [--json FILE]
-        [--lock-timeout S] [--no-lock]
+        [--lock-timeout S] [--no-lock] [--gpu 0] [--clocks base|boost|none]
 
 Both sides are `dyng-compat-escher run` (built from two commits) with the golden case's argv of
 the triad_count_escher_gpu set (coauth-DBLP from $DYNG_SCRATCH/datasets/hyper/coauth.hg; the
 synthetic inputs generated in-process from A's parameters and the seed), `--backend <b>` (and
-`--threads N`), `--timing FILE`; mode `apply` adds `--no-count` (hypergraph::apply() alone,
+`--threads N`; cuda: `--sync-stages`, on --gpu with the clocks locked by --clocks for the whole
+reading, CUDA_MODULE_LOADING=EAGER; M11a step 5), `--timing FILE`; mode `apply` adds `--no-count`
+(hypergraph::apply() alone,
 timed by the driver's `apply_ms`), mode `update[:<pattern>]` runs triad_count's update of the
 pattern (`--pattern`: h_motif, the default, or type1, type2, type3; the `triad_count.update`
 stage and the `hypergraph.apply` stage inside it). Rounds alternate A/B; round
@@ -60,8 +62,14 @@ GOLDENS = perf_ab.SCRATCH / "goldens" / "triad_count" / "escher_gpu" / "cases"
 COAUTH = perf_ab.SCRATCH / "datasets" / "hyper" / "coauth.hg"
 # The stages each mode reads: the driver's timer and the profiler's stages.
 STAGES = {
-    "apply": ("apply_ms", "hypergraph.apply", "hypergraph.apply.insert"),
-    "update": ("update_ms", "triad_count.update", "hypergraph.apply", "hypergraph.apply.insert"),
+    "apply": ("apply_ms", "hypergraph.apply", "hypergraph.apply.insert", "hypergraph.apply.delete"),
+    "update": (
+        "update_ms",
+        "triad_count.update",
+        "hypergraph.apply",
+        "hypergraph.apply.insert",
+        "hypergraph.apply.delete",
+    ),
 }
 # Read once, before the batches: the build (the line graph's row build among it).
 BUILD_STAGES = ("hypergraph.build",)
@@ -77,8 +85,11 @@ def case_argv(case: str) -> list[str]:
 
 
 def backend_args(spec: str) -> list[str]:
+    """A backend spec (sequential, openmp:8, cuda) as the driver's flags; cuda also times its
+    stages after a device synchronization (--sync-stages), on both sides."""
     name, _, threads = spec.partition(":")
-    return ["--backend", name, *(["--threads", threads] if threads else [])]
+    extra = ["--sync-stages"] if name == "cuda" else []
+    return ["--backend", name, *(["--threads", threads] if threads else []), *extra]
 
 
 def layout_timing(work: Path, r: int, layouts: int) -> Path:
@@ -191,6 +202,12 @@ def run(args: argparse.Namespace) -> int:
         if not exe.is_file():
             raise SystemExit(f"no executable {exe}")
     env = {k: v for k, v in os.environ.items() if not k.startswith("OMP_")}
+    backends = str(getattr(args, "backends", "") or "")
+    cuda = any(b.partition(":")[0] == "cuda" for b in backends.split(","))
+    gpu, clock_mode = getattr(args, "gpu", 0), getattr(args, "clocks", "none")
+    if cuda:  # the timing GPU, EAGER on both sides, the clocks locked (ADR 0018, 0021)
+        env["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        env["CUDA_MODULE_LOADING"] = "EAGER"
     side_info = {
         "A": side_record(sides["A"], args.baseline_commit),
         "B": side_record(sides["B"], args.commit),
@@ -210,6 +227,8 @@ def run(args: argparse.Namespace) -> int:
             "rounds": args.rounds,
             "alternation": "A/B per round",
             "lock": None,  # perf_ab.LOCK_STATUS, once the lock is held
+            "gpu": gpu if cuda else None,
+            "clocks": None,  # the ClockLock's record (cuda backends)
         },
         "sides": side_info,
         "machine": {"cpu": platform.processor(), "load_start": os.getloadavg()},
@@ -218,9 +237,15 @@ def run(args: argparse.Namespace) -> int:
     with (
         perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock),
         tempfile.TemporaryDirectory(prefix="dyng-hab-") as tmp,
-        perf_ab.MachineMonitor(None) as monitor,
+        perf_ab.ClockLock(gpu, clock_mode if cuda else "none") as clocks,
+        perf_ab.MachineMonitor(
+            gpu if cuda else None,
+            allowed_pids={clocks.pid} if clocks.pid else None,
+            locked=clocks.locked,
+        ) as monitor,
     ):
         record["protocol"]["lock"] = perf_ab.LOCK_STATUS
+        record["protocol"]["clocks"] = clocks.record if cuda else None
         record["started"] = datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
         for case in args.cases.split(","):
             argv = case_argv(case)
@@ -315,6 +340,13 @@ def main() -> int:
     p.add_argument("--cases", default="coauth_b50k_s1,syn1m_b50k_s1")
     p.add_argument("--backends", default="sequential,openmp:8")
     p.add_argument("--modes", default="apply,update:h_motif")
+    p.add_argument("--gpu", type=int, default=0, help="a cuda backend's GPU (the timing GPU)")
+    p.add_argument(
+        "--clocks",
+        default="base",
+        choices=["base", "boost", "none"],
+        help="a cuda backend's clock lock for the whole reading (ADR 0021: base)",
+    )
     p.add_argument("--layouts", type=int, default=17)
     p.add_argument("--rounds", type=int, default=51)
     p.add_argument("--json", help="the record")

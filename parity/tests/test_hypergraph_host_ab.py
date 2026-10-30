@@ -100,7 +100,7 @@ print("apply 2.0 ms")
 class QuietMonitor:
     """perf_ab.MachineMonitor without the machine: every window clean."""
 
-    def __init__(self, *_args: object) -> None:
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
         pass
 
     def __enter__(self) -> QuietMonitor:
@@ -164,3 +164,12 @@ def test_85_layouts_fit_the_file_name_limit(tmp_path: Path) -> None:
         p.write_text("{}")
         lengths.append(len(str(p)) - str(p).count("/"))  # the characters, not the separators
     assert lengths[84] - lengths[0] == 8 * 84 and lengths[85] == lengths[0]
+
+
+def test_a_cuda_backend_syncs_its_stages_and_apply_reads_the_deletions() -> None:
+    """M11a step 5 (criterion 20): the cuda reading times its stages after a synchronization on
+    both sides, and the apply mode also reads hypergraph.apply.delete."""
+    assert hab.backend_args("cuda") == ["--backend", "cuda", "--sync-stages"]
+    assert hab.backend_args("openmp:8") == ["--backend", "openmp", "--threads", "8"]
+    assert "hypergraph.apply.delete" in hab.STAGES["apply"]
+    assert "hypergraph.apply.delete" in hab.STAGES["update"]
