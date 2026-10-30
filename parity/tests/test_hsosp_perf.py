@@ -254,3 +254,94 @@ def test_launches_is_a_subcommand() -> None:
     with pytest.raises(SystemExit) as exc:
         perf.main(["launches", "--help"])
     assert exc.value.code == 0
+
+
+# --- memory and kernels (M11a step 5; criteria 18 and 19, HD6) --------------------------------
+
+
+def test_bs_graph_scope_is_its_device_bytes_and_two_states() -> None:
+    # HsospState::deviceBytes(): 68 bytes a node, 8 + 64 bytes besides (kUpdCounters = 8).
+    assert perf.b_state_bytes(0) == 72
+    assert perf.b_state_bytes(10) == 10 * 68 + 72
+    case = {
+        "sessions": [
+            {
+                "caps": {"caps.max_hyperedges": 100},
+                "device_build": {"dev.device_bytes": 5000},
+                "apply": [
+                    {"device": {"dev.device_bytes": 5000}},
+                    {"device": {"dev.device_bytes": 7000}},
+                ],
+            }
+        ]
+    }
+    states = 2 * (100 * 68 + 72)
+    assert perf.b_graph_points(case) == [5000 + states, 5000 + states, 7000 + states]
+
+
+def test_bs_printed_megabytes_are_the_streams_default_format() -> None:
+    # std::ostream << double with precision 6, as hsospBench writes graph_mb.
+    assert perf.printed_mb(2615957924) == "2494.77"
+    assert perf.printed_mb(3 * 2**20) == "3"
+    assert perf.printed_mb(2**20 // 2) == "0.5"
+
+
+def test_the_ports_graph_scope_lines() -> None:
+    err = (
+        "[load] x\n[memory] load graph_scope_bytes 100\n[memory] batch 1 graph_scope_bytes 110\n"
+        "noise\n[memory] batch 2 graph_scope_bytes 120\n"
+    )
+    assert perf.port_points(err) == [100, 110, 120]
+    assert perf.port_points("[memory] batch 2 graph_scope_bytes 5\n") == [None, None, 5]
+
+
+def test_a_foreign_gpu_process_is_found_and_the_readings_own_are_not() -> None:
+    import os
+
+    assert perf.own_process(os.getpid(), "python3")
+    assert not perf.own_process(1, "init")
+    # a process that has gone counts as the reading's only under one of its names
+    assert perf.own_process(2**22 + 12345, "/usr/bin/hsospBench")
+    assert not perf.own_process(2**22 + 12345, "other")
+    samples = [
+        {"time": "t0", "apps": [{"pid": 7, "name": "hsospBench", "own": True}]},
+        {"time": "t1", "apps": [{"pid": 8, "name": "python", "own": False}]},
+    ]
+    assert perf.foreign_in(samples) == [{"time": "t1", "pid": 8, "name": "python", "own": False}]
+
+
+def test_the_kernel_table_splits_the_launches_at_every_updates_first_kernel() -> None:
+    port, original = perf.kernel_names(0), perf.kernel_names(1)
+    assert port["pack_state_kernel"] == "pack_state" and original["packStateKernel"] == "pack_state"
+    assert "zeroDegreeKernel" in original and "zero_degree" not in port.values()
+    launches = [{"label": x} for x in ("fill_ll", "pull_distances_warp", "pack_state", "push",
+                                        "pack_state", "jump", "push")]  # fmt: skip
+    assert [[x["label"] for x in b] for b in perf.split_batches(launches)] == [
+        ["pack_state", "push"],
+        ["pack_state", "jump", "push"],
+    ]
+
+
+def test_a_full_readings_rows_have_the_suites_region_form() -> None:
+    rows = [
+        {"row": "maintain[b1]", "gate": "compute", "original_ms": 20.0, "port_ms": 10.0,
+         "ratio": 0.5, "bar": 1.05, "within": True, "original_rounds": [20.0],
+         "port_rounds": [10.0]},
+        {"row": "escher[b1]", "gate": "none", "original_ms": 2.0, "port_ms": 1.0, "ratio": 0.5,
+         "bar": None, "within": None},
+    ]  # fmt: skip
+    regions = perf.bench_regions(rows)
+    assert regions[0]["region"] == "maintain[b1]" and regions[0]["gate"] == 1.05
+    assert regions[0]["within_gate"] is True and regions[0]["original_runs"] == [20.0]
+    assert "gate" not in regions[1] and regions[1]["gate_kind"] == "none"
+
+
+def test_memory_and_kernels_are_subcommands(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DYNG_PERF_LOCK_HELD", raising=False)
+    # kernels on the timing GPU refuses outside an exclusive window
+    assert perf.main(["kernels", "--gpu", "0"]) == 2
+    assert perf.MEMORY_CONFIGS == (
+        "dblp_hyperedge_50000",
+        "dblp_vertex_50000",
+        "geology_hyperedge_50000",
+    )

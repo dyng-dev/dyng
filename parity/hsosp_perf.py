@@ -63,6 +63,24 @@ kernels only one side has.
 `launches` (M11a step 4, the as-is record; not a timed reading): both processes under `nsys
 profile -t cuda` on the development GPU (shared lock, after tools/locklog.py quiet-ok): the
 launches of every kernel and the launch, copy, memset and synchronization API calls.
+
+    parity/hsosp_perf.py memory [--configs ...] [--gpu 1] [--wait-quiet 10] [--json OUT]
+
+`memory` (M11a step 5, criterion 19; HD6, GOVERNANCE D1): both whole processes plain (the guards,
+the graph-scope accounting) and under `nsys profile -t cuda,nvtx --cuda-memory-usage=true`: the
+peak of live device allocations, port / B <= 1.05, and B's graph_mb scope (DeviceH2H + its mirror
++ two states, from the golden's device bytes and checked against B's printed graph_mb) against
+the port's slack_csr store + mirror + the two results after the build and after every batch,
+<= 1.05; gated on dblp_hyperedge_50000, dblp_vertex_50000 and geology_hyperedge_50000, the
+200K configurations recorded. Only in a GPU1-QUIET window (`tools/locklog.py run GPU1-QUIET
+...`, which holds the shared lock): nvidia-smi is sampled before, every 5 s during and after the
+reading, which counts only if no process but its own appears (exit 3 otherwise).
+
+    parity/hsosp_perf.py kernels [--configs ...] [--rounds 3] [--gpu 0] [--json OUT]
+
+`kernels` (M11a step 5, criterion 18; recorded, not gated): the H-SOSP engine's kernels of both
+processes under `ncu --clock-control base`, the load's launches skipped, per kernel and per batch,
+in an exclusive-lock window on GPU 0.
 """
 
 from __future__ import annotations
@@ -228,9 +246,14 @@ def probe(args: argparse.Namespace) -> int:
     env = env_for(args.gpu)
     work = Path(tempfile.mkdtemp(prefix="dyng-hsosp-probe-", dir=args.scratch / "runs"))
     record: dict = {
-        "what": "M11a step 1: the clock probe per dataset and B's quiet pre-read "
-        "(HD4; records only)",
-        "reference": hg.REFERENCE,
+        "algorithm": "hyper_sssp",
+        "what": "the clock probe per dataset and B's quiet pre-read (HD4; records only)",
+        "reference": {
+            "name": hg.REFERENCE,
+            "commit": hg.COMMIT,
+            "variant": "unpatched",
+            "exe": hg.portable(exe),
+        },
         "commit": hg.COMMIT,
         "exe": hg.portable(exe),
         "gpu": args.gpu,
@@ -272,16 +295,18 @@ def probe(args: argparse.Namespace) -> int:
                         "clock": "boost" if probe_holds(rounds) else "base",
                     }
             with (
-                perf_ab.ClockLock(args.gpu, args.base_lock) as clocks,
+                perf_ab.ClockLock(
+                    args.gpu, "none" if args.probe_only else args.base_lock
+                ) as clocks,
                 perf_ab.MachineMonitor(
                     args.gpu,
                     allowed_pids={clocks.pid} if clocks.pid else None,
                     locked=clocks.locked,
                 ) as monitor,
             ):
-                record["pre_read_clock_lock"] = clocks.record
+                record["pre_read_clock_lock"] = None if args.probe_only else clocks.record
                 for name, dataset, kind, size in hg.p_configs():
-                    if args.configs and name not in args.configs:
+                    if args.probe_only or (args.configs and name not in args.configs):
                         continue
                     path = hg.check_dataset(args.scratch, dataset)
                     res = run_b(monitor, sampler, exe, path, kind, size, work, env)
@@ -608,6 +633,27 @@ def full_rows(
     return out
 
 
+def bench_regions(rows: list[dict]) -> list[dict]:
+    """The rows of a reading in parity/bench_suite.py's region form: region, gate_kind, the
+    medians and the ratio, the bar and its verdict (gated rows), and the samples."""
+    out = []
+    for row in rows:
+        reg = {
+            "region": row["row"],
+            "gate_kind": row.get("gate", "none"),
+            "original_ms": row["original_ms"],
+            "port_ms": row["port_ms"],
+            "ratio": row["ratio"],
+            "original_runs": row.get("original_rounds", []),
+            "port_runs": row.get("port_rounds", []),
+        }
+        if row.get("bar") is not None:
+            reg["gate"] = row["bar"]
+            reg["within_gate"] = bool(row["within"])
+        out.append(reg)
+    return out
+
+
 def audit(loads: list[dict], rule: dict) -> dict:
     flagged = [
         i + 1
@@ -690,24 +736,22 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
             print(f"{name} round {r}/{args.rounds}: maintain (B, port) {m}", flush=True)
     if not args.maintain_only:
         scope = len(differing) > attempts / 3
+        rows = full_rows(
+            perf_ab.load_hsosp_regions(), b_rounds, b_e2e, p_rounds, b_wall, p_wall, len(golden)
+        )
         return {
             "config": name,
             "dataset": dataset,
             "kind": kind,
             "batch": size,
+            "batches": len(golden),
+            "input": {"file": hg.portable(path), "sha256": hg.DATASETS[dataset][1]},
             "rounds": len(b_rounds),
             "attempts": attempts,
             "decisions_differ": differing,
             "scope_differs": scope,
-            "rows": full_rows(
-                perf_ab.load_hsosp_regions(),
-                b_rounds,
-                b_e2e,
-                p_rounds,
-                b_wall,
-                p_wall,
-                len(golden),
-            ),
+            "rows": rows,
+            "regions": bench_regions(rows),
             "monitor": perf_ab.monitor_summary(windows, rejected, args.max_foreign_cpu),
             "loads": loads,
             "audit": audit(loads, audit_rule(args.quiet_max)),
@@ -814,13 +858,24 @@ def run(args: argparse.Namespace) -> int:
                 "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above "
                 "1.05 fixed (criterion 12)",
             },
-            "reference": {"repo": hg.REFERENCE, "commit": hg.COMMIT, "exe": hg.portable(b_exe)},
+            "reference": {
+                "name": hg.REFERENCE,
+                "repo": hg.REFERENCE,
+                "commit": hg.COMMIT,
+                "variant": "unpatched",
+                "exe": hg.portable(b_exe),
+            },
             "port": {
                 "commit": perf_ab.port_commit(),
                 "binary": perf_ab.portable_path(exe),
                 "build": perf_ab.port_build(exe, "cuda"),
             },
             "driver": perf_ab.driver_versions(),
+            # Hashed by the measuring process (hsosp_goldens.check_dataset, before each
+            # configuration's rounds): the inputs are the registry's.
+            "datasets_sha256": {
+                d: hg.DATASETS[d][1] for d in sorted({r["dataset"] for r in results.values()})
+            },
             "results": results,
         }
         args.json.parent.mkdir(parents=True, exist_ok=True)
@@ -1041,6 +1096,593 @@ def launches_main(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- memory: the device-memory gates (criterion 19; HD6, GOVERNANCE D1) ----------------------
+
+NSYS = os.environ.get("NSYS", "/usr/local/cuda-13.1/bin/nsys")
+NSYS_COMMAND = "nsys profile -t cuda,nvtx --cuda-memory-usage=true"
+MEMORY_BAR = 1.05
+# HD6: the gated configurations; the 200K ones are recorded beside them.
+MEMORY_CONFIGS = ("dblp_hyperedge_50000", "dblp_vertex_50000", "geology_hyperedge_50000")
+# The port's NVTX range of a batch (its profiler stages under --nvtx); B has no NVTX ranges.
+PORT_BATCH_RANGE = "hyper_sssp.update"
+MEMORY_LINE = re.compile(r"^\[memory\] (?:load|batch (\d+)) graph_scope_bytes (\d+)$")
+# The executables of a reading (a process of these names on the GPU that has exited before its
+# parent could be read is the reading's own).
+OWN_NAMES = ("hsospBench", "dyng-compat-hsosp", "nsys", "ncu")
+
+
+def b_state_bytes(max_nodes: int) -> int:
+    """B's HsospState::deviceBytes() (hsospDevice.cu:911-916; kUpdCounters = 8 at :486): per node
+    a long long distance, five ints, a packed u64 and eight ints; two ints and the counters."""
+    return max_nodes * (8 + 5 * 4 + 8 + 8 * 4) + 2 * 4 + 8 * 8
+
+
+def b_graph_points(case: dict) -> list[int]:
+    """B's graph_mb scope in bytes (hsospBench.cu:396-398: DeviceH2H::deviceBytes() + both
+    states) after the build and after every batch: the device bytes the golden recorded at the
+    exits of buildDeviceH2H and applyBatch, plus the two states of caps.maxHyperedges nodes."""
+    s = case["sessions"][0]
+    states = 2 * b_state_bytes(int(s["caps"]["caps.max_hyperedges"]))
+    points = [int(s["device_build"]["dev.device_bytes"]) + states]
+    points += [int(a["device"]["dev.device_bytes"]) + states for a in s["apply"]]
+    return points
+
+
+def printed_mb(exact_bytes: int) -> str:
+    """How hsospBench prints a byte count in MB (the stream's default format, 6 digits)."""
+    return f"{exact_bytes / 2**20:.6g}"
+
+
+def port_points(stderr: str) -> list[int | None]:
+    """The port's graph-scope bytes after the load and after every batch ([memory] lines)."""
+    load, batches = None, {}
+    for line in stderr.splitlines():
+        m = MEMORY_LINE.match(line.strip())
+        if m:
+            if m.group(1) is None:
+                load = int(m.group(2))
+            else:
+                batches[int(m.group(1))] = int(m.group(2))
+    return [load] + [batches.get(k) for k in range(1, max(batches, default=0) + 1)]
+
+
+def own_process(pid: int, name: str) -> bool:
+    """Whether a GPU process is this reading's: a descendant of this process (or, already gone,
+    one of the reading's executables by name)."""
+    me, p = os.getpid(), pid
+    for _ in range(64):
+        if p == me:
+            return True
+        if p <= 1:
+            return False
+        try:
+            stat = Path(f"/proc/{p}/stat").read_text()
+        except OSError:
+            return p == pid and Path(name).name in OWN_NAMES
+        p = int(stat.rsplit(")", 1)[1].split()[1])
+    return False
+
+
+def gpu_apps(gpu: int) -> dict:
+    """`nvidia-smi -i <gpu> --query-compute-apps=pid,process_name,used_memory --format=csv`, as
+    printed and parsed, each process marked whether it is the reading's own."""
+    import subprocess  # noqa: PLC0415
+
+    out = subprocess.run(
+        [
+            "nvidia-smi",
+            "-i",
+            str(gpu),
+            "--query-compute-apps=pid,process_name,used_memory",
+            "--format=csv",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    apps = []
+    for line in out.stdout.splitlines()[1:]:
+        parts = [x.strip() for x in line.split(",")]
+        if len(parts) >= 3 and parts[0].isdigit():
+            pid = int(parts[0])
+            apps.append(
+                {"pid": pid, "name": parts[1], "used": parts[2], "own": own_process(pid, parts[1])}
+            )
+    stamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {"time": stamp, "rc": out.returncode, "csv": out.stdout, "apps": apps}
+
+
+class GpuSampler:
+    """gpu_apps() every `period` seconds (5) while the reading runs."""
+
+    def __init__(self, gpu: int, period: float = 5.0) -> None:
+        self.gpu, self.period = gpu, period
+        self.samples: list[dict] = []
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self) -> None:
+        while True:
+            self.samples.append(gpu_apps(self.gpu))
+            if self._stop.wait(self.period):
+                return
+
+    def __enter__(self) -> GpuSampler:
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        self._thread.join(timeout=30)
+
+
+def foreign_in(samples: list[dict]) -> list[dict]:
+    return [{"time": s["time"], **a} for s in samples for a in s["apps"] if not a["own"]]
+
+
+def memory_config(args, name, dataset, kind, size, exe, b_exe, env, work) -> dict:
+    import subprocess  # noqa: PLC0415
+
+    path = hg.check_dataset(args.scratch, dataset)
+    case, dump = golden_case(args.scratch, name)
+    golden = golden_batches(case)
+    csv = work / CSV_NAME
+    b_cmd = [str(b_exe), *hg.p_argv(path, kind, size, str(csv))]
+    p_cmd = port_argv(exe, path, kind, size, dump, work, maintain_only=False)
+    guarded = 0
+    # The plain runs (no profiler): the guards, B's CSV (graph_mb, dev_mem_mb, escher_mb) and the
+    # port's graph-scope bytes.
+    csv.unlink(missing_ok=True)
+    pa = subprocess.run(b_cmd, env=env, capture_output=True, text=True)
+    if pa.returncode:
+        raise SystemExit(f"{name}: hsospBench exited {pa.returncode}:\n{pa.stderr[-1500:]}")
+    b_rows = original_rows(csv.read_text())
+    pb = subprocess.run(p_cmd, env=env, capture_output=True, text=True)
+    if pb.returncode:
+        raise SystemExit(f"{name}: the port exited {pb.returncode}:\n{pb.stderr[-1500:]}")
+    bad = guard_original(b_rows, golden) + guard_port(pb.stdout, golden)
+    if bad:
+        raise SystemExit(f"{name}: the plain runs' guard failed: {bad}")
+    guarded += 2
+    mine = port_points(pb.stderr)
+    theirs = b_graph_points(case)
+    # B's own print of the same scope after every batch (the CSV's graph_mb) against the bytes
+    # derived from the golden: the accounting's reference values are B's.
+    printed = [r["graph_mb"] for r in b_rows]
+    derived = [printed_mb(x) for x in theirs[1:]]
+    if printed != derived:
+        raise SystemExit(
+            f"{name}: B's graph_mb {printed} is not the golden-derived {derived}: the accounting "
+            "reference is not B's"
+        )
+    # The profiled runs: the gate (D1) is the peak of live device allocations of each process.
+    csv.unlink(missing_ok=True)
+    a_nsys = hypergraph_perf.memory_by_range(b_cmd, env, work / "a", "", capture=True)
+    a_nsys.pop("stdout", None)
+    b_rows2 = original_rows(csv.read_text())
+    b_nsys = hypergraph_perf.memory_by_range(
+        [*p_cmd, "--nvtx"], env, work / "b", PORT_BATCH_RANGE, capture=True
+    )
+    bad = guard_original(b_rows2, golden) + guard_port(b_nsys.pop("stdout"), golden)
+    if bad:
+        raise SystemExit(f"{name}: the profiled runs' guard failed: {bad}")
+    guarded += 2
+    ratio = b_nsys["peak_live_bytes"] / a_nsys["peak_live_bytes"]
+    gated = name in MEMORY_CONFIGS
+    points = []
+    for k, (m, t) in enumerate(zip(mine, theirs, strict=False)):
+        points.append(
+            {
+                "point": "build" if k == 0 else f"batch {k}",
+                "row": "graph_memory[build]" if k == 0 else f"graph_memory[b{k}]",
+                "dyng_graph_bytes": m,
+                "mosp_escher_graph_bytes": t,
+                "ratio": m / t if m and t else None,
+                "b_printed_mb": None if k == 0 else printed[k - 1],
+                "gated": gated,
+            }
+        )
+    regions = [
+        {
+            "region": "device_memory",
+            "gate_kind": "memory" if gated else "none",
+            "original_bytes": a_nsys["peak_live_bytes"],
+            "port_bytes": b_nsys["peak_live_bytes"],
+            "ratio": ratio,
+            **({"gate": MEMORY_BAR, "within_gate": ratio <= MEMORY_BAR} if gated else {}),
+        }
+    ] + [
+        {
+            "region": p["row"],
+            "gate_kind": "memory" if gated else "none",
+            "original_bytes": p["mosp_escher_graph_bytes"],
+            "port_bytes": p["dyng_graph_bytes"],
+            "ratio": p["ratio"],
+            **(
+                {
+                    "gate": MEMORY_BAR,
+                    "within_gate": p["ratio"] is not None and p["ratio"] <= MEMORY_BAR,
+                }
+                if gated
+                else {}
+            ),  # fmt: skip
+        }
+        for p in points
+    ]
+    return {
+        "config": name,
+        "dataset": dataset,
+        "kind": kind,
+        "batch": size,
+        "batches": len(golden),
+        "gated": gated,
+        "input": {"file": hg.portable(path), "sha256": hg.DATASETS[dataset][1]},
+        "original": {
+            "peak_live_mib": a_nsys["peak_live_mib"],
+            "peak_live_bytes": a_nsys["peak_live_bytes"],
+            "peak_in": a_nsys["peak_in"],
+        },
+        "port": {
+            "peak_live_mib": b_nsys["peak_live_mib"],
+            "peak_live_bytes": b_nsys["peak_live_bytes"],
+            "peak_in": b_nsys["peak_in"],
+            "ratio": ratio,
+        },
+        "ratio": ratio,
+        "graph_accounting": points,
+        "graph_worst_ratio": max((p["ratio"] for p in points if p["ratio"]), default=None),
+        "regions": regions,
+        # Recorded beside the gates (HD6): the footprints, the ranges, B's escher_mb (the
+        # improvement table: dynG keeps no CBST) and dev_mem_mb (cudaMemGetInfo) per batch.
+        "nsys": {"original": a_nsys, "port": b_nsys},
+        "footprint_ratio_max": b_nsys["footprint_peak_mib"] / a_nsys["footprint_peak_mib"],
+        "original_escher_mb": [r["escher_mb"] for r in b_rows],
+        "original_dev_mem_mb": [r["dev_mem_mb"] for r in b_rows],
+        "guard": {"runs_checked": guarded, "passed": True},
+    }
+
+
+def memory_main(args: argparse.Namespace) -> int:
+    """`memory` (criterion 19; HD6, GOVERNANCE D1): per configuration both whole processes (B's
+    unpatched hsospBench with B's defaults and --verify none; the port's bench of the gate
+    readings, the golden's batches, the second result kept as B keeps stateB), first plain (the
+    guards and the graph-scope accounting) and then each under `nsys profile -t cuda,nvtx
+    --cuda-memory-usage=true` (the port also with --nvtx: its profiler stages as ranges), on the
+    development GPU (1) inside a GPU1-QUIET window of the shared calendar under the shared lock.
+    The gates: the peak of live device allocations, port / B <= 1.05 (device_memory), and the
+    graph-scope accounting after the build and after every batch, port / B <= 1.05
+    (graph_memory[build], graph_memory[b1..b3]; B's bytes derived from the golden's
+    DeviceH2H::deviceBytes() and its two states, checked against the graph_mb B prints), on
+    MEMORY_CONFIGS; the other configurations are recorded. `nvidia-smi -i <gpu>
+    --query-compute-apps` is recorded right before and after the reading and every 5 s during
+    it: the reading counts only if no process but its own appears (exit 3 otherwise: retake it in
+    a later window). Before the reading it waits at most --wait-quiet minutes for the GPU to have
+    no foreign process (exit 4: not taken)."""
+    exe = args.exe.resolve()
+    b_exe = hg.reference_dir(args.scratch, "unpatched") / "bin" / "hsospBench"
+    env = env_for(args.gpu)
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="dyng-hsosp-mem-", dir=args.scratch / "runs"))
+    started = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    deadline = time.time() + 60.0 * args.wait_quiet
+    waited = []
+    while True:
+        snap = gpu_apps(args.gpu)
+        foreign = [a for a in snap["apps"] if not a["own"]]
+        if not foreign:
+            break
+        waited.append(snap)
+        if time.time() > deadline:
+            print(f"GPU {args.gpu}: foreign processes {foreign}; the reading was not taken")
+            shutil.rmtree(work, ignore_errors=True)
+            return 4
+        print(f"GPU {args.gpu}: waiting for {foreign} to end", flush=True)
+        time.sleep(15)
+    results: dict = {}
+    try:
+        before = gpu_apps(args.gpu)
+        with GpuSampler(args.gpu) as sampler:
+            for name, dataset, kind, size in hg.p_configs():
+                if name not in args.configs:
+                    continue
+                res = memory_config(args, name, dataset, kind, size, exe, b_exe, env, work)
+                results[name] = res
+                print(
+                    f"{name}: nsys peak B {res['original']['peak_live_mib']} MiB, port "
+                    f"{res['port']['peak_live_mib']} MiB in "
+                    f"{' > '.join(res['port']['peak_in']) or '-'}: ratio {res['ratio']:.4f}; "
+                    f"graph scope worst {res['graph_worst_ratio']:.4f}"
+                    + ("" if res["gated"] else " (recorded)"),
+                    flush=True,
+                )
+        after = gpu_apps(args.gpu)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    samples = [before, *sampler.samples, after]
+    foreign = foreign_in(samples)
+    counts = not foreign
+    if not counts:
+        print(f"FOREIGN processes on GPU {args.gpu} during the reading: {foreign}: it does not "
+              "count (retake it in a later window)")  # fmt: skip
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "hyper_sssp",
+            "what": "hyper_sssp against MOSP_ESCHER@4b86159: the Nsight Systems peak of live "
+            "device allocations of both whole processes (GOVERNANCE D1) and the graph-scope "
+            "accounting (B's graph_mb scope; HD6)",
+            "date": started,
+            "date_end": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "counts": counts,
+            "protocol": {
+                "nsys": f"{NSYS_COMMAND} (CUDA 13.1), memKind Device (cudaMalloc + "
+                "cudaMallocAsync)",
+                "gpu": args.gpu,
+                "lock": "shared (flock -s by tools/locklog.py run GPU1-QUIET), in a GPU1-QUIET "
+                "window of the shared calendar",
+                "lock_env": {
+                    k: os.environ.get(k) for k in ("DYNG_PERF_LOCK", "DYNG_PERF_LOCK_HELD")
+                },
+                "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify "
+                "none (load, build, initial SOSP, 3 batches with their static baselines)",
+                "port": "dyng-compat-hsosp bench --sync-stages --digests (the golden's batches; "
+                "B's capacities; result B kept as B's stateB) and --nvtx under nsys",
+                "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+                "guard": "every measured process (the two plain runs and the two profiled ones): "
+                "B's h2h_pairs, overflow_rebuilds, seeds and mismatch_static, the port's pairs, "
+                "distances' and parents' digests of every batch against the golden",
+                "gpu_samples": "nvidia-smi -i <gpu> --query-compute-apps=pid,process_name,"
+                "used_memory --format=csv before, every 5 s during and after the reading; it "
+                "counts only if no process but the reading's own appears",
+                "bar": MEMORY_BAR,
+            },
+            "reference": {
+                "name": hg.REFERENCE,
+                "commit": hg.COMMIT,
+                "variant": "unpatched",
+                "exe": hg.portable(b_exe),
+            },
+            "port": {
+                "commit": perf_ab.port_commit(),
+                "binary": perf_ab.portable_path(exe),
+                "build": perf_ab.port_build(exe, "cuda"),
+            },
+            "driver": perf_ab.driver_versions(),
+            "datasets_sha256": {
+                d: hg.DATASETS[d][1] for d in sorted({r["dataset"] for r in results.values()})
+            },
+            "gpu_samples": {
+                "waited_before": waited,
+                "before": before,
+                "during": sampler.samples,
+                "after": after,
+                "foreign": foreign,
+            },
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0 if counts else 3
+
+
+# --- kernels: the engine's kernels at the base clocks (recorded, not gated) -------------------
+
+NCU_METRICS = [
+    "gpu__time_duration.sum",
+    "dram__bytes.sum",
+    "launch__registers_per_thread",
+    "launch__grid_size",
+    "launch__block_size",
+]
+# The first kernel of every update on both sides (hsospDevice.cu:1094): a batch's launches start
+# at it, the load's end before its first launch.
+BATCH_MARK = "pack_state"
+
+
+def kernel_names(side: int) -> dict[str, str]:
+    """{kernel function name: SASS_KERNELS label} of one side (0 the port, 1 B)."""
+    out = {}
+    for label, pair in SASS_KERNELS.items():
+        if pair[side]:
+            out[pair[side].removeprefix(r"\d+")] = label
+    return out
+
+
+def ncu_launches(cmd: list, env: dict, names: dict[str, str], log: Path) -> list[dict]:
+    """Every launch of the named kernels of one process under Nsight Compute at the base clocks,
+    in launch order: its label and metrics."""
+    import csv as csvmod  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    regex = "regex:^(" + "|".join(sorted(names)) + ")$"
+    full = [
+        str(perf_ab.NCU), "--clock-control", "base", "--cache-control", "none",
+        "--kernel-name-base", "function", "--kernel-name", regex,
+        "--metrics", ",".join(NCU_METRICS), "--csv", "--log-file", str(log), *map(str, cmd),
+    ]  # fmt: skip
+    proc = subprocess.run(full, env=env, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise SystemExit(f"ncu failed ({proc.returncode}):\n{proc.stdout[-1500:]}"
+                         f"{proc.stderr[-1500:]}")  # fmt: skip
+    rows = list(csvmod.reader(log.read_text().splitlines()))
+    header = next((r for r in rows if r and r[0] == "ID"), None)
+    if header is None:
+        raise SystemExit(f"no ncu CSV in {log}")
+    col = {n: i for i, n in enumerate(header)}
+    launches: dict[int, dict] = {}
+    for r in rows:
+        if len(r) != len(header) or r[0] == "ID":
+            continue
+        kname = r[col["Kernel Name"]]
+        e = launches.setdefault(int(r[col["ID"]]), {"name": kname, "label": names.get(kname)})
+        raw = r[col["Metric Value"]].replace(",", "")
+        try:
+            e[r[col["Metric Name"]]] = float(raw)
+        except ValueError:
+            e[r[col["Metric Name"]]] = raw
+    return [launches[i] for i in sorted(launches)]
+
+
+def split_batches(launches: list[dict]) -> list[list[dict]]:
+    """The launches after the load, per batch (each starts at BATCH_MARK)."""
+    out: list[list[dict]] = []
+    for x in launches:
+        if x["label"] == BATCH_MARK:
+            out.append([])
+        if out:
+            out[-1].append(x)
+    return out
+
+
+def kernels_main(args: argparse.Namespace) -> int:
+    """`kernels` (criterion 18, recorded, not gated; ADR 0018 rule 1): per configuration
+    --rounds alternating rounds (B first) of each whole process under `ncu --clock-control base
+    --cache-control none`, every launch of the H-SOSP engine's kernels (SASS_KERNELS' pairs), the
+    load's launches (before the first update's pack_state) skipped: per kernel and per batch the
+    launches and the median over the rounds of their summed gpu__time_duration, the DRAM bytes,
+    registers and launch geometry. In an exclusive-lock window on the timing GPU (0)."""
+    exe = args.exe.resolve()
+    b_exe = hg.reference_dir(args.scratch, "unpatched") / "bin" / "hsospBench"
+    env = env_for(args.gpu)
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="dyng-hsosp-ncu-", dir=args.scratch / "runs"))
+    started = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    results: dict = {}
+    try:
+        for name, dataset, kind, size in hg.p_configs():
+            if name not in args.configs:
+                continue
+            path = hg.check_dataset(args.scratch, dataset)
+            case, dump = golden_case(args.scratch, name)
+            golden = golden_batches(case)
+            cmds = {
+                "original": [str(b_exe), *hg.p_argv(path, kind, size, str(work / CSV_NAME))],
+                "port": port_argv(exe, path, kind, size, dump, work, maintain_only=False),
+            }
+            names = {"original": kernel_names(1), "port": kernel_names(0)}
+            per: dict[str, list[list[list[dict]]]] = {"original": [], "port": []}
+            for r in range(args.rounds):
+                for side in ("original", "port"):
+                    launches = ncu_launches(cmds[side], env, names[side], work / f"{side}.csv")
+                    batches = split_batches(launches)
+                    if len(batches) != len(golden):
+                        raise SystemExit(f"{name} {side}: {len(batches)} updates under ncu, the "
+                                         f"golden has {len(golden)}")  # fmt: skip
+                    per[side].append(batches)
+                totals = {
+                    side: sum(x["gpu__time_duration.sum"] for b in per[side][-1] for x in b) / 1e6
+                    for side in per
+                }
+                msg = ", ".join(f"{side} {ms:.2f} ms" for side, ms in totals.items())
+                print(f"{name} round {r + 1}/{args.rounds}: {msg}", flush=True)
+            rows = []
+            labels = [lab for lab in SASS_KERNELS if lab]
+            for scope, keep in [("all", None)] + [(lab, lab) for lab in labels]:
+                for k in range(len(golden) + 1):  # 0: the three batches together
+                    vals, counts = {}, {}
+                    for side in per:
+                        t, n = [], []
+                        for rnd in per[side]:
+                            sel = [
+                                x
+                                for b, xs in enumerate(rnd, 1)
+                                for x in xs
+                                if (k == 0 or b == k) and (keep is None or x["label"] == keep)
+                            ]
+                            t.append(sum(x["gpu__time_duration.sum"] for x in sel) / 1e6)
+                            n.append(len(sel))
+                        vals[side], counts[side] = t, n
+                    if keep is not None and k > 0:
+                        continue
+                    if not any(counts["original"]) and not any(counts["port"]):
+                        continue
+                    ma = statistics.median(vals["original"])
+                    mb = statistics.median(vals["port"])
+                    rows.append({
+                        "region": f"kernels.{scope}" + (f"[b{k}]" if k else ""),
+                        "gate_kind": "none",
+                        "reading": "kernel time, clocks locked to base (ncu)",
+                        "original_ms": ma, "port_ms": mb,
+                        "ratio": mb / ma if ma > 0 else None,
+                        "original_runs": vals["original"], "port_runs": vals["port"],
+                        "original_launches": counts["original"],
+                        "port_launches": counts["port"],
+                    })  # fmt: skip
+            launch = {}
+            for side in per:
+                first: dict[str, dict] = {}
+                for x in (x for b in per[side][0] for x in b):
+                    first.setdefault(x["label"], {m: x.get(m) for m in NCU_METRICS[2:]})
+                launch[side] = first
+            results[name] = {
+                "config": name,
+                "dataset": dataset,
+                "rounds": args.rounds,
+                "regions": rows,
+                "launch": launch,
+            }
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    for name, res in results.items():
+        print(f"{name}:")
+        for e in res["regions"]:
+            ratio = "-" if e["ratio"] is None else f"{e['ratio']:.3f}"
+            print(
+                f"  {e['region']:34} original {e['original_ms']:9.3f} port {e['port_ms']:9.3f} "
+                f"ratio {ratio} launches {e['original_launches'][0]}/{e['port_launches'][0]}"
+            )
+    if args.json:
+        import subprocess  # noqa: PLC0415
+
+        doc = {
+            "schema": 1,
+            "algorithm": "hyper_sssp",
+            "what": "the H-SOSP engine's kernels of both sides at locked clocks (Nsight Compute "
+            "--clock-control base), the load's launches skipped; recorded, not gated (ADR "
+            "0018 rule 1)",
+            "date": started,
+            "date_end": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "protocol": {
+                "rounds": args.rounds,
+                "order": "A/B alternation (B first in every round)",
+                "gpu": args.gpu,
+                "lock": {k: os.environ.get(k) for k in ("DYNG_PERF_LOCK", "DYNG_PERF_LOCK_HELD")},
+                "tool": subprocess.run(
+                    [str(perf_ab.NCU), "--version"], capture_output=True, text=True
+                )
+                .stdout.strip()
+                .splitlines()[-1],
+                "ncu": "--clock-control base --cache-control none --kernel-name-base function "
+                "--kernel-name regex:<the engine's kernels> --metrics "
+                + ",".join(NCU_METRICS)
+                + "; the launches before the first update's "
+                + BATCH_MARK
+                + " (the load) "
+                "skipped",
+                "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+                "statistic": "median",
+                "kernels": {lab: list(pair) for lab, pair in SASS_KERNELS.items()},
+            },  # fmt: skip
+            "reference": {
+                "name": hg.REFERENCE,
+                "commit": hg.COMMIT,
+                "variant": "unpatched",
+                "exe": hg.portable(b_exe),
+            },
+            "port": {
+                "commit": perf_ab.port_commit(),
+                "binary": perf_ab.portable_path(exe),
+                "build": perf_ab.port_build(exe, "cuda"),
+            },
+            "driver": perf_ab.driver_versions(),
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1054,6 +1696,11 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("--configs", nargs="*", help="the pre-read's configurations (default: all 16)")
     pr.add_argument("--probe-lock", default="boost", choices=["boost", "base", "none"])
     pr.add_argument("--base-lock", default="base", choices=["base", "none"])
+    pr.add_argument(
+        "--probe-only",
+        action="store_true",
+        help="the clock probe alone (no pre-read): the probe readings of ia3_hsosp.yaml",
+    )
     pr.add_argument(
         "--dry-run",
         action="store_true",
@@ -1113,7 +1760,50 @@ def main(argv: list[str] | None = None) -> int:
     )
     la.add_argument("--scratch", type=Path, default=hg.scratch_default())
     la.add_argument("--json", type=Path)
+    me = sub.add_parser("memory", help="the nsys peaks and the graph-scope accounting (GPU 1)")
+    me.add_argument("--configs", nargs="+", default=list(MEMORY_CONFIGS))
+    me.add_argument(
+        "--gpu", type=int, default=1, help="the development GPU, in a GPU1-QUIET window"
+    )
+    me.add_argument(
+        "--wait-quiet",
+        type=float,
+        default=10.0,
+        help="minutes to wait for the GPU to have no foreign process before the reading",
+    )
+    me.add_argument(
+        "--exe",
+        type=Path,
+        default=REPO / "build" / "parity-cuda" / "tools" / "compat" / "dyng-compat-hsosp",
+    )
+    me.add_argument("--scratch", type=Path, default=hg.scratch_default())
+    me.add_argument("--json", type=Path)
+    ke = sub.add_parser("kernels", help="the engine's kernels at the base clocks (ncu)")
+    ke.add_argument(
+        "--configs",
+        nargs="+",
+        default=[n for n, _, _, s in hg.p_configs() if s == 50000],
+    )
+    ke.add_argument("--rounds", type=int, default=3)
+    ke.add_argument("--gpu", type=int, default=0)
+    ke.add_argument(
+        "--exe",
+        type=Path,
+        default=REPO / "build" / "parity-cuda" / "tools" / "compat" / "dyng-compat-hsosp",
+    )
+    ke.add_argument("--scratch", type=Path, default=hg.scratch_default())
+    ke.add_argument("--json", type=Path)
     args = p.parse_args(argv)
+    if args.cmd == "memory":
+        return memory_main(args)
+    if args.cmd == "kernels":
+        if args.gpu == 0 and os.environ.get("DYNG_PERF_LOCK_HELD") != "1":
+            print(
+                "hsosp_perf.py: run it inside an exclusive-lock window (tools/locklog.py run EXCL)",
+                file=sys.stderr,
+            )
+            return 2
+        return kernels_main(args)
     if args.cmd == "sass":
         return sass_main(args)
     if args.cmd == "launches":
