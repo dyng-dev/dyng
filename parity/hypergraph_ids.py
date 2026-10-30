@@ -40,11 +40,12 @@ M11a-<kind>-slack_csr-<set>-<backend>[-t<N>].json.
 and the tool's commit). --certificate DIR (M8b step 5) also writes the replay record of the
 release certificate (parity/certify.py, the hypergraph-id schema): parity-<set>-hypergraph_ids-
 <backend>[-t<N>]-<feature>.json with the set's manifest digest, the port's commit, one config
-"<backend>[/t<N>]:hypergraph_ids/<feature>" (feature: the mode, or line_graph, legacy, hg) and
-per case "equal" or "DIFFERENT"; certify.py requires the id replays of every set of SETS on
-sequential, openmp and cuda, and the line-graph replays of ESCHER-GPU's sets on cuda, from the
-0.3 series. Exit status: 0 every case matched, 1 a mismatch, 2 a usage error, 77 no
-goldens.
+"<backend>[/t<N>]:hypergraph_ids/<feature>" (feature: the mode, or line_graph, legacy, hg, and
+with --storage slack_csr slack_csr or slack_csr_line_graph) and per case "equal" or "DIFFERENT";
+certify.py requires the id replays of every set of SETS on sequential, openmp and cuda, and the
+line-graph replays of ESCHER-GPU's sets on cuda, from the 0.3 series, and MOSP_ESCHER's sessions
+whole on slack_csr storage from the 0.4 series (HYPERGRAPH_ID_REPLAYS). Exit status: 0 every
+case matched, 1 a mismatch, 2 a usage error, 77 no goldens.
 """
 
 from __future__ import annotations
@@ -249,9 +250,6 @@ def compare_main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         return 2
-    if args.storage == "slack_csr" and args.certificate:
-        print("--certificate: the 0.3 replays only (escher storage)", file=sys.stderr)
-        return 2
     names = [full_name(n) for n in args.set]
     if args.storage == "slack_csr" and any(SETS.get(n) == "ESCHER-GPU" for n in names):
         print("--storage slack_csr: MOSP_ESCHER's sets only", file=sys.stderr)
@@ -451,7 +449,11 @@ def compare_main(argv: list[str]) -> int:
 
 
 def feature_of(args) -> str:
-    """What a replay checks besides the ids: line_graph, legacy, hg, or the id mode."""
+    """What a replay checks besides the ids: slack_csr (MOSP_ESCHER's sessions whole on slack_csr
+    storage, M11a; with the line graph slack_csr_line_graph), line_graph, legacy, hg, or the id
+    mode."""
+    if args.storage == "slack_csr":
+        return "slack_csr" + ("_line_graph" if args.line_graph else "")
     if args.line_graph:
         return "line_graph"
     if args.legacy_generator:

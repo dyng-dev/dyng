@@ -43,6 +43,7 @@ parents). The canonical encodings are those of ADR 0080 section 2 (parity/hsosp_
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -1930,6 +1931,48 @@ DELTA_TOTALS = (
 )
 
 
+def certificate_record(args, part: str, reports: list[dict], problems: list[str]) -> Path:
+    """The replay record of the release certificate (parity/certify.py golden_suites, the
+    hyper_sssp schema; M11a criterion 21): set, goldens manifest, port commit, one config
+    "<backend>:hyper_sssp/<by_id|by_id_public|by_key>" (--part results) or
+    "<backend>:hyper_sssp/store" (--part delta: the slack_csr store, ids, pairs and counters), per
+    case "equal" (every session of the case matched B) or "DIFFERENT", and passed. Written to
+    <dir>/parity-hyper_sssp_mosp_escher-<backend>-hyper_sssp-<mode|store>.json."""
+    dirty = subprocess.run(["git", "-C", str(REPO), "diff", "--quiet", "HEAD"]).returncode != 0
+    feature = args.mode if part == "results" else "store"
+    config = f"{args.backend}:hyper_sssp/{feature}"
+    manifest = set_dir(args.scratch) / "MANIFEST.sha256"
+    matrix: dict[str, dict[str, str]] = {}
+    for r in reports:  # a case run several times (--repeat) is equal only if every run was
+        case = r["file"].rsplit("/dump.hsd.zst", 1)[0]
+        ok = r.get("ok") and "error" not in r and matrix.get(case, {}).get(config) != "DIFFERENT"
+        matrix[case] = {config: "equal" if ok else "DIFFERENT"}
+    doc = {
+        "set": SET,
+        "kind": KIND,
+        "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+        "goldens": {"manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest()},
+        "port": {"commit": git_head() + ("+dirty" if dirty else "")},
+        "executable": "parity/compare.py hyper_sssp --part " + part,
+        "reference": REFERENCE,
+        "configs": [config],
+        "checks": {
+            "verified": not args.skip_verify,
+            "oracle": not args.no_oracle,
+            "check_compute": bool(getattr(args, "check_compute", False))
+            if part == "results"
+            else None,
+        },
+        "matrix": matrix,
+        "passed": not problems and all(v[config] == "equal" for v in matrix.values()),
+    }
+    args.certificate.mkdir(parents=True, exist_ok=True)
+    path = args.certificate / f"parity-{SET}-{args.backend}-hyper_sssp-{feature}.json"
+    path.write_text(json.dumps(doc, indent=1) + "\n")
+    print(f"wrote {path}")
+    return path
+
+
 def delta_main(args) -> int:
     """--part delta (M11a criteria 8 and 10, ADRs 0085 and 0086): every session of the cases
     replayed whole through dyng::hypergraph on slack_csr storage by id with dyng_hsosp_replay (the
@@ -2030,6 +2073,8 @@ def delta_main(args) -> int:
         if args.cases != "t,p50":
             name += "-" + re.sub(r"[^a-z0-9]+", "-", args.cases.lower()).strip("-")
         (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
+    if args.certificate:
+        certificate_record(args, "delta", reports, problems)
     return 0 if not problems else 1
 
 
@@ -2208,6 +2253,8 @@ def results_main(args) -> int:
         if args.check_compute:
             name += "-check-compute"
         (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
+    if args.certificate:
+        certificate_record(args, "results", reports, problems)
     return 0 if not problems else 1
 
 
@@ -2249,6 +2296,12 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--repeat", type=int, default=1,
                    help="--part results: run each case N times (identical digests)")  # fmt: skip
     p.add_argument("--same-as", help="--part results: a record whose digests must be equal")
+    p.add_argument(
+        "--certificate",
+        type=Path,
+        help="--part delta|results: also write the release certificate's replay record here "
+        "(parity-hyper_sssp_mosp_escher-<backend>-hyper_sssp-<mode|store>.json)",
+    )
     args = p.parse_args(argv)
     if args.part == "delta":
         return delta_main(args)
