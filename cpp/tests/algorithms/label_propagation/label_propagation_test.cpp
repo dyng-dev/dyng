@@ -299,6 +299,85 @@ TEST(LabelPropagation, RunToRunBitsOfBothSchedules) {
   }
 }
 
+/// A seed-free pair of adjacent vertices with different labels (the structure the original's
+/// D-d found in large numbers: plain Jacobi has the eigenvalue -1 there and swaps the two labels
+/// forever): the vertex 1 inherits its seed's class, the seed leaves, and the vertex 2 arrives
+/// next to it. The damped rule and the half-sweeps of the in-place rule converge at once; plain
+/// Jacobi reaches any cap (the mutations inplace_plain_jacobi and damped_no_damping, AD9).
+TEST(LabelPropagation, ASeedFreePairConverges) {
+  for (const lp::schedule rule : {lp::schedule::damped, lp::schedule::in_place}) {
+    SCOPED_TRACE(rule == lp::schedule::damped ? "damped" : "in_place");
+    const dyng::resources res = test_resources();
+    const std::vector<std::int32_t> cap = {1, 2, 1};
+    lp_graph g = lp_graph::with_capacity(res, 3, host_view(cap), slotted_props());
+    lp::options opt;
+    opt.similarity_threshold = 0.5F;
+    opt.tolerance = 1e-6F;
+    opt.max_iterations = 1000;
+    opt.update_schedule = rule;
+    auto r = empty_compute(res, g, opt);
+    dyng::edge_batch<std::int32_t, float> b0;
+    b0.insert_vertex(0, 1);
+    b0.insert_vertex(1);
+    b0.insert_edge(0, 1, {0.9F});
+    (void)lp::update(res, g, b0.view(), r);
+    EXPECT_EQ(host_labels(res, r)[1], 1.0F);
+    dyng::edge_batch<std::int32_t, float> b1;
+    b1.delete_vertex(0);
+    b1.insert_vertex(2);
+    b1.insert_edge(1, 2, {0.9F});
+    const lp::stats st = lp::update(res, g, b1.view(), r);
+    EXPECT_EQ(st.initial_frontier, 2);
+    EXPECT_TRUE(st.converged) << st.iterations << " iterations";
+    EXPECT_LT(st.iterations, 100);
+    const std::vector<float> labels = host_labels(res, r);
+    EXPECT_NEAR(labels[1], labels[2], 1e-5);  // one seed-free component: one value
+  }
+}
+
+/// An id inserted and deleted in one batch ends deleted, exactly as in the original (D-e: its
+/// insertion applied after the deletion re-activated it); its edges are dropped.
+TEST(LabelPropagation, InsertedAndDeletedInOneBatchEndsDeleted) {
+  const dyng::resources res = test_resources();
+  const std::vector<std::int32_t> cap = {2, 2, 2};
+  lp_graph g = lp_graph::with_capacity(res, 3, host_view(cap), slotted_props());
+  lp::options opt;
+  opt.similarity_threshold = 0.5F;
+  auto r = empty_compute(res, g, opt);
+  dyng::edge_batch<std::int32_t, float> b;
+  b.insert_vertex(0, 0);
+  b.insert_vertex(1);
+  b.insert_vertex(2);
+  b.insert_edge(0, 1, {0.9F});
+  b.insert_edge(1, 2, {0.9F});
+  b.delete_vertex(2);
+  const lp::stats st = lp::update(res, g, b.view(), r);
+  EXPECT_EQ(st.batch.inserted_vertices, 2);
+  EXPECT_EQ(st.batch.inserted_edges, 2);      // 0-1 in both rows
+  EXPECT_EQ(st.batch.dropped_insertions, 2);  // 1-2: the vertex 2 ends deleted
+  EXPECT_EQ(g.num_active_vertices(), 2);
+  EXPECT_EQ(g.view().status[2], dyng::vertex_status::deleted);
+  EXPECT_EQ(host_labels(res, r)[2], 0.5F);  // it never entered the graph
+}
+
+/// The damped schedule's iteration counts are the original's on its 5k5 stream (delta 1e-4,
+/// seed 42; LabelPropagation-CUDA@a276a3a's results.csv, the golden label_propagation_damped
+/// case 5k5_d1e-4_s42): 0, 1217, 548, 327 and 65 (the mutations damped_no_damping and
+/// lp_d_c_stale_buffer change them).
+TEST(LabelPropagation, DampedIterationsAreTheOriginals) {
+  const stream_t s = make_stream(5000, 5);
+  const dyng::resources res = test_resources();
+  lp_graph g = capacity_graph(res, s);
+  auto r = empty_compute(res, g, published(s, 1e-4F, lp::schedule::damped));
+  r.reserve(res, s.max_batch_vertices, s.max_batch_edges);
+  const std::vector<std::int64_t> original = {0, 1217, 548, 327, 65};
+  std::vector<std::int64_t> iterations;
+  for (const auto& b : s.batches) {
+    iterations.push_back(lp::update(res, g, b.view(), r).iterations);
+  }
+  EXPECT_EQ(iterations, original);
+}
+
 TEST(LabelPropagation, ComputeIsIrLP) {
   const dyng::resources res = test_resources();
   const stream_t s = make_stream(3000, 4);

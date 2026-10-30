@@ -30,3 +30,24 @@ if(DYNG_ENABLE_CUDA)
                              PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests" "${PROJECT_SOURCE_DIR}/cpp/src")
   dyng_set_cuda_options(dyng_label_propagation_cuda_tests)
 endif()
+
+# The original's checker oracles as tests (M10a step 5, criterion 14): the published flow at 5k5
+# and 50k, delta 1e-6, both schedules, every batch against union_find, lp_host_model and the
+# harmonic solution; the host executable carries the label slow (the 50k cases), the CUDA one runs
+# in ctest -L gpu and in ci/gpu_local.sh's label_propagation step.
+dyng_add_test(
+  NAME dyng_label_propagation_checker_tests
+  SOURCES label_propagation_checker_test.cpp
+  LABELS cpu label_propagation slow
+  LIBRARIES dyng::testing
+)
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_label_propagation_checker_cuda_tests
+    SOURCES label_propagation_checker_test.cpp
+    LABELS gpu label_propagation
+    LIBRARIES dyng::testing
+    TEST_PREFIX "cuda."
+  )
+  target_compile_definitions(dyng_label_propagation_checker_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+endif()
