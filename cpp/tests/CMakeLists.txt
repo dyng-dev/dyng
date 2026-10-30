@@ -426,7 +426,7 @@ dyng_add_test(
   SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
           hypergraph/hypergraph_store_test.cpp hypergraph/hypergraph_line_graph_test.cpp
           hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
-          hypergraph/hypergraph_slack_overflow_test.cpp
+          hypergraph/hypergraph_slack_overflow_test.cpp hypergraph/hypergraph_fixed_point_test.cpp
   LABELS cpu hypergraph
   LIBRARIES dyng_cbst_compare
 )
@@ -446,6 +446,7 @@ if(DYNG_ENABLE_CUDA)
             hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
             hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
             hypergraph/hypergraph_slack_overflow_test.cpp
+            hypergraph/hypergraph_fixed_point_test.cpp
             framework/fake_hyper_kernels.cu
             hypergraph/stream_probe_kernels.cu
     LABELS gpu hypergraph
