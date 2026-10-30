@@ -215,6 +215,10 @@ struct hyper_sssp_workspace final : pooled_workspace {
   std::vector<std::int64_t> changed;        ///< public mode: ids whose membership changed
   std::vector<std::int64_t> holding;        ///< public mode: changed ids holding the source after
   std::vector<std::int64_t> not_holding;    ///< public mode: changed ids not holding it after
+  // The CUDA driver's int32 lists (the engine's node ids).
+  std::vector<int> base32;            ///< public mode: the live hyperedges of the source
+  std::vector<int> lost32, gained32;  ///< public mode: lost_source, gained_source
+  std::vector<int> initial32;         ///< the recompute's first list
   // emulateSospUpdate's locals.
   std::vector<std::uint8_t> inv;  ///< the invalidated ids
   std::vector<int> child_off;     ///< the children of the tree before the batch (CSR:
@@ -264,6 +268,8 @@ struct hyper_sssp_batch {
   /// and those that gained it (offered their own weight with parent -1).
   const std::vector<std::int64_t>* lost_source = nullptr;
   const std::vector<std::int64_t>* gained_source = nullptr;  ///< (see lost_source)
+  /// The CUDA driver's scratch (the workspace's int32 lists; null on the host).
+  hyper_sssp_workspace* scratch = nullptr;
 };
 
 /// The budget of one update (options::work_budget, max_iterations, on_budget; ADR 0092).

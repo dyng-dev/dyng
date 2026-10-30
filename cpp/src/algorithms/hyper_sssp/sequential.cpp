@@ -60,7 +60,8 @@ std::size_t hyper_sssp_workspace::bytes() const noexcept {
              sizeof(std::int64_t) +
          (inv.capacity() + in_cand.capacity() + holds.capacity()) +
          (child_off.capacity() + child_ids.capacity() + stack.capacity() + candidates.capacity() +
-          next.capacity() + affected.capacity()) *
+          next.capacity() + affected.capacity() + base32.capacity() + lost32.capacity() +
+          gained32.capacity() + initial32.capacity()) *
              sizeof(int) +
          heap.capacity() * sizeof(entry);
 }

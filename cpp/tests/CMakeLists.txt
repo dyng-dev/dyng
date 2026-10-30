@@ -1549,6 +1549,11 @@ if(TARGET dyng_triad_count_conformance_cuda_tests)
     PRIVATE algorithms/triad_count/triad_count_types_conformance_test.cpp framework/fake_hyper_kernels.cu
   )
 endif()
+# hyper_sssp's kit: C10's partners are a second source and the kit's hypergraph fake, whose CUDA
+# counts are kernels.
+if(TARGET dyng_hyper_sssp_conformance_cuda_tests)
+  target_sources(dyng_hyper_sssp_conformance_cuda_tests PRIVATE framework/fake_hyper_kernels.cu)
+endif()
 
 # The registry and the kit agree: every algorithm of dyng::algorithms() has test_traits here.
 dyng_add_test(

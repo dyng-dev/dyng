@@ -13,17 +13,30 @@
 
 #include "algorithms/hyper_sssp/kernels.cuh"
 #include "algorithms/hyper_sssp/state.cuh"
+#include "core/budget_counters.hpp"
 #include "core/resources_access.hpp"
 #include "util/cuda_check.hpp"
 
 #include <dyng/core/error.hpp>
+#include <dyng/core/profiler.hpp>
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace dyng::detail::hsosp {
+
+namespace {
+
+/// dynG: a host synchronization with the stream, counted by the update's budget (invariant I9).
+void synchronize(cudaStream_t stream) {
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  note_host_sync();
+}
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // device_state
@@ -81,7 +94,7 @@ void device_state::allocate(const resources& res, int n) {
   fill_int_kernel<<<grid_for(n, block), block, 0, stream>>>(d_parent, n, -1);
   DYNG_CUDA_TRY(cudaMemsetAsync(d_is_affected, 0, sizeof(int) * n, stream));
   DYNG_CUDA_TRY(cudaMemsetAsync(d_is_candidate, 0, sizeof(int) * n, stream));
-  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  synchronize(stream);
 }
 
 void device_state::allocate_holds(const resources& res) {
@@ -103,14 +116,14 @@ void device_state::download_distances(std::vector<long long>& dist, int n) const
   dist.resize(n);
   DYNG_CUDA_TRY(
       cudaMemcpyAsync(dist.data(), d_dist, sizeof(long long) * n, cudaMemcpyDeviceToHost, stream));
-  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  synchronize(stream);
 }
 
 void device_state::download_parents(std::vector<int>& parent, int n) const {
   parent.resize(n);
   DYNG_CUDA_TRY(
       cudaMemcpyAsync(parent.data(), d_parent, sizeof(int) * n, cudaMemcpyDeviceToHost, stream));
-  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  synchronize(stream);
 }
 
 void device_state::download_parent_ids(std::vector<int>& parent_ids, int n) const {
@@ -161,7 +174,7 @@ int propagate(const device_graph& dev, device_state& st, const std::vector<int>&
     DYNG_CUDA_TRY(cudaGetLastError());
     DYNG_CUDA_TRY(
         cudaMemcpyAsync(&cand_count, d_cand_count, sizeof(int), cudaMemcpyDeviceToHost, st.stream));
-    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
+    synchronize(st.stream);
   } else {
     cand_count = list_count;
   }
@@ -181,7 +194,7 @@ int propagate(const device_graph& dev, device_state& st, const std::vector<int>&
     int aff_count = 0;
     DYNG_CUDA_TRY(
         cudaMemcpyAsync(&aff_count, d_aff_count, sizeof(int), cudaMemcpyDeviceToHost, st.stream));
-    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
+    synchronize(st.stream);
     if (aff_count == 0) {
       cand_count = 0;
       break;
@@ -194,7 +207,7 @@ int propagate(const device_graph& dev, device_state& st, const std::vector<int>&
     DYNG_CUDA_TRY(cudaGetLastError());
     DYNG_CUDA_TRY(
         cudaMemcpyAsync(&cand_count, d_cand_count, sizeof(int), cudaMemcpyDeviceToHost, st.stream));
-    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
+    synchronize(st.stream);
   }
 
   if (max_frontier_out) *max_frontier_out = max_frontier;
@@ -231,7 +244,7 @@ void reset_for_recompute(const device_graph& dev, device_state& st, int source0)
     seed_base_kernel<<<grid_for(nb, block), block, 0, st.stream>>>(st.d_aff_list, nb, dev.d_node_w,
                                                                    st.d_dist);
   }
-  DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
+  synchronize(st.stream);
 }
 
 }  // namespace
@@ -249,8 +262,14 @@ engine_stats recompute(const device_graph& dev, device_state& st, int source_id,
   rcfg.max_iterations = std::max<std::int64_t>(cfg.max_iterations, dev.num_nodes + 1);
 
   // dynG (transplant hunk): the public mode starts from the hyperedges holding the source.
-  std::vector<int> initial = {source0};
-  if (source0 < 0) initial = dev.base != nullptr ? *dev.base : std::vector<int>{};
+  // dynG: the list in the pooled workspace's scratch when the caller gives one (no allocation).
+  std::vector<int> own;
+  std::vector<int>& initial = dev.initial != nullptr ? *dev.initial : own;
+  initial.assign(1, source0);
+  if (source0 < 0) {
+    initial.clear();
+    if (dev.base != nullptr) initial.insert(initial.end(), dev.base->begin(), dev.base->end());
+  }
   int it = propagate(dev, st, initial, /*start_with_candidates=*/false, source0, rcfg,
                      &stats.max_frontier);
   stats.iterations = (it < 0) ? static_cast<int>(rcfg.max_iterations) : it;
@@ -275,13 +294,20 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
   auto read_counters = [&]() {
     DYNG_CUDA_TRY(
         cudaMemcpyAsync(hcnt, cnt, sizeof(u64) * upd_counters, cudaMemcpyDeviceToHost, st.stream));
-    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
+    synchronize(st.stream);
+  };
+  // dynG: one profiler stage per part of the update (the region map's sosp_update row).
+  std::optional<scoped_stage> stage;
+  const auto enter = [&](const std::string* name) {
+    stage.reset();
+    if (cfg.res != nullptr && name != nullptr) stage.emplace(*cfg.res, *name);
   };
 
   // dynG (transplant hunk): the dead nodes' degrees are zeroed by the slack_csr store's CSR apply
   // (ADR 0089), so the engine writes no container state.
 
   // 1. Pack the pre-batch state; mark the roots.
+  enter(cfg.stage_identify);
   DYNG_CUDA_TRY(cudaMemsetAsync(cnt, 0, sizeof(u64) * upd_counters, st.stream));
   pack_state_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_dist, st.d_parent,
                                                                  st.d_packed, n, cnt);
@@ -339,6 +365,7 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
 
     // 3. Pull for the invalidated nodes, relax the inserted pairs; the
     //    improved nodes form the first frontier (epoch stamps).
+    enter(cfg.stage_seed);
     const int ep0 = ++st.epoch;
     DYNG_CUDA_TRY(cudaMemsetAsync(cnt + cnt_next, 0, sizeof(u64), st.stream));
     if (n_inv > 0)
@@ -362,6 +389,7 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
     read_counters();
 
     // 4. Push until no distance decreases (or the budget is spent).
+    enter(cfg.stage_loop);
     int frontier = static_cast<int>(hcnt[cnt_next]);
     stats.max_frontier = frontier;
     while (frontier > 0) {
@@ -395,6 +423,7 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
     }
   }
 
+  stage.reset();
   // dynG (transplant hunk): budget_action::error for a spent work or iteration budget (HD8).
   if (budget_exceeded && cfg.error_on_budget &&
       (stats.reason == hyper_sssp::fallback_reason::work_budget ||
@@ -408,17 +437,21 @@ engine_stats update(const device_graph& dev, device_state& st, int source_id,
         "poisoned: recompute it");
   }
 
+  // dynG: the recompute stage on every update (0 ms without a fallback), then finalize.
+  enter(cfg.stage_recompute);
   if (budget_exceeded) {
     // Exact fallback: recompute from scratch (64-bit distances).
     stats.fallback_recompute = true;
     engine_stats rs = recompute(dev, st, source_id, cfg);
     stats.fallback_iterations = rs.iterations;
     stats.max_frontier = std::max(stats.max_frontier, rs.max_frontier);
-  } else {
+  }
+  enter(cfg.stage_finalize);
+  if (!budget_exceeded) {
     unpack_state_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_packed, st.d_dist,
                                                                      st.d_parent, n);
     DYNG_CUDA_TRY(cudaGetLastError());
-    DYNG_CUDA_TRY(cudaStreamSynchronize(st.stream));
+    synchronize(st.stream);
   }
   return stats;
 }

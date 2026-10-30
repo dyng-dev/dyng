@@ -94,6 +94,15 @@ struct engine_config {
   /// dynG (transplant hunk): budget_action::error (HD8): a spent work or iteration budget throws
   /// convergence_error instead of the fallback (the width and the jump cap always recompute).
   bool error_on_budget = false;
+  /// dynG: the profiler stages of the update's parts (hyper_sssp.identify_affected, .seed, .loop,
+  /// .recompute, .finalize; parity/timed_regions/hyper_sssp.toml) on these resources; none when
+  /// null.
+  const resources* res = nullptr;
+  const std::string* stage_identify = nullptr;
+  const std::string* stage_seed = nullptr;
+  const std::string* stage_loop = nullptr;
+  const std::string* stage_recompute = nullptr;
+  const std::string* stage_finalize = nullptr;
 };
 
 struct engine_stats {
@@ -143,6 +152,9 @@ struct device_graph {
   const std::vector<int>* base = nullptr;
   const std::vector<int>* lost = nullptr;
   const std::vector<int>* gained = nullptr;
+  /// dynG: the host scratch of the recompute's first list (the pooled workspace's: a steady-state
+  /// update allocates nothing; null: a list of its own).
+  std::vector<int>* initial = nullptr;
 };
 
 /**

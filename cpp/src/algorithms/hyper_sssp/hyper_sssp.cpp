@@ -368,9 +368,14 @@ template <typename vertex_t, typename weight_t>
 framework::budget hyper_sssp_problem<vertex_t, weight_t>::algorithm_budget(
     framework::context& ctx) const noexcept {
   if (!ctx.on_cuda()) return framework::budget::steady_state(0);
-  framework::budget b;
-  b.allocations = 0;  // the device state is sized by compute() and grows only with the ids
-  return b;           // host syncs: one per pointer-jumping and push round (unbounded)
+  // MOSP_ESCHER's synchronizations of this update (ADR 0091): one per pointer-jumping round, the
+  // invalidation's and the seed's counts, one per push round, the unpack; a fallback recompute's
+  // reset, its first collection and two per round; a growth of the device state's two (asked
+  // after the phase, so the counters are this update's).
+  const hyper_sssp_engine_counters& c = counters_;
+  std::int64_t syncs = c.jump_rounds + 2 + c.iterations + 1 + 2;
+  if (c.fallback) syncs += 2 + 2 * c.fallback_iterations;
+  return framework::budget::steady_state(syncs);
 }
 
 template <typename vertex_t, typename weight_t>
@@ -426,6 +431,7 @@ void hyper_sssp_problem<vertex_t, weight_t>::resume(framework::context& ctx, new
   batch_.root_ids = &ws.root_ids;
   batch_.lost_source = &ws.lost_source;
   batch_.gained_source = &ws.gained_source;
+  batch_.scratch = &ws;
   // The pairs: on the device for the CUDA store (its last_delta()), in the record otherwise.
   if (record.pairs_on_device) {
     batch_.device = slack_of(g.get(), "hyper_sssp::update").last_delta();

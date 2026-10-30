@@ -13,6 +13,7 @@
 #include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
+#include "framework/enactor.hpp"
 #include "util/cuda_check.hpp"
 
 #include <dyng/core/error.hpp>
@@ -95,16 +96,24 @@ hyper_sssp_engine_counters counters_of(const hsosp::engine_stats& s) {
   return c;
 }
 
-/// The public mode's base: the live hyperedges of the source vertex.
-std::vector<int> base_of(const hyper_sssp_graph& g) {
-  std::vector<int> out;
+/// The public mode's base: the live hyperedges of the source vertex, into `out`.
+void base_of(const hyper_sssp_graph& g, std::vector<int>& out) {
+  out.clear();
   const std::int32_t s = g.endpoints.source_vertex;
-  if (s < 0 || static_cast<std::size_t>(s) >= g.host_v2h->size()) return out;
-  for (const std::int64_t h : (*g.host_v2h)[static_cast<std::size_t>(s)]) {
+  if (s < 0 || static_cast<std::size_t>(s) >= g.host_v2h->size()) return;
+  const auto& row = (*g.host_v2h)[static_cast<std::size_t>(s)];
+  reserve_scratch(out, row.size());
+  for (const std::int64_t h : row) {
     if (g.live(h)) out.push_back(node_id(h));
   }
   std::sort(out.begin(), out.end());
-  return out;
+}
+
+/// int32 copies of a list of ids, into `out`.
+void ids_of(const std::vector<std::int64_t>& in, std::vector<int>& out) {
+  out.clear();
+  reserve_scratch(out, in.size());
+  for (const std::int64_t id : in) out.push_back(node_id(id));
 }
 
 /// The stream of the resources: every operation of the engine runs on it (the store orders the
@@ -139,6 +148,7 @@ void hyper_sssp_cuda_reserve(const resources& res, hyper_sssp_state& st, std::in
           cudaMemcpyAsync(bigger->d_holds, st.dev->d_holds, old, cudaMemcpyDeviceToDevice, stream));
     }
     DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+    note_host_sync();  // a growth's copy (the budget allows it)
     bigger->epoch = st.dev->epoch;
   }
   st.dev = std::move(bigger);
@@ -150,7 +160,9 @@ hyper_sssp_engine_counters hyper_sssp_cuda_recompute(const resources& res, hyper
   const scoped_device guard(res.device());
   st.dev->stream = stream_of(res);
   hsosp::device_graph dev = device_graph_of(g, nullptr);
-  std::vector<int> base;
+  std::vector<int> base;  // compute(): the recompute's own lists
+  std::vector<int> initial;
+  dev.initial = &initial;
   if (!st.endpoints.is_virtual()) {
     // The source flags on the device (the host copy is current: compute() rebuilt it).
     DYNG_CUDA_TRY(cudaMemcpyAsync(
@@ -158,7 +170,7 @@ hyper_sssp_engine_counters hyper_sssp_cuda_recompute(const resources& res, hyper
         std::min<std::size_t>(st.holds_source.size(), static_cast<std::size_t>(st.dev->max_nodes)),
         cudaMemcpyHostToDevice, st.dev->stream));
     dev.d_holds = st.dev->d_holds;
-    base = base_of(g);
+    base_of(g, base);
     dev.base = &base;
   }
   const hsosp::engine_stats s =
@@ -170,22 +182,31 @@ hyper_sssp_engine_counters hyper_sssp_cuda_update(const resources& res, hyper_ss
                                                   const hyper_sssp_graph& g,
                                                   const hyper_sssp_batch& b,
                                                   const hyper_sssp_budget& budget,
-                                                  const framework::hook_stages& /*names*/) {
+                                                  const framework::hook_stages& names) {
   const scoped_device guard(res.device());
   st.dev->stream = stream_of(res);
   hsosp::device_graph dev = device_graph_of(g, &b);
-  std::vector<int> base, lost, gained;
+  // The host lists in the pooled workspace (a steady-state update allocates nothing, I9).
+  hyper_sssp_workspace& ws = *b.scratch;
+  reserve_scratch(ws.initial32, 1);
+  dev.initial = &ws.initial32;
   if (!st.endpoints.is_virtual()) {
     dev.d_holds = st.dev->d_holds;
-    base = base_of(g);
-    dev.base = &base;
-    for (const std::int64_t id : *b.lost_source) lost.push_back(node_id(id));
-    for (const std::int64_t id : *b.gained_source) gained.push_back(node_id(id));
-    dev.lost = &lost;
-    dev.gained = &gained;
+    base_of(g, ws.base32);
+    dev.base = &ws.base32;
+    ids_of(*b.lost_source, ws.lost32);
+    ids_of(*b.gained_source, ws.gained32);
+    dev.lost = &ws.lost32;
+    dev.gained = &ws.gained32;
   }
-  const hsosp::engine_stats s =
-      hsosp::update(dev, *st.dev, source_id_of(st), config_of(budget, st.opt.work_budget));
+  hsosp::engine_config cfg = config_of(budget, st.opt.work_budget);
+  cfg.res = &res;
+  cfg.stage_identify = &names.identify_affected;
+  cfg.stage_seed = &names.seed;
+  cfg.stage_loop = &names.loop;
+  cfg.stage_recompute = &names.recompute;
+  cfg.stage_finalize = &names.finalize;
+  const hsosp::engine_stats s = hsosp::update(dev, *st.dev, source_id_of(st), cfg);
   return counters_of(s);
 }
 
