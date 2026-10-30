@@ -74,7 +74,10 @@
  * timestamp, dev_mem_mb (cudaMemGetInfo; the memory gate reads nsys instead) and escher_mb (dynG
  * keeps no CBST), which are left empty (the merged results/data CSVs of B add a leading `run`
  * column; B writes seedCount to both `seeds` and `invalidated`, and so does the port: stats
- * invalidated); stderr gets hsospBench's [e2e] line. --digests prints after every batch
+ * invalidated); stderr gets hsospBench's [e2e] line and, after the load and after every batch,
+ * "[memory] load|batch <k> graph_scope_bytes <bytes>" (B's graph_mb scope: the store, its mirror and
+ * both results; untimed); --nvtx makes the profiler's stages NVTX ranges (the memory reading's
+ * ranges). --digests prints after every batch
  * (untimed) the SHA-256 of its canonical pairs, its pair count and its CSR rebuilds, and without
  * --maintain-only the digests of A's distances and parents, its fallback decision and
  * mismatch_static (the per-round guards of parity/hsosp_perf.py); --check-load compares the
@@ -138,7 +141,7 @@ int usage() {
                "[--batches 3] [--del 50] [--seed S] [--maxcard 25] [--maxiter 4096] "
                "[--work-budget 1] [--verify none|first|all] --golden <dump> [--out CSV] "
                "[--timing JSON] [--maintain-only] [--public] [--backend cuda|sequential] "
-               "[--cuda-engine automatic|fused|operators] [--sync-stages] [--digests] "
+               "[--cuda-engine automatic|fused|operators] [--sync-stages] [--digests] [--nvtx] "
                "[--device D] [--threads T] [--check-load <load dump>]\n");
   return 2;
 }
@@ -490,6 +493,7 @@ struct bench_options {
   double del = 50.0, work_budget = 1.0;
   std::uint64_t seed = 20260725U;
   bool maintain_only = false, sync_stages = false, digests = false, public_source = false;
+  bool nvtx = false;
   int device = 0, threads = 0;
   std::vector<std::string> argv;  // as given (the --timing file's meta)
 };
@@ -578,6 +582,7 @@ int bench(const bench_options& o, clock_type::time_point start) {
   const dyng::resources res = resources_of(o.backend, o.threads, o.device);
   dyng::profiler_options popt;
   popt.sync_stages = o.sync_stages;
+  popt.nvtx = o.nvtx;  // the memory reading's ranges (parity/hsosp_perf.py memory)
   dyng::profiler prof(popt);
   dyng::resources r = res;
   r.attach_profiler(&prof);
@@ -748,6 +753,16 @@ int bench(const bench_options& o, clock_type::time_point start) {
     }
   }
   auto* slack = access::hypergraph_access::slack(h);
+  // B's graph_mb scope in bytes (DeviceH2H + its mirror + the two states; hsospBench.cu:396-398):
+  // the slack_csr store, its mirror and the two results, after the load and after every batch
+  // (stderr, untimed; the memory gate's accounting rows, parity/hsosp_perf.py memory).
+  const auto graph_scope_bytes = [&]() -> long long {
+    return static_cast<long long>(
+        slack->graph_scope_bytes() +
+        (state_a ? dyng::detail::hyper_sssp_virtual::state_bytes(*state_a) : 0) +
+        (state_b ? dyng::detail::hyper_sssp_virtual::state_bytes(*state_b) : 0));
+  };
+  std::fprintf(stderr, "[memory] load graph_scope_bytes %lld\n", graph_scope_bytes());
   std::string name = o.hg;
   if (name.find_last_of('/') != std::string::npos) name = name.substr(name.find_last_of('/') + 1);
   double dynamic_sum = 0, static_sum = 0;
@@ -778,6 +793,8 @@ int bench(const bench_options& o, clock_type::time_point start) {
       static_sum += statik;
     }
     log.stages(batch);
+    std::fprintf(stderr, "[memory] batch %lld graph_scope_bytes %lld\n",
+                 static_cast<long long>(batch), graph_scope_bytes());
     const auto rows_now = slack->rows();
     const auto counters = slack->counters();
     // Untimed from here: update == static, the oracle (--verify), the round guards' digests.
@@ -832,12 +849,7 @@ int bench(const bench_options& o, clock_type::time_point start) {
                            log.sum("hypergraph.apply.ids", batch) +
                            log.sum("hypergraph.apply.incidence", batch) +
                            log.sum("hypergraph.apply.translate", batch);
-      const double graph_mb =
-          static_cast<double>(
-              slack->graph_scope_bytes() +
-              (state_a ? dyng::detail::hyper_sssp_virtual::state_bytes(*state_a) : 0) +
-              (state_b ? dyng::detail::hyper_sssp_virtual::state_bytes(*state_b) : 0)) /
-          (1024.0 * 1024.0);
+      const double graph_mb = static_cast<double>(graph_scope_bytes()) / (1024.0 * 1024.0);
       if (o.maintain_only) {
         csv << std::fixed << std::setprecision(4) << "real,paper," << name << "," << (rows - 2)
             << "," << n << ",1," << o.maxcard << "," << o.kind << "," << o.batch << "," << o.del
@@ -1013,6 +1025,8 @@ int main(int argc, char** argv) {
           o.sync_stages = true;
         else if (a == "--digests")
           o.digests = true;
+        else if (a == "--nvtx")
+          o.nvtx = true;
         else if (a == "--maxiter")
           o.max_iterations = std::stoll(value());
         else if (a == "--work-budget")
