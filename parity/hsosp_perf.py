@@ -1514,8 +1514,10 @@ def ncu_launches(cmd: list, env: dict, names: dict[str, str], log: Path) -> list
     for r in rows:
         if len(r) != len(header) or r[0] == "ID":
             continue
-        kname = r[col["Kernel Name"]]
-        e = launches.setdefault(int(r[col["ID"]]), {"name": kname, "label": names.get(kname)})
+        kname = r[col["Kernel Name"]]  # demangled with its parameters: the identifier names it
+        e = launches.setdefault(
+            int(r[col["ID"]]), {"name": kname, "label": names.get(kernel_label(kname))}
+        )
         raw = r[col["Metric Value"]].replace(",", "")
         try:
             e[r[col["Metric Name"]]] = float(raw)
