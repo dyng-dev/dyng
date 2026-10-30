@@ -518,6 +518,7 @@ void apply_vertex_batch_device(const resources& res,
   const cudaStream_t stream = native(res);
   const int n = static_cast<int>(g.num_vertices);
   std::int64_t* report = g.report.data();
+  g.last_settled = device_slotted_settled{};
   DYNG_CUDA_TRY(cudaMemsetAsync(report, 0, report_entries * sizeof(std::int64_t), stream));
   // The live entries Del_eff takes with it (before the states change).
   const auto num_del_eff = static_cast<int>(g.num_deleted_effective);

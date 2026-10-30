@@ -769,8 +769,13 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 device_slotted_settled graph_impl<vertex_t, edge_t, weight_t>::settle_slotted() const {
   device_slotted_settled s;
   if constexpr (device_slotted_supported_v<vertex_t>) {
-    if (slotted_device_ == nullptr || !slotted_device_->pending) {
+    if (slotted_device_ == nullptr) {
       return s;
+    }
+    if (!slotted_device_->pending) {
+      // Settled already: by an earlier participant of the same dyng::update() (every one reads
+      // the apply's counts), or nothing was applied since the graph was built (all zero).
+      return slotted_device_->last_settled;
     }
     s = settle_device_slotted(*slotted_device_);
     slotted.live_entries = static_cast<edge_t>(static_cast<std::int64_t>(slotted.live_entries) +
@@ -778,6 +783,7 @@ device_slotted_settled graph_impl<vertex_t, edge_t, weight_t>::settle_slotted() 
     if (s.error_bits != 0) {
       slotted_device_->poisoned = true;
     }
+    slotted_device_->last_settled = s;
   }
   return s;
 }

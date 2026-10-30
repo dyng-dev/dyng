@@ -142,7 +142,10 @@ struct device_slotted {
   buffer<unsigned char> staging;     ///< pinned staging of pageable batch arrays
   cuda_stream_fence staging_fence;   ///< the end of the last copy out of `staging`
   mutable bool pending = false;      ///< an apply's report is not settled yet
-  bool poisoned = false;             ///< an apply overflowed a row: the graph is unusable
+  /// The last apply's report once settled: every participant of one dyng::update() reads the
+  /// same counts (the first one to synchronize settles it; M10a step 5, ADR 0076).
+  mutable device_slotted_settled last_settled;
+  bool poisoned = false;  ///< an apply overflowed a row: the graph is unusable
 
   /**
    * @brief The device memory held.
