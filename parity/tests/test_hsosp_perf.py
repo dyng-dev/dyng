@@ -346,9 +346,15 @@ def test_a_foreign_gpu_process_is_found_and_the_readings_own_are_not() -> None:
 
     assert perf.own_process(os.getpid(), "python3")
     assert not perf.own_process(1, "init")
-    # a process that has gone counts as the reading's only under one of its names
-    assert perf.own_process(2**22 + 12345, "/usr/bin/hsospBench")
+    # a process that has gone is the reading's only if it was seen alive as its descendant,
+    # never by its name (other agents run the same executables on GPU 1)
+    assert not perf.own_process(2**22 + 12345, "/usr/bin/hsospBench")
     assert not perf.own_process(2**22 + 12345, "other")
+    perf.OWN_SEEN.add(2**22 + 12346)
+    try:
+        assert perf.own_process(2**22 + 12346, "/usr/bin/hsospBench")
+    finally:
+        perf.OWN_SEEN.discard(2**22 + 12346)
     samples = [
         {"time": "t0", "apps": [{"pid": 7, "name": "hsospBench", "own": True}]},
         {"time": "t1", "apps": [{"pid": 8, "name": "python", "own": False}]},

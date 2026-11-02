@@ -1118,9 +1118,11 @@ MEMORY_CONFIGS = ("dblp_hyperedge_50000", "dblp_vertex_50000", "geology_hyperedg
 # The port's NVTX range of a batch (its profiler stages under --nvtx); B has no NVTX ranges.
 PORT_BATCH_RANGE = "hyper_sssp.update"
 MEMORY_LINE = re.compile(r"^\[memory\] (?:load|batch (\d+)) graph_scope_bytes (\d+)$")
-# The executables of a reading (a process of these names on the GPU that has exited before its
-# parent could be read is the reading's own).
-OWN_NAMES = ("hsospBench", "dyng-compat-hsosp", "nsys", "ncu")
+# The GPU processes seen alive as descendants of this process (the reading's own). A process that
+# has exited before its parents could be read is the reading's own only if it is one of these:
+# never by its name, since other agents run the same executables on GPU 1 (M11a review); an
+# unknown one counts as foreign, which discards the reading (it is retaken in a later window).
+OWN_SEEN: set[int] = set()
 
 
 def b_state_bytes(max_nodes: int) -> int:
@@ -1158,19 +1160,21 @@ def port_points(stderr: str) -> list[int | None]:
     return [load] + [batches.get(k) for k in range(1, max(batches, default=0) + 1)]
 
 
-def own_process(pid: int, name: str) -> bool:
-    """Whether a GPU process is this reading's: a descendant of this process (or, already gone,
-    one of the reading's executables by name)."""
+def own_process(pid: int, name: str) -> bool:  # noqa: ARG001 (the name is printed, not trusted)
+    """Whether a GPU process is this reading's: a live descendant of this process, or one that was
+    seen alive as such in an earlier sample (OWN_SEEN) and has exited since. Any other process
+    that has gone is foreign (the conservative verdict: the reading is retaken)."""
     me, p = os.getpid(), pid
     for _ in range(64):
         if p == me:
+            OWN_SEEN.add(pid)
             return True
         if p <= 1:
             return False
         try:
             stat = Path(f"/proc/{p}/stat").read_text()
         except OSError:
-            return p == pid and Path(name).name in OWN_NAMES
+            return pid in OWN_SEEN
         p = int(stat.rsplit(")", 1)[1].split()[1])
     return False
 
