@@ -730,7 +730,9 @@ class slack_device_store final : public incidence_store, public slack_access {
   // MOSP_ESCHER plans maxNodes = the rows + the planned inserts + 1024; the parity harness sets it
   // (knobs.node_capacity). Without it: the bound and room for an eighth more (at least 1024).
   [[nodiscard]] std::int64_t planned_node_capacity(std::int64_t needed) const {
-    std::int64_t nodes = knobs_.node_capacity >= needed
+    // A planned capacity (the knob) counts only when it is set: an empty hypergraph (needed 0)
+    // still gets the minimum, so no state of a result is ever sized 0.
+    std::int64_t nodes = knobs_.node_capacity > 0 && knobs_.node_capacity >= needed
                              ? knobs_.node_capacity
                              : needed + std::max<std::int64_t>(1024, needed / 8);
     const std::int64_t limit = std::min<std::int64_t>(knobs_.max_ids, INT_MAX);

@@ -328,6 +328,27 @@ TEST_P(HyperSssp, TheWorkBudgetRecomputesOrThrows) {
   }
 }
 
+TEST_P(HyperSssp, AnEmptyHypergraphComputesAndUpdates) {
+  // No hyperedge: the result's state is never sized 0 (a launch of zero blocks would leave a
+  // pending CUDA error for the next checked call, the store's commit), and insertions then work.
+  const resources r = res();
+  whgraph h = make(r, 5, rows{}, {});
+  result_t sp = hs::compute(r, h, 0);
+  EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
+  EXPECT_EQ(sp.distance_to(0), 0);
+  EXPECT_EQ(sp.distance_to(1), inf);
+  wbatch b;
+  b.insert_hyperedge({0, 1}, 3);
+  b.insert_hyperedge({1, 2}, 4);
+  const hs::stats s = hs::update(r, h, b.view(), sp);
+  EXPECT_EQ(s.batch.inserted_hyperedges, 2);
+  EXPECT_NO_THROW(h.check_integrity(r));
+  EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
+  EXPECT_EQ(sp.distance_to(2), 7);
+  const result_t c = hs::compute(r, h, 0);
+  EXPECT_EQ(host_of(r, sp), host_of(r, c));
+}
+
 TEST_P(HyperSssp, StaleResultsAndAccessorsOfAGoneHypergraph) {
   const resources r = res();
   std::optional<whgraph> h(path());

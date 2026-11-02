@@ -90,8 +90,13 @@ void device_state::allocate(const resources& res, int n) {
   epoch = 0;
 
   const int block = 256;
-  fill_ll_kernel<<<grid_for(n, block), block, 0, stream>>>(d_dist, n, inf_value);
-  fill_int_kernel<<<grid_for(n, block), block, 0, stream>>>(d_parent, n, -1);
+  // dynG (transplant hunk): no launch of zero blocks (a launch error left pending would surface in
+  // the next checked call, which is not this one's), and every launch checked here.
+  if (n > 0) {
+    fill_ll_kernel<<<grid_for(n, block), block, 0, stream>>>(d_dist, n, inf_value);
+    fill_int_kernel<<<grid_for(n, block), block, 0, stream>>>(d_parent, n, -1);
+    DYNG_CUDA_TRY(cudaGetLastError());
+  }
   DYNG_CUDA_TRY(cudaMemsetAsync(d_is_affected, 0, sizeof(int) * n, stream));
   DYNG_CUDA_TRY(cudaMemsetAsync(d_is_candidate, 0, sizeof(int) * n, stream));
   synchronize(stream);
@@ -227,8 +232,12 @@ void check_block_size(const engine_config& cfg, const char* where) {
 void reset_for_recompute(const device_graph& dev, device_state& st, int source0) {
   const int n = dev.num_nodes;
   const int block = 256;
-  fill_ll_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_dist, n, inf_value);
-  fill_int_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_parent, n, -1);
+  // dynG (transplant hunk): no launch of zero blocks, and every launch checked here.
+  if (n > 0) {
+    fill_ll_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_dist, n, inf_value);
+    fill_int_kernel<<<grid_for(n, block), block, 0, st.stream>>>(st.d_parent, n, -1);
+    DYNG_CUDA_TRY(cudaGetLastError());
+  }
   DYNG_CUDA_TRY(cudaMemsetAsync(st.d_is_affected, 0, sizeof(int) * n, st.stream));
   DYNG_CUDA_TRY(cudaMemsetAsync(st.d_is_candidate, 0, sizeof(int) * n, st.stream));
   if (source0 >= 0) {

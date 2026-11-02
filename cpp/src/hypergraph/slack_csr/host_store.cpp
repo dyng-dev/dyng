@@ -432,7 +432,8 @@ void slack_host_store::line_graph_delta_of(const std::vector<std::int32_t>& vert
 std::int64_t slack_host_store::planned_node_capacity(std::int64_t needed) const noexcept {
   // MOSP_ESCHER plans maxNodes = the rows + the planned inserts + 1024; the parity harness sets it
   // (knobs.node_capacity). Without it: the bound and room for an eighth more (at least 1024).
-  if (knobs_.node_capacity >= needed) return knobs_.node_capacity;
+  // The knob counts only when it is set, so an empty hypergraph (needed 0) gets the minimum too.
+  if (knobs_.node_capacity > 0 && knobs_.node_capacity >= needed) return knobs_.node_capacity;
   return needed + std::max<std::int64_t>(1024, needed / 8);
 }
 
