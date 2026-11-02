@@ -75,9 +75,14 @@ differ from the golden's is repeated, ADR 0080).
 ### 5. The host-synchronization budget (I9)
 
 The cuda engine reads its counters once per push round and once per jump round. The problem's
-`algorithm_budget` declares at most `jump_rounds + 2 + iterations + 3` synchronizations per
+`algorithm_budget` declares at most `jump_rounds + 2 + iterations + 1 + 3` synchronizations per
 update (plus `2 + 2 x recompute rounds` after a fallback), counted by the engine's one
 synchronization helper and checked by the conformance kit (C8) and under `DYNG_DEBUG_BUDGETS`.
+The last 3 are a growth of the result's device state (when the store's node capacity grew, or on
+the first update of a clone): the new state's fills, the copy of the old state, and the release
+of the old state's pinned counters (the pinned resource synchronizes before it frees). The first
+version allowed 2, so a growing update threw `internal_error` under strict budgets (M11a review);
+`HyperSssp.AGrowthOfTheResultsStateStaysWithinTheBudget` grows the state under strict budgets.
 
 ## Consequences
 

@@ -370,10 +370,11 @@ framework::budget hyper_sssp_problem<vertex_t, weight_t>::algorithm_budget(
   if (!ctx.on_cuda()) return framework::budget::steady_state(0);
   // MOSP_ESCHER's synchronizations of this update (ADR 0091): one per pointer-jumping round, the
   // invalidation's and the seed's counts, one per push round, the unpack; a fallback recompute's
-  // reset, its first collection and two per round; a growth of the device state's two (asked
-  // after the phase, so the counters are this update's).
+  // reset, its first collection and two per round; a growth of the device state's three (the new
+  // state's fills, the copy of the old one and the release of the old one's pinned counters;
+  // asked after the phase, so the counters are this update's).
   const hyper_sssp_engine_counters& c = counters_;
-  std::int64_t syncs = c.jump_rounds + 2 + c.iterations + 1 + 2;
+  std::int64_t syncs = c.jump_rounds + 2 + c.iterations + 1 + 3;
   if (c.fallback) syncs += 2 + 2 * c.fallback_iterations;
   return framework::budget::steady_state(syncs);
 }

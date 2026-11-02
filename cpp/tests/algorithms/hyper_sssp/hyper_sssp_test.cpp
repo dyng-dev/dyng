@@ -12,6 +12,7 @@
  */
 #include "algorithms/hyper_sssp/hyper_sssp_support.hpp"
 #include "algorithms/hyper_sssp/virtual_endpoints.hpp"
+#include "framework/budgets.hpp"
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/backend.hpp>
@@ -381,6 +382,29 @@ TEST_P(HyperSssp, ClonesKeepTheResultOnEveryBackend) {
   EXPECT_EQ(host_of(resources::sequential(), host), host_of(r, sp));
   EXPECT_THROW((void)sp.clone(dyng::test::hyper::resources_of(backend::openmp)),
                dyng::not_supported_error);
+}
+
+TEST_P(HyperSssp, AGrowthOfTheResultsStateStaysWithinTheBudget) {
+  // Invariant I9 under strict budgets (an excess throws internal_error in a DYNG_DEBUG_BUDGETS
+  // build): a batch that grows the store's node capacity grows the result's device state (its
+  // fills, the copy of the old state and the release of the old pinned counters), and so does the
+  // first update of a clone on the hypergraph moved to another backend and back.
+  const dyng::detail::framework::strict_budgets_scope strict;
+  const resources r = res();
+  whgraph h = make(r, 4000, rows{{0, 1}}, {1});
+  result_t sp = hs::compute(r, h, 0);
+  wbatch grow;
+  for (std::int32_t i = 1; i < 3000; ++i) grow.insert_hyperedge({i, i + 1}, 1 + i % 3);
+  EXPECT_NO_THROW((void)hs::update(r, h, grow.view(), sp));
+  EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
+  // A clone through the host and back, on the hypergraph moved the same way.
+  whgraph back = h.to_backend(resources::sequential()).to_backend(r);
+  result_t c = sp.clone(resources::sequential()).clone(r);
+  wbatch more;
+  for (std::int32_t i = 0; i < 1500; ++i) more.insert_hyperedge({i, i + 2}, 2);
+  more.delete_hyperedge(5);
+  EXPECT_NO_THROW((void)hs::update(r, back, more.view(), c));
+  EXPECT_TRUE(matches_oracle(r, back, c, 0, true));
 }
 
 TEST_P(HyperSssp, TwoResultsOfDifferentSourcesInOneUpdate) {
