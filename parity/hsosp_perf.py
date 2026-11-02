@@ -565,11 +565,12 @@ def maintain_rows(b_rounds: list[list[dict]], p_rounds: list[dict], batches: int
     out = []
     for k in range(1, batches + 1):
         for name, original, port in (
-            ("maintain", ("t_delta_ms", "t_csr_apply_ms"), ["hypergraph.apply"]),
+            ("maintain", ("t_delta_ms", "t_csr_apply_ms"), ["hyper_sssp.normalize", "hypergraph.apply"]),
             (
                 "delta",
                 ("t_delta_ms",),
                 [
+                    "hyper_sssp.normalize",
                     "hypergraph.apply.normalize",
                     "hypergraph.apply.ids",
                     "hypergraph.apply.incidence",
@@ -1876,6 +1877,13 @@ def main(argv: list[str] | None = None) -> int:
         default=hg.scratch_default()
         / "ref/MOSP_ESCHER@4b86159/unpatched/build/hsosp/src/hsospDevice.cu.o",
     )
+    sa.add_argument(
+        "--store",
+        action="store_true",
+        help="the slack_csr store's transplanted kernels against B's hsospDevice.cu.o and "
+        "hsospDelta.cu.o (in --original's directory)",
+    )
+    sa.add_argument("--objects", type=Path, nargs="+", help="--store: the port's objects")
     sa.add_argument("--json", type=Path)
     la = sub.add_parser("launches", help="kernel launches and API calls against B's (nsys)")
     la.add_argument(

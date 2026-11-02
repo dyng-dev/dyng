@@ -845,7 +845,9 @@ int bench(const bench_options& o, clock_type::time_point start) {
       std::fflush(stdout);
     }
     if (csv.is_open()) {
-      const double delta = log.sum("hypergraph.apply.normalize", batch) +
+      // Step 0: hypergraph.apply.normalize in a plain apply, hyper_sssp.normalize in an update.
+      const double delta = log.sum("hyper_sssp.normalize", batch) +
+                           log.sum("hypergraph.apply.normalize", batch) +
                            log.sum("hypergraph.apply.ids", batch) +
                            log.sum("hypergraph.apply.incidence", batch) +
                            log.sum("hypergraph.apply.translate", batch);

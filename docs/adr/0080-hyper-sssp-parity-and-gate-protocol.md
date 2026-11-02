@@ -48,7 +48,14 @@ improvement mask a regression (PLAN 8.6).
    - `maintain`: `csv:t_delta_ms + csv:t_csr_apply_ms` against the whole `hypergraph.apply` under
      `slack_csr` (Step 0, ids, incidence, translate, line-graph apply, any rebuild). dynG's scope
      also holds the id assignment that B times in `t_escher_ms` (its h2v insert): the row is
-     conservative for dynG.
+     conservative for dynG. **Amended by the M11a review:** inside `hyper_sssp::update`, Step 0
+     (the transaction's staging and checks) runs under the stage `hyper_sssp.normalize`, before
+     and outside `hypergraph.apply` (which then emits no `hypergraph.apply.normalize`), so the
+     map's port is `hyper_sssp.normalize` + `hypergraph.apply` (a plain apply emits only the
+     second, with its Step 0 inside); the reported `delta` row names both spellings of Step 0.
+     The first gate reading had missed Step 0 (up to 0.27 of the ratio); the suite was read again
+     with the amended map (`parity/results/M11a.md` section 11.6), and a test plants a delay in
+     every stage of an update and checks that exactly one gated row moves.
    - `sosp_update`: `csv:t_sosp_update_ms` against `hyper_sssp`'s stages after the commit
      (`identify_affected`, `seed`, `loop`, `recompute`, `finalize`), the budget fallback
      included.

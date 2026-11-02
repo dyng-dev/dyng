@@ -63,7 +63,10 @@
 #                        applied record), hypergraph.apply.translate (the order-free line-graph
 #                        delta: incidence_delta, inside the commit), hypergraph.apply.line_graph
 #                        (the slack CSR apply, node weights, any rebuild) }
-#   hyper_sssp.update > { hyper_sssp.normalize, hyper_sssp.commit (contains hypergraph.apply),
+#   hyper_sssp.update > { hyper_sssp.normalize (Step 0 of hyper_sssp::update: the transaction's
+#                         staging and checks of the batch, which run BEFORE hypergraph.apply and
+#                         outside it, so hypergraph.apply.normalize is not emitted on this path;
+#                         M11a review), hyper_sssp.commit (contains hypergraph.apply),
 #                         hyper_sssp.identify_affected, hyper_sssp.seed, hyper_sssp.loop,
 #                         hyper_sssp.recompute (the budget fallback; emitted, 0 ms or more, on
 #                         every update so that the row is defined), hyper_sssp.finalize }
@@ -90,9 +93,16 @@
 #   - static on the port is a recompute into a second, pre-allocated result on the maintained
 #     line graph (no rebuild, copy or allocation inside the region), as B recomputes into its
 #     pre-allocated state B on the maintained device graph.
-#   - One asymmetry, conservative for dynG: dynG's maintain (the whole hypergraph.apply) also
-#     contains the id assignment (hypergraph.apply.ids), which B times in t_escher_ms (its h2v
-#     insert), outside B's maintain = t_delta_ms + t_csr_apply_ms.
+#   - Step 0 belongs to maintain on both sides: B's t_delta_ms holds its Step-0 checks; dynG's
+#     Step 0 is hypergraph.apply.normalize when the batch goes through hypergraph::apply() alone
+#     (the maintain-only reading) and hyper_sssp.normalize inside hyper_sssp::update (the gate
+#     reading), so maintain and delta sum both names (at most one of them is emitted in a round).
+#     Until the M11a review, maintain named hypergraph.apply only and missed Step 0 in the gate
+#     reading; the suite was read again with this map (ADR 0093, parity/results/M11a.md section
+#     11.6).
+#   - One asymmetry, conservative for dynG: dynG's maintain also contains the id assignment
+#     (hypergraph.apply.ids), which B times in t_escher_ms (its h2v insert), outside B's
+#     maintain = t_delta_ms + t_csr_apply_ms.
 
 [reference.mosp_escher]
 repo = "MOSP_ESCHER"
@@ -112,10 +122,11 @@ rows = ["maintain[b1]", "maintain[b2]", "maintain[b3]"]
 report_sum = true
 original = ["t_delta_ms + t_csr_apply_ms (the host incidence, the GPU line-graph delta, the device CSR apply and any rebuild)"]
 original_report = ["csv:t_delta_ms", "csv:t_csr_apply_ms"]
-port = ["hypergraph.apply"]
+port = ["hyper_sssp.normalize", "hypergraph.apply"]
 gate = "compute"
 note = """
-The whole hypergraph.apply under slack_csr storage and line graph: Step 0 (normalize), the ids,
+The whole hypergraph.apply under slack_csr storage and line graph, and Step 0 (hyper_sssp.normalize
+inside hyper_sssp::update, hypergraph.apply.normalize inside a plain apply): Step 0, the ids,
 the incidence edits, translate (the order-free line-graph delta, inside the commit) and the
 line-graph apply, any rebuild included. B's beginBatch host incidence (deltaMs) + deriveDelta
 (t_delta_ms) + the CSR apply or its rebuild (t_csr_apply_ms). Conservative for dynG: its region
@@ -232,7 +243,7 @@ rows = ["delta[b1]", "delta[b2]", "delta[b3]"]
 report_sum = true
 original = ["t_delta_ms (beginBatch's host incidence + deriveDelta on the GPU)"]
 original_report = ["csv:t_delta_ms"]
-port = ["hypergraph.apply.normalize", "hypergraph.apply.incidence", "hypergraph.apply.translate"]
+port = ["hyper_sssp.normalize", "hypergraph.apply.normalize", "hypergraph.apply.incidence", "hypergraph.apply.translate"]
 gate = "none"
 note = "Reported (HD3): the scopes are not one to one (B's Step 0 checks sit in its host incidence update)."
 

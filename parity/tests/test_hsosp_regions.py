@@ -67,7 +67,7 @@ def test_the_map_loads_with_hd3s_gates() -> None:
     assert gated == perf.HSOSP_GATED_REGIONS
     assert perf.region_rows(regions["maintain"]) == ["maintain[b1]", "maintain[b2]", "maintain[b3]"]
     assert regions["maintain"]["original_report"] == ["csv:t_delta_ms", "csv:t_csr_apply_ms"]
-    assert regions["maintain"]["port"] == ["hypergraph.apply"]
+    assert regions["maintain"]["port"] == ["hyper_sssp.normalize", "hypergraph.apply"]
     assert regions["dynamic"]["original_report"] == ["csv:t_dynamic_total_ms"]
     assert regions["dynamic_comparable"]["original_report"] == [
         "csv:t_delta_ms",
@@ -212,3 +212,39 @@ def test_bs_outputs_parse_and_sum() -> None:
         perf.parse_hsosp_e2e(E2E + E2E)
     with pytest.raises(SystemExit, match="no column"):
         perf.parse_hsosp_csv("a,b\n1,2\n")
+
+
+# The leaf stages of one hyper_sssp::update on the port (cpp/src/hypergraph/hyper_update.cpp and the
+# engine's stages): Step 0 runs under hyper_sssp.normalize BEFORE and outside hypergraph.apply, the
+# commit holds hypergraph.apply, then the engine's stages. A plain apply (the maintain-only reading)
+# emits hypergraph.apply with hypergraph.apply.normalize inside it.
+UPDATE_STAGES = (
+    "hyper_sssp.normalize",
+    "hypergraph.apply",
+    "hyper_sssp.identify_affected",
+    "hyper_sssp.seed",
+    "hyper_sssp.loop",
+    "hyper_sssp.recompute",
+    "hyper_sssp.finalize",
+)
+
+
+def test_every_stage_of_an_update_moves_exactly_one_gated_row_by_stages() -> None:
+    """A planted delay in each stage of an update (M11a review: Step 0 was outside maintain) moves
+    maintain or sosp_update, exactly one of them, by exactly the delay; dynamic_comparable and
+    dynamic read the whole update (the driver's timer) and move with every stage."""
+    regions = _regions()
+    ports = {name: regions[name]["port"] for name in ("maintain", "sosp_update")}
+    for stage in UPDATE_STAGES:
+        moved = [
+            name
+            for name, port in ports.items()
+            if sum(1.0 for n in port if n == stage) == 1.0
+        ]
+        assert len(moved) == 1, (stage, moved)
+    # Nothing is counted twice: the two rows name disjoint stages, and a plain apply's Step 0
+    # (hypergraph.apply.normalize) is inside hypergraph.apply, not named again by maintain.
+    assert not set(ports["maintain"]) & set(ports["sosp_update"])
+    assert "hypergraph.apply.normalize" not in ports["maintain"]
+    # The reported delta row holds both spellings of Step 0 (at most one is emitted per round).
+    assert {"hyper_sssp.normalize", "hypergraph.apply.normalize"} <= set(regions["delta"]["port"])
