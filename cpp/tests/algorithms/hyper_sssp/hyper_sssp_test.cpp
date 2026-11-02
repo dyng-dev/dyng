@@ -329,6 +329,82 @@ TEST_P(HyperSssp, TheWorkBudgetRecomputesOrThrows) {
   }
 }
 
+/// The triggers of HD8 at deterministic points well away from their edges: a path of m hyperedges
+/// {i, i + 1} of weight 2 (the source vertex 0 in hyperedge 0 only) and a batch inserting {0, 1} at
+/// weight 1, which lowers every distance but hyperedge 0's by one, one hyperedge per push round.
+struct budget_case {
+  static constexpr std::int32_t m = 64;
+  static whgraph make_path(const resources& res) {
+    rows r;
+    std::vector<std::int32_t> w;
+    for (std::int32_t i = 0; i < m; ++i) {
+      r.push_back({i, i + 1});
+      w.push_back(2);
+    }
+    return make(res, m + 1, r, w);
+  }
+  static wbatch batch() {
+    wbatch b;
+    b.insert_hyperedge({0, 1}, 1);
+    return b;
+  }
+  /// The live line-graph entries after the batch (each pair in both rows): the path's m - 1
+  /// pairs and the new hyperedge's two.
+  static constexpr double entries = 2.0 * (m - 1 + 2);
+};
+
+TEST_P(HyperSssp, TheWorkTriggerFiresAboveTheLimitAndNotBelow) {
+  const resources r = res();
+  // The work of the batch without a budget.
+  whgraph h0 = budget_case::make_path(r);
+  hs::options free;
+  free.work_budget = std::numeric_limits<double>::infinity();
+  result_t s0 = hs::compute(r, h0, 0, free);
+  const hs::stats base = hs::update(r, h0, budget_case::batch().view(), s0);
+  ASSERT_FALSE(base.fallback_used);
+  const double work = static_cast<double>(base.relaxations);
+  ASSERT_GE(work, 2.0 * (budget_case::m - 2)) << "the batch relaxes the whole path";
+  // work > work_budget x max(1, live entries): about 1.25x the limit must fall back, about 0.8x
+  // must not (a scaled limit or a different count of the entries moves one of the two).
+  for (const double ratio : {0.8, 1.25}) {
+    whgraph h = budget_case::make_path(r);
+    hs::options o;
+    o.work_budget = work / (ratio * budget_case::entries);
+    result_t sp = hs::compute(r, h, 0, o);
+    const hs::stats s = hs::update(r, h, budget_case::batch().view(), sp);
+    EXPECT_EQ(s.fallback_used, ratio > 1.0) << "work " << work << " at " << ratio << "x the limit";
+    EXPECT_EQ(s.fallback_reason,
+              ratio > 1.0 ? hs::fallback_reason::work_budget : hs::fallback_reason::none);
+    EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
+  }
+}
+
+TEST_P(HyperSssp, TheIterationTriggerAllowsExactlyMaxIterationsPushRounds) {
+  if (GetParam() != backend::cuda) GTEST_SKIP() << "push rounds are the cuda engine's (HD8)";
+  const resources r = res();
+  whgraph h0 = budget_case::make_path(r);
+  hs::options free;
+  free.work_budget = std::numeric_limits<double>::infinity();
+  result_t s0 = hs::compute(r, h0, 0, free);
+  const hs::stats base = hs::update(r, h0, budget_case::batch().view(), s0);
+  ASSERT_FALSE(base.fallback_used);
+  const std::int64_t k = base.iterations;
+  ASSERT_GE(k, budget_case::m - 2) << "one push round per hyperedge of the path";
+  // The cap is tested before each push round: k rounds are allowed with max_iterations = k, and
+  // k - 1 falls back (or throws under budget_action::error).
+  for (const std::int64_t cap : {k, k - 1}) {
+    whgraph h = budget_case::make_path(r);
+    hs::options o = free;
+    o.max_iterations = cap;
+    result_t sp = hs::compute(r, h, 0, o);
+    const hs::stats s = hs::update(r, h, budget_case::batch().view(), sp);
+    EXPECT_EQ(s.fallback_used, cap < k) << "k " << k << ", max_iterations " << cap;
+    EXPECT_EQ(s.fallback_reason,
+              cap < k ? hs::fallback_reason::iterations : hs::fallback_reason::none);
+    EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
+  }
+}
+
 TEST_P(HyperSssp, AnEmptyHypergraphComputesAndUpdates) {
   // No hyperedge: the result's state is never sized 0 (a launch of zero blocks would leave a
   // pending CUDA error for the next checked call, the store's commit), and insertions then work.

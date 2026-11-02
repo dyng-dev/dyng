@@ -2100,6 +2100,14 @@ RESULTS_TOTALS = (
 )
 
 
+def fallback_strict(args, case: str) -> bool:
+    """Whether a differing fallback decision of `case` is a failure (HD7): only for the make-test
+    sessions on cuda by id, whose work lies far from the budget (the decisions are deterministic
+    there: every recorded run equals B's), after one repeat of the case. Elsewhere the decision is
+    not a parity target, and a difference is tabulated."""
+    return args.backend == "cuda" and args.mode == "by_id" and case.startswith("test/")
+
+
 def results_main(args) -> int:
     """--part results (M11a criterion 14, HD2; ADR 0091): every session of the cases replayed
     whole through hyper_sssp with dyng_hsosp_replay --algorithm <mode>, every hsospUpdate and
@@ -2179,6 +2187,24 @@ def results_main(args) -> int:
                     rep["mismatch_count"] = int(rep.get("mismatch_count", 0)) + 1
                 if run > 0:
                     rep["repeat_of"] = 1
+                if fallback_strict(args, case) and int(rep.get("fallback_differ", 0)):
+                    # HD7's repeat: a differing decision is read again once; a second difference
+                    # fails the case.
+                    again = subprocess.run(cmd, capture_output=True, text=True, env=env)
+                    second = (
+                        json.loads(js.read_text())[0]
+                        if again.returncode in (0, 1) and js.is_file()
+                        else {"fallback_differ": -1}
+                    )
+                    rep["fallback_repeat_differ"] = int(second.get("fallback_differ", -1))
+                    if rep["fallback_repeat_differ"] != 0:
+                        rep["ok"] = False
+                        rep.setdefault("mismatches", []).insert(
+                            0,
+                            f"{rep['fallback_differ']} fallback decisions differ from "
+                            "MOSP_ESCHER's, and again in the repeat (HD7; a make-test session "
+                            "on cuda by id)",
+                        )
                 reports.append(rep)
                 first = (
                     "" if rep.get("ok") else (rep.get("mismatches") or [rep.get("error", "")])[0]

@@ -42,6 +42,14 @@ deterministic.
   `invalidation_depth`); `relaxations` is the count the budget saw.
 - The recompute's own round cap is max(max_iterations, id bound + 1), so a fallback always
   converges.
+- **Pinned by tests** (added in the M11a review, which found that a 1.5x work limit and an
+  off-by-one iteration cap passed every test and replay): on a path whose batch lowers one
+  hyperedge per push round, an update's work at about 1.25x the limit falls back and at about
+  0.8x does not (both backends), and on cuda `max_iterations = k` push rounds (the rounds the
+  update needs) does not fall back while `k - 1` does (`HyperSssp.TheWorkTrigger...`,
+  `HyperSssp.TheIterationTrigger...`). The make-test sessions on cuda by id, whose work lies far
+  from the budget, also fail the result replay if a fallback decision differs from B's twice
+  (HD7's repeat; elsewhere the decision is tabulated).
 
 ### 2. The framework hook `over_budget(ctx)`
 
