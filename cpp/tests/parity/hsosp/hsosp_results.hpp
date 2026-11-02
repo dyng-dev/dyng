@@ -73,19 +73,22 @@ struct report {
   std::int64_t original_exceptions = 0;  ///< calls B rejected (dynG must reject them too)
   std::int64_t source_row_parents = 0;   ///< by_id_public: B's parent its source row (dynG -1)
   std::int64_t target_row_parents = 0;   ///< by_id_public: B's parent its target row
-  std::int64_t canonical_checked = 0;    ///< parents checked against the canonical rule
+  std::int64_t canonical_checked = 0;    ///< public modes: ids checked by the oracle
+  std::int64_t keys_compared = 0;        ///< by_key: inserted hyperedges checked by content
   std::int64_t compute_checked = 0;      ///< updates compared with a fresh compute()
   std::int64_t fallback_equal = 0;       ///< updates whose fallback decision equals B's (HD7)
   std::int64_t fallback_differ = 0;      ///< (tabulated, not a parity target)
   std::int64_t dyng_fallbacks = 0, b_fallbacks = 0;  ///< the decisions' counts
-  std::int64_t not_checked = 0;  ///< calls on a state the replay could not follow
+  std::int64_t not_checked = 0;  ///< calls on a state the replay could not follow (a failure)
+  std::int64_t digest_skipped = 0;  ///< public modes: digest-only calls (full arrays are T, P50)
   std::int64_t mismatch_count = 0;
   std::vector<std::string> mismatches;
   std::vector<call_digest> calls;
   double seconds = 0;
-  /// @brief No mismatch and every session to its end. @return The verdict.
+  /// @brief No mismatch, every session to its end and every call of B's checked. @return The
+  /// verdict.
   [[nodiscard]] bool ok() const {
-    return mismatch_count == 0 && stopped_sessions == 0;
+    return mismatch_count == 0 && stopped_sessions == 0 && not_checked == 0;
   }
   /// @brief The report as JSON (with the per-call digests). @return The text.
   [[nodiscard]] std::string to_json() const;

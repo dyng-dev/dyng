@@ -302,7 +302,15 @@ class session_replay {
   }
 
   void apply_batch(const hd::record& r) {
-    if (!pending_) return;
+    if (!pending_) {
+      // An applyBatch without a begin_batch of its own (a lost or reordered record): the batch
+      // cannot be replayed, so the session stops, never a silent skip. (A batch B rejected
+      // throws in beginBatch: no apply_batch follows it.)
+      ++rep_.stopped_sessions;
+      mismatch((where_.empty() ? "session " + std::to_string(session_) : where_) +
+               ": an apply_batch without its begin_batch");
+      return;
+    }
     pending_ = false;
     if (!h_) {
       ++rep_.stopped_sessions;
@@ -362,8 +370,11 @@ class session_replay {
     if (r.i64("bt.new_he") != s.inserted_hyperedges ||
         r.i64("bt.dead_he") != static_cast<std::int64_t>(a.dead_ids.size()))
       mismatch(where_ + ": newHe / deadHe counts differ");
-    // The weights of the new ids (B's final_weights).
+    // The weights of the new ids (B's final_weights: one per final id).
     const auto weights = dyng::test::hyper::host_vector(h_->weights());
+    if (final_weights_.size() != want.size())
+      mismatch(where_ + ": " + std::to_string(final_weights_.size()) + " final weights for " +
+               std::to_string(want.size()) + " final ids");
     for (std::size_t i = 0; i < want.size() && i < final_weights_.size(); ++i)
       if (want[i] < 0 || static_cast<std::size_t>(want[i]) >= weights.size() ||
           weights[static_cast<std::size_t>(want[i])] != final_weights_[i])

@@ -18,6 +18,7 @@
 #include <dyng/core/error.hpp>
 #include <dyng/hyper_sssp.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
+#include <dyng/testing/hyper_sssp_reference.hpp>
 #include <dyng/update.hpp>
 
 #include <algorithm>
@@ -25,6 +26,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
+#include <exception>
 #include <map>
 #include <memory>
 #include <optional>
@@ -157,6 +159,7 @@ class session_results {
     built_ = false;
     batch_index_ = 0;
     pending_ = false;
+    rejected_ = false;
     b_to_dyng_.clear();
   }
 
@@ -231,6 +234,7 @@ class session_results {
     where_ = "session " + std::to_string(session_) + " batch " + std::to_string(batch_index_++);
     if (!built_ && !load_threw_) build(detail::hyper::slack::knobs{});
     pending_ = true;
+    rejected_ = false;
     batch_ = wbatch{};
     const auto id_of = [&](std::int64_t b_id) -> std::int64_t {
       if (opt_.mode != mode::by_key) return b_id - 1;
@@ -268,6 +272,7 @@ class session_results {
   void begin_exit(const hd::record& r) {
     if (!r.str("exception").empty()) {
       pending_ = false;  // B rejected the batch: nothing changes (the delta replay checks dynG's)
+      rejected_ = true;
       return;
     }
     final_ids_ = r.ints("final_ids");
@@ -298,7 +303,17 @@ class session_results {
   }
 
   void apply_batch(const hd::record& r, const std::vector<hd::record>& records, std::size_t i) {
-    if (!pending_ || !active_ || !h_) return;
+    if (!active_ || !h_) return;  // a stopped session (counted where it stopped)
+    if (!pending_) {
+      if (!rejected_) {
+        // An applyBatch without a begin_batch of its own (a lost or reordered record): its batch
+        // and the results after it cannot be checked, so the session stops, never a silent skip.
+        mismatch("session " + std::to_string(session_) + ": an apply_batch without its begin_batch");
+        ++rep_.stopped_sessions;
+        active_ = false;
+      }
+      return;
+    }
     pending_ = false;
     ++rep_.batches;
     if (opt_.mode != mode::by_key) {
@@ -351,8 +366,7 @@ class session_results {
       // B's dead ids leave the map first: dynG (erase_first) may give their dynG ids to this
       // batch's insertions.
       for (const std::int32_t id : dead_he_) b_to_dyng_.erase(id);
-      for (std::size_t k = 0; k < final_ids_.size() && k < summary.inserted_ids.size(); ++k)
-        b_to_dyng_[final_ids_[k]] = summary.inserted_ids[k];
+      if (!map_by_content(r, summary)) return;
     }
     // Results not updated are now stale (B's states it did not update).
     for (auto& [s, t] : results_) {
@@ -470,16 +484,24 @@ class session_results {
     if (digest) {
       ++rep_.digest_calls;
       if (opt_.mode != mode::by_id) {
-        ++rep_.not_checked;  // the public modes compare full arrays (T and P50)
+        ++rep_.digest_skipped;  // the public modes compare full arrays (T and P50)
         return;
       }
+      // The canonical encodings span max(bound_B, bound_dynG) ids (ADR 0080): B's digest covers
+      // its count, and every id of dynG's at or past it must be dead or unreachable (INF, -1).
       const auto count = static_cast<std::size_t>(rec.i64("distances.count"));
-      rep_.ids_compared += static_cast<std::int64_t>(count);
+      const auto pcount = static_cast<std::size_t>(rec.i64("parents.count"));
+      rep_.ids_compared += static_cast<std::int64_t>(std::max(count, d.size()));
       if (distances_digest(d, count) != rec.str("distances.sha256"))
         mismatch(at + ": the distances' digest differs");
-      if (parents_digest(p, static_cast<std::size_t>(rec.i64("parents.count"))) !=
-          rec.str("parents.sha256"))
+      if (parents_digest(p, pcount) != rec.str("parents.sha256"))
         mismatch(at + ": the parents' digest differs");
+      std::int64_t past = 0;
+      for (std::size_t id = count; id < d.size(); ++id) past += d[id] != inf ? 1 : 0;
+      for (std::size_t id = pcount; id < p.size(); ++id) past += p[id] != -1 ? 1 : 0;
+      if (past != 0)
+        mismatch(at + ": " + std::to_string(past) +
+                 " distances or parents past B's bound are not INF / -1");
       return;
     }
     const auto& bd = rec.longs("distances");
@@ -536,47 +558,88 @@ class session_results {
         first = "parent of B id " + std::to_string(b_id);
       }
     }
-    const std::int64_t bad = canonical_errors(d, p);
-    if (dm || pm || bad)
+    const auto [od, op] = oracle_errors(d, p, at);
+    if (dm || pm || od || op)
       mismatch(at + ": " + std::to_string(dm) + " distance and " + std::to_string(pm) +
-               " parent differences, " + std::to_string(bad) + " parents off the canonical rule" +
+               " parent differences from MOSP_ESCHER, " + std::to_string(od) + " distance and " +
+               std::to_string(op) + " parent differences from the oracle" +
                (first.empty() ? "" : " (first: " + first + ")"));
   }
 
-  /// The parents that break the oracle's canonical rule (ADR 0082) given the distances: -1 for a
-  /// live hyperedge holding the source with D(h) = w(h), else the lowest-id live neighbour p with
-  /// D(p) + w(h) = D(h); -1 for an unreachable or dead one. Read from the host incidence (rows by
-  /// id and v2h of the slack_csr host model): no line graph is built.
-  std::int64_t canonical_errors(const std::vector<std::int64_t>& d,
-                                const std::vector<std::int32_t>& p) {
-    const auto* slack = access::slack(*h_);
-    const auto& rows = slack->host_rows();
-    const auto& v2h = slack->host_v2h();
-    const auto w = h_->weights();
-    std::int64_t bad = 0;
-    for (std::size_t h = 0; h < d.size(); ++h) {
-      ++rep_.canonical_checked;
-      const bool live = h < rows.size() && !rows[h].empty();
-      if (!live || d[h] >= inf) {
-        bad += (p[h] != -1 || (!live && d[h] < inf)) ? 1 : 0;
-        continue;
-      }
-      const std::int64_t wh = w[h];
-      if (d[h] == wh && std::binary_search(rows[h].begin(), rows[h].end(), source_vertex_)) {
-        bad += p[h] != -1 ? 1 : 0;
-        continue;
-      }
-      std::int64_t best = -1;
-      for (const std::int32_t v : rows[h]) {
-        for (const std::int64_t g : v2h[static_cast<std::size_t>(v)]) {
-          const auto gu = static_cast<std::size_t>(g);
-          if (gu == h || gu >= d.size() || rows[gu].empty()) continue;
-          if (d[gu] < inf && d[gu] + wh == d[h] && (best < 0 || g < best)) best = g;
-        }
-      }
-      bad += (best < 0 || p[h] != best) ? 1 : 0;
+  /// The oracle's check of the public modes (dyng::testing::check_hyper_sssp_tree, ADR 0082):
+  /// dynG's distances and parents against hyper_sssp_reference from the source vertex, on the
+  /// container's public rows (h2v() and weights()) only, so nothing of the slack_csr store's
+  /// internals or of hyper_sssp is shared with the rule that checks them. @return {distance
+  /// mismatches, parent errors} over every id.
+  std::pair<std::int64_t, std::int64_t> oracle_errors(const std::vector<std::int64_t>& d,
+                                                      const std::vector<std::int32_t>& p,
+                                                      const std::string& at) {
+    const auto v = h_->h2v();
+    const std::vector<std::int64_t> offsets = to_vector(res_, v.row_ptr);
+    const std::vector<std::int32_t> members = to_vector(res_, v.col_ind);
+    const std::vector<std::int32_t> w32 = to_vector(res_, h_->weights());
+    std::vector<std::int64_t> weights(w32.begin(), w32.end());
+    weights.resize(offsets.empty() ? 0 : offsets.size() - 1, 0);
+    rep_.canonical_checked +=
+        static_cast<std::int64_t>(std::max({weights.size(), d.size(), p.size()}));
+    try {
+      return dyng::testing::check_hyper_sssp_tree(offsets, members, num_vertices_, weights,
+                                                  source_vertex_, true, d, p);
+    } catch (const std::exception& e) {
+      mismatch(at + ": the oracle refused the hypergraph: " + e.what());
+      return {0, 0};
     }
-    return bad;
+  }
+
+  /// by_key (HD2: hyperedges by (sorted vertex set, weight)): B's ids of this batch's insertions
+  /// are mapped to dynG's, and each mapped dynG row must hold the sorted vertex set and the
+  /// weight of B's row in the apply_batch record (its touched rows), so a mapping that pairs two
+  /// different hyperedges is a mismatch, never a silent misattribution. @return Whether the
+  /// session goes on.
+  bool map_by_content(const hd::record& r, const hyper_apply_summary& summary) {
+    if (final_ids_.size() != summary.inserted_ids.size()) {
+      mismatch(where_ + ": MOSP_ESCHER inserted " + std::to_string(final_ids_.size()) +
+               " hyperedges, dynG " + std::to_string(summary.inserted_ids.size()));
+      ++rep_.stopped_sessions;
+      active_ = false;
+      return false;
+    }
+    const auto& ids = r.ints("rows.ids");
+    const auto& offsets = r.longs("rows.offsets");
+    const auto& values = r.ints("rows.values");
+    const auto& alive = r.ints("rows.alive");
+    const auto& row_weights = r.longs("rows.weight");
+    std::map<std::int32_t, std::size_t> b_row;
+    for (std::size_t k = 0; k < ids.size(); ++k) b_row[ids[k]] = k;
+    const auto v = h_->h2v();
+    const std::vector<std::int64_t> ptr = to_vector(res_, v.row_ptr);
+    const std::vector<std::int32_t> cols = to_vector(res_, v.col_ind);
+    const std::vector<std::int32_t> w = to_vector(res_, h_->weights());
+    std::int64_t differ = 0;
+    std::string first;
+    for (std::size_t k = 0; k < final_ids_.size(); ++k) {
+      const std::int64_t mine = summary.inserted_ids[k];
+      b_to_dyng_[final_ids_[k]] = mine;
+      ++rep_.keys_compared;
+      const auto it = b_row.find(final_ids_[k]);
+      const auto u = static_cast<std::size_t>(mine);
+      bool same = it != b_row.end() && alive[it->second] != 0 && mine >= 0 && u + 1 < ptr.size();
+      if (same) {
+        std::vector<std::int32_t> got(cols.begin() + ptr[u], cols.begin() + ptr[u + 1]);
+        std::vector<std::int32_t> want(values.begin() + offsets[it->second],
+                                       values.begin() + offsets[it->second + 1]);
+        std::sort(got.begin(), got.end());
+        std::sort(want.begin(), want.end());
+        same = got == want && u < w.size() && w[u] == row_weights[it->second];
+      }
+      if (!same && differ++ == 0)
+        first = "B id " + std::to_string(final_ids_[k]) + " -> dynG id " + std::to_string(mine);
+    }
+    if (differ != 0)
+      mismatch(where_ + ": " + std::to_string(differ) +
+               " inserted hyperedges differ in (sorted vertex set, weight) from MOSP_ESCHER's (first: " +
+               first + ")");
+    return true;
   }
 
   struct tracked {
@@ -596,7 +659,7 @@ class session_results {
   std::int64_t session_ = 0, extra_ = 0, source_ = 0, target_ = 0, batch_index_ = 0;
   std::int32_t num_vertices_ = 0, source_vertex_ = -1;
   double factor_ = 1.3;
-  bool load_threw_ = false, built_ = false, pending_ = false, active_ = false;
+  bool load_threw_ = false, built_ = false, pending_ = false, rejected_ = false, active_ = false;
   std::string where_;
   std::vector<std::int64_t> rows_offsets_, weights_;
   std::vector<std::int32_t> rows_values_, final_ids_, dead_he_;
@@ -616,7 +679,8 @@ std::string report::to_json() const {
      << ", \"original_exceptions\": " << original_exceptions
      << ", \"source_row_parents\": " << source_row_parents
      << ", \"target_row_parents\": " << target_row_parents
-     << ", \"canonical_checked\": " << canonical_checked
+     << ", \"canonical_checked\": " << canonical_checked << ", \"keys_compared\": " << keys_compared
+     << ", \"digest_skipped\": " << digest_skipped
      << ", \"compute_checked\": " << compute_checked << ", \"fallback_equal\": " << fallback_equal
      << ", \"fallback_differ\": " << fallback_differ << ", \"dyng_fallbacks\": " << dyng_fallbacks
      << ", \"b_fallbacks\": " << b_fallbacks << ", \"not_checked\": " << not_checked

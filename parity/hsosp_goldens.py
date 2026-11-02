@@ -2096,6 +2096,8 @@ RESULTS_TOTALS = (
     "dyng_fallbacks",
     "b_fallbacks",
     "not_checked",
+    "digest_skipped",
+    "keys_compared",
     "mismatch_count",
 )
 
@@ -2240,6 +2242,8 @@ def results_main(args) -> int:
             problems.append(f"{r['file']}: {(r.get('mismatches') or [r.get('error', '?')])[0]}")
     if totals["stopped_sessions"]:
         problems.append(f"{totals['stopped_sessions']} sessions were not replayed to their end")
+    if totals["not_checked"]:
+        problems.append(f"{totals['not_checked']} calls of MOSP_ESCHER's were not checked")
     for r in reports:
         r.pop("repeat_of", None)
     record = {

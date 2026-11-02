@@ -100,9 +100,22 @@ the container loaded and every batch converted as the by-id container replay doe
 each batch applied by the update of the results B updates after it, each recompute B recorded a
 recompute into the result's own arrays, each with B's UpdateConfig of that call. by_id compares
 distances and parents with B's exactly (the canonical encodings of ADR 0080; digests outside
-P50); by_id_public compares distances on the real hyperedges and checks every parent against the
-oracle's canonical rule, counting those whose B parent is a virtual row; by_key loads the rows as
-a user would and resolves B's ids by content. `--check-compute` compares every update with a fresh
+P50); by_id_public compares distances on the real hyperedges, counting the parents whose B
+parent is a virtual row; by_key loads the rows as a user would and resolves B's ids by content:
+each B id of a batch's insertions is mapped to the dynG id of the same position in the batch,
+the counts must be equal, and the mapped dynG row must hold the sorted vertex set and the weight
+of B's row in the dump (a mapping that pairs two different hyperedges is a mismatch). In both
+public modes every call is also checked by the oracle itself (`dyng::testing::
+check_hyper_sssp_tree` from the source vertex on the container's public `h2v()` and `weights()`):
+dynG's distances and parents against `hyper_sssp_reference`, which shares no code with the store
+or the engine. (Amended by the M11a review: the first version re-derived the canonical rule
+inline from the slack_csr store's host model and mapped by_key's ids by position without checking
+their content.) A replay also fails on an `apply_batch` without its `begin_batch` (a lost or
+reordered record; the session stops), on a call of B's it could not follow (`not_checked`), and,
+in digest mode, on a dynG distance or parent past B's bound that is not INF / -1 (the canonical
+encodings span max(bound_B, bound_dynG) ids); and on cuda by_id, a make-test session whose
+fallback decisions differ from B's in a repeat as well (HD7: those sessions lie far from the
+budget; elsewhere the decision is tabulated, not a parity target). `--check-compute` compares every update with a fresh
 `compute()`, `--repeat` and `--same-as` compare the digests of runs and backends. The comparator
 catches a planted wrong distance or parent, a reordered batch and a dropped batch (its tests).
 `dyng-compat-hsosp replay --algorithm` and `bench` (the update and static rows of hsospBench, the
