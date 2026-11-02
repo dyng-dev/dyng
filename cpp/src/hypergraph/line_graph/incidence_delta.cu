@@ -417,6 +417,15 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
     total1 = sc.host_totals.data()[1];
   }
   const long long n_cand = total0 + total1;
+  // dynG (ADR 0089, class c2): the limit is checked before the candidates are reserved (and
+  // before the vertex mirror changes), so more than max_candidates is the documented
+  // capacity_error, not the failed allocation of two arrays of 8 x n_cand bytes each.
+  if (n_cand > max_candidates) {
+    throw capacity_error("dyng: hypergraph: the line-graph delta of the batch has " +
+                         std::to_string(n_cand) + " candidate pairs, more than " +
+                         std::to_string(max_candidates) +
+                         " (the int32 counts of the delta); split the batch");
+  }
   (void)sc.cand.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_cand));
   (void)sc.cand_alt.reserve_with_headroom(*dev.res, static_cast<std::size_t>(n_cand));
 
@@ -499,12 +508,6 @@ long long derive_delta(device_h2h& dev, const host_hypergraph& hg, const inciden
   // ---- 4. distinct candidates, classified by pre / post overlap ----------
   int num_del = 0, num_ins = 0;
   if (n_cand > 0) {
-    if (n_cand > max_candidates) {
-      throw capacity_error("dyng: hypergraph: the line-graph delta of the batch has " +
-                           std::to_string(n_cand) + " candidate pairs, more than " +
-                           std::to_string(max_candidates) +
-                           " (the int32 counts of the delta); split the batch");
-    }
     const int n = static_cast<int>(n_cand);
     cub::DoubleBuffer<u64> k(sc.cand.data(), sc.cand_alt.data());
     std::size_t b1 = 0, b2 = 0, b3 = 0;

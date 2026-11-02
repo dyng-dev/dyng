@@ -118,6 +118,20 @@ mirror's host offsets with them. The entry headroom (1.6, B's) sizes the CSR and
 build, the call's headroom every rebuild; the mirror re-uploads at x1.5. The limits of the int32
 counts are internal knobs too (`max_candidates`, `max_ids`, `max_entries`, INT_MAX by default, lower
 in the over-limit tests): each is a `capacity_error`, never undefined behaviour or a silent wrap.
+**Amended by the M11a review** (class c2's spirit, an error class only): the device delta checks
+`max_candidates` right after the candidate totals are read, before it reserves the two candidate
+arrays (8 bytes per candidate each) and before the vertex mirror changes; MOSP_ESCHER reserves
+first and throws after (hsospDelta.cu:695-696, :772), so on a 24 GB device more than INT_MAX real
+candidates was an `out_of_memory_error`, never the documented `capacity_error`
+(`SlackOverflow.MoreCandidatesThanTheRealLimit` uses the real limit). A planned node capacity
+counts only when the knob is set: an empty hypergraph gets the minimum of 1024 nodes too (it got
+0, and a result's device state of 0 nodes left a launch error of zero blocks pending, which the
+next commit reported as its own and poisoned the hypergraph; `HyperSssp.AnEmptyHypergraph...`).
+The engine skips its fills for 0 nodes and checks their launches. The device error word of
+class c2 has its own test (`SlackOverflow.ACorruptDeviceRowIsAnInternalError`: a planted
+corruption of a device CSR row is an `internal_error` that poisons the hypergraph). The frozen
+`hypergraph::from_hyperedges` no longer documents a `not_supported_error` for slack_csr storage
+on the cuda backend, which this ADR made supported (a documentation-only api-change).
 
 ### 4. Views, checks, stats
 

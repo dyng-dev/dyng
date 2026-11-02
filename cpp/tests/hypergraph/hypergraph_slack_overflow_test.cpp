@@ -292,6 +292,53 @@ TEST_P(SlackOverflow, MoreCandidatesThanTheLimit) {
   apply_checked(res(), g, b);
 }
 
+// (a') The real limit (INT_MAX candidates, no planted knob): 46,400 copies of {0, 2} meet in vertex 0
+// and vertex 2, about 4.3e9 candidates. The limit is checked before anything of that size is
+// reserved, so it is the documented capacity_error (poisoned), not a failed allocation.
+TEST_P(SlackOverflow, MoreCandidatesThanTheRealLimit) {
+  whgraph h = hypergraph_access::build(res(), list_of<std::int32_t>(4, rows{{0, 1}}, {1}).view(),
+                                       slack_props(), knobs_t{});
+  wbatch_t b;
+  for (int i = 0; i < 46400; ++i) b.insert_hyperedge({0, 2}, 1);
+  EXPECT_THROW((void)h.apply(res(), b.view()), dyng::capacity_error);
+  EXPECT_THROW((void)h.h2v(), dyng::invalid_argument_error);  // poisoned
+}
+
+// The CUDA store's device error word (ADR 0089, class c2): a broken invariant of the device graph
+// (here a planted corruption of row 0 of the device CSR, which then no longer holds its pair with
+// hyperedge 1) is found by the CSR apply of a batch deleting that pair, raised as internal_error,
+// and poisons the hypergraph; check_integrity() then refuses it.
+TEST_P(SlackOverflow, ACorruptDeviceRowIsAnInternalError) {
+  if (!cuda()) GTEST_SKIP() << "the device error word is the CUDA store's";
+  whgraph h = hypergraph_access::build(
+      res(), list_of<std::int32_t>(8, rows{{0, 1}, {1, 2}, {5, 6}}, {1, 1, 1}).view(),
+      slack_props(), knobs_t{});
+  const auto rows_view = hypergraph_access::slack(h)->rows();
+  ASSERT_EQ(rows_view.space, dyng::memory_space::device);
+  std::int64_t start = 0;
+  std::int32_t deg = 0;
+  dyng::copy<std::int64_t>(res(),
+                           dyng::array_view<const std::int64_t>(rows_view.row_start, 1,
+                                                                rows_view.space, rows_view.device),
+                           dyng::host_view(&start, 1));
+  dyng::copy<std::int32_t>(
+      res(), dyng::array_view<const std::int32_t>(rows_view.deg, 1, rows_view.space, rows_view.device),
+      dyng::host_view(&deg, 1));
+  res().synchronize();
+  ASSERT_EQ(deg, 1);  // row 0 holds hyperedge 1 only
+  std::int32_t bogus = 2;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): the planted corruption
+  auto* col = const_cast<std::int32_t*>(rows_view.col_ind) + start;
+  dyng::copy<std::int32_t>(res(), dyng::host_view(&bogus, 1),
+                           dyng::array_view<std::int32_t>(col, 1, rows_view.space, rows_view.device));
+  res().synchronize();
+  wbatch_t b;
+  b.delete_hyperedge(1);  // deletes the pairs (0, 1) and (1, 2)
+  EXPECT_THROW((void)h.apply(res(), b.view()), dyng::internal_error);
+  EXPECT_THROW((void)h.h2v(), dyng::invalid_argument_error);  // poisoned
+  EXPECT_THROW(h.check_integrity(res()), dyng::invalid_argument_error);
+}
+
 // (b) Ids past the int32 node ids of the line graph (planted: max_ids 12): a batch whose new ids
 // would pass it is a capacity_error (poisoned), never a wrap.
 TEST_P(SlackOverflow, IdsPastTheNodeIdLimit) {
