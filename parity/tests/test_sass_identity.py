@@ -32,3 +32,31 @@ def test_an_anonymous_namespaces_hash_is_not_part_of_a_name() -> None:
     assert sass_identity.ANONYMOUS.sub("_GLOBAL__N__", a) == sass_identity.ANONYMOUS.sub(
         "_GLOBAL__N__", b
     )
+
+
+def test_the_base_commit_is_checked_against_its_archive_copy(tmp_path) -> None:
+    """--base-commit: a git-archive copy of the commit holds it; one changed file or one extra
+    file under an archived directory does not (M11a review: the record named no base commit)."""
+    import io
+    import subprocess
+    import tarfile
+
+    data = subprocess.run(
+        ["git", "-C", str(REPO), "archive", "--format=tar", "HEAD", "cmake", "CMakeLists.txt"],
+        capture_output=True,
+        check=True,
+    ).stdout
+    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+        tar.extractall(tmp_path, filter="data")
+    old = sass_identity.ARCHIVED
+    sass_identity.ARCHIVED = ("cmake", "CMakeLists.txt")
+    try:
+        assert sass_identity.check_archive("HEAD", tmp_path)["identical"]
+        (tmp_path / "cmake" / "extra.cmake").write_text("# planted\n")
+        assert sass_identity.check_archive("HEAD", tmp_path)["extra"] == ["cmake/extra.cmake"]
+        (tmp_path / "cmake" / "extra.cmake").unlink()
+        (tmp_path / "CMakeLists.txt").write_text("# planted\n")
+        got = sass_identity.check_archive("HEAD", tmp_path)
+        assert not got["identical"] and got["differ"] == ["CMakeLists.txt"]
+    finally:
+        sass_identity.ARCHIVED = old

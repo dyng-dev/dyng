@@ -4,7 +4,8 @@
 """The SASS identity of the 0.3 CUDA objects between two builds (M11a criterion 20; the R030
 placement lesson; parity/triad_sass.py's reading).
 
-    parity/sass_identity.py --base <build tree> --head <build tree> [--json OUT]
+    parity/sass_identity.py --base <build tree> --head <build tree> [--base-commit SHA]
+        [--json OUT]
 
 For every object of OBJECTS (the escher store's kernels, escher_store.cu, the sorted-merge line
 graph and triad_count's kernels) in both build trees (the same preset): every kernel function of
@@ -12,6 +13,12 @@ graph and triad_count's kernels) in both build trees (the same preset): every ke
 removed: parity/triad_sass.py's digest) and `cuobjdump -res-usage`'s registers, stack, shared and
 local memory. Identical when both objects hold the same functions with the same digests and
 resources. Exit 1 if an object or a function differs or is missing.
+
+A base built from a `git archive` copy (no .git: its commit cannot be read) names its commit with
+--base-commit: the tool checks that the build tree's source tree (CMAKE_HOME_DIRECTORY) holds
+exactly that commit's files under ARCHIVED (every archived file byte-identical, no other file
+under its directories) and records the commit and the check (exit 2 if it fails). The M11a review
+found the record's base commit null.
 """
 
 from __future__ import annotations
@@ -19,9 +26,12 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import io
 import json
 import re
+import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -53,6 +63,54 @@ OBJECTS = [
     f"{TRIAD}/cuda.cu.o",
     f"{TRIAD}/engine/counters.cu.o",
 ]
+
+
+# The paths of a base's git-archive copy that its build reads (the library's sources and build).
+ARCHIVED = ("cpp", "cmake", "CMakeLists.txt", "CMakePresets.json")
+
+
+def source_tree(build: Path) -> Path:
+    """The source tree of a CMake build tree (CMAKE_HOME_DIRECTORY of its cache)."""
+    for line in (build / "CMakeCache.txt").read_text().splitlines():
+        if line.startswith("CMAKE_HOME_DIRECTORY:"):
+            return Path(line.split("=", 1)[1])
+    raise SystemExit(f"{build}: no CMAKE_HOME_DIRECTORY in CMakeCache.txt")
+
+
+def check_archive(commit: str, tree: Path) -> dict:
+    """Whether `tree` holds exactly `commit`'s files under ARCHIVED (the copy git archive gives)."""
+    sha = subprocess.run(
+        ["git", "-C", str(REPO), "rev-parse", "--verify", f"{commit}^{{commit}}"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()  # fmt: skip
+    data = subprocess.run(
+        ["git", "-C", str(REPO), "archive", "--format=tar", sha, *ARCHIVED],
+        capture_output=True, check=True,
+    ).stdout  # fmt: skip
+    want: dict[str, bytes] = {}
+    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+        for m in tar.getmembers():
+            if m.isfile():
+                want[m.name] = tar.extractfile(m).read()
+    differ = sorted(
+        n for n, b in want.items() if not (tree / n).is_file() or (tree / n).read_bytes() != b
+    )
+    have = {
+        str(f.relative_to(tree))
+        for d in ARCHIVED
+        if (tree / d).is_dir()
+        for f in (tree / d).rglob("*")
+        if f.is_file()
+    }
+    extra = sorted(have - set(want))
+    return {
+        "commit": sha,
+        "paths": list(ARCHIVED),
+        "files": len(want),
+        "identical": not differ and not extra,
+        "differ": differ[:20],
+        "extra": extra[:20],
+    }
 
 
 # An anonymous namespace's mangled name carries a hash of the translation unit's path
@@ -105,8 +163,22 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--base", type=Path, required=True, help="the merge base's build tree")
     p.add_argument("--head", type=Path, required=True, help="the final library's build tree")
+    p.add_argument(
+        "--base-commit",
+        help="the commit the base's source tree was archived from (checked against it)",
+    )
     p.add_argument("--json", type=Path)
     args = p.parse_args(argv)
+    archive = None
+    if args.base_commit:
+        archive = check_archive(args.base_commit, source_tree(args.base))
+        print(
+            f"base source tree {'holds' if archive['identical'] else 'DOES NOT hold'} "
+            f"{archive['commit']} ({archive['files']} files)"
+        )
+        if not archive["identical"]:
+            print(f"  differ {archive['differ']} extra {archive['extra']}")
+            return 2
     objects = compare(args.base, args.head)
     for rel, o in objects.items():
         why = "" if o["identical"] else f" {o.get('differ') or o.get('missing')}"
@@ -127,6 +199,9 @@ def main(argv: list[str] | None = None) -> int:
             "objects": objects,
             "identical": ok,
         }
+        if archive is not None:
+            doc["provenance"]["base"]["commit"] = archive["commit"]
+            doc["provenance"]["base"]["archive_check"] = archive
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(doc, indent=1) + "\n")
     print("identical" if ok else "DIFFERS")
