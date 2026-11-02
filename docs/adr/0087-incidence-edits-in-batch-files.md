@@ -38,7 +38,11 @@ sessions must convert to them, and no 0.3 file may change.
    vertices in range). `known_graph` (no flags) and `known_hypergraph` are new constants and
    `known` is their union (an api-change line); `header_problem` checks the flags per kind. Bit 4
    (`vertex_records`, graph files) and weight code 3 (float32, graph files) are reserved in the
-   page and rejected.
+   page and rejected. The page states the rule both milestones rely on once, in general: an
+   additive flag, weight code or operation that version 1 reserved and that every earlier reader
+   refuses loudly (`io_error`) is not a silent change of version 1; bit 4 and code 3 are
+   reserved for label_propagation in 0.4 (M10b declares them; the M11a review corrected "a later
+   release" in the page and in `batch_file_flags::known_graph`'s comment, documentation only).
 3. **Flags fixed at open.** The whole-file writer sets `incidence_edits` only when a batch has an
    edit, so a file of batches without edits is the file 0.3 wrote, byte for byte
    (`BinaryBatches.TheFilesOf03AreWrittenByteForByteAsBefore` rewrites the 0.3 seeds, which

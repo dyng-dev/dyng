@@ -107,8 +107,8 @@ class hypergraph {
    *         false (slack_csr keeps v2h).
    * @throws not_supported_error    for line_graph_policy::slack_csr under escher storage or
    *         line_graph_policy::sorted_merge under slack_csr storage (each message names the
-   *         alternative), slack_csr storage on the cuda backend (0.4.0.dev0: not yet), a
-   *         grow_factor other than 1.5 or 0, or the cuda backend in a build without CUDA.
+   *         alternative), a grow_factor other than 1.5 or 0, or the cuda backend in a build
+   *         without CUDA.
    * @throws capacity_error         if the storage (the line graph of sorted_merge included)
    *         exceeds the policy's max_payload (by default the int32 offsets of the store).
    * @throws out_of_memory_error    if host or device memory cannot be allocated.

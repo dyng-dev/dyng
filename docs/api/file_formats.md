@@ -16,11 +16,17 @@ From 0.3.0, `.hg`, `.dgb` (`DYNGBAT1`, format version 1) and the triad bins (`"d
 version 1) are **stable-tier formats** (the author's decision of 2026-10-22, GOVERNANCE.md;
 `.dgt` since 0.1.0): a later release reads every file of version 1 as this page describes it, and
 a change of a format's rules is a new format version with a CHANGELOG entry, never a silent
-change of version 1. 0.4 adds to version 1 only what 0.3 reserved or refused (the author's
-decision HD10 of 2026-10-28): the `.dgt` incidence operations `+i` / `-i` and the `.dgb` flag
-`incidence_edits`. Every file 0.3 reads reads the same, the writers write every batch without
-incidence edits byte for byte as 0.3 did, and a reader of 0.3 refuses a file with the new parts
-with an `io_error` (an operation reserved for 0.4; an unknown flag).
+change of version 1. **The rule for additions** (the author's decisions HD10 and AD13 of
+2026-10-28): an additive flag, weight code or operation that version 1 reserved, and that every
+earlier reader refuses loudly (with an `io_error`), is not a silent change of version 1, so it
+keeps the version; anything an earlier reader would read differently without refusing it is a
+new version. Under that rule 0.4 adds to version 1 only what 0.3 reserved or refused: for
+hypergraph files (M11) the `.dgt` incidence operations `+i` / `-i` and the `.dgb` flag
+`incidence_edits` (bit 3); for graph files (label_propagation, also 0.4) the `.dgb` flag bit 4
+`vertex_records` and the weight code 3 (float32), which this page reserves for it.
+Every file 0.3 reads reads the same, the writers write every batch without the new parts byte
+for byte as 0.3 did, and a reader of 0.3 refuses a file with the new parts with an `io_error` (an
+operation reserved for 0.4; an unknown flag or weight code).
 
 ## MOSP text CSR (`read_csr_triplet` / `write_csr_triplet`)
 
@@ -131,7 +137,7 @@ little-endian.
 | 12 | 4 | header size in bytes (u32): 64 |
 | 16 | 1 | container kind: 0 graph, 1 hypergraph |
 | 17 | 1 | vertex id type: 1 int32, 2 int64 |
-| 18 | 1 | weight type: 0 none, 1 int32, 2 int64 (3 is reserved for float32 weights of graph files, a later release; this release rejects it) |
+| 18 | 1 | weight type: 0 none, 1 int32, 2 int64 (3 is reserved for float32 weights of graph files, for label_propagation in 0.4; until it is declared a reader rejects it) |
 | 19 | 1 | hyperedge id type: 0 for graph files, 2 (int64) for hypergraph files |
 | 20 | 4 | K (u32): weights per insertion; 0 or 1 for hypergraph files (one weight per hyperedge); at most 64 |
 | 24 | 8 | flags (u64), below |
@@ -145,7 +151,8 @@ content), bit 1 `expected_ids` (every insertion carries the id the generating ru
 by key, checked against `inserted_ids`), bit 2 `insert_first` (those ids hold under
 `id_reuse::insert_first`; without it, `erase_first`), bit 3 `incidence_edits` (0.4: every record
 also carries the batch's incidence removals and additions, below). Bit 4 is reserved for
-`vertex_records` of graph files (the vertex operations of label_propagation, a later release).
+`vertex_records` of graph files (the vertex operations of label_propagation in 0.4; until it is
+declared a reader rejects it).
 A reader rejects a file with any other bit, and a graph file with any bit; a reader of 0.3
 rejects a file with `incidence_edits` (an unknown flag). The writers set the flags when the file
 is opened: the whole-file writers set `incidence_edits` only when a batch has an edit, so a file

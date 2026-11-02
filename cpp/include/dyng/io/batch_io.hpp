@@ -187,7 +187,8 @@ struct batch_file_flags {
   /// additions (a 0.3 reader rejects the file). The whole-file writers set it only when a batch
   /// has an edit.
   static constexpr std::uint64_t incidence_edits = 8U;
-  /// The flags this library knows in a graph file (none; bit 4 is reserved for a later release).
+  /// The flags this library knows in a graph file (none; bit 4 is reserved for vertex_records
+  /// of label_propagation in 0.4).
   static constexpr std::uint64_t known_graph = 0U;
   /// The flags this library knows in a hypergraph file: deleted_members | expected_ids |
   /// insert_first | incidence_edits (bits 0-3).

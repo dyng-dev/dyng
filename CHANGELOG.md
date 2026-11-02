@@ -59,8 +59,8 @@ Before 0.1.0 anything may change.
   with headroom, swap-remove deletions, appended insertions, relocations, a rebuild when the tail
   is full) kept from every batch's pair delta, computed inside the commit from the incidence
   changes, exact and independent of the order of the operations (ADR 0086). `h2h()` sorts each
-  row on request; `overlaps` is empty. The cuda backend refuses slack_csr storage until M11a step
-  3, the Python layer until M11b (`NotSupportedError`).
+  row on request; `overlaps` is empty. The Python layer refuses slack_csr storage until M11b
+  (`NotSupportedError`).
 - Added (api-change: documented behaviour of `apply()`): **incidence edits** on slack_csr storage
   (`hyperedge_batch::delete_incidence` / `insert_incidence`): applied after the batch's
   deletions and before its insertions, in MOSP_ESCHER's order, an edit that cannot apply skipped
@@ -80,6 +80,10 @@ Before 0.1.0 anything may change.
   for byte as before; `batch_writer::write` raises `invalid_argument_error` (was
   `not_supported_error`) for an edit in a file opened without the flag, and the text writers
   write edits instead of refusing them. A 0.3 reader refuses the new files (ADR 0087).
+  `docs/api/file_formats.md` states the rule for additions to version 1 (a reserved addition that
+  every earlier reader refuses with an `io_error` is not a silent change) and reserves bit 4 and
+  weight code 3 of graph files for label_propagation in 0.4 (documentation, also of
+  `batch_file_flags::known_graph`).
 - Internal: the id allocator models ESCHER's H2V fills and unfills (the tail occupancy), in
   lockstep with `testing::cbst_host_model` and MOSP_ESCHER's recorded trees (ADR 0085).
 - Conformance kit: the hypergraph axis gains the slack_csr presets and the incidence mixes, with
@@ -91,7 +95,9 @@ Before 0.1.0 anything may change.
   transplanted as is with `parity/escher_port/transplant.py` and a committed rename map, kept from
   every batch inside the commit; the host incidence model and the ids stay authoritative on the
   host, as in MOSP_ESCHER. `h2h()`, `h2v()`, `v2h()`, `check_integrity()`, `store_stats()`,
-  `clone()` and `to_backend()` across all three backends (ADR 0089).
+  `clone()` and `to_backend()` across all three backends (ADR 0089); `from_hyperedges()` no
+  longer documents a `not_supported_error` for slack_csr storage on the cuda backend
+  (documentation only).
 - Changed (internal, faster): the host side of a slack_csr batch runs one pass per list: Step 0
   groups the incidence edits by hyperedge and evaluates the groups in parallel, the commit groups
   the v2h changes by vertex once and merges the record's rows instead of reading them back, the
