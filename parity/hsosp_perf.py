@@ -168,20 +168,47 @@ class LoadSampler:
         }
 
 
-def audit_rule(quiet_max_load: float | None) -> dict:
-    """HD4's audit thresholds from B's quiet maximum of the 1-minute load average."""
-    if quiet_max_load is not None and quiet_max_load > QUIET_LIMIT:
+def audit_rule(quiet_max_load: float | None, source: str | None = None) -> dict:
+    """HD4's audit thresholds from B's quiet maximum of the 1-minute load average (`source`: the
+    record it was read from). Without one (a probe that takes no pre-read) ADR 0056's thresholds
+    apply, and the rule says so."""
+    if quiet_max_load is None:
+        return {
+            "load_average": AUDIT_LOAD,
+            "procs_blocked": AUDIT_BLOCKED,
+            "quiet_max": None,
+            "quiet_max_source": None,
+            "why": "no quiet maximum of B in this run (no pre-read): ADR 0056's thresholds",
+        }
+    if quiet_max_load > QUIET_LIMIT:
         return {
             "load_average": round(2 * quiet_max_load, 2),
             "procs_blocked": AUDIT_BLOCKED,
+            "quiet_max": quiet_max_load,
+            "quiet_max_source": source,
             "why": f"B's quiet maximum {quiet_max_load:.2f} exceeds {QUIET_LIMIT}: 2x it (HD4)",
         }
     return {
         "load_average": AUDIT_LOAD,
         "procs_blocked": AUDIT_BLOCKED,
-        "why": f"B's quiet maximum {quiet_max_load} is at most {QUIET_LIMIT}: ADR 0056's "
+        "quiet_max": quiet_max_load,
+        "quiet_max_source": source,
+        "why": f"B's quiet maximum {quiet_max_load:.2f} is at most {QUIET_LIMIT}: ADR 0056's "
         f"thresholds kept (HD4)",
     }
+
+
+# Step 1's quiet pre-read (B's quiet maxima, HD4): `run` reads its audit thresholds from it.
+PREREAD = REPO / "parity" / "results" / "M11a-hsosp-preread.json"
+
+
+def quiet_max_of(path: Path = PREREAD) -> tuple[float, str]:
+    """B's quiet maximum of the load average from the pre-read record, and its portable path."""
+    doc = json.loads(path.read_text())
+    value = doc.get("quiet_maxima", {}).get("load_average")
+    if value is None:
+        raise SystemExit(f"{path}: no quiet_maxima.load_average")
+    return float(value), hg.portable(path)
 
 
 def probe_holds(rounds: list[dict]) -> bool:
@@ -766,7 +793,7 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
             "regions": bench_regions(rows),
             "monitor": perf_ab.monitor_summary(windows, rejected, args.max_foreign_cpu),
             "loads": loads,
-            "audit": audit(loads, audit_rule(args.quiet_max)),
+            "audit": audit(loads, audit_rule(args.quiet_max, getattr(args, "quiet_source", None))),
             "guard": {"rounds_checked": guarded, "passed": True},
             "original_csv": [
                 [{k: r[k] for k in perf_ab.HSOSP_CSV_TIMES} for r in x] for x in b_rounds
@@ -783,7 +810,7 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
         "rows": maintain_rows(b_rounds, p_rounds, len(golden)),
         "monitor": perf_ab.monitor_summary(windows, rejected, args.max_foreign_cpu),
         "loads": loads,
-        "audit": audit(loads, audit_rule(args.quiet_max)),
+        "audit": audit(loads, audit_rule(args.quiet_max, getattr(args, "quiet_source", None))),
         "guard": {"rounds_checked": guarded, "passed": True},
         "original_csv": [
             [{k: r[k] for k in ("t_delta_ms", "t_csr_apply_ms")} for r in x] for x in b_rounds
@@ -793,6 +820,10 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
 
 
 def run(args: argparse.Namespace) -> int:
+    if args.quiet_max is None:
+        args.quiet_max, args.quiet_source = quiet_max_of()
+    else:
+        args.quiet_source = "--quiet-max"
     exe = args.exe.resolve()
     b_exe = hg.reference_dir(args.scratch, "unpatched") / "bin" / "hsospBench"
     env = env_for(args.gpu)

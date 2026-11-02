@@ -34,6 +34,18 @@ def test_the_audit_keeps_adr_0056s_thresholds_on_a_quiet_b() -> None:
         assert (rule["load_average"], rule["procs_blocked"]) == (16.0, 4)
 
 
+def test_the_audit_names_where_its_quiet_maximum_comes_from() -> None:
+    """A missing quiet maximum is said so (never 'None is at most 8'); run reads it from step 1's
+    pre-read record by default (M11a review: a hard-coded 7.03 named a file that did not exist)."""
+    assert "no quiet maximum" in perf.audit_rule(None)["why"]
+    assert "None" not in perf.audit_rule(None)["why"]
+    value, source = perf.quiet_max_of()
+    assert 0 < value <= 8.0 and source.endswith("M11a-hsosp-preread.json")
+    rule = perf.audit_rule(value, source)
+    assert rule["quiet_max"] == value and rule["quiet_max_source"] == source
+    assert (rule["load_average"], rule["procs_blocked"]) == (16.0, 4)
+
+
 def test_the_audit_doubles_bs_quiet_maximum_above_8() -> None:
     rule = perf.audit_rule(9.25)
     assert rule["load_average"] == 18.5
