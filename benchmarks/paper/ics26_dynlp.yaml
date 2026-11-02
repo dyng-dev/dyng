@@ -225,11 +225,13 @@ readings:      # one window per case; the lock is the baseline's recorded 3-roun
     release_gate:
       state: gated
       reason: >-
-        AD4's feasibility statement, from the pre-port baseline's 50m probe at base (one damped
-        round of the original 98 s of wall time, 0 of 6 rounds rejected;
-        parity/results/M10-baseline-2026-10-29.json): 5 A/B rounds take well under 2 h and none
-        was rejected (the limits: 2 h, 30 %), so the reading is gated at R040; M10a step 5's 3
-        rounds of the port against the original state the final basis (parity/results/M10a.md)
+        AD4's feasibility statement, judged from M10a step 5's 3 damped A/B rounds of 50m at base
+        on the final M10a library (--noGraphFiles on both sides; parity/results/M10a-gates-final.json,
+        parity/results/M10a.md section 12): the 3 rounds took 10 min 50 s in one exclusive window
+        (the original about 102 s, the port about 109 s of wall time per round) and 0 of 3 rounds
+        were rejected, so 5 rounds take about 18 min, under 2 h, with no rejected round (the
+        limits: 2 h, 30 %); the pre-port baseline's probe agrees (98 s per round of the original,
+        0 of 6 rejected; parity/results/M10-baseline-2026-10-29.json). The reading is gated at R040
 paper_reference:   # informational: LabelPropagation-CUDA results/README.md (3ecb438, "new", RTX A5000)
   hardware: RTX A5000 (sm_86), 56 host threads (shared, load average 40-60), CUDA 13.1, driver 590.48
   schedule: in_place (the default update rule of 3ecb438)
