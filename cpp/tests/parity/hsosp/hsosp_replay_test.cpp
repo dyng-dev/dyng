@@ -175,4 +175,28 @@ TEST(HsospReplay, APlantedPairPairCountRowOrWeightIsCaught) {
   }
 }
 
+// An apply_batch whose begin_batch records are lost (a dump that lost them, or a reordered one):
+// the session stops as a mismatch, never a silent skip (M11a review).
+TEST(HsospReplay, AnApplyBatchWithoutItsBeginBatchIsCaught) {
+  const auto recs = load();
+  std::vector<hd::record> cut;
+  std::size_t removed = 0;
+  std::size_t seen = 0;
+  for (const auto& r : recs) {
+    // The second batch's begin_batch enter and exit.
+    if (r.tag == "begin_batch") {
+      const std::size_t k = seen++;
+      if (k == 2 || k == 3) {
+        ++removed;
+        continue;
+      }
+    }
+    cut.push_back(r);
+  }
+  ASSERT_EQ(removed, 2U);
+  const auto rep = replay(cut);
+  EXPECT_FALSE(rep.ok());
+  EXPECT_GT(rep.stopped_sessions, 0);
+}
+
 }  // namespace

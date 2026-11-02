@@ -155,6 +155,15 @@ TEST(HsospResults, AReorderedOrDroppedBatchIsCaught) {
   dropped.insert(dropped.end(), first.begin() + ops_end(first), first.end());
   dropped.insert(dropped.end(), recs.begin() + static_cast<std::ptrdiff_t>(a1), recs.end());
   expect_caught(dropped, "a dropped batch");
+
+  // A batch whose begin_batch records are lost and whose apply_batch is kept: never skipped
+  // silently (M11a review), in every mode.
+  std::vector<hd::record> unpaired;
+  for (std::size_t i = 0; i < recs.size(); ++i)
+    if (!((i == b0 || i == b0 + 1) && recs[i].tag == "begin_batch")) unpaired.push_back(recs[i]);
+  ASSERT_EQ(unpaired.size() + 2, recs.size());
+  expect_caught(unpaired, "an apply_batch without its begin_batch");
+  expect_caught(unpaired, "an apply_batch without its begin_batch (by_key)", hr::mode::by_key);
 }
 
 }  // namespace
