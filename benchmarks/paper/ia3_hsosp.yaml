@@ -188,7 +188,9 @@ readings:      # what one execution of the suite runs; configurations <dblp|geol
   - name: cuda-geology
     kind: run
     backend: cuda
-    clocks: boost    # probe-geology (M11a step 5): the boost lock held in all 3 rounds (ADR 0021)
+    clocks: base     # probe-geology (M11a step 5) held boost for 3 rounds, but the 21-round reading at
+                     # boost lost it in 23 of 44 attempts of geology_hyperedge_200000 (1650-1680 MHz),
+                     # as DBLP did: one rule for both datasets (M11a review), ADR 0021, base
     probe: probe-geology
     runs: 21
     gated: true
