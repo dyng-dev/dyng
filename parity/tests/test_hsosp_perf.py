@@ -101,14 +101,37 @@ GOLDEN_CASE = {
 }
 
 
-def _port_out(golden: list[dict], sha_of: dict | None = None) -> str:
-    sha_of = sha_of or {}
-    return "\n".join(
-        f"[batch {k}] pairs {sha_of.get(k, g['pairs_sha256'])} deleted {g['pairs_deleted']} "
-        f"inserted {g['pairs_inserted']} h2h_pairs {g['h2h_pairs']} "
-        f"csr_rebuilds {g['overflow_rebuilds']}"
-        for k, g in enumerate(golden, 1)
-    )
+def _port_out(
+    golden: list[dict],
+    sha_of: dict | None = None,
+    full: bool = False,
+    plant: dict | None = None,
+) -> str:
+    """The port's batch lines; `full` adds the result group of a full reading (the golden's
+    digests, fallback 0, mismatch_static 0), `plant` = {batch: {field: value}} plants a value of
+    it (None drops the whole group of that batch)."""
+    sha_of, plant = sha_of or {}, plant or {}
+    lines = []
+    for k, g in enumerate(golden, 1):
+        line = (
+            f"[batch {k}] pairs {sha_of.get(k, g['pairs_sha256'])} deleted {g['pairs_deleted']} "
+            f"inserted {g['pairs_inserted']} h2h_pairs {g['h2h_pairs']} "
+            f"csr_rebuilds {g['overflow_rebuilds']}"
+        )
+        if full and plant.get(k, {}) is not None:
+            r = {
+                "distances": g.get("distances_sha256") or "a" * 64,
+                "parents": g.get("parents_sha256") or "b" * 64,
+                "fallback": 0,
+                "mismatch_static": 0,
+                **plant.get(k, {}),
+            }
+            line += (
+                f" distances {r['distances']} parents {r['parents']} fallback {r['fallback']} "
+                f"mismatch_static {r['mismatch_static']}"
+            )
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _b_rows(golden: list[dict]) -> list[dict]:
@@ -133,15 +156,38 @@ def test_the_golden_batches_count_the_rebuilds_so_far() -> None:
 def test_the_guards_pass_on_the_goldens_values() -> None:
     golden = perf.golden_batches(GOLDEN_CASE)
     assert perf.guard_original(_b_rows(golden), golden) == []
-    assert perf.guard_port(_port_out(golden), golden) == []
+    assert perf.guard_port(_port_out(golden), golden, maintain_only=True) == []
+    full = [dict(g, distances_sha256="a" * 64, parents_sha256="b" * 64) for g in golden]
+    assert perf.guard_port(_port_out(full, full=True), full, maintain_only=False) == []
+
+
+def test_a_full_readings_guard_needs_and_checks_the_result_of_every_batch() -> None:
+    """In a full reading a wrong distances or parents digest, a nonzero mismatch_static and a
+    batch line without the result group each fail the guard (M11a review: the group was
+    optional and a line without it skipped the digest checks and HD7's decision check)."""
+    golden = [
+        dict(g, distances_sha256="a" * 64, parents_sha256="b" * 64)
+        for g in perf.golden_batches(GOLDEN_CASE)
+    ]
+    for plant in (
+        {2: {"distances": "c" * 64}},
+        {1: {"parents": "c" * 64}},
+        {3: {"mismatch_static": 2}},
+        {2: None},
+    ):
+        out = _port_out(golden, full=True, plant=plant)
+        assert perf.guard_port(out, golden, maintain_only=False), plant
+    # The maintain-only reading has no result group, and needs none.
+    assert perf.guard_port(_port_out(golden), golden, maintain_only=True) == []
+    assert perf.guard_port(_port_out(golden), golden, maintain_only=False)
 
 
 def test_a_planted_failing_guard_is_caught() -> None:
     """Every guard can fail: a wrong pairs digest of the port, a wrong pair count or rebuild
     count of B, a nonzero mismatch_static, a missing batch."""
     golden = perf.golden_batches(GOLDEN_CASE)
-    assert perf.guard_port(_port_out(golden, {2: "f" * 64}), golden)
-    assert perf.guard_port(_port_out(golden[:2]), golden)
+    assert perf.guard_port(_port_out(golden, {2: "f" * 64}), golden, maintain_only=True)
+    assert perf.guard_port(_port_out(golden[:2]), golden, maintain_only=True)
     rows = _b_rows(golden)
     rows[0]["h2h_pairs"] = "99"
     assert perf.guard_original(rows, golden)

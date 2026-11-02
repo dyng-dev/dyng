@@ -465,9 +465,11 @@ def parse_port_batches(out: str) -> list[dict]:
     return rows
 
 
-def guard_port(out: str, golden: list[dict]) -> list[str]:
+def guard_port(out: str, golden: list[dict], maintain_only: bool) -> list[str]:
     """The port's round: its pairs (by digest), pair count and CSR rebuilds of every batch are the
-    golden's."""
+    golden's; in a full reading (not --maintain-only) every batch line must also carry the result's
+    distances and parents digests, its fallback decision and mismatch_static, and the digests must
+    be the golden's (a line without them fails the guard, never skips it)."""
     rows = parse_port_batches(out)
     if len(rows) != len(golden):
         return [f"port: {len(rows)} batch lines, the golden has {len(golden)} batches"]
@@ -483,6 +485,15 @@ def guard_port(out: str, golden: list[dict]) -> list[str]:
             if r[key] != want:
                 problems.append(f"port b{k}: {key} {r[key]} != the golden's {want}")
         # The full update (not --maintain-only): its result's digests and update == static.
+        if not maintain_only:
+            missing = [
+                key
+                for key in ("distances_sha256", "parents_sha256", "fallback", "mismatch_static")
+                if r.get(key) is None
+            ]
+            if missing:
+                problems.append(f"port b{k}: no {', '.join(missing)} in a full reading")
+                continue
         if r.get("distances_sha256") is not None:
             for key in ("distances_sha256", "parents_sha256"):
                 if r[key] != g.get(key):
@@ -692,7 +703,7 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
             out_p, win_p = monitor.run(p_cmd, env)
             t1 = time.time()
             timing = hypergraph_perf.stage_times(work / TIMING_NAME)
-            bad = guard_original(rows, golden) + guard_port(out_p, golden)
+            bad = guard_original(rows, golden) + guard_port(out_p, golden, args.maintain_only)
             if bad:
                 raise SystemExit(f"{name}: round {r + 1}: the guard failed: {bad}")
             guarded += 1
@@ -1240,7 +1251,7 @@ def memory_config(args, name, dataset, kind, size, exe, b_exe, env, work) -> dic
     pb = subprocess.run(p_cmd, env=env, capture_output=True, text=True)
     if pb.returncode:
         raise SystemExit(f"{name}: the port exited {pb.returncode}:\n{pb.stderr[-1500:]}")
-    bad = guard_original(b_rows, golden) + guard_port(pb.stdout, golden)
+    bad = guard_original(b_rows, golden) + guard_port(pb.stdout, golden, maintain_only=False)
     if bad:
         raise SystemExit(f"{name}: the plain runs' guard failed: {bad}")
     guarded += 2
@@ -1263,7 +1274,9 @@ def memory_config(args, name, dataset, kind, size, exe, b_exe, env, work) -> dic
     b_nsys = hypergraph_perf.memory_by_range(
         [*p_cmd, "--nvtx"], env, work / "b", PORT_BATCH_RANGE, capture=True
     )
-    bad = guard_original(b_rows2, golden) + guard_port(b_nsys.pop("stdout"), golden)
+    bad = guard_original(b_rows2, golden) + guard_port(
+        b_nsys.pop("stdout"), golden, maintain_only=False
+    )
     if bad:
         raise SystemExit(f"{name}: the profiled runs' guard failed: {bad}")
     guarded += 2
