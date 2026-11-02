@@ -3133,11 +3133,15 @@ def test_gpu_local_steps_of_04_hold_the_slack_csr_steps(cert) -> None:
     assert set(m11) <= set(steps)
     assert set(cert.GPU_LOCAL_STEPS[(0, 3)]) <= set(steps)
     assert not set(m11) & set(cert.gpu_local_steps("0.3.0"))
-    assert list(cert.GPU_LOCAL_STEPS).count((0, 4)) == 1
     script = (REPO / "ci" / "gpu_local.sh").read_text()
     for step in m11:
         assert f'record "{step}" passed' in script, step
     source = (REPO / "parity" / "certify.py").read_text()
+    # Exactly one (0, 4) key in the source of the GPU_LOCAL_STEPS literal: a dict keeps only the
+    # last of two equal keys, so the loaded dict cannot show a second one (M11a review).
+    table = source[source.index("GPU_LOCAL_STEPS = {") :]
+    table = table[: table.index("\n}\n")]
+    assert table.count("    (0, 4): [") == 1
     start = source.index("    (0, 4): [")
     block = source[start : source.index("    ],", start)]
     assert block.index("# M11 slack_csr / hyper_sssp") < block.index(m11[0])
