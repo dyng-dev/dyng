@@ -101,7 +101,8 @@ enum class hyperedge_batch_mix : std::uint8_t {
   incidence_repeats,     ///< the same removal twice and the same addition twice on live
                          ///< hyperedges (each second one skipped), and an addition of a member
   incidence_out_of_range,  ///< edits of vertex -1 and n on a live hyperedge, of ids -1, the bound
-                           ///< and INT64_MAX (all skipped), and one valid addition
+                           ///< and INT64_MAX and of a dead id below the bound (all skipped), and
+                           ///< one valid addition
 };
 
 /**

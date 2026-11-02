@@ -326,7 +326,7 @@ TEST_F(HyperedgeBatches, IncidenceMixesDoWhatTheySayOnSlackCsr) {
       0x2dc46143c7d7f703ULL,  // incidence_emptying
       0x311acab757dd12bcULL,  // incidence_same_batch
       0x73a6934fb977ecf9ULL,  // incidence_repeats
-      0xb57957875a0b69d9ULL,  // incidence_out_of_range
+      0xc83269c035a1c8a9ULL,  // incidence_out_of_range
   };
   const auto mixes = incidence_mixes();
   for (std::size_t i = 0; i < mixes.size(); ++i) {
@@ -378,7 +378,7 @@ TEST_F(HyperedgeBatches, IncidenceMixesDoWhatTheySayOnSlackCsr) {
         EXPECT_EQ(skipped, 3);
         break;
       case m::incidence_out_of_range:
-        EXPECT_EQ(skipped, 6);
+        EXPECT_EQ(skipped, 8);  // with the two edits of the dead id 0
         EXPECT_EQ(s.inserted_incidences, 1);
         break;
       default:

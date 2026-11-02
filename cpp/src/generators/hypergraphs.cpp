@@ -478,6 +478,14 @@ hyperedge_batch<vertex_t, weight_t> random_hyperedge_batch(vertex_t num_vertices
       out.delete_incidence(bound, 0);
       out.insert_incidence(std::numeric_limits<std::int64_t>::max(), 0);
       for (const std::int64_t id : take(1)) add_one(id);
+      for (std::int64_t id = 0; id < bound; ++id) {  // a dead id below the bound
+        if (h2v.row_ptr[static_cast<std::size_t>(id) + 1] ==
+            h2v.row_ptr[static_cast<std::size_t>(id)]) {
+          out.insert_incidence(id, 0);
+          out.delete_incidence(id, 0);
+          break;
+        }
+      }
       break;
     }
   }
