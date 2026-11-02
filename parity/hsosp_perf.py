@@ -1778,8 +1778,9 @@ def main(argv: list[str] | None = None) -> int:
     ru.add_argument(
         "--quiet-max",
         type=float,
-        default=7.03,
-        help="B's quiet maximum load average of step 1's pre-read (M11a-quiet-pre-read.json)",
+        default=None,
+        help="B's quiet maximum load average (default: read from step 1's pre-read, "
+        "parity/results/M11a-hsosp-preread.json)",
     )
     ru.add_argument(
         "--dry-run",
