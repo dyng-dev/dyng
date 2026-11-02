@@ -958,13 +958,52 @@ SASS_KERNELS = {
 }
 
 
-def sass_side(obj: Path, index: int) -> dict[str, dict]:
+# The slack_csr store's kernels transplanted from B's device graph (parity/escher_port/
+# rename_map_hsosp.toml, ADR 0089; dynG's slack_csr_store.cu, slack_csr_h2h.cu and
+# incidence_delta.cu) and B's of the same code (hsospDevice.cu, hsospDelta.cu): label -> (the
+# port's pattern, B's). The M11a review found the store missing from the record of criterion 18.
+STORE_SASS_KERNELS = {
+    "set_index": (r"\d+set_index_kernel", r"\d+setIndexKernel"),
+    "reset_index": (r"\d+reset_index_kernel", r"\d+resetIndexKernel"),
+    "scatter_int": (r"\d+scatter_int_kernel", r"\d+scatterIntKernel"),
+    "count_candidates": (r"\d+count_candidates_kernel", r"\d+countCandidatesKernel"),
+    "totals": (r"\d+totals_kernel", r"\d+totalsKernel"),
+    "emit_candidates": (r"\d+emit_candidates_kernel", r"\d+emitCandidatesKernel"),
+    "relocate_rows": (r"\d+relocate_rows_kernel", r"\d+relocateRowsKernel"),
+    "apply_vertex_rows": (r"\d+apply_vertex_rows_kernel", r"\d+applyVertexRowsKernel"),
+    "classify_pairs": (r"\d+classify_pairs_kernel", r"\d+classifyPairsKernel"),
+    "keys_to_pairs": (r"\d+keys_to_pairs_kernel", r"\d+keysToPairsKernel"),
+    "write_he_rows": (r"\d+write_he_rows_kernel", r"\d+writeHeRowsKernel"),
+    "expand_delta_keys": (r"\d+expand_delta_keys_kernel", r"\d+expandDeltaKeysKernel"),
+    "apply_rows_warp": (r"\d+apply_rows_warp_kernel", r"\d+applyRowsWarp"),
+    "scatter_weights": (r"\d+scatter_weights_kernel", r"\d+scatterWeightsKernel"),
+}
+STORE_OBJECTS = tuple(
+    REPO / "build/parity-cuda/cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph" / rel
+    for rel in (
+        "slack_csr/slack_csr_store.cu.o",
+        "line_graph/slack_csr_h2h.cu.o",
+        "line_graph/incidence_delta.cu.o",
+    )
+)
+STORE_ORIGINALS = ("hsospDevice.cu.o", "hsospDelta.cu.o")
+
+
+def sass_side(
+    obj: Path | list[Path], index: int, kernels: dict | None = None
+) -> dict[str, dict]:
+    """The paired kernels of one side, from one object or several (the first match wins)."""
     import triad_sass  # noqa: PLC0415
 
-    res = triad_sass.resource_usage(obj)
-    code = triad_sass.sass(obj)
+    kernels = SASS_KERNELS if kernels is None else kernels
+    objs = obj if isinstance(obj, list) else [obj]
+    res: dict = {}
+    code: dict = {}
+    for o in objs:
+        res.update(triad_sass.resource_usage(o))
+        code.update(triad_sass.sass(o))
     out: dict[str, dict] = {}
-    for label, patterns in SASS_KERNELS.items():
+    for label, patterns in kernels.items():
         pattern = patterns[index]
         if pattern is None:
             continue
@@ -977,13 +1016,35 @@ def sass_side(obj: Path, index: int) -> dict[str, dict]:
     return out
 
 
+def unpaired_kernels(objs: list[Path], kernels: dict, index: int) -> list[str]:
+    """The kernels of `objs` that no label of `kernels` pairs (CUB's library kernels left out:
+    both sides use CUB's sort and scan, which are not transplanted code)."""
+    import triad_sass  # noqa: PLC0415
+
+    names = []
+    for o in objs:
+        names += list(triad_sass.sass(o))
+    patterns = [p[index] for p in kernels.values() if p[index] is not None]
+    return sorted(
+        n
+        for n in names
+        if "cub" not in n.lower() and not any(re.search(p, n) for p in patterns)
+    )
+
+
 def sass_main(args: argparse.Namespace) -> int:
     import triad_sass  # noqa: PLC0415
 
-    port = sass_side(args.object, 0)
-    orig = sass_side(args.original, 1)
+    if args.store:
+        objects = list(args.objects or STORE_OBJECTS)
+        originals = [args.original.parent / n for n in STORE_ORIGINALS]
+        kernels = STORE_SASS_KERNELS
+    else:
+        objects, originals, kernels = [args.object], [args.original], SASS_KERNELS
+    port = sass_side(objects, 0, kernels)
+    orig = sass_side(originals, 1, kernels)
     rows = []
-    for label in SASS_KERNELS:
+    for label in kernels:
         a, b = port.get(label), orig.get(label)
         row = {"kernel": label, "port": a, "original": b}
         if a and b:
@@ -996,10 +1057,24 @@ def sass_main(args: argparse.Namespace) -> int:
             f"{label:24} REG {ra.get('REG', '-'):>3} / {rb.get('REG', '-'):>3}  instructions "
             f"{a['instructions'] if a else '-':>5} / {b['instructions'] if b else '-':>5}"
         )
-    prov = triad_sass.provenance([args.object, args.original], False)
-    prov["what"] = "hyper_sssp's CUDA engine (port) and MOSP_ESCHER@4b86159's hsospDevice.cu.o"
-    doc = {"record": "hyper_sssp's kernels against B's (as-is port)", "provenance": prov,
-           "kernels": rows}  # fmt: skip
+    prov = triad_sass.provenance([*objects, *originals], False)
+    if args.store:
+        prov["what"] = (
+            "the slack_csr store's CUDA kernels (port: slack_csr_store.cu, slack_csr_h2h.cu, "
+            "incidence_delta.cu) and MOSP_ESCHER@4b86159's hsospDevice.cu.o and hsospDelta.cu.o"
+        )
+        record = "the slack_csr store's kernels against B's (as-is transplant, ADR 0089)"
+    else:
+        prov["what"] = "hyper_sssp's CUDA engine (port) and MOSP_ESCHER@4b86159's hsospDevice.cu.o"
+        record = "hyper_sssp's kernels against B's (as-is port)"
+    unpaired = {
+        "port": unpaired_kernels(objects, kernels, 0),
+        "original": unpaired_kernels(originals, kernels, 1),
+    }
+    for side, names in unpaired.items():
+        for n in names:
+            print(f"unpaired ({side}): {n}")
+    doc = {"record": record, "provenance": prov, "kernels": rows, "unpaired": unpaired}
     if args.json:
         args.json.write_text(json.dumps(doc, indent=1) + "\n")
     return 0
