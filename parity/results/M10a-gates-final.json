@@ -5183,13 +5183,13 @@
   },
   "in_place-5m1-5m1": {
    "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-in_place-5m1-5m1.json",
-   "sha256": "372507b86a786cd455b3662d09994efdd40fb901a6647e3e8ffc9147f763aa4d",
+   "sha256": "d4ee255aa42f3a9e68e430e6c1fe952eceb8ae6b7aefc49d78d920503046eb59",
    "command": "run",
-   "date": "2026-11-02T19:14:10Z",
-   "date_end": "2026-11-02T19:16:29Z",
+   "date": "2026-11-02T21:03:25Z",
+   "date_end": "2026-11-02T21:05:57Z",
    "port": {
     "binary": "$DYNG_SCRATCH/m10-builds/head-parity-cuda/tools/compat/dyng-compat-dynlp",
-    "commit": "83d46d5ecd2354682b4c17fb64b63a8283b63291+dirty",
+    "commit": "2ed13dcf2e6c490ebe89a6741b196bb69898694c",
     "build": {
      "CMAKE_BUILD_TYPE": "Release",
      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
@@ -5237,112 +5237,118 @@
      "complete": true,
      "rejected_rounds": [
       {
-       "before_round": 3,
+       "before_round": 2,
        "reasons": [
-        "port: foreign CPU load 2.04 cores > 2.0"
+        "foreign CPU load 2.94 cores > 2.0"
+       ]
+      },
+      {
+       "before_round": 2,
+       "reasons": [
+        "port: foreign CPU load 2.42 cores > 2.0"
        ]
       }
      ],
      "audit": {
-      "load_average_max": 4.9189453125,
+      "load_average_max": 7.54248046875,
       "procs_blocked_max": 0,
       "flagged_rounds": [],
       "flagged": false
      },
      "guard": {
-      "rounds_checked": 12,
+      "rounds_checked": 13,
       "passed": true
      },
      "regions": {
       "update[b0]": {
-       "original_median_ms": 2.543,
-       "port_median_ms": 2.441,
-       "ratio": 0.9598898938261894
+       "original_median_ms": 2.562,
+       "port_median_ms": 2.461,
+       "ratio": 0.9605776736924277
       },
       "update[b1]": {
-       "original_median_ms": 613.571,
-       "port_median_ms": 638.131,
-       "ratio": 1.040027967423493
+       "original_median_ms": 613.736,
+       "port_median_ms": 636.813,
+       "ratio": 1.0376008576977724
       },
       "update[sum]": {
-       "original_median_ms": 616.1360000000001,
-       "port_median_ms": 640.558,
-       "ratio": 1.0396373527922405,
+       "original_median_ms": 616.298,
+       "port_median_ms": 639.278,
+       "ratio": 1.0372871565379087,
        "bar": 1.05,
        "gated": false,
        "within": true,
        "original_samples": [
-        617.168,
-        616.3280000000001,
-        613.727,
-        616.351,
-        612.238,
-        617.014,
-        614.936,
-        616.1360000000001,
-        614.947,
-        618.077,
-        613.632
+        632.04,
+        617.024,
+        612.93,
+        612.649,
+        618.527,
+        616.189,
+        616.298,
+        618.7,
+        612.504,
+        619.6999999999999,
+        613.266
        ],
        "port_samples": [
-        639.398,
-        640.198,
-        663.315,
-        640.399,
-        640.558,
-        644.976,
-        641.985,
-        639.598,
-        641.2819999999999,
-        658.74,
-        639.0719999999999
+        644.285,
+        655.038,
+        659.59,
+        637.5160000000001,
+        637.084,
+        639.278,
+        656.7950000000001,
+        638.422,
+        639.735,
+        636.151,
+        638.2330000000001
        ]
       },
       "eval": {
-       "original_median_ms": 18.667,
-       "port_median_ms": 51.961999999999996,
-       "ratio": 2.7836288637702893
+       "original_median_ms": 20.767,
+       "port_median_ms": 52.908,
+       "ratio": 2.5476958636297975
       },
       "end_to_end": {
-       "original_median_ms": 5231.402397155762,
-       "port_median_ms": 5403.067111968994,
-       "ratio": 1.032814282248019,
+       "original_median_ms": 5218.010425567627,
+       "port_median_ms": 5425.247669219971,
+       "ratio": 1.0397157588334638,
        "bar": 1.1,
        "gated": false,
        "within": true,
        "original_samples": [
-        5286.383390426636,
-        5263.255834579468,
-        5194.470167160034,
-        5224.828720092773,
-        5205.273628234863,
-        5229.904413223267,
-        5209.070444107056,
-        5248.044013977051,
-        5267.654657363892,
-        5231.402397155762,
-        5291.802644729614
+        5380.91254234314,
+        5338.227987289429,
+        5205.951452255249,
+        5217.296361923218,
+        5224.794387817383,
+        5187.436580657959,
+        5230.370998382568,
+        5218.010425567627,
+        5211.217403411865,
+        5227.990388870239,
+        5207.780122756958
        ],
        "port_samples": [
-        5422.183275222778,
-        5390.328168869019,
-        5399.119138717651,
-        5455.665349960327,
-        5360.2259159088135,
-        5403.067111968994,
-        5376.2969970703125,
-        5409.697771072388,
-        5386.636257171631,
-        5479.42042350769,
-        5431.948900222778
+        5501.367807388306,
+        5473.29306602478,
+        5466.320991516113,
+        5394.969940185547,
+        5461.331605911255,
+        5413.511037826538,
+        5407.874822616577,
+        5362.250566482544,
+        5458.887338638306,
+        5362.609624862671,
+        5425.247669219971
        ]
       }
      },
      "per_batch": [
       {
        "batch": 0,
-       "original_ms": 2.543,
-       "port_ms": 2.441,
+       "original_ms": 2.562,
+       "port_ms": 2.461,
        "iterations": {
         "original": 0,
         "port": 0
@@ -5355,23 +5361,23 @@
         "original": 0,
         "port": 0
        },
-       "port_host_ms": 2.45843,
-       "host_vs_events": 0.00714
+       "port_host_ms": 2.472619,
+       "host_vs_events": 0.00472
       },
       {
        "batch": 1,
-       "original_ms": 613.571,
-       "port_ms": 638.131,
+       "original_ms": 613.736,
+       "port_ms": 636.813,
        "iterations": {
         "original": {
          "median": 393,
-         "min": 388,
-         "max": 396
+         "min": 390,
+         "max": 394
         },
         "port": {
          "median": 393,
          "min": 390,
-         "max": 396
+         "max": 394
         }
        },
        "components": {
@@ -5380,22 +5386,22 @@
        },
        "frontier_visits": {
         "original": {
-         "median": 107852974,
-         "min": 107840682,
-         "max": 107859457
+         "median": 107852860,
+         "min": 107841812,
+         "max": 107859179
         },
         "port": {
-         "median": 107856656,
-         "min": 107850111,
-         "max": 107869628
+         "median": 107856719,
+         "min": 107846129,
+         "max": 107872809
         }
        },
-       "port_host_ms": 638.129786,
+       "port_host_ms": 636.810537,
        "host_vs_events": 0.0
       }
      ],
      "host_vs_events": {
-      "largest": 0.00714,
+      "largest": 0.00472,
       "batches_above_2pct": []
      },
      "in_place": {
@@ -5404,8 +5410,8 @@
        "port": 393
       },
       "ms_per_iteration": {
-       "original": 1.5677760814249366,
-       "port": 1.6299185750636132
+       "original": 1.5681882951653945,
+       "port": 1.6266615776081426
       }
      }
     }
