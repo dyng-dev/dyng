@@ -79,7 +79,7 @@ struct report {
   std::int64_t fallback_equal = 0;       ///< updates whose fallback decision equals B's (HD7)
   std::int64_t fallback_differ = 0;      ///< (tabulated, not a parity target)
   std::int64_t dyng_fallbacks = 0, b_fallbacks = 0;  ///< the decisions' counts
-  std::int64_t not_checked = 0;  ///< calls on a state the replay could not follow (a failure)
+  std::int64_t not_checked = 0;     ///< calls on a state the replay could not follow (a failure)
   std::int64_t digest_skipped = 0;  ///< public modes: digest-only calls (full arrays are T, P50)
   std::int64_t mismatch_count = 0;
   std::vector<std::string> mismatches;

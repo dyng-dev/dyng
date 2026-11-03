@@ -237,9 +237,7 @@ def test_every_stage_of_an_update_moves_exactly_one_gated_row_by_stages() -> Non
     ports = {name: regions[name]["port"] for name in ("maintain", "sosp_update")}
     for stage in UPDATE_STAGES:
         moved = [
-            name
-            for name, port in ports.items()
-            if sum(1.0 for n in port if n == stage) == 1.0
+            name for name, port in ports.items() if sum(1.0 for n in port if n == stage) == 1.0
         ]
         assert len(moved) == 1, (stage, moved)
     # Nothing is counted twice: the two rows name disjoint stages, and a plain apply's Step 0

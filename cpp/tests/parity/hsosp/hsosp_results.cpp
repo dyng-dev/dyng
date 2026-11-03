@@ -308,7 +308,8 @@ class session_results {
       if (!rejected_) {
         // An applyBatch without a begin_batch of its own (a lost or reordered record): its batch
         // and the results after it cannot be checked, so the session stops, never a silent skip.
-        mismatch("session " + std::to_string(session_) + ": an apply_batch without its begin_batch");
+        mismatch("session " + std::to_string(session_) +
+                 ": an apply_batch without its begin_batch");
         ++rep_.stopped_sessions;
         active_ = false;
       }
@@ -636,9 +637,10 @@ class session_results {
         first = "B id " + std::to_string(final_ids_[k]) + " -> dynG id " + std::to_string(mine);
     }
     if (differ != 0)
-      mismatch(where_ + ": " + std::to_string(differ) +
-               " inserted hyperedges differ in (sorted vertex set, weight) from MOSP_ESCHER's (first: " +
-               first + ")");
+      mismatch(
+          where_ + ": " + std::to_string(differ) +
+          " inserted hyperedges differ in (sorted vertex set, weight) from MOSP_ESCHER's (first: " +
+          first + ")");
     return true;
   }
 
@@ -680,12 +682,11 @@ std::string report::to_json() const {
      << ", \"source_row_parents\": " << source_row_parents
      << ", \"target_row_parents\": " << target_row_parents
      << ", \"canonical_checked\": " << canonical_checked << ", \"keys_compared\": " << keys_compared
-     << ", \"digest_skipped\": " << digest_skipped
-     << ", \"compute_checked\": " << compute_checked << ", \"fallback_equal\": " << fallback_equal
-     << ", \"fallback_differ\": " << fallback_differ << ", \"dyng_fallbacks\": " << dyng_fallbacks
-     << ", \"b_fallbacks\": " << b_fallbacks << ", \"not_checked\": " << not_checked
-     << ", \"seconds\": " << seconds << ", \"mismatch_count\": " << mismatch_count
-     << ", \"mismatches\": [";
+     << ", \"digest_skipped\": " << digest_skipped << ", \"compute_checked\": " << compute_checked
+     << ", \"fallback_equal\": " << fallback_equal << ", \"fallback_differ\": " << fallback_differ
+     << ", \"dyng_fallbacks\": " << dyng_fallbacks << ", \"b_fallbacks\": " << b_fallbacks
+     << ", \"not_checked\": " << not_checked << ", \"seconds\": " << seconds
+     << ", \"mismatch_count\": " << mismatch_count << ", \"mismatches\": [";
   for (std::size_t i = 0; i < mismatches.size(); ++i)
     os << (i ? ", " : "") << json_string(mismatches[i]);
   os << "], \"calls\": [";

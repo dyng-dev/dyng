@@ -565,7 +565,11 @@ def maintain_rows(b_rounds: list[list[dict]], p_rounds: list[dict], batches: int
     out = []
     for k in range(1, batches + 1):
         for name, original, port in (
-            ("maintain", ("t_delta_ms", "t_csr_apply_ms"), ["hyper_sssp.normalize", "hypergraph.apply"]),
+            (
+                "maintain",
+                ("t_delta_ms", "t_csr_apply_ms"),
+                ["hyper_sssp.normalize", "hypergraph.apply"],
+            ),
             (
                 "delta",
                 ("t_delta_ms",),
@@ -990,9 +994,7 @@ STORE_OBJECTS = tuple(
 STORE_ORIGINALS = ("hsospDevice.cu.o", "hsospDelta.cu.o")
 
 
-def sass_side(
-    obj: Path | list[Path], index: int, kernels: dict | None = None
-) -> dict[str, dict]:
+def sass_side(obj: Path | list[Path], index: int, kernels: dict | None = None) -> dict[str, dict]:
     """The paired kernels of one side, from one object or several (the first match wins)."""
     import triad_sass  # noqa: PLC0415
 
@@ -1027,9 +1029,7 @@ def unpaired_kernels(objs: list[Path], kernels: dict, index: int) -> list[str]:
         names += list(triad_sass.sass(o))
     patterns = [p[index] for p in kernels.values() if p[index] is not None]
     return sorted(
-        n
-        for n in names
-        if "cub" not in n.lower() and not any(re.search(p, n) for p in patterns)
+        n for n in names if "cub" not in n.lower() and not any(re.search(p, n) for p in patterns)
     )
 
 

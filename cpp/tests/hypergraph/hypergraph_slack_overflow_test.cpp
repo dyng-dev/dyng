@@ -322,15 +322,17 @@ TEST_P(SlackOverflow, ACorruptDeviceRowIsAnInternalError) {
                                                                 rows_view.space, rows_view.device),
                            dyng::host_view(&start, 1));
   dyng::copy<std::int32_t>(
-      res(), dyng::array_view<const std::int32_t>(rows_view.deg, 1, rows_view.space, rows_view.device),
+      res(),
+      dyng::array_view<const std::int32_t>(rows_view.deg, 1, rows_view.space, rows_view.device),
       dyng::host_view(&deg, 1));
   res().synchronize();
   ASSERT_EQ(deg, 1);  // row 0 holds hyperedge 1 only
   std::int32_t bogus = 2;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): the planted corruption
   auto* col = const_cast<std::int32_t*>(rows_view.col_ind) + start;
-  dyng::copy<std::int32_t>(res(), dyng::host_view(&bogus, 1),
-                           dyng::array_view<std::int32_t>(col, 1, rows_view.space, rows_view.device));
+  dyng::copy<std::int32_t>(
+      res(), dyng::host_view(&bogus, 1),
+      dyng::array_view<std::int32_t>(col, 1, rows_view.space, rows_view.device));
   res().synchronize();
   wbatch_t b;
   b.delete_hyperedge(1);  // deletes the pairs (0, 1) and (1, 2)
