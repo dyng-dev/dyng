@@ -67,8 +67,14 @@ carry the label `hyper_sssp`.
 - **The suite** `benchmarks/paper/ia3_hsosp.yaml` (validated by `parity/bench_suite.py`):
   coauth-DBLP and coauth-MAG-Geology with the golden set's digests; the batches replayed from the
   golden set (HD5); B unpatched; PLAN 8.6's tolerances; a recorded 3-round boost probe per
-  dataset; the gated runs of the 16 paper configurations at their probe's clocks (21 alternating
-  rounds); the default-clock reading of P50 (11 rounds, recorded); the gated memory reading of
+  dataset; the gated runs of the 16 paper configurations at their probe's clocks, or at base
+  where the reading cannot hold boost (21 alternating rounds). **The clock rule, one for both
+  datasets** (M11a review): a dataset whose probe holds is read at boost unless its 21-round
+  reading loses the boost lock in a large share of its attempts (coauth-DBLP: 36 of 56 rounds of
+  dblp_hyperedge_25000; Geology: 23 of 44 attempts of geology_hyperedge_200000), and is then read
+  at base for all its configurations; the first reading kept Geology at boost, which read its
+  gated rows from the boost rounds that survived the power cap, so both datasets are now read at
+  base; the default-clock reading of P50 (11 rounds, recorded); the gated memory reading of
   HD6's three configurations and the recorded 200K ones; the ncu kernel table (recorded);
   `paper_reference` = B's README tables (07bbceb, CUDA 12.9, default clocks), which no gate reads.
 - **One window per configuration group**: `bench_suite.py plan` gives one timed command per
@@ -90,6 +96,16 @@ carry the label `hyper_sssp`.
   none`, every launch of the engine's kernels (the pairs of `SASS_KERNELS`), the load's launches
   skipped by position: everything before the first update's `pack_state` (B's first kernel of
   `hsospUpdate`, hsospDevice.cu:1094); per kernel and per batch.
+- **`hsosp_perf.py sass [--store]`** (no GPU): the transplanted kernels against B's unpatched
+  objects, paired by name: the engine's (engine.cu.o against hsospDevice.cu.o) and, with
+  `--store` (added by the M11a review, which found the store missing from criterion 18's record),
+  the slack_csr store's fourteen (slack_csr_store.cu.o, slack_csr_h2h.cu.o and
+  incidence_delta.cu.o against hsospDevice.cu.o and hsospDelta.cu.o); each record lists the
+  kernels no label pairs on either side.
+- **The round guards fail closed** (M11a review): a full reading's port line must carry the
+  result group (digests, fallback, mismatch_static) of every batch; a GPU process that has gone
+  is the memory reading's own only if it was seen alive as its descendant; the audit's quiet
+  maximum is read from step 1's pre-read record and recorded with its source.
 - **Record checks** (`bench_suite.hsosp_read_record`, rechecked by `certify.py`): the
   configurations, the protocol fields (the GPU, the exclusive window, EAGER, one layout,
   `--sync-stages`, the unpatched original, the clocks), the probe's clock decision for a gated
