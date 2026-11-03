@@ -1,27 +1,40 @@
 {
  "record": "SASS identity of the 0.3 CUDA objects against the merge base (M11a criterion 20)",
  "tool": "parity/sass_identity.py",
- "date": "2026-10-30T08:33:44Z",
+ "date": "2026-11-02T22:54:29Z",
  "provenance": {
   "base": {
-   "path": "$DYNG_SCRATCH/m11-builds/src-base/build/parity-cuda/cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/build_tree.cu.o",
+   "path": "/home/sskg8/Projects/dyng-work/m11-builds/src-base/build/parity-cuda/cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/build_tree.cu.o",
    "sha256": "c3ae680f9de7ce4bf7e153875922f93cf993308130882a341d87dd644e625a23",
-   "build_tree": "$DYNG_SCRATCH/m11-builds/src-base/build/parity-cuda",
-   "source_tree": "$DYNG_SCRATCH/m11-builds/src-base",
+   "build_tree": "/home/sskg8/Projects/dyng-work/m11-builds/src-base/build/parity-cuda",
+   "source_tree": "/home/sskg8/Projects/dyng-work/m11-builds/src-base",
    "build_type": "Release",
    "cuda_compiler": "/usr/local/cuda-13.1/bin/nvcc",
    "cuda_compiler_version": "Build cuda_13.1.r13.1/compiler.37061995_0",
-   "commit": null
+   "commit": "b2b1524a3975d45b36f803d6958e82505fc86371",
+   "archive_check": {
+    "commit": "b2b1524a3975d45b36f803d6958e82505fc86371",
+    "paths": [
+     "cpp",
+     "cmake",
+     "CMakeLists.txt",
+     "CMakePresets.json"
+    ],
+    "files": 2060,
+    "identical": true,
+    "differ": [],
+    "extra": []
+   }
   },
   "head": {
-   "path": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/build_tree.cu.o",
+   "path": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/build_tree.cu.o",
    "sha256": "6e4939d668179b30b167ccc9374d565c31913c179f1b8f8f604884efead8b3c3",
-   "build_tree": "$DYNG_SCRATCH/wt-m11/build/parity-cuda",
-   "source_tree": "$DYNG_SCRATCH/wt-m11",
+   "build_tree": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda",
+   "source_tree": "/home/sskg8/Projects/dyng-work/wt-m11",
    "build_type": "Release",
    "cuda_compiler": "/usr/local/cuda-13.1/bin/nvcc",
    "cuda_compiler_version": "Build cuda_13.1.r13.1/compiler.37061995_0",
-   "commit": "012b0049f57fda6ee915ea03d17c47245ddda9ca"
+   "commit": "ba1120bb563fc42cbe3c29daa52902e01c5e4e08"
   },
   "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0"
  },
@@ -257,7 +270,7 @@
    "instructions": 1432,
    "differ": [],
    "base_sha256": "102c3b54eeb313ff058c424db3fcde21d13295d852e1730e6a87ababc59236ae",
-   "head_sha256": "3b4043788882ce87ccd75ac43ce9099d5645fd48d46bdfabadead94a6cf525ff",
+   "head_sha256": "33d407c864541f84d07e20bf5afa610dbfef1526992ff2a3c6b295516a30a70a",
    "digests": {
     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxjN4cuda3std3__44plusIvEEE10Policy1000EPxSC_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxSC_EEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "9a898d97eb35c5363e77b5ca6035228701f51c8f67e4d5c18af02bd0ec200540",
@@ -272,7 +285,7 @@
    "instructions": 3328,
    "differ": [],
    "base_sha256": "2e8e0124c0478d42a0f56d4b08bda5a259c2f4cbda236e7767046f12961a024c",
-   "head_sha256": "93f5412f689a70b170815246cfd8ab0d9f073d893ca63526fe91a31a6d195be0",
+   "head_sha256": "bddbd8c9fd36407665f068798724f857c7c43074a6e25f31f36a309bc37f09da",
    "digests": {
     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxjN4cuda3std3__44plusIvEEE10Policy1000EPxSC_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxSC_EEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "9a898d97eb35c5363e77b5ca6035228701f51c8f67e4d5c18af02bd0ec200540",

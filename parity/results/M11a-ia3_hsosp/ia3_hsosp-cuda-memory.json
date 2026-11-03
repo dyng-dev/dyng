@@ -72,11 +72,11 @@
    {
     "time": "2026-10-30T09:35:46Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163422, $DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 3200 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163422, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 3200 MiB\n",
     "apps": [
      {
       "pid": 1163422,
-      "name": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
       "used": "3200 MiB",
       "own": true
      }
@@ -85,11 +85,11 @@
    {
     "time": "2026-10-30T09:35:51Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163500, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 242 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163500, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 242 MiB\n",
     "apps": [
      {
       "pid": 1163500,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "242 MiB",
       "own": true
      }
@@ -98,11 +98,11 @@
    {
     "time": "2026-10-30T09:35:56Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163500, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3922 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163500, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3922 MiB\n",
     "apps": [
      {
       "pid": 1163500,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "3922 MiB",
       "own": true
      }
@@ -111,11 +111,11 @@
    {
     "time": "2026-10-30T09:36:01Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163580, $DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 1424 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163580, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 1424 MiB\n",
     "apps": [
      {
       "pid": 1163580,
-      "name": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
       "used": "1424 MiB",
       "own": true
      }
@@ -130,11 +130,11 @@
    {
     "time": "2026-10-30T09:36:11Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163796, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 270 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163796, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 270 MiB\n",
     "apps": [
      {
       "pid": 1163796,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "270 MiB",
       "own": true
      }
@@ -143,11 +143,11 @@
    {
     "time": "2026-10-30T09:36:16Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163796, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3950 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163796, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3950 MiB\n",
     "apps": [
      {
       "pid": 1163796,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "3950 MiB",
       "own": true
      }
@@ -162,11 +162,11 @@
    {
     "time": "2026-10-30T09:36:26Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163935, $DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 260 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1163935, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 260 MiB\n",
     "apps": [
      {
       "pid": 1163935,
-      "name": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
       "used": "260 MiB",
       "own": true
      }
@@ -175,11 +175,11 @@
    {
     "time": "2026-10-30T09:36:31Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164016, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3026 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164016, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3026 MiB\n",
     "apps": [
      {
       "pid": 1164016,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "3026 MiB",
       "own": true
      }
@@ -188,11 +188,11 @@
    {
     "time": "2026-10-30T09:36:36Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164085, $DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 256 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164085, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 256 MiB\n",
     "apps": [
      {
       "pid": 1164085,
-      "name": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
       "used": "256 MiB",
       "own": true
      }
@@ -201,11 +201,11 @@
    {
     "time": "2026-10-30T09:36:41Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164085, $DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 288 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164085, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 288 MiB\n",
     "apps": [
      {
       "pid": 1164085,
-      "name": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
       "used": "288 MiB",
       "own": true
      }
@@ -214,11 +214,11 @@
    {
     "time": "2026-10-30T09:36:47Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164285, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 270 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164285, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 270 MiB\n",
     "apps": [
      {
       "pid": 1164285,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "270 MiB",
       "own": true
      }
@@ -227,11 +227,11 @@
    {
     "time": "2026-10-30T09:36:52Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164285, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3278 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164285, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3278 MiB\n",
     "apps": [
      {
       "pid": 1164285,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "3278 MiB",
       "own": true
      }
@@ -240,11 +240,11 @@
    {
     "time": "2026-10-30T09:36:57Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164435, $DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 1148 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164435, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 1148 MiB\n",
     "apps": [
      {
       "pid": 1164435,
-      "name": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
       "used": "1148 MiB",
       "own": true
      }
@@ -253,11 +253,11 @@
    {
     "time": "2026-10-30T09:37:02Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164502, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 1842 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164502, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 1842 MiB\n",
     "apps": [
      {
       "pid": 1164502,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "1842 MiB",
       "own": true
      }
@@ -266,11 +266,11 @@
    {
     "time": "2026-10-30T09:37:07Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164565, $DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 416 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164565, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 416 MiB\n",
     "apps": [
      {
       "pid": 1164565,
-      "name": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
       "used": "416 MiB",
       "own": true
      }
@@ -279,11 +279,11 @@
    {
     "time": "2026-10-30T09:37:12Z",
     "rc": 0,
-    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164756, $DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 270 MiB\n",
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n1164756, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 270 MiB\n",
     "apps": [
      {
       "pid": 1164756,
-      "name": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
       "used": "270 MiB",
       "own": true
      }

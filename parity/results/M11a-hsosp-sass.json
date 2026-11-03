@@ -4,22 +4,22 @@
   "what": "hyper_sssp's CUDA engine (port) and MOSP_ESCHER@4b86159's hsospDevice.cu.o",
   "objects": [
    {
-    "path": "build/parity-cuda/cpp/src/algorithms/hyper_sssp/CMakeFiles/dyng_hyper_sssp.dir/engine.cu.o",
-    "sha256": "d952b1fb4e2f38907079254406c2430e62c58770dbbfb396836700f759f98076",
-    "build_tree": "build/parity-cuda",
-    "source_tree": ".",
+    "path": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/cpp/src/algorithms/hyper_sssp/CMakeFiles/dyng_hyper_sssp.dir/engine.cu.o",
+    "sha256": "0cf8459f058c5c640a5ca0ec7767834ea2c80c3fa7812eda038879c8d906cb05",
+    "build_tree": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda",
+    "source_tree": "/home/sskg8/Projects/dyng-work/wt-m11",
     "build_type": "Release",
     "cuda_compiler": "/usr/local/cuda-13.1/bin/nvcc",
     "cuda_compiler_version": "Build cuda_13.1.r13.1/compiler.37061995_0",
-    "commit": "511ae3cf02c70ab4abb843c46c7b2b905c6bd8f0+dirty"
+    "commit": "ba1120bb563fc42cbe3c29daa52902e01c5e4e08"
    },
    {
-    "path": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/build/hsosp/src/hsospDevice.cu.o",
+    "path": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/build/hsosp/src/hsospDevice.cu.o",
     "sha256": "1fe431662fcb5e985170aad32106d411fbcc16b33fef40e10a84d227c460dc13"
    }
   ],
   "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0",
-  "date": "2026-10-30T05:10:09Z"
+  "date": "2026-11-02T22:54:14Z"
  },
  "kernels": [
   {
@@ -1650,5 +1650,13 @@
     }
    }
   }
- ]
+ ],
+ "unpaired": {
+  "port": [],
+  "original": [
+   "_ZN11escher_mosp5hsosp47_GLOBAL__N__1d23bf17_14_hsospDevice_cu_f784400e13applyRowsWarpEiPKiS3_S3_PKyPxPiS7_S7_PyxS7_",
+   "_ZN11escher_mosp5hsosp47_GLOBAL__N__1d23bf17_14_hsospDevice_cu_f784400e20scatterWeightsKernelEPKiPKxiPx",
+   "_ZN11escher_mosp5hsosp47_GLOBAL__N__1d23bf17_14_hsospDevice_cu_f784400e21expandDeltaKeysKernelEPK4int2iiPy"
+  ]
+ }
 }
