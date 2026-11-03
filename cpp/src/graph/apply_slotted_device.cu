@@ -269,14 +269,26 @@ std::size_t append_temp_bytes(int half_edges, int key_bits) {
   return std::max(sort_bytes, scan_bytes);
 }
 
-/// A device buffer of at least `count` elements (grown to exactly the batch's size, as the
-/// original sizes its batch buffers for the largest batch; contents not kept).
+/// The size a batch buffer of `size` elements grows to for `count` (> size): the first batch's
+/// size exactly (the original sizes its batch buffers once, for the largest batch), a later
+/// larger batch with headroom (x 1.5 of the larger of the two), so that a stream whose batch
+/// sizes vary reserves a bounded number of times, not on every new maximum (M10a review).
+std::size_t grown(std::size_t size, std::size_t count) {
+  if (size == 0) {
+    return count;
+  }
+  const std::size_t larger = std::max(size, count);
+  return larger + larger / 2;
+}
+
+/// A device buffer of at least `count` elements (contents not kept; see grown()).
 template <typename value_t>
 void ensure(const resources& res, buffer<value_t>& b, std::size_t count) {
   if (b.size() < count) {
     note_reservation();
+    const std::size_t size = std::max<std::size_t>(grown(b.size(), count), 1);
     b = buffer<value_t>();
-    b = buffer<value_t>(res, std::max<std::size_t>(count, 1));
+    b = buffer<value_t>(res, size);
   }
 }
 
@@ -433,10 +445,21 @@ void upload_vertex_batch(const resources& res, device_slotted<vertex_t, edge_t, 
   const bool ins_is_batch = num_ins == batch.insert_vertices.size();
   const bool del_eff_is_batch = num_del_eff == num_del;
   const bool labels = !batch.insert_vertex_labels.empty();
-  reserve_device_slotted(res, g, static_cast<std::int64_t>(num_edges));
+  // The edge scratch: what graph::reserve() sized, else grown like the vertex arrays (at most
+  // the 2^30 - 1 edges a batch may have).
+  if (static_cast<std::int64_t>(num_edges) > g.max_edges) {
+    const auto want = static_cast<std::int64_t>(
+        grown(static_cast<std::size_t>(std::max<std::int64_t>(g.max_edges, 0)), num_edges));
+    reserve_device_slotted(
+        res, g,
+        std::max(static_cast<std::int64_t>(num_edges),
+                 std::min(want, (std::int64_t{1} << 30) - 1)));
+  }
   ensure(res, g.deleted, num_del);
-  if (!del_eff_is_batch) {
-    ensure(res, g.deleted_effective, num_del_eff);
+  // Del_eff is a subset of the batch's deletions: sized with them, so that a later batch whose
+  // Del_eff first differs from its deletions does not reserve again (M10a review).
+  if (num_del > 0) {
+    ensure(res, g.deleted_effective, num_del);
   }
   ensure(res, g.inserted, num_ins);
   if (labels) {

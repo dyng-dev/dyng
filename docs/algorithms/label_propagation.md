@@ -57,7 +57,8 @@ lp_graph g = lp_graph::with_capacity(res, va.total_vertices, dyng::host_view(str
 dyng::label_propagation::options opt;
 opt.similarity_threshold = stream.similarity_threshold;  // the published tau
 auto r = dyng::label_propagation::compute(res, g, {}, {}, opt);  // the empty graph: every label 0.5
-r.reserve(res, stream.max_batch_vertices, stream.max_batch_edges);
+r.reserve(res, stream.max_batch_vertices, stream.max_batch_edges);  // the result's workspaces
+g.reserve(res, static_cast<std::int32_t>(stream.max_batch_edges));  // cuda: a batch's edge scratch
 for (const auto& batch : stream.batches) {
   dyng::label_propagation::stats s = dyng::label_propagation::update(res, g, batch.view(), r);
 }
@@ -85,8 +86,14 @@ engine) arrives in M10b.
 ## 5. Performance notes
 
 The stages are listed in section 2; `parity/timed_regions/label_propagation.toml` maps them to
-the original's timers. The gates against the original (AD2) are read on the CUDA backend
-(M10a step 5).
+the original's timers. `result::reserve()` sizes the result's workspaces and, on cuda,
+`graph::reserve()` the graph's device scratch of a batch's edges; the graph's device arrays of a
+batch's vertex ids and the page-locked staging of its pageable arrays grow on demand (the first
+vertex batch's size exactly, a later larger batch with 1.5x headroom), so the published stream
+allocates in its first two vertex batches at most. Leaving `options::similarity_threshold` unset
+computes tau from the current graph in every update; on cuda that downloads the rows first (a
+device-to-host copy of the slot storage per update): pass the stream's published tau. The gates
+against the original (AD2) are read on the CUDA backend (M10a step 5).
 
 ## 6. Limitations
 

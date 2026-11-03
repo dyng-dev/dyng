@@ -98,7 +98,9 @@ struct options {
    * (the full graph's average edge weight, the original's computeAvgEdgeWeight). std::nullopt:
    * the average weight of the current graph's live directed entries, computed in every update as
    * a double sum in vertex order and slot order, rounded to float (0.5 for a graph without
-   * edges). It must not be NaN.
+   * edges), bitwise the same on every backend; on cuda each such update first downloads the
+   * graph's rows to the host (a copy of the slot storage and an O(m) pass per update, not part of
+   * the published setup). It must not be NaN.
    */
   std::optional<float> similarity_threshold;
   float tolerance = 1e-4F;  ///< delta: a label changes "by more than delta" (> 0)
@@ -241,8 +243,14 @@ class result {
   /**
    * @brief Size the per-batch workspaces of `res` for batches of up to `max_batch_vertices`
    *        inserted vertices and `max_batch_edges` edges (the original's setup), so that the
-   *        updates of such batches allocate nothing; a larger batch grows them later, with
-   *        headroom.
+   *        updates of such batches allocate nothing for the result; a larger batch grows them
+   *        later, with headroom.
+   *
+   * The graph's own per-batch storage is the graph's: on cuda, graph::reserve(res,
+   * max_batch_edges) sizes the device scratch of a batch's edges, and the graph's device arrays
+   * of a batch's vertex ids and the page-locked staging of its pageable arrays grow on demand
+   * (the first vertex batch's size exactly, a later larger batch with headroom; ADR 0074), so an
+   * update of the published stream allocates in its first two vertex batches at most.
    * @param[in] res                Execution resources the updates will use.
    * @param[in] max_batch_vertices The largest number of vertex insertions of a batch
    *                               (generators::vertex_arrival_stream::max_batch_vertices).

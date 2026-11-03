@@ -292,7 +292,10 @@ class graph {
    * storage is fixed by with_capacity(): reserve() checks the argument and, for a slotted graph
    * whose rows are on the device (CUDA resources; ADR 0074), sizes the device scratch of vertex
    * batches of up to `edge_capacity` edges, so that applying them allocates no append scratch;
-   * otherwise it changes nothing.
+   * otherwise it changes nothing. The device arrays of a vertex batch's ids and labels and the
+   * page-locked staging of its pageable arrays are not sized by reserve(): they grow on demand
+   * (the first vertex batch's size exactly, a later larger batch with 1.5x headroom), so a stream
+   * of vertex batches of similar sizes allocates in its first two batches at most.
    * @param[in] res           Execution resources.
    * @param[in] edge_capacity Expected maximum number of stored edges.
    * @throws invalid_argument_error if `edge_capacity` is negative or the graph was moved from.
