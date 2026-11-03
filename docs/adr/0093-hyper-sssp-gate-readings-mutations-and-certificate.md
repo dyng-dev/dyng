@@ -152,8 +152,9 @@ freeze is `c78e4ef` (no library, driver or build change after it).
   changed function in them, the host allocator's `erase` (the dead-key bit set of ADR 0089),
   costs 0.7-0.9 % of the host delete stage, within the bar. triad_count's PLAN 8.6 gates against
   ESCHER-GPU@abcf9b2 hold on the final library (update 0.857-1.023, full_count 1.002-1.003,
-  end_to_end 0.971-0.996). As HD16 and the D14 precedent direct, the regions are listed for the
-  author's acknowledgement (GOVERNANCE.md, Open decisions, M11 (HD)), not fixed in code.
+  end_to_end 0.971-0.996). As HD16 and the D14 precedent direct, the regions were listed for the
+  author's acknowledgement, not fixed in code; the author acknowledged them on 2026-11-03 as code placement on the D14 path, kept as they are for 0.4.0
+  (GOVERNANCE.md approvals log, "The D14-path excursions of M11a (HD16, sheet B6)").
 - **Gates against MOSP_ESCHER:** **271 of 271 gated rows within their bars** (Geology at boost,
   coauth-DBLP at base after its 21-round reading could not hold boost): maintain 0.402-0.795,
   sosp_update 0.991-1.066 (1.066 under the 1.10 bar where B's median is 1.23 ms), static
