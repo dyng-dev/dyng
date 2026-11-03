@@ -98,8 +98,27 @@ at delta 1e-4").
 
 ### 5. The readings
 
-(The readings of M10a step 5 and their outcome: section "Readings" below, added with the
-records.)
+On the final M10a library (`72eb020`; `parity/results/M10a.md` section 12.7, the compacted
+records `parity/results/M10a-gates-final.json`), one exclusive window per case and schedule on
+GPU 0 at the baseline's recorded lock (boost, base at 50m), the memory in GPU-1 quiet windows:
+
+| Case (damped) | update[sum] (1.05) | end_to_end (1.10) | device memory (1.05) |
+|---|---|---|---|
+| 50k (21 rounds) | 1.006 | 1.097 | 1.0005 |
+| 500k (21 rounds) | 1.005 | 1.032 | 1.0005 |
+| 5m (11 rounds) | 0.988 | 1.006 | 1.0005 |
+| 5m1 (11 rounds) | 1.014 | 1.029 | 1.0018 |
+
+All 12 gated rows pass; the guard held in every round, the audit flagged no round of a gated
+reading, and the rejected rounds (1, 7, 0, 0) were repeated. Reported: in_place `update[sum]`
+1.008 / 1.005 / 1.008 / 1.037 with the iteration medians equal within 1 %; the default clocks
+1.017 / 1.002 / 0.998 (50k / 500k / 5m); ncu at base: every ported kernel with the original's
+registers and occupancy; 50m at base: damped `update[sum]` 1.014 and `end_to_end` 1.065 over 3
+rounds (10 min 50 s, 0 rejected), in_place 1.011 / 1.078 over one. **AD4's feasibility
+statement:** 5 rounds take about 18 min (under 2 h) with no rejected round (under 30 %), so
+`release-damped-50m` is `gated` (its reason in the suite states this basis). The first
+reading at 5m1, on `0c815a1`, had missed the bar (1.080); its cause and fix are ADR 0079, and
+no bar, round count or protocol was changed.
 
 ## Consequences
 

@@ -110,6 +110,23 @@ sides (`M10a-ab-b0-diagnosis.json`): code placement only. They take the D14 path
 author in `M10 (AD)`); nothing was changed to move them (no alignment flag, the decision of
 2026-10-08 and docs/roadmap.md).
 
+**Reading on the final M10a library** (M10a step 5, 2026-11-02 / 03, 29 windows;
+`parity/results/M10a.md` section 12.9, records `parity/results/M10a-ab-final-*.json`):
+`b2b1524` against `72eb020` (the sources of steps 4 and 5 included: `graph_impl.hpp`,
+`graph.cpp`, `apply_slotted_host.cpp`, `slotted_rows.hpp`), the same command forms and rule-3
+readings. mosp (CUDA and OpenMP) and cycle_count CUDA are within 1.02 everywhere (cycle_count's
+Twitch excursions now 1.002 / 1.001). **Six whole gated regions of sssp are above the bar:**
+OpenMP `apply` roadNet-PA 1.025 / 1.026 and roadNet-CA 1.026 / 1.035 (safe50k / unsafe50k, 170
+rounds), CUDA `apply` roadNet-PA 1.026 / 1.033 and `end_to_end` roadNet-PA unsafe50k 1.021 (102
+rounds). Located (`M10a-ab-final-diagnosis.json`): the `apply` regions' functions are
+instruction for instruction identical at other alignments and read 0.957-0.987 with the
+JCC-erratum mitigation on both sides (OpenMP; on CUDA `apply` 1.002-1.006, `end_to_end`
+1.009-1.014): code placement; half of the CUDA `end_to_end` excursion is the CUDA context's
+creation, about 5 ms longer because
+`CUDA_MODULE_LOADING=EAGER` also loads label_propagation's kernels: a cost of the larger library,
+not placement. This is a STOP of M10a step 5 for the author (GOVERNANCE.md, Open decisions,
+`M10 (AD)`); nothing was changed to move them.
+
 ## Consequences
 
 - A slotted graph cannot be passed to any algorithm but label_propagation by mistake; the error
