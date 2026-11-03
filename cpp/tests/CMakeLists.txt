@@ -1497,6 +1497,18 @@ dyng_add_test(
   LABELS cpu graph
 )
 target_compile_definitions(dyng_compact_guard_tests PRIVATE ${_dyng_algorithm_defines})
+if(DYNG_ENABLE_CUDA)
+  # The guard before Step 0 on the cuda backend too (M10a review: a device-resident slotted
+  # graph's Step 0 would upload the batch first).
+  dyng_add_test(
+    NAME dyng_compact_guard_cuda_tests
+    SOURCES graph/compact_guard_test.cpp
+    LABELS gpu graph
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_compact_guard_cuda_tests PRIVATE ${_dyng_algorithm_defines}
+                                                                    DYNG_TEST_CUDA=1)
+endif()
 foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   set(_suite "algorithms/${_dyng_algorithm}/${_dyng_algorithm}_conformance_test.cpp")
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_suite}")

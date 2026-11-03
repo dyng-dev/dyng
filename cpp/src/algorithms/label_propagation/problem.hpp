@@ -285,7 +285,10 @@ class label_propagation_problem final
   [[nodiscard]] const void* target() const noexcept {
     return target_;
   }
-  /// The checks before anything changes: backend, layout, poisoned and stale result, options.
+  /// The checks that read nothing of the batch, before Step 0 (run_update(); ADR 0070): backend,
+  /// layout, poisoned and stale result, options, the result's placement and engine.
+  void check_entry(const resources& res, const container_type& g);
+  /// The checks before anything changes: check_entry's, then the batch's Step 0 and size.
   void begin_update(framework::context& ctx, old_graph g, const requested& batch);
   /// Bind G_{t+1}: lease and size the workspace, keep the labels before the update.
   void resume(framework::context& ctx, new_graph g, const applied& applied);

@@ -33,6 +33,7 @@
 
 #include "framework/context.hpp"
 #include "framework/enactor.hpp"
+#include "framework/entry_check.hpp"
 #include "framework/views.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/normalized_batch.hpp"
@@ -52,6 +53,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -167,7 +169,8 @@ struct graph_types<hypergraph<vertex_t, weight_t>> {
  */
 template <typename problem_t>
 class problem_participant final
-    : public composition_detail::graph_types<typename problem_t::container_type>::participant {
+    : public composition_detail::graph_types<typename problem_t::container_type>::participant,
+      public entry_check<typename problem_t::container_type> {
   using types = composition_detail::graph_types<typename problem_t::container_type>;
 
  public:
@@ -209,6 +212,25 @@ class problem_participant final
       return problem_.reads_prepared_graph();
     } else {
       return types::reads_prepared_default;
+    }
+  }
+
+  /**
+   * @brief The entry checks before Step 0, for a graph whose layout is not compact (run_update();
+   *        entry_check.hpp): the problem's check_entry hook, or the compact-only guard named
+   *        "<problem>::update" (AD11).
+   * @param[in] res Execution resources.
+   * @param[in] g   G_t.
+   */
+  void check_entry(const resources& res, const graph_type& g) override {
+    if constexpr (is_provided_v<decltype(problem_.check_entry(res, g))>) {
+      problem_.check_entry(res, g);
+    } else if constexpr (std::is_same_v<typename types::summary, apply_summary>) {
+      (void)res;
+      expect_compact_layout(g.properties(), std::string(problem_t::name) + "::update");
+    } else {
+      (void)res;  // hypergraphs have no row layout
+      (void)g;
     }
   }
 

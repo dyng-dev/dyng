@@ -9,6 +9,7 @@
  *        changes; compact graphs are unaffected. Each algorithm's checks are compiled when the
  *        algorithm is built (DYNG_ALGORITHM_<NAME>, a subset build of DYNG_ALGORITHMS).
  */
+#include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
@@ -164,6 +165,57 @@ TEST(CompactGuard, UpdateAndCompositionRefuseSlottedRows) {
   auto tree2 = dyng::sssp::compute(res, c2, 0);
   EXPECT_NO_THROW((void)dyng::sssp::update(res, c2, b.view(), tree2));
 #endif
+}
+
+/// The guard comes before Step 0 (ADR 0070, M10a review): an invalid vertex batch (a
+/// re-insertion, an edge deletion under net_effect) on a slotted graph is refused with the
+/// guard's named error, not with Step 0's invalid_argument_error or its net_effect message, on
+/// every backend; nothing is applied.
+TEST(CompactGuard, InvalidBatchesAreRefusedByTheGuardFirst) {
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+  if (!dyng::backend_available(dyng::backend::cuda)) {
+    GTEST_SKIP() << "no CUDA backend";
+  }
+  const std::vector<dyng::resources> backends = {dyng::resources::cuda(0)};
+#else
+  const std::vector<dyng::resources> backends = {dyng::resources::sequential()};
+#endif
+  for (const dyng::resources& res : backends) {
+    SCOPED_TRACE(dyng::to_string(res.get_backend()));
+    const weighted c = compact_weighted(res);
+    weighted g = slotted_weighted(res);
+    (void)c;
+    std::vector<dyng::edge_batch<std::int32_t, std::int32_t>> invalid(3);
+    invalid[0].insert_vertex(1);  // vertex 1 was inserted before
+    invalid[1].delete_edge(0, 1);  // net_effect() has no edge deletions
+    invalid[2].insert_vertex(7);   // out of range
+    const std::uint64_t version = g.version();
+    for (const auto& b : invalid) {
+#if defined(DYNG_ALGORITHM_SSSP)
+      auto tree = dyng::sssp::compute(res, c, 0);
+      expect_refused([&] { (void)dyng::sssp::update(res, g, b.view(), tree); }, "sssp::update");
+#endif
+#if defined(DYNG_ALGORITHM_MOSP)
+      auto multi = dyng::mosp::compute(res, c, 0);
+      expect_refused([&] { (void)dyng::mosp::update(res, g, b.view(), multi); }, "mosp::update");
+#endif
+#if defined(DYNG_ALGORITHM_CYCLE_COUNT)
+      auto cycles = dyng::cycle_count::compute(res, c);
+      expect_refused([&] { (void)dyng::cycle_count::update(res, g, b.view(), cycles); },
+                     "cycle_count::update");
+#endif
+#if defined(DYNG_ALGORITHM_DYNAMIC_BFS)
+      auto bfs = dyng::dynamic_bfs::compute(res, c);
+      expect_refused([&] { (void)dyng::dynamic_bfs::update(res, g, b.view(), bfs); },
+                     "dynamic_bfs::update");
+#endif
+#if defined(DYNG_ALGORITHM_SSSP) && defined(DYNG_ALGORITHM_DYNAMIC_BFS)
+      expect_refused([&] { (void)dyng::update(res, g, b.view(), tree, bfs); }, "dyng::update");
+#endif
+    }
+    EXPECT_EQ(g.version(), version);
+    EXPECT_NO_THROW(g.check_integrity(res));
+  }
 }
 
 #if defined(DYNG_ALGORITHM_SSSP)

@@ -279,12 +279,10 @@ label_propagation_workspace& label_propagation_problem<vertex_t, edge_t, weight_
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void label_propagation_problem<vertex_t, edge_t, weight_t>::begin_update(framework::context& ctx,
-                                                                         old_graph g,
-                                                                         const requested& batch) {
-  expect_backend(ctx.res(), "label_propagation::update");
-  const container_type& graph = g.get();
-  graph_access::expect_placement_any_layout(ctx.res(), graph, "label_propagation::update");
+void label_propagation_problem<vertex_t, edge_t, weight_t>::check_entry(
+    const resources& res, const container_type& graph) {
+  expect_backend(res, "label_propagation::update");
+  graph_access::expect_placement_any_layout(res, graph, "label_propagation::update");
   expect_not_poisoned(*state_, "label_propagation::update");
   expect_graph(graph, "label_propagation::update");
   if (graph.properties().layout != row_layout::slotted) {
@@ -296,8 +294,16 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::begin_update(framewo
   framework::expect_current_result("label_propagation::update", state_->version,
                                    state_->graph_state, graph);
   expect_options(state_->opt, "label_propagation::update");
-  expect_result_placement(*state_, ctx.res(), "label_propagation::update");
-  expect_cuda_engine(state_->opt, ctx.res(), "label_propagation::update");
+  expect_result_placement(*state_, res, "label_propagation::update");
+  expect_cuda_engine(state_->opt, res, "label_propagation::update");
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void label_propagation_problem<vertex_t, edge_t, weight_t>::begin_update(framework::context& ctx,
+                                                                         old_graph g,
+                                                                         const requested& batch) {
+  const container_type& graph = g.get();
+  check_entry(ctx.res(), graph);  // again: run_update() makes it before Step 0 for slotted rows
   const std::size_t labels =
       state_->cuda != nullptr ? static_cast<std::size_t>(state_->cuda->n) : state_->labels.size();
   DYNG_EXPECTS(labels == static_cast<std::size_t>(graph.num_vertices()),

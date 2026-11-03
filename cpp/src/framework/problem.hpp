@@ -134,6 +134,17 @@ struct problem_base {
   }
 
   /**
+   * @brief The checks of the entry that read nothing of the batch, made by run_update() before
+   *        Step 0 for a graph whose layout is not row_layout::compact (default: not provided, the
+   *        compact-only guard; framework/entry_check.hpp).
+   * @return not_provided.
+   */
+  template <typename view_t>
+  not_provided check_entry(const resources& /*res*/, const view_t& /*g*/) {
+    return {};
+  }
+
+  /**
    * @brief Re-bind the problem to G_{t+1} after the commit (default: nothing).
    * @return not_provided.
    */
