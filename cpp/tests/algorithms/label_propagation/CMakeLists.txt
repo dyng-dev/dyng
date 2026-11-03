@@ -31,6 +31,15 @@ if(DYNG_ENABLE_CUDA)
   dyng_set_cuda_options(dyng_label_propagation_cuda_tests)
 endif()
 
+# Host allocation failures inside compute(), update(), reserve() and clone() are
+# out_of_memory_error with the documented guarantee (M10a review; the ADR 0060 precedent): its own
+# operator new, so its own executable.
+dyng_add_test(
+  NAME dyng_label_propagation_allocation_failure_tests
+  SOURCES label_propagation_allocation_failure_test.cpp
+  LABELS cpu label_propagation
+)
+
 # The original's checker oracles as tests (M10a step 5, criterion 14): the published flow at 5k5
 # and 50k, delta 1e-6, both schedules, every batch against union_find, lp_host_model and the
 # harmonic solution; the host executable carries the label slow (the 50k cases), the CUDA one runs

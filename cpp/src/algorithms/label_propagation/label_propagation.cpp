@@ -21,6 +21,7 @@
 #include "framework/enactor.hpp"
 #include "framework/views.hpp"
 #include "graph/graph_impl.hpp"
+#include "util/allocation.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/backend.hpp>
@@ -891,7 +892,7 @@ memory_space result<vertex_t>::space() const noexcept {
 }
 
 template <typename vertex_t>
-result<vertex_t> result<vertex_t>::clone(const resources& res) const {
+result<vertex_t> result<vertex_t>::clone(const resources& res) const try {
   const auto& st = detail::checked(impl_.get(), "label_propagation::result::clone");
   detail::expect_backend(res, "label_propagation::result::clone");
   auto copy = std::make_unique<detail::label_propagation_state<vertex_t>>(st);
@@ -917,10 +918,12 @@ result<vertex_t> result<vertex_t>::clone(const resources& res) const {
   }
   return result(std::move(copy));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("label_propagation::result::clone (",
+                                  impl_ != nullptr ? impl_->seeds.size() : 0, " vertices)")
 
 template <typename vertex_t>
 void result<vertex_t>::reserve(const resources& res, std::size_t max_batch_vertices,
-                               std::size_t max_batch_edges) {
+                               std::size_t max_batch_edges) try {
   auto& st = detail::checked(impl_.get(), "label_propagation::result::reserve");
   detail::expect_backend(res, "label_propagation::result::reserve");
   st.reserved_vertices = std::max(st.reserved_vertices, max_batch_vertices);
@@ -940,6 +943,8 @@ void result<vertex_t>::reserve(const resources& res, std::size_t max_batch_verti
                    .template acquire<detail::label_propagation_workspace>(res);
   lease->reserve(st.labels.size(), st.reserved_vertices, st.reserved_edges);
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("label_propagation::result::reserve (", max_batch_vertices,
+                                  " vertices, ", max_batch_edges, " edges per batch)")
 
 }  // namespace dyng::label_propagation
 
@@ -949,7 +954,7 @@ template <typename vertex_t, typename edge_t>
 label_propagation::result<vertex_t> label_propagation_compute(
     const resources& res, const graph<vertex_t, edge_t, float>& g,
     array_view<const vertex_t> seed_vertices, array_view<const std::int8_t> seed_labels,
-    const label_propagation::options& opt) {
+    const label_propagation::options& opt) try {
   using problem_t = label_propagation_problem<vertex_t, edge_t, float>;
   expect_backend(res, "label_propagation::compute");
   graph_access::expect_placement_any_layout(res, g, "label_propagation::compute");
@@ -998,6 +1003,8 @@ label_propagation::result<vertex_t> label_propagation_compute(
   framework::stamp_result(st->version, st->graph_state, g);
   return label_propagation_access::make(std::move(st));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("label_propagation::compute (", g.num_vertices(), " vertices, ",
+                                  g.num_edges(), " edges)")
 
 template <typename vertex_t, typename edge_t>
 label_propagation::stats label_propagation_update(const resources& res,
