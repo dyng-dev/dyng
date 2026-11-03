@@ -3011,6 +3011,11 @@ def test_the_hsosp_suite_records_are_checked(bench, tmp_path: Path) -> None:
     not decide, a flagged audit, scope differs (HD7), a foreign GPU process during the memory
     reading, or a memory point above the bar each fail the summary."""
     suite = bench.load_suite(REPO / "benchmarks/paper/ia3_hsosp.yaml")
+    # Both datasets are read at base (ADR 0093); the rule for a reading at boost (the clocks its
+    # probe decided) is checked on a copy of the suite whose Geology reading is at boost.
+    for reading in suite["readings"]:
+        if reading["name"] == "cuda-geology":
+            reading["clocks"] = "boost"
     records = tmp_path / "rec"
     jobs = _write_hsosp_records(bench, suite, records, head())
 
