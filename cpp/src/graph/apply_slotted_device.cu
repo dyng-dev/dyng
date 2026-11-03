@@ -188,8 +188,11 @@ __global__ void append_kernel(const std::int32_t* keys, const std::int32_t* item
   if (source >= num_nodes) {
     return;  // dropped edge
   }
-  const edge_t slot = row_end[source] + static_cast<edge_t>(rank[i]);
-  if (slot >= row_ptr[source + 1]) {  // row full: input contract violated
+  // In 64 bits: with 32-bit offsets a row near the end of a slot array of almost 2^31 slots
+  // would wrap past the row's end check (the original's arithmetic is edge_t; a documented fix).
+  const std::int64_t slot =
+      static_cast<std::int64_t>(row_end[source]) + static_cast<std::int64_t>(rank[i]);
+  if (slot >= static_cast<std::int64_t>(row_ptr[source + 1])) {  // row full: contract violated
     report_max(report, report_overflow_row, static_cast<std::int64_t>(source) + 1);
     report_or(report, report_error_bits, bits_of(device_error::capacity));
     return;
@@ -220,7 +223,11 @@ __global__ void advance_row_end_kernel(const std::int32_t* keys, const std::int3
   if (i + 1 < num_half_edges && keys[i + 1] == source) {
     return;
   }
-  row_end[source] = min(row_end[source] + static_cast<edge_t>(rank[i]) + 1, row_ptr[source + 1]);
+  // In 64 bits, as append_kernel's slot (the end of the row bounds the result).
+  const std::int64_t end = static_cast<std::int64_t>(row_end[source]) +
+                           static_cast<std::int64_t>(rank[i]) + 1;
+  const auto limit = static_cast<std::int64_t>(row_ptr[source + 1]);
+  row_end[source] = static_cast<edge_t>(end < limit ? end : limit);
 }
 
 /// The dropped half-edges: the keys n sort last, so the last key's rank says how many there are.

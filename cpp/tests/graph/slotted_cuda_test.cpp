@@ -28,7 +28,9 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <climits>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -280,6 +282,73 @@ TEST(SlottedCuda, DeviceOverflowPoisonsTheGraph) {
   lp_batch c;
   c.insert_vertex(2);
   EXPECT_THROW((void)g.apply(res, c.view()), dyng::capacity_error);
+}
+
+/// The poison is the graph's host state (M10a review): after a device overflow, an apply on any
+/// resources raises capacity_error (a host apply too, which would otherwise drop the device copy
+/// and the poison with it), and a clone to either backend is poisoned as well.
+TEST(SlottedCuda, ThePoisonSurvivesHostAppliesAndClones) {
+  DYNG_REQUIRE_DEVICE();
+  const dyng::resources cuda = dyng::resources::cuda(0);
+  const dyng::resources seq = dyng::resources::sequential();
+  lp_graph g = make<lp_graph>(cuda, {2, 2, 2, 1});
+  lp_batch b;
+  b.insert_vertex(0);
+  b.insert_vertex(1);
+  b.insert_vertex(3);
+  b.insert_edge(3, 0, {0.1F});
+  b.insert_edge(3, 1, {0.1F});  // row 3 has one slot
+  EXPECT_THROW((void)g.apply(cuda, b.view()), dyng::capacity_error);
+  lp_batch c;
+  c.insert_vertex(2);
+  const lp_batch empty;
+  const std::uint64_t version = g.version();
+  EXPECT_THROW((void)g.apply(seq, c.view()), dyng::capacity_error);  // a host apply
+  EXPECT_THROW((void)g.apply(cuda, empty.view()), dyng::capacity_error);
+  EXPECT_EQ(g.version(), version);
+  EXPECT_THROW(g.check_integrity(seq), dyng::internal_error);
+  for (const dyng::resources* to : {&cuda, &seq}) {
+    SCOPED_TRACE(to == &cuda ? "clone to cuda" : "clone to sequential");
+    lp_graph copy = g.clone(*to);
+    EXPECT_THROW((void)copy.apply(*to, c.view()), dyng::capacity_error);
+    EXPECT_THROW((void)copy.apply(cuda, empty.view()), dyng::capacity_error);
+    try {
+      copy.check_integrity(*to);
+      ADD_FAILURE() << "a clone of a poisoned graph passed check_integrity()";
+    } catch (const dyng::internal_error& e) {
+      EXPECT_NE(std::string(e.what()).find("poisoned"), std::string::npos) << e.what();
+    }
+  }
+}
+
+/// A row at the end of a slot array of 2^31 - 1 slots (int32 offsets): the device append's slot
+/// and row-end arithmetic must not wrap past the row's end check (M10a review: it wrote about
+/// 8 GB before the slot array). Unweighted, so the slots take 8 GiB on each side; skipped when the
+/// device or the host cannot hold them.
+TEST(SlottedCuda, AnOverflowNearTheInt32LimitStaysInsideTheRow) {
+  DYNG_REQUIRE_DEVICE();
+  using u_graph = dyng::graph<std::int32_t, std::int32_t, dyng::unweighted>;
+  const dyng::resources res = dyng::resources::cuda(0);
+  graph_properties p = slotted_props();
+  p.num_weights = 0;
+  const std::vector<std::int32_t> cap = {INT32_MAX - 1, 1};
+  std::optional<u_graph> g;
+  try {
+    g.emplace(u_graph::with_capacity(res, 2, host_view(cap), p));
+    (void)dyng::detail::graph_access::slotted_device(res, *g);  // the 8 GiB device copy
+  } catch (const dyng::out_of_memory_error& e) {
+    GTEST_SKIP() << "no room for 2^31 - 1 slots: " << e.what();
+  }
+  dyng::edge_batch<std::int32_t, dyng::unweighted> b;
+  b.insert_vertex(0);
+  b.insert_vertex(1);
+  for (int k = 0; k < 64; ++k) {
+    b.insert_edge(1, 0);  // 64 deliveries of one edge: row 1 has one slot
+  }
+  EXPECT_THROW((void)g->apply(res, b.view()), dyng::capacity_error);
+  const auto v = g->view();
+  EXPECT_EQ(v.row_end[1], INT32_MAX);  // its one slot, never past the end of the row
+  EXPECT_EQ(v.out.col_ind[static_cast<std::size_t>(INT32_MAX) - 1], 0);
 }
 
 /// LabelPropagation-CUDA@a276a3a:tests/input_contract_test.cu's nine scenarios on CUDA: the same
