@@ -77,8 +77,9 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
   }
   // The entry checks of a graph whose layout is not compact, before anything reads the batch
   // (ADR 0070, framework/entry_check.hpp): a participant's own (label_propagation: its backend,
-  // its result's state, the layout it reads), else the compact-only guard (AD11), so that such a
-  // graph is refused with its named error before the batch is copied or checked (Step 0).
+  // its result's state, the layout it reads), else the compact-only guard named after the update
+  // function (AD11), so that such a graph is refused with its named error before the batch is
+  // copied or checked (Step 0).
   const std::string function = update_function(commit_stage);
   if (g.properties().layout != row_layout::compact) {
     for (std::size_t i = 0; i < count; ++i) {

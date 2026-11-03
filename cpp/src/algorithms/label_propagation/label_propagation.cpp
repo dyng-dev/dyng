@@ -19,6 +19,7 @@
 #include "framework/composition.hpp"
 #include "framework/context.hpp"
 #include "framework/enactor.hpp"
+#include "framework/entry_check.hpp"
 #include "framework/views.hpp"
 #include "graph/graph_impl.hpp"
 #include "util/allocation.hpp"
@@ -1012,14 +1013,14 @@ label_propagation::stats label_propagation_update(const resources& res,
                                                   const edge_batch_view<vertex_t, float>& batch,
                                                   label_propagation::result<vertex_t>& r) {
   using problem_t = label_propagation_problem<vertex_t, edge_t, float>;
-  return framework::update_one<problem_t>(res, g, batch, r);
+  return framework::update_one_checked<problem_t>(res, g, batch, r);  // entry checks first
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<update_participant<vertex_t, edge_t, weight_t>> make_label_propagation_participant(
     label_propagation::result<vertex_t>& r, label_propagation::stats& out) {
   using problem_t = label_propagation_problem<vertex_t, edge_t, weight_t>;
-  return framework::make_participant<problem_t>(out, r);
+  return framework::make_checked_participant<problem_t>(out, r);  // entry checks first
 }
 
 // Explicit instantiations (PLAN Section 4.4.3): float graphs with 32-bit ids.

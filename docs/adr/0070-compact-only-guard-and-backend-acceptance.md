@@ -32,8 +32,13 @@ layout supports".
 `detail::expect_compact_layout(const graph_properties&, std::string_view consumer)`
 (`cpp/src/graph/graph_impl.hpp`, defined in `graph.cpp`) raises `not_supported_error` for any
 layout but `row_layout::compact`, naming the consumer, the graph's layout, and the fix (copy the
-edges into a compact graph: `graph::from_csr(res, g.to_csr(res).view(), props)` with
-`props.layout = row_layout::compact`). It is the only implementation of the refusal; it is called:
+edges into a compact graph: `graph::from_csr(res, g.to_csr(res).view(), props)` with `props =
+g.properties()`, `props.layout = row_layout::compact` and `props.semantics =
+batch_semantics::upsert_last_wins()` or the consumer's, since `net_effect()` needs slotted rows;
+`g`'s `row_order::append` and `multi_edges::allow` keep every entry in slot order; the recipe as
+first written, with the layout changed only, could not work: M10a review,
+`compact_guard_test`'s `TheSuggestedFixWorksAsWritten`). It is the only implementation of the
+refusal; it is called:
 
 - by `graph_access::expect_placement()`, the placement check every graph algorithm already makes
   at its entries (so the scaffold's algorithms of `scripts/new_algorithm.py` inherit the guard);
@@ -47,7 +52,21 @@ edges into a compact graph: `graph::from_csr(res, g.to_csr(res).view(), props)` 
   refuse a slotted graph with the named error before anything changes;
 - by the upload of the compact device copy (`graph_impl::device_edges`, `graph.upload`) and by the
   device merge of the set semantics (unreachable for slotted rows, whose semantics is
-  `net_effect()`; the check documents and enforces it).
+  `net_effect()`; the check documents and enforces it);
+- and, since the M10a review, by `run_update()` itself (`cpp/src/framework/composition.cpp`)
+  before it reads the batch of a graph whose layout is not compact: the calls above inside each
+  participant's `before_apply` came after the batch's copy to the host and Step 0 of
+  `net_effect()` (which checks a vertex batch against G_t and, on a device-resident slotted graph,
+  uploads it), so an invalid vertex batch gave Step 0's `invalid_argument_error` (or its
+  `net_effect` message) instead of the named refusal, and a valid one was uploaded first. For such
+  a graph `run_update()` now asks every participant that implements the internal
+  `framework::entry_check` (`cpp/src/framework/entry_check.hpp`: label_propagation's
+  `checked_participant`, whose `check_entry` makes the checks of its `begin_update` that read
+  nothing of the batch: backend, placement, poisoned and stale result, layout, options) to check
+  its entry, and applies the guard, named after the update function, to every other participant.
+  The public `update_participant`, `framework/composition.hpp` and `framework/problem.hpp` are
+  unchanged (the per-problem trait of the alternatives below stays rejected for the same reason),
+  and a compact graph takes no new path (one comparison).
 
 Nothing else in those algorithms changes: one call per entry, and `@throws not_supported_error`
 documentation in `sssp.hpp`, `mosp.hpp`, `cycle_count.hpp`, `dynamic_bfs.hpp`,
