@@ -4,7 +4,7 @@
  "threads": 0,
  "oracle": false,
  "verified": false,
- "commit": "93d981623a58d19af6fe05da98638fa546a7aaa2",
+ "commit": "ab8daaa87e148a5795c6ee6fbbf8184eb5d6611c",
  "tool": "build/parity-cuda/cpp/tests/dyng_hsosp_replay",
  "passed": true,
  "totals": {
@@ -68,10 +68,10 @@
    "device_layouts_compared": 25,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.171756,
+   "seconds": 0.173858,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 0.3
+   "wall_seconds": 0.4
   },
   {
    "file": "test/02-test_h2h_delta/dump.hsd.zst",
@@ -104,10 +104,10 @@
    "device_layouts_compared": 105,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.209523,
+   "seconds": 0.205544,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 0.3
+   "wall_seconds": 0.4
   },
   {
    "file": "test/03-test_hsosp_matches_dijkstra/dump.hsd.zst",
@@ -140,7 +140,7 @@
    "device_layouts_compared": 409,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 2.77466,
+   "seconds": 2.73529,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 3.0
@@ -176,10 +176,10 @@
    "device_layouts_compared": 8,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.98528,
+   "seconds": 0.985562,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 1.2
+   "wall_seconds": 1.3
   },
   {
    "file": "test/05-hsospStress/dump.hsd.zst",
@@ -212,10 +212,10 @@
    "device_layouts_compared": 200,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.775178,
+   "seconds": 0.75563,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 0.9
+   "wall_seconds": 1.0
   },
   {
    "file": "test/06-hsospStress_escher/dump.hsd.zst",
@@ -248,7 +248,7 @@
    "device_layouts_compared": 80,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.256984,
+   "seconds": 0.249879,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 0.4
@@ -284,7 +284,7 @@
    "device_layouts_compared": 34,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 3.08235,
+   "seconds": 3.04535,
    "mismatch_count": 0,
    "mismatches": [],
    "wall_seconds": 3.5
@@ -320,10 +320,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.280204,
+   "seconds": 0.278067,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 0.4
+   "wall_seconds": 0.5
   },
   {
    "file": "test/09-hsospBench_real_vertex/dump.hsd.zst",
@@ -356,10 +356,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 0.277938,
+   "seconds": 0.271529,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 0.4
+   "wall_seconds": 0.5
   },
   {
    "file": "paper/dblp_hyperedge_25000/dump.hsd.zst",
@@ -392,10 +392,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 33.1391,
+   "seconds": 34.9461,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 34.0
+   "wall_seconds": 35.8
   },
   {
    "file": "paper/dblp_hyperedge_50000/dump.hsd.zst",
@@ -428,10 +428,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 35.0212,
+   "seconds": 36.2367,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 37.4
+   "wall_seconds": 38.8
   },
   {
    "file": "paper/dblp_hyperedge_100000/dump.hsd.zst",
@@ -464,10 +464,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 37.3494,
+   "seconds": 39.0245,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 38.2
+   "wall_seconds": 39.9
   },
   {
    "file": "paper/dblp_hyperedge_200000/dump.hsd.zst",
@@ -500,10 +500,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 41.3372,
+   "seconds": 42.6206,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 42.3
+   "wall_seconds": 43.6
   },
   {
    "file": "paper/dblp_vertex_25000/dump.hsd.zst",
@@ -536,10 +536,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 32.1437,
+   "seconds": 33.5167,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 33.0
+   "wall_seconds": 34.4
   },
   {
    "file": "paper/dblp_vertex_50000/dump.hsd.zst",
@@ -572,10 +572,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 33.7761,
+   "seconds": 35.3721,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 36.0
+   "wall_seconds": 37.7
   },
   {
    "file": "paper/dblp_vertex_100000/dump.hsd.zst",
@@ -608,10 +608,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 34.0103,
+   "seconds": 35.2528,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 34.8
+   "wall_seconds": 36.1
   },
   {
    "file": "paper/dblp_vertex_200000/dump.hsd.zst",
@@ -644,10 +644,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 37.9547,
+   "seconds": 36.2476,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 39.0
+   "wall_seconds": 37.2
   },
   {
    "file": "paper/geology_hyperedge_25000/dump.hsd.zst",
@@ -680,10 +680,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 14.6434,
+   "seconds": 13.3147,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 15.1
+   "wall_seconds": 13.8
   },
   {
    "file": "paper/geology_hyperedge_50000/dump.hsd.zst",
@@ -716,10 +716,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 13.0111,
+   "seconds": 13.9006,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 14.3
+   "wall_seconds": 15.3
   },
   {
    "file": "paper/geology_hyperedge_100000/dump.hsd.zst",
@@ -752,10 +752,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 14.2707,
+   "seconds": 15.1985,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 14.9
+   "wall_seconds": 15.8
   },
   {
    "file": "paper/geology_hyperedge_200000/dump.hsd.zst",
@@ -788,10 +788,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 16.8814,
+   "seconds": 17.7691,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 17.6
+   "wall_seconds": 18.4
   },
   {
    "file": "paper/geology_vertex_25000/dump.hsd.zst",
@@ -824,10 +824,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 12.002,
+   "seconds": 12.9148,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 12.5
+   "wall_seconds": 13.4
   },
   {
    "file": "paper/geology_vertex_50000/dump.hsd.zst",
@@ -860,10 +860,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 0,
    "node_growths": 0,
-   "seconds": 12.408,
+   "seconds": 13.7097,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 13.7
+   "wall_seconds": 14.9
   },
   {
    "file": "paper/geology_vertex_100000/dump.hsd.zst",
@@ -896,10 +896,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 12.6459,
+   "seconds": 13.5836,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 13.2
+   "wall_seconds": 14.1
   },
   {
    "file": "paper/geology_vertex_200000/dump.hsd.zst",
@@ -932,10 +932,10 @@
    "device_layouts_compared": 4,
    "digest_batches": 3,
    "node_growths": 0,
-   "seconds": 13.455,
+   "seconds": 14.4098,
    "mismatch_count": 0,
    "mismatches": [],
-   "wall_seconds": 14.1
+   "wall_seconds": 15.0
   }
  ],
  "problems": []

@@ -1,12 +1,12 @@
 {
  "set": "hyper_sssp_mosp_escher",
  "kind": "hyper_sssp",
- "date": "2026-10-30T09:06:45+00:00",
+ "date": "2026-11-02T23:45:31+00:00",
  "goldens": {
   "manifest_sha256": "6211339456bbd391e1054caec3e936184433ccc43b41e722124de5b2effec872"
  },
  "port": {
-  "commit": "93d981623a58d19af6fe05da98638fa546a7aaa2"
+  "commit": "ba1120bb563fc42cbe3c29daa52902e01c5e4e08"
  },
  "executable": "parity/compare.py hyper_sssp --part results",
  "reference": "MOSP_ESCHER",
