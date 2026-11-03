@@ -356,8 +356,8 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::to_csr (", num_edges(), " edges)")
 template <typename vertex_t, typename edge_t, typename weight_t>
 void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) const try {
   (void)res;  // checks the host storage (downloaded first if a device apply left it stale)
-  (void)impl().host_edges();
-  if (impl().is_slotted() && impl().has_slotted_device() && impl().slotted_device(res).poisoned) {
+  (void)impl().host_edges();  // settles a pending device apply (which may poison the graph)
+  if (impl().is_slotted() && impl().slotted.poisoned) {
     DYNG_FAIL(
         "graph integrity: a vertex batch overflowed a row on the device (its appends past "
         "the end of the row were dropped): the graph is poisoned");
@@ -577,17 +577,21 @@ void graph_access::normalize(const resources& res, const graph<vertex_t, edge_t,
                              normalized_batch<vertex_t>& out) {
   const auto& state = g.impl();
   if (state.props.semantics.as_net_effect) {
+    if (state.is_slotted()) {
+      (void)state.settle_slotted();  // a device apply not settled yet may poison the graph
+    }
+    if (state.is_slotted() && state.slotted.poisoned) {
+      // On every resources, and in a clone or a moved copy too (the flag is host state).
+      throw capacity_error(
+          "dyng: graph::apply: an earlier vertex batch overflowed a row of this graph on the "
+          "device (its appends past the end of the row were dropped); the graph is poisoned: "
+          "build it again");
+    }
     if constexpr (device_slotted_supported_v<vertex_t>) {
       if (state.is_slotted() && state.slotted_on_device(res)) {
         // ADR 0074: Step 0 on the host without the capacity check (the device records an
         // overflow), then the batch to the device, before any participant reads G_t there.
         auto& dev = state.slotted_device(res);
-        if (dev.poisoned) {
-          throw capacity_error(
-              "dyng: graph::apply: an earlier vertex batch overflowed a row of this graph on the "
-              "device (its appends past the end of the row were dropped); the graph is poisoned: "
-              "build it again");
-        }
         dev.batch_current = false;
         normalize_vertex_batch(state.host_storage(), state.slotted, batch, out, false);
         out.state_id = state.state_id;
@@ -781,7 +785,7 @@ device_slotted_settled graph_impl<vertex_t, edge_t, weight_t>::settle_slotted() 
     slotted.live_entries = static_cast<edge_t>(static_cast<std::int64_t>(slotted.live_entries) +
                                                s.appended - s.removed);
     if (s.error_bits != 0) {
-      slotted_device_->poisoned = true;
+      slotted.poisoned = true;
     }
     slotted_device_->last_settled = s;
   }

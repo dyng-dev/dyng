@@ -145,7 +145,6 @@ struct device_slotted {
   /// The last apply's report once settled: every participant of one dyng::update() reads the
   /// same counts (the first one to synchronize settles it; M10a step 5, ADR 0076).
   mutable device_slotted_settled last_settled;
-  bool poisoned = false;  ///< an apply overflowed a row: the graph is unusable
 
   /**
    * @brief The device memory held.

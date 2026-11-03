@@ -432,7 +432,8 @@ class graph {
    * check_integrity() and clone() download it once). The one check made on the device instead is
    * the row capacity: an append past the end of a row is dropped and raises capacity_error after
    * the batch was applied (the basic guarantee), and the graph is poisoned: every later apply()
-   * raises capacity_error, and check_integrity() reports it.
+   * raises capacity_error, on any resources, and check_integrity() reports it; a clone() or a
+   * to_backend() copy of a poisoned graph is poisoned too.
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
 

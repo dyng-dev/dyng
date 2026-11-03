@@ -59,6 +59,10 @@ struct slotted_rows {
   std::vector<vertex_status> status;  ///< per vertex: its state
   edge_t live_entries = 0;            ///< entries whose two endpoints are active (num_edges())
   vertex_t active_vertices = 0;       ///< vertices whose state is active
+  /// An apply on the device overflowed a row (its appends past the end of the row were dropped;
+  /// ADR 0074): the graph is unusable. Kept with the host state, so that clone(), to_backend()
+  /// and an apply on any resources see it (M10a review).
+  bool poisoned = false;
   /// Scratch of Step 0: per vertex, bit 0 = in deletions, bit 1 = in insertions, bits 2-7 the
   /// tag of the Step 0 that set them; one more byte, the last tag (step_marks; no clearing).
   mutable std::vector<std::uint8_t> marks;
