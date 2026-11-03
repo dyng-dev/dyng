@@ -317,10 +317,22 @@ struct traits_of_schedule {
                                                    const snapshot& s) {
     const auto csr = g.to_csr(res);
     const std::vector<std::uint8_t> on = present(g);
-    std::vector<std::int8_t> seeds = s.seeds;
+    // The expected seeds come from the kit's own rule, never from the result under test (M10a
+    // review: a backend that dropped every seed would otherwise be compared with the harmonic
+    // solution of its own wrong seed set): a present vertex's seed label is kit_seed_label(v) (the
+    // arrivals carry it, departures are drawn from the unlabelled vertices, an id inserted and
+    // deleted in one batch ends deleted), and the result must report exactly that.
+    std::vector<std::int8_t> seeds(on.size(), -1);
     for (std::size_t v = 0; v < seeds.size(); ++v) {
       if (on[v] == 0) {
-        seeds[v] = -1;  // a deleted seed keeps its label in the result; it is not in the graph
+        continue;  // a deleted seed keeps its label in the result; it is not in the graph
+      }
+      seeds[v] = kit_seed_label(static_cast<std::int64_t>(v));
+      const std::int8_t reported = v < s.seeds.size() ? s.seeds[v] : std::int8_t{-2};
+      if (reported != seeds[v]) {
+        return ::testing::AssertionFailure()
+               << "the result reports the seed label " << int{reported} << " for vertex " << v
+               << "; the kit's rule gives " << int{seeds[v]};
       }
     }
     const dyng::testing::harmonic_result h =

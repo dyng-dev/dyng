@@ -449,8 +449,183 @@ TEST(LabelPropagation, OnLimit) {
       EXPECT_EQ(st.iterations, 1);
     } else {
       EXPECT_TRUE(st.fallback_used);
-      EXPECT_TRUE(st.converged);
+      // IrLP under the same cap of 1 iteration reaches it too: not converged (M10a review).
+      EXPECT_FALSE(st.converged);
     }
+  }
+}
+
+/// on_limit::fallback_recompute when IrLP reaches the cap too (M10a review): the update keeps
+/// IrLP's labels and reports stats::converged = false (compute() raises convergence_error there).
+TEST(LabelPropagation, AFallbackThatReachesTheCapIsNotConverged) {
+  const dyng::resources res = test_resources();
+  constexpr std::int32_t n = 200;
+  std::vector<std::int32_t> cap(n, 2);
+  cap.front() = 1;
+  cap.back() = 1;
+  for (const lp::schedule rule : {lp::schedule::damped, lp::schedule::in_place}) {
+    SCOPED_TRACE(rule == lp::schedule::damped ? "damped" : "in_place");
+    lp_graph g = lp_graph::with_capacity(res, n, host_view(cap), slotted_props());
+    lp::options opt;
+    opt.similarity_threshold = 0.95F;  // no edge joins G': every vertex starts from its supernode
+    opt.tolerance = 1e-6F;
+    opt.max_iterations = 1;
+    opt.update_schedule = rule;
+    opt.on_iteration_limit = lp::on_limit::fallback_recompute;
+    auto r = empty_compute(res, g, opt);
+    dyng::edge_batch<std::int32_t, float> b;  // a path with a seed of each class at its ends
+    b.insert_vertex(0, 0);
+    for (std::int32_t v = 1; v + 1 < n; ++v) {
+      b.insert_vertex(v);
+    }
+    b.insert_vertex(n - 1, 1);
+    for (std::int32_t v = 0; v + 1 < n; ++v) {
+      b.insert_edge(v, v + 1, {0.9F});
+    }
+    const lp::stats st = lp::update(res, g, b.view(), r);
+    EXPECT_TRUE(st.fallback_used);
+    EXPECT_FALSE(st.converged) << "the fallback's IrLP reached the cap too";
+    EXPECT_NO_THROW((void)r.labels());  // IrLP's labels are kept
+    // compute() with the same options raises convergence_error at the cap.
+    std::vector<std::int32_t> sv = {0, n - 1};
+    std::vector<std::int8_t> sc = {0, 1};
+    const std::vector<std::int32_t>& seeds = sv;
+    const std::vector<std::int8_t>& classes = sc;
+    EXPECT_THROW((void)lp::compute(res, g, host_view(seeds), host_view(classes), opt),
+                 dyng::convergence_error);
+  }
+}
+
+/// The similarity threshold is strict (the original's buildSubgraphKernel: w > tau): an edge of
+/// weight exactly tau between two inserted vertices is not in G', the next float up is.
+TEST(LabelPropagation, AnEdgeOfWeightTauIsNotInGPrime) {
+  const dyng::resources res = test_resources();
+  for (const float w : {0.5F, std::nextafter(0.5F, 1.0F)}) {
+    SCOPED_TRACE(w);
+    const std::vector<std::int32_t> cap = {1, 1};
+    lp_graph g = lp_graph::with_capacity(res, 2, host_view(cap), slotted_props());
+    lp::options opt;
+    opt.similarity_threshold = 0.5F;
+    auto r = empty_compute(res, g, opt);
+    dyng::edge_batch<std::int32_t, float> b;
+    b.insert_vertex(0, 0);
+    b.insert_vertex(1);
+    b.insert_edge(0, 1, {w});
+    const lp::stats st = lp::update(res, g, b.view(), r);
+    EXPECT_EQ(st.sparsified_edges, w > 0.5F ? 1 : 0);
+    EXPECT_EQ(st.components, w > 0.5F ? 1 : 2);  // one supernode, or two singletons
+    EXPECT_NEAR(host_labels(res, r)[1], 0.0F, 1e-3);  // its one neighbour is the class-0 seed
+  }
+}
+
+/// The average live weight of slotted rows as options::similarity_threshold = std::nullopt
+/// documents it: a double sum in vertex order and slot order over the entries whose two endpoints
+/// are active, rounded to float (0.5 for a graph without edges).
+float live_mean(const lp_graph& g) {
+  const auto v = g.view();
+  double sum = 0.0;
+  std::int64_t count = 0;
+  for (std::size_t u = 0; u < v.status.size(); ++u) {
+    if (v.status[u] != dyng::vertex_status::active) {
+      continue;
+    }
+    for (auto e = static_cast<std::size_t>(v.out.row_ptr[u]);
+         e < static_cast<std::size_t>(v.row_end[u]); ++e) {
+      const std::int32_t w = v.out.col_ind[e];
+      if (w >= 0 && v.status[static_cast<std::size_t>(w)] == dyng::vertex_status::active) {
+        sum += v.out.weights[e];
+        ++count;
+      }
+    }
+  }
+  return count > 0 ? static_cast<float>(sum / static_cast<double>(count)) : 0.5F;
+}
+
+/// options::similarity_threshold unset (the default): every update uses the current graph's
+/// average live weight, bitwise the host formula on every backend (an update with that value
+/// passed explicitly gives the same bits and counts).
+TEST(LabelPropagation, TheDefaultThresholdIsTheAverageLiveWeight) {
+  const dyng::resources res = test_resources();
+  const stream_t s = make_stream(3000, 4);
+  for (const lp::schedule rule : {lp::schedule::damped, lp::schedule::in_place}) {
+    SCOPED_TRACE(rule == lp::schedule::damped ? "damped" : "in_place");
+    lp_graph g = capacity_graph(res, s);
+    lp_graph h = capacity_graph(res, s);
+    lp::options opt = published(s, 1e-5F, rule);
+    opt.similarity_threshold.reset();
+    auto r = empty_compute(res, g, opt);
+    auto q = empty_compute(res, h, opt);
+    for (std::size_t b = 0; b < s.batches.size(); ++b) {
+      SCOPED_TRACE("batch " + std::to_string(b));
+      const lp::stats st = lp::update(res, g, s.batches[b].view(), r);
+      lp::options explicit_tau = opt;
+      explicit_tau.similarity_threshold = live_mean(g);  // G_{t+1}, after the update
+      q.set_options(explicit_tau);
+      const lp::stats sq = lp::update(res, h, s.batches[b].view(), q);
+      EXPECT_EQ(st.sparsified_edges, sq.sparsified_edges);
+      EXPECT_EQ(st.components, sq.components);
+      EXPECT_EQ(st.initial_frontier, sq.initial_frontier);
+      if (rule == lp::schedule::damped || !on_cuda) {
+        EXPECT_EQ(bits(host_labels(res, r)), bits(host_labels(res, q)));
+      }
+    }
+    EXPECT_NE(live_mean(g), s.similarity_threshold);  // the default is not the published tau
+  }
+  // One edge: the mean of its two entries is its weight, which is not > tau.
+  const std::vector<std::int32_t> cap = {1, 1};
+  lp_graph g = lp_graph::with_capacity(res, 2, host_view(cap), slotted_props());
+  lp::options opt;
+  auto r = empty_compute(res, g, opt);
+  dyng::edge_batch<std::int32_t, float> b;
+  b.insert_vertex(0, 0);
+  b.insert_vertex(1);
+  b.insert_edge(0, 1, {0.5F});  // the only entries' mean is 0.5 itself: not > tau
+  EXPECT_EQ(lp::update(res, g, b.view(), r).sparsified_edges, 0);
+}
+
+/// FNV-1a of the label bits after every batch of the 5k5 stream (damped, delta 1e-4): a change of
+/// the label initialization's precision (double sums, M10a review) or of the damped rule changes
+/// them. The cuda value is the original's (damped byte parity, AD6); the sequential one is the
+/// host engine's (bitwise per backend; -ffp-contract=off).
+TEST(LabelPropagation, TheLabelBitsOfTheFiveThousandVertexStream) {
+  const stream_t s = make_stream(5000, 5);
+  const dyng::resources res = test_resources();
+  lp_graph g = capacity_graph(res, s);
+  auto r = empty_compute(res, g, published(s, 1e-4F, lp::schedule::damped));
+  std::uint64_t h = 1469598103934665603ULL;
+  for (const auto& b : s.batches) {
+    (void)lp::update(res, g, b.view(), r);
+    for (const std::uint32_t x : bits(host_labels(res, r))) {
+      for (int k = 0; k < 4; ++k) {
+        h = (h ^ ((x >> (8 * k)) & 0xFFU)) * 1099511628211ULL;
+      }
+    }
+  }
+  const std::uint64_t expected = on_cuda ? 0x1d034ffaed566004ULL : 0xfe32f56e533f87feULL;
+  EXPECT_EQ(h, expected) << std::hex << "0x" << h;
+}
+
+/// The entry checks come before the batch is read (ADR 0070, M10a review): a stale result with an
+/// invalid batch raises stale_result_error, and resources of another backend raise
+/// not_supported_error, not Step 0's invalid_argument_error.
+TEST(LabelPropagation, EntryChecksComeBeforeTheBatch) {
+  const dyng::resources res = test_resources();
+  const std::vector<std::int32_t> cap = {1, 1, 2};
+  lp_graph g = lp_graph::with_capacity(res, 3, host_view(cap), slotted_props());
+  lp::options opt;
+  opt.similarity_threshold = 0.5F;
+  auto r = empty_compute(res, g, opt);
+  dyng::edge_batch<std::int32_t, float> v;
+  v.insert_vertex(0);
+  (void)g.apply(res, v.view());  // r is stale now
+  dyng::edge_batch<std::int32_t, float> invalid;
+  invalid.insert_vertex(0);  // a re-insertion: Step 0 would refuse it
+  EXPECT_THROW((void)lp::update(res, g, invalid.view(), r), dyng::stale_result_error);
+  EXPECT_THROW((void)dyng::update(res, g, invalid.view(), r), dyng::stale_result_error);
+  if (dyng::backend_available(dyng::backend::openmp)) {
+    auto fresh = empty_compute(res, g, opt);
+    EXPECT_THROW((void)lp::update(dyng::resources::openmp(), g, invalid.view(), fresh),
+                 dyng::not_supported_error);
   }
 }
 

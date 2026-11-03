@@ -40,6 +40,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <random>
@@ -635,6 +636,198 @@ TEST(LabelPropagationCuda, OutOfMemoryUnderALimitWithoutALeak) {
     EXPECT_TRUE(threw) << limit << " bytes";
     EXPECT_EQ(mr.live(), 0U) << "device memory leaked under a limit of " << limit << " bytes";
   }
+}
+
+/// A device resource that fails the k-th allocation after arm(k), and counts the live bytes.
+class failing_resource {
+ public:
+  explicit failing_resource(dyng::memory_resource_ref upstream) : upstream_(upstream) {}
+  void arm(long long k) noexcept {
+    countdown_ = k;
+  }
+  /// Disarm; return whether the armed allocation was reached.
+  bool disarm() noexcept {
+    const bool reached = countdown_.load() == 0;
+    countdown_ = 0;
+    return reached;
+  }
+  void* allocate(dyng::stream_ref s, std::size_t b, std::size_t a) {
+    fail_now();
+    void* p = upstream_.allocate(s, b, a);
+    live_ += b;
+    return p;
+  }
+  void deallocate(dyng::stream_ref s, void* p, std::size_t b, std::size_t a) noexcept {
+    upstream_.deallocate(s, p, b, a);
+    live_ -= b;
+  }
+  void* allocate_sync(std::size_t b, std::size_t a) {
+    fail_now();
+    void* p = upstream_.allocate_sync(b, a);
+    live_ += b;
+    return p;
+  }
+  void deallocate_sync(void* p, std::size_t b, std::size_t a) noexcept {
+    upstream_.deallocate_sync(p, b, a);
+    live_ -= b;
+  }
+  [[nodiscard]] dyng::memory_space space() const noexcept {
+    return upstream_.space();
+  }
+  [[nodiscard]] std::size_t live() const noexcept {
+    return live_.load();
+  }
+  [[nodiscard]] long long allocations() const noexcept {
+    return allocations_.load();
+  }
+
+ private:
+  void fail_now() {
+    ++allocations_;
+    long long left = countdown_.load();
+    while (left > 0 && !countdown_.compare_exchange_weak(left, left - 1)) {
+    }
+    if (left == 1) {
+      throw dyng::out_of_memory_error("failing_resource: the armed allocation");
+    }
+  }
+  dyng::memory_resource_ref upstream_;
+  std::atomic<long long> countdown_{0};
+  std::atomic<long long> allocations_{0};
+  std::atomic<std::size_t> live_{0};
+};
+
+/// After result::reserve() and graph::reserve() (the published setup), the device allocations of
+/// the updates of the published 5k5 and 50k streams (the graph's vertex-batch arrays grow on
+/// demand, with headroom after the first batch; M10a review): only the first vertex batches
+/// allocate, as the reserve() documentation says.
+TEST(LabelPropagationCuda, UpdatesAfterReserveAllocateOnlyInTheFirstBatches) {
+  DYNG_SKIP_IF_NO_CUDA();
+  for (const std::int64_t n : {std::int64_t{5000}, std::int64_t{50000}}) {
+    const stream_t s = make_stream(n, n == 5000 ? 5 : 10);
+    failing_resource mr(dyng::default_device_memory_resource(0));
+    dyng::resources res = dyng::resources::cuda(0);
+    res.set_memory_resource(mr);
+    lp_graph g = capacity_graph(res, s);
+    auto r = lp::compute(res, g, dyng::array_view<const std::int32_t>(),
+                         dyng::array_view<const std::int8_t>(),
+                         published(s, 1e-4F, lp::schedule::damped));
+    r.reserve(res, s.max_batch_vertices, s.max_batch_edges);
+    g.reserve(res, static_cast<std::int32_t>(s.max_batch_edges));
+    std::vector<long long> counts;
+    for (const auto& b : s.batches) {
+      const long long before = mr.allocations();
+      (void)lp::update(res, g, b.view(), r);
+      counts.push_back(mr.allocations() - before);
+    }
+    std::string all;
+    for (const long long c : counts) {
+      all += std::to_string(c) + " ";
+    }
+    for (std::size_t b = 2; b < counts.size(); ++b) {
+      EXPECT_EQ(counts[b], 0) << n << " vertices, batch " << b << "; per batch: " << all;
+    }
+    std::cout << n << " vertices: device allocations per update: " << all << "\n";
+  }
+}
+
+/// Every device allocation of compute() and of each update of the 5k5 stream (after reserve())
+/// fails once, in turn (M10a review): compute() raises out_of_memory_error; an update raises it
+/// with the documented guarantee (before the commit: the graph's version and the labels unchanged,
+/// and a retry succeeds with the labels of an update that never failed; after it: the result
+/// poisoned); nothing leaks. The first update, a later larger batch and compute() each fail at
+/// least once.
+TEST(LabelPropagationCuda, EachDeviceAllocationFailureKeepsTheGuarantee) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const stream_t s = make_stream(5000, 5);
+  const lp::options opt = published(s, 1e-4F, lp::schedule::damped);
+  failing_resource mr(dyng::default_device_memory_resource(0));
+  // The labels after each batch of an update that never failed.
+  std::vector<std::vector<float>> want;
+  {
+    const dyng::resources res = dyng::resources::cuda(0);
+    lp_graph g = capacity_graph(res, s);
+    auto r = lp::compute(res, g, dyng::array_view<const std::int32_t>(),
+                         dyng::array_view<const std::int8_t>(), opt);
+    r.reserve(res, s.max_batch_vertices, s.max_batch_edges);
+    for (const auto& b : s.batches) {
+      (void)lp::update(res, g, b.view(), r);
+      want.push_back(host_labels(res, r));
+    }
+  }
+  int compute_failures = 0;
+  for (long long k = 1; k < 10000; ++k) {
+    {
+      dyng::resources res = dyng::resources::cuda(0);
+      res.set_memory_resource(mr);
+      lp_graph g = capacity_graph(res, s);
+      mr.arm(k);
+      try {
+        (void)lp::compute(res, g, dyng::array_view<const std::int32_t>(),
+                          dyng::array_view<const std::int8_t>(), opt);
+      } catch (const dyng::out_of_memory_error&) {
+        ++compute_failures;
+      }
+      const bool reached = mr.disarm();
+      res.synchronize();
+      if (!reached) {
+        break;
+      }
+    }
+    ASSERT_EQ(mr.live(), 0U) << "compute, allocation " << k;
+  }
+  EXPECT_GT(compute_failures, 0);
+  std::vector<int> update_failures(s.batches.size(), 0);
+  for (std::size_t b = 0; b < s.batches.size(); ++b) {
+    for (long long k = 1; k < 10000; ++k) {
+      SCOPED_TRACE("batch " + std::to_string(b) + ", allocation " + std::to_string(k));
+      bool reached = false;
+      {
+        dyng::resources res = dyng::resources::cuda(0);
+        res.set_memory_resource(mr);
+        lp_graph g = capacity_graph(res, s);
+        auto r = lp::compute(res, g, dyng::array_view<const std::int32_t>(),
+                             dyng::array_view<const std::int8_t>(), opt);
+        r.reserve(res, s.max_batch_vertices, s.max_batch_edges);
+        for (std::size_t e = 0; e < b; ++e) {
+          (void)lp::update(res, g, s.batches[e].view(), r);
+        }
+        const std::uint64_t version = g.version();
+        const std::vector<float> before = host_labels(res, r);
+        mr.arm(k);
+        bool threw = false;
+        try {
+          (void)lp::update(res, g, s.batches[b].view(), r);
+        } catch (const dyng::out_of_memory_error&) {
+          threw = true;
+        }
+        reached = mr.disarm();
+        if (!threw) {
+          EXPECT_EQ(host_labels(res, r), want[b]);
+        } else if (g.version() == version) {
+          ++update_failures[b];
+          EXPECT_EQ(host_labels(res, r), before);  // strong before the commit
+          (void)lp::update(res, g, s.batches[b].view(), r);
+          EXPECT_EQ(host_labels(res, r), want[b]);  // a retry succeeds
+        } else {
+          ++update_failures[b];
+          EXPECT_EQ(g.version(), version + 1);
+          EXPECT_THROW((void)r.labels(), dyng::stale_result_error);  // basic after the commit
+        }
+        res.synchronize();
+      }
+      ASSERT_EQ(mr.live(), 0U) << "device memory leaked";
+      if (!reached) {
+        break;
+      }
+    }
+  }
+  EXPECT_GT(update_failures[0], 0) << "the first vertex batch";
+  int later = 0;
+  for (std::size_t b = 1; b < update_failures.size(); ++b) {
+    later += update_failures[b];
+  }
+  EXPECT_GT(later, 0) << "a later, larger batch";
 }
 
 // ------------------------------------------------------------------------------------------------
