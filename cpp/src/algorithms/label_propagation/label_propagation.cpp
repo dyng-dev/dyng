@@ -695,7 +695,9 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::finalize(framework::
   stats.affected = changed;
   stats.iterations = propagation_.iterations;
   stats.frontier_visits = propagation_.frontier_visits;
-  stats.converged = !propagation_.capped || fallback_;
+  // The fallback's recomputation converged only if IrLP did not reach the cap too (compute()
+  // raises convergence_error there; the update keeps IrLP's labels and reports it).
+  stats.converged = !propagation_.capped || (fallback_ && !irlp_.capped);
   stats.fallback_used = fallback_;
   stats.components = num_components_;
   stats.sparsified_edges = sparsified_;
@@ -781,7 +783,7 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::enact_fused(framewor
   stats.components = r.components;
   stats.sparsified_edges = r.sparsified;
   stats.initial_frontier = r.propagation.initial_frontier;
-  stats.converged = !r.capped || r.recomputed;
+  stats.converged = !r.capped || (r.recomputed && !r.irlp_capped);  // as on the host
   stats.fallback_used = r.recomputed;
   if (profiler* p = ctx.res().get_profiler()) {
     // The original's prof:: counters (cc.hookRounds, prop.persistentIterations).

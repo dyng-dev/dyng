@@ -81,7 +81,10 @@ enum class schedule : std::uint8_t {
 enum class on_limit : std::uint8_t {
   error,               ///< throw convergence_error (the result is left unusable)
   report,              ///< keep the labels and report stats::converged = false (the default)
-  fallback_recompute,  ///< recompute every label with compute()'s IrLP; stats::fallback_used
+  /// recompute every label with compute()'s IrLP; stats::fallback_used. If IrLP reaches the
+  /// cap too, its labels are kept and stats::converged is false (compute() would raise
+  /// convergence_error)
+  fallback_recompute,
 };
 
 /**

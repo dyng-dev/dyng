@@ -544,9 +544,8 @@ batch_result after_commit(const resources& res, const graph<std::int32_t, edge_t
   if (out.capped && a.fallback) {
     // on_limit::fallback_recompute: IrLP of the current graph replaces the labels.
     auto lease = resources_access::workspaces(res).template acquire<irlp_workspace>(res);
-    bool irlp_capped = false;
     out.irlp_iterations = run_irlp(res, r, st.gt_class.data(), st.labels.data(), a.delta,
-                                   a.max_iterations, lease.get(), irlp_capped);
+                                   a.max_iterations, lease.get(), out.irlp_capped);
     out.host_syncs += out.irlp_iterations + 1;
     out.recomputed = true;
   }

@@ -257,6 +257,7 @@ struct batch_result {
   std::int64_t affected = 0;       ///< vertices whose label bits changed
   bool capped = false;             ///< the cap was reached with a non-empty frontier
   bool recomputed = false;         ///< on_limit::fallback_recompute ran IrLP
+  bool irlp_capped = false;        ///< and IrLP reached the cap too (not converged)
   int irlp_iterations = 0;         ///< its iterations
   std::int64_t host_syncs = 0;     ///< the host synchronizations of the algorithm phase
   std::uint32_t graph_errors = 0;  ///< the device apply's error bits (settled)
