@@ -866,8 +866,11 @@ void expect_compact_layout(const graph_properties& props, std::string_view consu
       " reads graphs with row_layout::compact only; this graph has row_layout::",
       to_string(props.layout),
       " (its rows serve label_propagation's vertex batches). Copy its edges into a compact graph: "
-      "graph::from_csr(res, g.to_csr(res).view(), props) with props.layout = "
-      "row_layout::compact"));
+      "graph::from_csr(res, g.to_csr(res).view(), props) with props = g.properties(), "
+      "props.layout = row_layout::compact and props.semantics = "
+      "batch_semantics::upsert_last_wins() (or the consumer's: net_effect() needs slotted rows); "
+      "g's row_order::append and multi_edges::allow, kept in props, keep every entry in slot "
+      "order"));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>

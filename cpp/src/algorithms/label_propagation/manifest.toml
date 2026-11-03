@@ -7,7 +7,6 @@
 # not_supported_error naming them): sequential and cuda (the fused engine, M10a step 4); there is no
 # OpenMP backend in 0.4 (AD19). maturity: experimental until the freeze of M10b (stable at 0.4.0 only on the author's
 # confirmation, AD15).
-# scaffolded by scripts/new_algorithm.py: `--remove` deletes the algorithm only while this line is here
 name        = "label_propagation"
 title       = "Dynamic label propagation"
 computes    = "binary harmonic label propagation under vertex batches"
@@ -30,12 +29,3 @@ origin      = [ { repo = "LabelPropagation-CUDA", commit = "a276a3a", paths = ["
 [performance]
 compute_tolerance    = 1.05
 end_to_end_tolerance = 1.10
-# planned entry replaced by this scaffold (restored by --remove), index 1:
-# [[planned]]
-# name      = "label_propagation"
-# computes  = "binary harmonic label propagation under vertex batches"
-# container = "graph"
-# family    = "fixed point"
-# backends  = "sequential, CUDA"
-# paper     = "DynLP (ICS 2026)"
-# since     = "0.4"

@@ -205,7 +205,8 @@ class graph {
    * on the device, and the capacity is checked there: see apply(); ADR 0074). num_vertices() is
    * the capacity; num_edges()
    * counts the entries whose endpoints are both active (an undirected edge twice, as for compact
-   * rows).
+   * rows, and a self-loop twice too: its two half-edges both land in its vertex's row, as in the
+   * original).
    *
    * In 0.4 the properties must be: layout = row_layout::slotted, directed = false, order =
    * row_order::append, parallel_edges = multi_edges::allow (the rows are not checked for
@@ -323,7 +324,8 @@ class graph {
    * @brief Number of stored (directed) edges.
    * @return The edge count (an undirected edge counts twice, a self-loop once). For
    *         row_layout::slotted: the entries whose two endpoints are active (the edges of the
-   *         current graph, to_csr().num_edges()), not the slots.
+   *         current graph, to_csr().num_edges()), not the slots; there a self-loop counts twice
+   *         (both of its half-edges are appended to its vertex's row, as in the original).
    */
   [[nodiscard]] edge_t num_edges() const noexcept;
 

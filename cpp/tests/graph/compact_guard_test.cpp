@@ -218,6 +218,42 @@ TEST(CompactGuard, InvalidBatchesAreRefusedByTheGuardFirst) {
   }
 }
 
+/// The guard's suggested fix works as written (M10a review): from_csr() of the slotted graph's
+/// to_csr() with g.properties(), the layout compact and the semantics upsert_last_wins() keeps
+/// every entry in slot order, and the compact copy is accepted.
+TEST(CompactGuard, TheSuggestedFixWorksAsWritten) {
+  const dyng::resources res = dyng::resources::sequential();
+  weighted g = slotted_weighted(res);
+  dyng::edge_batch<std::int32_t, std::int32_t> b;
+  b.insert_edge(0, 1, {5});  // a parallel edge
+  b.insert_edge(2, 2, {1});  // a self-loop
+  (void)g.apply(res, b.view());
+#if defined(DYNG_ALGORITHM_SSSP)
+  try {
+    (void)dyng::sssp::compute(res, g, 0);
+    ADD_FAILURE() << "the guard accepted a slotted graph";
+  } catch (const dyng::not_supported_error& e) {
+    EXPECT_NE(std::string(e.what()).find("upsert_last_wins"), std::string::npos) << e.what();
+  }
+#endif
+  dyng::graph_properties props = g.properties();
+  props.layout = dyng::row_layout::compact;
+  props.semantics = dyng::batch_semantics::upsert_last_wins();
+  const auto rows = g.to_csr(res);
+  const weighted c = weighted::from_csr(res, rows.view(), props);
+  EXPECT_EQ(c.num_edges(), g.num_edges());
+  const auto back = c.to_csr(res);
+  EXPECT_EQ(back.row_ptr, rows.row_ptr);
+  EXPECT_EQ(back.col_ind, rows.col_ind);
+  EXPECT_EQ(back.weights, rows.weights);
+#if defined(DYNG_ALGORITHM_SSSP)
+  // With the consumer's own requirements on top (sssp reads the in-edges).
+  props.store_transposed = true;
+  const weighted t = weighted::from_csr(res, rows.view(), props);
+  EXPECT_NO_THROW((void)dyng::sssp::compute(res, t, 0));
+#endif
+}
+
 #if defined(DYNG_ALGORITHM_SSSP)
 TEST(CompactGuard, ImportedTreesRefuseSlottedRows) {
   const dyng::resources res = dyng::resources::sequential();
