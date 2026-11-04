@@ -122,7 +122,8 @@
 #              (inplace, 5k5 and 50k, 3 runs each, against the frozen calibration) and the
 #              harmonic oracle on C (oracle-port --backend cuda); compute-sanitizer memcheck on
 #              dyng-compat-dynlp at 5k5 and 50k (both schedules), on the unit tests and on the
-#              input-contract tests, initcheck at 5k5 with and without --check, racecheck on the
+#              input-contract tests and on the slotted device apply's tests (the overflow near the
+#              int32 limit), initcheck at 5k5 with and without --check, racecheck on the
 #              propagation tests (the hub golden and the hand cases) and synccheck on the
 #              persistent small-frontier block (the 5k5 runs, whose tail iterations run it)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
@@ -677,9 +678,18 @@ if ! skipped label_propagation; then
       fi
     done
     rm -rf "${lpr_tmp}"
+    # The sweep that fails every device allocation in turn is left out (its correct handling is
+    # what the plain run checks; under memcheck it would take most of the step).
     if ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 "${lpr_unit}" \
-      --gtest_brief=1; then
+      --gtest_brief=1 --gtest_filter='-LabelPropagationCuda.EachDeviceAllocationFailureKeepsTheGuarantee'; then
       echo "memcheck ${lpr_unit} (the unit and input-contract tests): FAILED"
+      lpr_ok=0
+    fi
+    # The slotted rows' device apply (the overflow near the int32 limit, the poison; M10a review).
+    lpr_graph="${build_dir}/cpp/tests/dyng_graph_cuda_tests"
+    if [ ! -x "${lpr_graph}" ] || ! heavy "${sanitizer}" --tool memcheck --error-exitcode 1 \
+      "${lpr_graph}" --gtest_brief=1 --gtest_filter='SlottedCuda.*'; then
+      echo "memcheck ${lpr_graph} (the slotted device apply): FAILED"
       lpr_ok=0
     fi
     if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all --error-exitcode 1 \

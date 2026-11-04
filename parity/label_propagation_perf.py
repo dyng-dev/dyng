@@ -751,10 +751,20 @@ def write_baseline(args, old: dict, results: dict, started: str) -> None:
 # --- Device memory (D1) -----------------------------------------------------------------------
 
 
+# The sampling period of GpuProcesses during a reading (M10a review: at 5 s the 50k and 500k
+# memory readings, a few seconds each, had no sample during them, so their sampler never saw the
+# reading's own process and could not have seen a foreign one either).
+GPU_SAMPLE_PERIOD_S = 0.25
+# The attempts of one memory side until a sample during it saw its own process.
+MEMORY_ATTEMPTS = 3
+
+
 class GpuProcesses:
-    """nvidia-smi --query-compute-apps on one GPU before, every 5 s during and after a reading;
-    `foreign` lists every process seen that is not the reading's own (a descendant of this
-    harness)."""
+    """nvidia-smi --query-compute-apps on one GPU before, every GPU_SAMPLE_PERIOD_S during and
+    after a reading; `foreign` lists every process seen that is not the reading's own (a
+    descendant of this harness); `own_seen_during` counts the samples during the reading that saw
+    its own process (a side is counted only when it is at least 1: a sampler that saw nothing
+    would also have seen no foreign process)."""
 
     def __init__(self, gpu: int) -> None:
         self.gpu = gpu
@@ -798,7 +808,7 @@ class GpuProcesses:
         return s
 
     def _loop(self) -> None:
-        while not self._stop.wait(5.0):
+        while not self._stop.wait(GPU_SAMPLE_PERIOD_S):
             self.sample("during")
 
     def __enter__(self) -> GpuProcesses:
@@ -816,6 +826,32 @@ class GpuProcesses:
     @property
     def foreign(self) -> list[dict]:
         return [p for s in self.samples for p in s["processes"] if not p["own"]]
+
+    @property
+    def own_seen_during(self) -> int:
+        return sum(
+            1
+            for x in self.samples
+            if x["when"] == "during" and any(p["own"] for p in x["processes"])
+        )
+
+    @property
+    def counted(self) -> bool:
+        return not self.foreign and self.own_seen_during > 0
+
+    def record(self, attempts: int = 1) -> dict:
+        return {
+            "foreign": self.foreign,
+            "samples": len(self.samples),
+            "period_s": GPU_SAMPLE_PERIOD_S,
+            # every sample, so the record shows the sampler saw the reading's own process
+            "own_seen_in_samples": sum(
+                1 for x in self.samples if any(p["own"] for p in x["processes"])
+            ),
+            "own_seen_during": self.own_seen_during,
+            "attempts": attempts,
+            "all": self.samples,
+        }
 
 
 def memory(args: argparse.Namespace) -> int:
@@ -850,13 +886,18 @@ def memory(args: argparse.Namespace) -> int:
                 shutil.rmtree(out, ignore_errors=True)
                 out.mkdir()
                 cmd = [str(exe), *timed_argv(case, schedule, out), *extra]
-                with GpuProcesses(args.gpu) as gp:
-                    nsys = hypergraph_perf.memory_by_range(
-                        cmd, env, work / "nsys", "batch", capture=True
-                    )
+                for attempt in range(1, MEMORY_ATTEMPTS + 1):
+                    with GpuProcesses(args.gpu) as gp:
+                        nsys = hypergraph_perf.memory_by_range(
+                            cmd, env, work / "nsys", "batch", capture=True
+                        )
+                    if gp.foreign or gp.own_seen_during > 0:
+                        break  # a foreign process is never retried away
+                    shutil.rmtree(out, ignore_errors=True)
+                    out.mkdir()
                 shutil.rmtree(out, ignore_errors=True)
                 nsys.pop("stdout", None)
-                counted = not gp.foreign
+                counted = gp.counted
                 results[key] = {
                     "case": case,
                     "schedule": schedule,
@@ -868,18 +909,12 @@ def memory(args: argparse.Namespace) -> int:
                     "peak_in": nsys["peak_in"],
                     "batches": nsys["batches"],
                     "footprint_peak_mib": nsys["footprint_peak_mib"],
-                    "gpu_processes": {
-                        "foreign": gp.foreign,
-                        "samples": len(gp.samples),
-                        # every sample, so the record shows the sampler saw the reading's own
-                        # process (a sampler that sees nothing would also see no foreign one)
-                        "own_seen_in_samples": sum(
-                            1 for x in gp.samples if any(p["own"] for p in x["processes"])
-                        ),
-                        "all": gp.samples,
-                    },
+                    "gpu_processes": gp.record(attempt),
                 }
-                note = "" if counted else f" (NOT COUNTED: foreign processes {gp.foreign})"
+                note = "" if counted else (
+                    f" (NOT COUNTED: foreign processes {gp.foreign})" if gp.foreign
+                    else " (NOT COUNTED: no sample during the reading saw its process)"
+                )  # fmt: skip
                 print(
                     f"{key}: peak of live device allocations {nsys['peak_live_mib']} MiB{note}",
                     flush=True,
@@ -901,25 +936,23 @@ def memory_side(exe: Path, extra: list[str], case: str, schedule: str, env: dict
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir()
     cmd = [str(exe), *timed_argv(case, schedule, out), *extra]
-    with GpuProcesses(gpu) as gp:
-        nsys = hypergraph_perf.memory_by_range(cmd, env, work / "nsys", "batch", capture=True)
+    for attempt in range(1, MEMORY_ATTEMPTS + 1):
+        with GpuProcesses(gpu) as gp:
+            nsys = hypergraph_perf.memory_by_range(cmd, env, work / "nsys", "batch", capture=True)
+        if gp.foreign or gp.own_seen_during > 0:
+            break  # a foreign process is never retried away
+        shutil.rmtree(out, ignore_errors=True)
+        out.mkdir()
     shutil.rmtree(out, ignore_errors=True)
     return {
         "argv": timed_argv(case, schedule, Path("<scratch>")) + extra,
-        "counted": not gp.foreign,
+        "counted": gp.counted,
         "peak_live_bytes": nsys["peak_live_bytes"],
         "peak_live_mib": nsys["peak_live_mib"],
         "peak_in": nsys["peak_in"],
         "batches": nsys["batches"],
         "footprint_peak_mib": nsys["footprint_peak_mib"],
-        "gpu_processes": {
-            "foreign": gp.foreign,
-            "samples": len(gp.samples),
-            "own_seen_in_samples": sum(
-                1 for x in gp.samples if any(p["own"] for p in x["processes"])
-            ),
-            "all": gp.samples,
-        },
+        "gpu_processes": gp.record(attempt),
     }
 
 
