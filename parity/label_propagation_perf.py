@@ -47,14 +47,14 @@ an existing --json file; a reading adds its keys to the file.
 `memory --side original` (D1, B5): O's whole process under `nsys profile -t cuda,nvtx
 --cuda-memory-usage=true` with the timed argv, on GPU --gpu (default 1) under the shared lock, in
 the caller's GPU-1 quiet window: `nvidia-smi -i <gpu> --query-compute-apps=pid,process_name,
-used_memory` before and after the reading and every 5 s during it; a reading during which a
-process other than the reading's own was on the GPU is discarded (marked not counted) and taken
-again later. The peak of live device allocations (cudaMalloc + cudaMallocAsync, kind Device; the
-gated metric), the NVTX ranges containing it and the live bytes at the end of every batch's
-range ("batch"). `--side port` reads dyng-compat-dynlp (M10a step 4); `--side both` (the suite's
-gated reading, M10a step 5) reads O's process and then the port's in the same window, the result
-"<case>/<schedule>" holding both sides and the ratio, counted only when neither saw a foreign
-process.
+used_memory` before and after the reading and every 0.25 s during it (GPU_SAMPLE_PERIOD_S); a
+reading during which a process other than the reading's own was on the GPU is discarded (marked
+not counted) and taken again later. The peak of live device allocations (cudaMalloc +
+cudaMallocAsync, kind Device; the gated metric), the NVTX ranges containing it and the live bytes
+at the end of every batch's range ("batch"). `--side port` reads dyng-compat-dynlp (M10a step 4);
+`--side both` (the suite's gated reading, M10a step 5) reads O's process and then the port's in the
+same window, the result "<case>/<schedule>" holding both sides and the ratio, counted only when
+neither saw a foreign process.
 
 `run`, `kernels` and `engines` have their command lines and record shapes fixed here (RECORD
 below; tests in parity/tests/test_label_propagation_perf.py); `run` since M10a step 4 (with the
@@ -1033,8 +1033,8 @@ def write_memory(args, old: dict, results: dict, started: str) -> None:
             "metric": "peak of live allocations, cudaMalloc + cudaMallocAsync, kind Device, the "
             "whole process (GOVERNANCE D1)",
             "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
-            "foreign_processes": "nvidia-smi before, every 5 s during, after; a reading with a "
-            "foreign process is not counted",
+            "foreign_processes": f"nvidia-smi before, every {GPU_SAMPLE_PERIOD_S} s during, after; "
+            "a reading with a foreign process is not counted",
             "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)",
         },
         "driver": perf_ab.driver_versions(),
