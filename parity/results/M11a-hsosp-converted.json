@@ -1,0 +1,74 @@
+{
+ "record": "dyng-compat-hsosp to-dgb of the cases, twice, every session replayed by id",
+ "backend": "sequential",
+ "commit": "6d8ebd3f93b06ed8049e8fcbb92b96dfdddf907a",
+ "passed": true,
+ "cases": {
+  "test/01-test_h2h_construction": {
+   "sessions": 26,
+   "files": 78,
+   "sha256": "a72b780ec84966543e3e6fe38e2634ca35d52139426c6ac1eb70957fa18b806c"
+  },
+  "test/02-test_h2h_delta": {
+   "sessions": 15,
+   "files": 45,
+   "sha256": "7aaa08cb7af2c79fd5c43f2f95f90db6a40bb6729e8bcca9b1623f815592cc7d"
+  },
+  "test/03-test_hsosp_matches_dijkstra": {
+   "sessions": 28,
+   "files": 84,
+   "sha256": "8477521c2622b3db6eb49efd6e429c745386e1facbf197d2c7f364319b25bd5e"
+  },
+  "test/04-test_hsosp_scale": {
+   "sessions": 1,
+   "files": 3,
+   "sha256": "4dc61c7110ef8287ee4ef4b4f80980eb87606739dab2c29ecd44122c985587ea"
+  },
+  "test/05-hsospStress": {
+   "sessions": 50,
+   "files": 150,
+   "sha256": "ee39d3ca826b558e1c13d875ec0e505e33ee6b142271a1a48c48b49df4766cac"
+  },
+  "test/06-hsospStress_escher": {
+   "sessions": 20,
+   "files": 60,
+   "sha256": "a5cc2c65d0e4ca2f7c5e631be634ba45b1785b6be6f57c2801b32d3e43a2e745"
+  },
+  "test/07-hsospBench_smoke": {
+   "sessions": 8,
+   "files": 24,
+   "sha256": "6620f5f66faa61ecb6131d11b18659a53f45c956ea2f4c054b110d3005256d61"
+  },
+  "test/08-hsospBench_real_hyperedge": {
+   "sessions": 1,
+   "files": 3,
+   "sha256": "c1d6625810ce32592d7d2163992126edfd12cc73f73b205f98172486d0e1b574"
+  },
+  "test/09-hsospBench_real_vertex": {
+   "sessions": 1,
+   "files": 3,
+   "sha256": "78855a6d25c72a1f46b802bc92b5b6b10a26c104ae1c9f02c3bb30e7512cd0f8"
+  },
+  "paper/dblp_hyperedge_50000": {
+   "sessions": 1,
+   "files": 3,
+   "sha256": "45c676ffd45fd3b584dadf1c8dee09ee8339d302b81140c9ef5aa3ac7b8a6dc4"
+  },
+  "paper/dblp_vertex_50000": {
+   "sessions": 1,
+   "files": 3,
+   "sha256": "3a10450e0dbc9caea8029993a6f1f48a84f76e2aa90f31c927b777cacdf66f50"
+  },
+  "paper/geology_hyperedge_50000": {
+   "sessions": 1,
+   "files": 3,
+   "sha256": "584102b243984939776cceddda14b43ebae5cd427ccc2096e3b2769fe983c5c6"
+  },
+  "paper/geology_vertex_50000": {
+   "sessions": 1,
+   "files": 3,
+   "sha256": "27d5048930a72216ebf1bb45cce7a4e1463cb8a50ae31c6b4bd19661efb72b9d"
+  }
+ },
+ "problems": []
+}

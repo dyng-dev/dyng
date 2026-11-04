@@ -1,0 +1,54 @@
+{
+ "set": "hyper_sssp_mosp_escher",
+ "kind": "hyper_sssp",
+ "date": "2026-11-04T00:10:22+00:00",
+ "goldens": {
+  "manifest_sha256": "6211339456bbd391e1054caec3e936184433ccc43b41e722124de5b2effec872"
+ },
+ "port": {
+  "commit": "df6e99b2c04968372a35b5479c07bb852d69ff26"
+ },
+ "executable": "parity/compare.py hyper_sssp --part results",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "cuda:hyper_sssp/by_key"
+ ],
+ "checks": {
+  "verified": false,
+  "oracle": true,
+  "check_compute": false
+ },
+ "matrix": {
+  "test/01-test_h2h_construction": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/02-test_h2h_delta": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/03-test_hsosp_matches_dijkstra": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/04-test_hsosp_scale": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/05-hsospStress": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/06-hsospStress_escher": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/07-hsospBench_smoke": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/08-hsospBench_real_hyperedge": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "test/09-hsospBench_real_vertex": {
+   "cuda:hyper_sssp/by_key": "equal"
+  },
+  "paper/dblp_vertex_50000": {
+   "cuda:hyper_sssp/by_key": "equal"
+  }
+ },
+ "passed": true
+}

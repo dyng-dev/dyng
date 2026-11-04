@@ -176,6 +176,142 @@ Before 0.1.0 anything may change.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
+- Added: `dyng::testing::hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`
+  (`<dyng/testing/hyper_sssp_reference.hpp>`), the independent oracle of `hyper_sssp`:
+  node-weighted shortest paths over the line graph rebuilt from the hyperedges, from a source
+  hyperedge or a source vertex, the canonical parents, and the line-graph change of a batch
+  (MOSP_ESCHER@4b86159's test oracle; the names decided by the author on 2026-10-28, HD12;
+  ADR 0082). It reproduces MOSP_ESCHER's distances, parents and pair lists on its own dumps.
+- Parity harness: the timed-region map of `hyper_sssp` against MOSP_ESCHER@4b86159
+  (`parity/timed_regions/hyper_sssp.toml`; the per-batch gate rows of HD3; ADR 0080) and its
+  loader in `parity/perf_ab.py`; the H-SOSP dump of the recording twins
+  (`parity/exporters/hsosp`, additive) and the golden kind `hyper_sssp` with the set
+  `hyper_sssp_mosp_escher` (`parity/hsosp_goldens.py`; ADR 0081); the clock probe and quiet
+  pre-read of MOSP_ESCHER (`parity/hsosp_perf.py probe`); `parity/certify.py` requires the
+  hyper_sssp replays of every backend and parity mode of the set from the 0.4 series
+  (`HYPER_SSSP_REPLAYS_SINCE`), and earlier certificates list the set without a verdict.
+- Datasets: Benson's coauth-MAG-Geology archives and H-SOSP's `geology.hg`, re-derived and
+  pinned in `datasets/registry.toml` (HD15).
+- Fixed: an exception thrown by the work of `operators::openmp_exec::for_each` (the host
+  executor of the operators, used by the tutorial algorithms dynamic_bfs and triangle_delta) left
+  its OpenMP region and ended the process; it is now rethrown on the calling thread after the
+  region (the carried item (b) of 0.4, the D13 class of ADR 0061; ADR 0083).
+- Internal: `escher::flatten_rows` (the port of ESCHER-GPU's `flatten2DVector`), which no library
+  code called and whose OpenMP region ignored the resources' thread count, moved from the library
+  to a test helper (`cpp/tests/support/escher_flatten.hpp`; the carried item (c) of 0.4; ADR 0084).
+- Changed (internal): a batch of a weighted hypergraph updates the weights by id in place, in
+  O(batch), instead of copying all of them (O(id bound)) per batch; the guarantees of `apply()`
+  are unchanged (ADR 0088).
+- Added (api-change: documentation of the frozen hypergraph headers): **`slack_csr` storage**
+  (`hypergraph_storage::slack_csr`, `line_graph_policy::slack_csr`; the property matrix of HD9,
+  decided by the author on 2026-10-28) on the sequential and OpenMP backends: MOSP_ESCHER's host
+  incidence model, the best-fit ids of its ESCHER H2V tree, and its slack CSR line graph (slots
+  with headroom, swap-remove deletions, appended insertions, relocations, a rebuild when the tail
+  is full) kept from every batch's pair delta, computed inside the commit from the incidence
+  changes, exact and independent of the order of the operations (ADR 0086). `h2h()` sorts each
+  row on request; `overlaps` is empty. The Python layer refuses slack_csr storage until M11b
+  (`NotSupportedError`).
+- Added (api-change: documented behaviour of `apply()`): **incidence edits** on slack_csr storage
+  (`hyperedge_batch::delete_incidence` / `insert_incidence`): applied after the batch's
+  deletions and before its insertions, in MOSP_ESCHER's order, an edit that cannot apply skipped
+  and counted in `skipped_ops`, the summary's `inserted_incidences` / `deleted_incidences`
+  filled; escher storage keeps refusing them (`not_supported_error`, the message names
+  slack_csr); `id_reuse` documents the store order of both values with edits (ADR 0085).
+- Changed (api-change: documented behaviour): `triad_count` and the experimental
+  `count_local_patterns` refuse slack_csr storage (`not_supported_error`, strong guarantee; HD9).
+- Added (api-change: appended enumerators, HD12): seven incidence-edit mixes of
+  `generators::hyperedge_batch_mix` (`incidence_removals`, `incidence_additions`,
+  `incidence_mixed`, `incidence_emptying`, `incidence_same_batch`, `incidence_repeats`,
+  `incidence_out_of_range`); every 0.3 stream is unchanged (ADR 0085).
+- Added (api-change: `batch_io`, HD10): the batch files hold incidence edits: `.dgt` `-i h v` /
+  `+i h v` (reserved by version 1 for 0.4) and the `.dgb` flag `batch_file_flags::incidence_edits`
+  (bit 3, format version 1 kept), with `known_graph` and `known_hypergraph` (`known` is their
+  union); the writers set the flag only when a batch needs it, so every 0.3 file is written byte
+  for byte as before; `batch_writer::write` raises `invalid_argument_error` (was
+  `not_supported_error`) for an edit in a file opened without the flag, and the text writers
+  write edits instead of refusing them. A 0.3 reader refuses the new files (ADR 0087).
+  `docs/api/file_formats.md` states the rule for additions to version 1 (a reserved addition that
+  every earlier reader refuses with an `io_error` is not a silent change) and reserves bit 4 and
+  weight code 3 of graph files for label_propagation in 0.4 (documentation, also of
+  `batch_file_flags::known_graph`).
+- Internal: the id allocator models ESCHER's H2V fills and unfills (the tail occupancy), in
+  lockstep with `testing::cbst_host_model` and MOSP_ESCHER's recorded trees (ADR 0085).
+- Conformance kit: the hypergraph axis gains the slack_csr presets and the incidence mixes, with
+  a `test_traits::accepts` hook for algorithms that take some storages only.
+- Added (api-change: documentation of the frozen hypergraph headers): **slack_csr storage on the
+  cuda backend** (HD9, decided by the author on 2026-10-28): MOSP_ESCHER@4b86159's device graph
+  (the incidence mirror, the slack CSR line graph with per-node weights, the order-free device
+  pair delta `deriveDelta`, the warp-per-row CSR apply and its rebuild when the tail overflows)
+  transplanted as is with `parity/escher_port/transplant.py` and a committed rename map, kept from
+  every batch inside the commit; the host incidence model and the ids stay authoritative on the
+  host, as in MOSP_ESCHER. `h2h()`, `h2v()`, `v2h()`, `check_integrity()`, `store_stats()`,
+  `clone()` and `to_backend()` across all three backends (ADR 0089); `from_hyperedges()` no
+  longer documents a `not_supported_error` for slack_csr storage on the cuda backend
+  (documentation only).
+- Changed (internal, faster): the host side of a slack_csr batch runs one pass per list: Step 0
+  groups the incidence edits by hyperedge and evaluates the groups in parallel, the commit groups
+  the v2h changes by vertex once and merges the record's rows instead of reading them back, the
+  id allocator keeps its deleted keys as a bitset (an insert no longer scans every key; escher
+  storage's host model gets the same ids faster), a deleted row keeps its capacity, and every host
+  region of slack_csr storage runs on one fixed team of at most 16 threads (ADR 0089 section 8).
+  The results are unchanged on every thread count.
+- Parity harness: `dyng-compat-hsosp replay --backend cuda --line-graph` and `dyng-compat-hsosp
+  bench --maintain-only` (hsospBench's `--hg` options on the cuda backend, the golden's batches,
+  the per-round digests); `parity/hsosp_perf.py run` (reached through `perf_ab.py hyper_sssp`) with
+  the round guards; the slack_csr steps of `ci/gpu_local.sh` (the four compute-sanitizer tools on
+  the store's tests and a forced-overflow session, the make-test replays on cuda), required by
+  0.4 certificates (`GPU_LOCAL_STEPS`).
+- Parity harness: MOSP_ESCHER's sessions are replayed whole on slack_csr storage, its
+  vertex-kind batches included (`dyng_hsosp_replay`, `parity/compare.py hyper_sssp --part delta`;
+  `dyng_hypergraph_ids --storage slack_csr`); `dyng-compat-hsosp to-dgb` converts the H-SOSP
+  dumps to `.hg` / `.dgb` files (`tools/compat/hsosp`; the digests in `parity/goldens.toml`).
+- Added (api-change: a new tracked header, a draft until the freeze at the end of M11b, HD17):
+  **`hyper_sssp`** (`<dyng/hyper_sssp.hpp>`, included by `<dyng/dyng.hpp>`): dynamic
+  single-source shortest hyperpaths on a weighted slack_csr hypergraph (weights in [1, 2^28]),
+  kept exact under hyperedge and incidence batches; `compute()` / `update()` from a source vertex,
+  `options` (`work_budget`, `max_iterations`, `on_budget`, `cuda_engine`, `validate_inputs`),
+  `budget_action`, `fallback_reason`, `stats` (`batch`, `line_graph_insertions`,
+  `line_graph_deletions`, `invalidated`, `relaxations`, `fallback_reason`) and `result`
+  (`hyperedge_distances`, int32 `hyperedge_parents`, `distance_to` and `vertex_distances`: the
+  minimum of D(h) over the vertex's hyperedges, D(h) already holding w(h), HD11); on sequential
+  (MOSP_ESCHER@4b86159's host emulation) and cuda (its kernels transplanted as is,
+  `engine::fused`); openmp resources raise `not_supported_error` (HD14). Exact against
+  MOSP_ESCHER on its golden set in the three parity modes (ADRs 0090-0092).
+- Changed (api-change: documentation of the frozen `<dyng/core/stats.hpp>`, HD7 jointly with
+  M10's AD20): `update_stats` says that an algorithm's stats documentation may state a weaker
+  determinism level for an inherited field, which governs for that algorithm; `hyper_sssp`
+  states that `fallback_used` is schedule-dependent on cuda near the budget.
+- Changed (api-change: an include added to the frozen umbrella header `<dyng/dyng.hpp>`):
+  `<dyng/hyper_sssp.hpp>`.
+- Internal: the framework's problems may provide `over_budget(ctx)`, a work budget asked after
+  every loop call of an update (ADR 0092); a fixed-point hypergraph fake checks the update path.
+- Parity harness: `--part results` of `parity/compare.py hyper_sssp` and `dyng_hsosp_replay
+  --algorithm` (every update and recompute of MOSP_ESCHER's sessions against hyper_sssp's: by_id,
+  by_id_public, by_key; update == compute; repeats and backends by digest),
+  `dyng-compat-hsosp replay --algorithm` and the full `bench` (the update and static rows, the
+  44-column CSV, the `[e2e]` line), `parity/hsosp_perf.py run` over every row and `sass`; the
+  hyper_sssp steps of `ci/gpu_local.sh` (`GPU_LOCAL_STEPS`); the mutation CTests
+  `hyper_sssp.mutation.*` of sites #1 and #2 (the pull adds the neighbour's weight; a non-tight
+  parent) in both engines.
+- Parity harness (M11a step 5): the suite `benchmarks/paper/ia3_hsosp.yaml` (hyper_sssp against
+  MOSP_ESCHER@4b86159: a 3-round boost probe per dataset, the gated per-batch rows of the 16 paper
+  configurations, end to end, the nsys peak and the graph-scope accounting of HD6, the ncu kernel
+  table) with `parity/bench_suite.py`'s hyper_sssp rules; `parity/hsosp_perf.py memory` and
+  `kernels`; `dyng-compat-hsosp bench --nvtx` and its `[memory]` lines; the mutation suite
+  `hyper_sssp` of `parity/mutate.py` (MOSP_ESCHER's sites #1-#4, #6-#8 in the CUDA code and their
+  host twins, each detected on its own executables; #5 and the CBST unfill re-run in the cbst
+  suite), which, like `ci/gpu_local.sh`, waits for the shared calendar before a GPU job;
+  `parity/sass_identity.py` and `parity/experiments/escher_store_bytes.py` (the 0.3 objects and
+  store bytes against a base build), `parity/experiments/hypergraph_host_ab.py` on cuda and with
+  `--all-stages`; `compare.py hyper_sssp --certificate` and `hypergraph_ids.py --storage slack_csr
+  --certificate` write the certificate's replay records (ADR 0093).
+- Release certificate: from the 0.4 series `parity/certify.py` requires the suite `ia3_hsosp`
+  (`REQUIRED_SUITES`), the slack_csr store check of the hyper_sssp set on cuda, and MOSP_ESCHER's
+  sessions replayed whole on slack_csr storage (`HYPERGRAPH_ID_REPLAYS`, with a per-entry and a
+  per-feature `since`; the 0.3 requirements unchanged); `EQUIVALENCE_TARGETS` / `EQUIVALENCE_FILES`
+  compare `dyng-compat-hsosp` and `dyng-compat-escher` too, which widens the equivalence check of
+  every version's certificate (ADR 0093).
+
 ## [0.3.0] - 2026-10-29
 
 ### Summary

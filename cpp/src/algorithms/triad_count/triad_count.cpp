@@ -165,6 +165,21 @@ void expect_requirements(const hypergraph<vertex_t, weight_t>& h, const local_pa
   hypergraph_access::require_line_graph(h, what);
 }
 
+/// The storage the counts read: ESCHER's row views (escher storage). slack_csr storage (0.4) is
+/// refused in compute() and before the commit of an update, with the strong guarantee (HD9,
+/// decided by the author on 2026-10-28; ADR 0085): so hyper_sssp and triad_count do not share a
+/// hypergraph in 0.4.
+template <typename vertex_t, typename weight_t>
+void expect_escher_storage(const hypergraph<vertex_t, weight_t>& h, const char* what) {
+  if (h.properties().storage != hypergraph_storage::escher) {
+    throw not_supported_error(concat_message(
+        "dyng: ", what,
+        ": the hypergraph has hypergraph_storage::", to_string(h.properties().storage),
+        ", which this algorithm does not read in 0.4 (it counts on the ESCHER store's rows); "
+        "build the hypergraph with hypergraph_storage::escher"));
+  }
+}
+
 /// a + b, or capacity_error past 2^64 - 1.
 std::uint64_t checked_add(std::uint64_t a, std::uint64_t b, const char* what) {
   if (b > std::numeric_limits<std::uint64_t>::max() - a) {
@@ -305,6 +320,7 @@ void local_pattern_problem<vertex_t, weight_t, flavor_t>::begin_update(framework
   expect_not_poisoned(*state_, what);
   framework::expect_current_result(what, state_->version, state_->graph_state, g.get());
   hypergraph_access::expect_placement(res, g.get(), what);
+  expect_escher_storage(g.get(), what);
   flavor_t::check_update(*state_, ctx.on_cuda(), what);
   DYNG_EXPECTS(batch.normalized != nullptr, what, ": Step 0 of the hypergraph is missing");
   normalized_ = batch.normalized;
@@ -694,6 +710,7 @@ triad_count::result triad_count_compute(const resources& res,
   }
   hypergraph_access::expect_placement(res, h, what);
   expect_not_poisoned_hypergraph(h, what);
+  expect_escher_storage(h, what);
   const local_patterns::kernels& k = triad_kernels(opt.kind);
   expect_requirements(h, k, concat_message("pattern ", triad_count::to_string(opt.kind)), what);
   auto st = std::make_unique<triad_count_state>();
@@ -749,6 +766,7 @@ local_patterns_state_ptr local_patterns_compute(const resources& res,
                "); build it with count_local_patterns<op_t>");
   hypergraph_access::expect_placement(res, h, what);
   expect_not_poisoned_hypergraph(h, what);
+  expect_escher_storage(h, what);
   expect_requirements(
       h, k, concat_message("an Op of shape ", experimental::to_string(k.pattern_shape)), what);
   auto st = std::make_unique<local_patterns_state>();

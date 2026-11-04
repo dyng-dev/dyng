@@ -197,6 +197,9 @@ DYNLP_STAGES = {
     "b7.propagation",
 }
 NSYS_PEAK_LIVE = "nsys:peak_live"
+# hyper_sssp against MOSP_ESCHER@4b86159 (M11a; written before the port, ADR 0080): hsospBench's
+# CSV columns per batch and its [e2e] line, section [reference.mosp_escher].
+HSOSP_REGION_MAP = REPO / "parity" / "timed_regions" / "hyper_sssp.toml"
 HYPERGRAPH_REFERENCES = {
     "escher_gpu": {
         "name": "ESCHER-GPU",
@@ -239,7 +242,35 @@ ESCHER_TIMING_STAGES = {
     "reference",
     "total",
 }
-HSOSP_CSV_TIMES = {"t_escher_ms", "t_delta_ms", "t_csr_apply_ms", "t_sosp_update_ms", "t_static_ms"}
+HSOSP_CSV_TIMES = {
+    "t_escher_ms",
+    "t_delta_ms",
+    "t_csr_apply_ms",
+    "t_sosp_update_ms",
+    "t_static_ms",
+    "t_dynamic_total_ms",  # B's dynamic total (PLAN 6.4.8's figure; M11a, ADR 0080)
+}
+# The fields of hsospBench's "[e2e] <name>: load L ms, N batches: dynamic D ms, static S ms, wall
+# W ms" stderr line (hsospBench.cu:532-536), as a region map names them (e2e:<field>); read once
+# per process, never per batch (ADR 0080 section 1.7).
+HSOSP_E2E_FIELDS = ("load", "dynamic", "static", "wall")
+HSOSP_E2E = re.compile(
+    r"^\[e2e\] (?P<name>.+): load (?P<load>[0-9.]+) ms, (?P<batches>\d+) batches: "
+    r"dynamic (?P<dynamic>[0-9.]+) ms, static (?P<static>[0-9.]+) ms, wall (?P<wall>[0-9.]+) ms$",
+    re.M,
+)
+# The gated regions of hyper_sssp.toml and their gate kinds, as the author decided them (HD3,
+# 2026-10-28): load_hsosp_regions() refuses a map with a gated region that is not listed here, or
+# without one that is.
+HSOSP_GATED_REGIONS = {
+    "maintain": "compute",
+    "sosp_update": "compute",
+    "static": "compute",
+    "dynamic_comparable": "compute",
+    "dynamic": "compute",
+    "load_plus_dynamic": "end_to_end",
+}
+HSOSP_PER_BATCH_ROWS = 3  # b1..b3: hsospBench --batches 3
 # The harness's own clock around a whole process (the "process" rows of the ESCHER maps).
 PROCESS_WALL_TIME = "process wall time"
 # The keys a region of a map may have (a misspelt key, e.g. "per_bach", is refused instead of
@@ -263,10 +294,11 @@ REGION_KEYS = {
     "per_batch",
     "rows",
     "report_sum",
-    # M10 (label_propagation, ADR 0064): the index of the first per-batch row, and the gate of
+    # M10 label_propagation (ADR 0064): the index of the first per-batch row, and the gate of
     # the report_sum row
     "first_batch",
     "sum_gate",
+    # M11 slack_csr / hyper_sssp (no new key: the summed csv keys and the e2e: keys are timers)
 }
 # A per-batch row: "<region>[b<N>]" (triad_count.toml: update[b1], update[b2], update[b3]).
 # label_propagation.toml (M10) numbers its rows from b0 (first_batch = 0): DynLP's batch 0 is an
@@ -584,6 +616,7 @@ def load_regions(
         known = (
             {f"timing:{t}" for t in ESCHER_TIMING_STAGES}
             | {f"csv:{c}" for c in HSOSP_CSV_TIMES}
+            | hsosp_e2e_keys()
             | {PROCESS_WALL_TIME}
         )
     elif backend in LP_REFERENCES:  # label_propagation.toml (M10a)
@@ -602,6 +635,10 @@ def load_regions(
         unknown = set(r) - REGION_KEYS
         if unknown:
             raise SystemExit(f"{path}: region {r['name']}: unknown key(s) {sorted(unknown)}")
+        # M10 label_propagation
+        # M11 slack_csr / hyper_sssp
+        if backend in HYPERGRAPH_REFERENCES:
+            check_summed_original(path, r, known)
         for key in r.get("original_report", []) + r.get("original_report_subtract", []):
             if key not in known:
                 raise SystemExit(
@@ -613,8 +650,18 @@ def load_regions(
         if not r.get("port") and not r.get("port_report"):
             raise SystemExit(f"{path}: region {r['name']}: no port stages")
         check_batch_rows(path, r)
+        # M10 label_propagation
         sum_gate(path, r)
+        # M11 slack_csr / hyper_sssp
+        if backend in HYPERGRAPH_REFERENCES:
+            check_e2e_keys(path, r)
     return regions
+
+
+# The joint region-key specification of 0.4 (reconciled 2026-10-27): each milestone's keys in
+# functions of its own, below its comment; the second merger keeps both.
+# M10 label_propagation
+# --- label_propagation's keys (M10's half of the joint key specification; ADR 0064) ------
 
 
 def dynlp_report_keys() -> set[str]:
@@ -662,6 +709,119 @@ def sum_gate(path: Path, region: dict) -> str:
     if value == "compute" and not region.get("report_sum"):
         raise SystemExit(f"{path}: region {region['name']}: sum_gate needs report_sum = true")
     return value
+
+
+# M11 slack_csr / hyper_sssp
+# --- hyper_sssp's keys (M11's half of the joint key specification; ADR 0080 section 1.7) -------
+
+
+def hsosp_e2e_keys() -> set[str]:
+    """The e2e: keys a region map may name: the fields of hsospBench's [e2e] line."""
+    return {f"e2e:{f}" for f in HSOSP_E2E_FIELDS}
+
+
+def check_summed_original(path: Path, region: dict, known: set[str]) -> None:
+    """A list-valued 'original' (the summed csv keys): `original` and `original_report` are lists,
+    every original_report entry is a timer this script can read, and no entry is repeated (the
+    entries of a row are summed, so a repeat would count a timer twice)."""
+    name = region["name"]
+    for key in ("original", "original_report"):
+        if key in region and not isinstance(region[key], list):
+            raise SystemExit(f"{path}: region {name}: '{key}' must be a list")
+    keys = region.get("original_report", [])
+    del known  # load_regions refuses an unknown timer right after this check
+    repeated = sorted({k for k in keys if keys.count(k) > 1})
+    if repeated:
+        raise SystemExit(f"{path}: region {name}: original timer(s) {repeated} listed twice")
+
+
+def check_e2e_keys(path: Path, region: dict) -> None:
+    """The e2e: keys are read once per process (the [e2e] line), so a per-batch region cannot name
+    them, and a region does not mix them with the per-batch csv: columns."""
+    keys = region.get("original_report", [])
+    e2e = [k for k in keys if k.startswith("e2e:")]
+    if not e2e:
+        return
+    if region.get("per_batch"):
+        raise SystemExit(f"{path}: region {region['name']}: the e2e: keys {e2e} are not per batch")
+    if any(k.startswith("csv:") for k in keys):
+        raise SystemExit(
+            f"{path}: region {region['name']}: e2e: and csv: keys are not summed together"
+        )
+
+
+def check_hsosp_gates(path: Path, regions: list[dict]) -> None:
+    """The gated regions of hyper_sssp.toml are exactly the author's (HD3): an unknown or a missing
+    gated region is refused, as is a gate of the wrong kind or a per-batch gate with other rows
+    than b1..b3."""
+    gated = {r["name"]: r for r in regions if r["gate"] != "none"}
+    unknown = sorted(set(gated) - set(HSOSP_GATED_REGIONS))
+    if unknown:
+        raise SystemExit(
+            f"{path}: unknown gated region(s) {unknown} (HD3: {sorted(HSOSP_GATED_REGIONS)})"
+        )
+    missing = sorted(set(HSOSP_GATED_REGIONS) - set(gated))
+    if missing:
+        raise SystemExit(f"{path}: gated region(s) {missing} missing (HD3)")
+    for name, kind in HSOSP_GATED_REGIONS.items():
+        r = gated[name]
+        if r["gate"] != kind:
+            raise SystemExit(f"{path}: region {name}: gate '{r['gate']}', HD3 decided '{kind}'")
+        want = (
+            [f"{name}[b{i}]" for i in range(1, HSOSP_PER_BATCH_ROWS + 1)]
+            if kind == "compute"
+            else [name]
+        )
+        if region_rows(r) != want:
+            raise SystemExit(f"{path}: region {name}: rows {region_rows(r)}, HD3 decided {want}")
+
+
+def load_hsosp_regions(path: Path = HSOSP_REGION_MAP) -> list[dict]:
+    """The regions of hyper_sssp.toml (ADR 0080), checked by load_regions and by HD3's gate rows."""
+    regions = load_regions("mosp_escher", path, tuple(HSOSP_GATED_REGIONS))
+    check_hsosp_gates(path, regions)
+    return regions
+
+
+def parse_hsosp_csv(text: str) -> list[dict]:
+    """The rows of an hsospBench CSV (its header line first), one dict per batch, every time
+    column (HSOSP_CSV_TIMES) as a float."""
+    rows = list(csv.DictReader(text.splitlines()))
+    for n, row in enumerate(rows, 1):
+        missing = sorted(c for c in HSOSP_CSV_TIMES if c not in row)
+        if missing:
+            raise SystemExit(f"hsospBench CSV row {n}: no column(s) {missing}")
+        for c in HSOSP_CSV_TIMES:
+            row[c] = float(row[c])
+    return rows
+
+
+def parse_hsosp_e2e(log: str) -> dict:
+    """The fields of hsospBench's [e2e] line (exactly one per process) as floats, and `batches`."""
+    found = list(HSOSP_E2E.finditer(log))
+    if len(found) != 1:
+        raise SystemExit(f"expected one [e2e] line in hsospBench's stderr, found {len(found)}")
+    m = found[0]
+    out = {f: float(m[f]) for f in HSOSP_E2E_FIELDS}
+    out["batches"] = int(m["batches"])
+    return out
+
+
+def hsosp_original_value(rows: list[dict], e2e: dict, region: dict, batch: int | None) -> float:
+    """The original's value of a hyper_sssp region: the sum of its original_report keys, csv:
+    columns of the row of `batch` (1-based; None = the sum over the batches), e2e: fields of the
+    [e2e] line."""
+    total = 0.0
+    for key in region.get("original_report", []):
+        kind, _, field = key.partition(":")
+        if kind == "csv":
+            picked = rows if batch is None else [rows[batch - 1]]
+            total += sum(r[field] for r in picked)
+        elif kind == "e2e":
+            total += e2e[field]
+        else:
+            raise SystemExit(f"region {region['name']}: cannot read '{key}' from hsospBench")
+    return total
 
 
 def check_batch_rows(path: Path, region: dict) -> None:
@@ -2559,6 +2719,11 @@ def add_mosp_baseline_options(r: argparse.ArgumentParser) -> None:
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["hyper_sssp"]:  # hyper_sssp against MOSP_ESCHER (M11a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import hsosp_perf
+
+        return hsosp_perf.main(sys.argv[2:])
     if sys.argv[1:2] == ["cycle_count"]:  # cycle_count against CycleEnumeration-GPU
         sys.path.insert(0, str(REPO / "parity"))
         import cycle_count_perf

@@ -23,7 +23,7 @@ from pathlib import Path
 MAGIC = b"DYNGBAT1"
 GRAPH, HYPERGRAPH = 0, 1
 NONE, INT32, INT64 = 0, 1, 2
-DELETED_MEMBERS, EXPECTED_IDS, INSERT_FIRST = 1, 2, 4
+DELETED_MEMBERS, EXPECTED_IDS, INSERT_FIRST, INCIDENCE_EDITS = 1, 2, 4, 8
 
 
 def header(kind: int, vtype: int, wtype: int, k: int, flags: int, count: int) -> bytes:
@@ -53,13 +53,18 @@ def graph_record(batch_id: int, dels, ins, weights, vtype=INT32, wtype=INT32) ->
     return record(p)
 
 
-def hyper_record(batch_id, dels, rows, weights=None, deleted_rows=None, expected=None) -> bytes:
+def hyper_record(
+    batch_id, dels, rows, weights=None, deleted_rows=None, expected=None, edits=None
+) -> bytes:
+    """`edits` (flag INCIDENCE_EDITS, 0.4): (removals, additions), each a list of (id, vertex)."""
     members = [v for r in rows for v in r]
     offsets = [0]
     for r in rows:
         offsets.append(offsets[-1] + len(r))
     deleted_members = [v for r in (deleted_rows or []) for v in r]
     p = struct.pack("<QQQQQ", batch_id, len(dels), len(rows), len(members), len(deleted_members))
+    if edits is not None:
+        p += struct.pack("<QQ", len(edits[0]), len(edits[1]))
     p += array(dels, INT64) + array(offsets, INT64) + array(members, INT32)
     if weights is not None:
         p += array(weights, INT32)
@@ -70,6 +75,9 @@ def hyper_record(batch_id, dels, rows, weights=None, deleted_rows=None, expected
         p += array(doff, INT64) + array(deleted_members, INT32)
     if expected is not None:
         p += array(expected, INT64)
+    if edits is not None:
+        for pairs in edits:
+            p += array([h for h, _ in pairs], INT64) + array([v for _, v in pairs], INT32)
     return record(p)
 
 
@@ -96,6 +104,13 @@ def seeds() -> dict[str, bytes]:
     )
     out["hyper_insert_first"] = header(HYPERGRAPH, INT32, NONE, 0, INSERT_FIRST, 1) + hyper_record(
         0, [2], [[1, 2, 3]]
+    )
+    # 0.4: the incidence edits (removals, additions) after the other arrays.
+    out["hyper_incidence_edits"] = header(
+        HYPERGRAPH, INT32, INT32, 1, INSERT_FIRST | INCIDENCE_EDITS, 2
+    ) + (
+        hyper_record(0, [3], [[4, 1]], weights=[2], edits=([(0, 1), (2, 7)], [(0, 5)]))
+        + hyper_record(1, [], [], weights=[], edits=([], [(4, 0)]))
     )
     out["empty_file"] = header(HYPERGRAPH, INT32, NONE, 0, 0, 0)
     # Rejected inputs: a damaged CRC, a future version (the size-lying files are reproducers in

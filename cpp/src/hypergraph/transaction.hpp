@@ -13,11 +13,13 @@
  *   - **begin** (the constructor): the placement and poisoning checks, the batch staged to the
  *     host under the copy policy of the resources, then Step 0 once: the inserted hyperedges
  *     validated, sorted and deduplicated, the deletions checked against G_t (dead, out-of-range
- *     and repeated ids skipped and counted). Everything that can be rejected is rejected here,
- *     before anything changes (strong guarantee).
+ *     and repeated ids skipped and counted), and under slack_csr storage the incidence edits
+ *     evaluated in batch order against G_t with MOSP_ESCHER's skip rules (ADR 0085). Everything
+ *     that can be rejected is rejected here, before anything changes (strong guarantee).
  *   - **before()**: an old_view of G_t, valid until commit(). In Debug builds (NDEBUG undefined)
  *     its use after the commit throws internal_error (invariant I1).
- *   - **commit()**: the store phase in the order of id_reuse, the line graph, one read of the
+ *   - **commit()**: the store phase in the order of id_reuse, the line graph (escher: the sorted
+ *     merge; slack_csr: the pair delta, incidence_delta, then its CSR apply), one read of the
  *     device error words, the new row views, then the no-throw commit (version, state identity,
  *     weights, the applied record). An error inside the store phase poisons the hypergraph (basic
  *     guarantee). Exactly once per transaction.
@@ -38,6 +40,7 @@
 #include <dyng/hypergraph/hypergraph.hpp>
 
 #include <cstdint>
+#include <vector>
 
 namespace dyng::detail {
 
@@ -62,7 +65,8 @@ class hyper_transaction {
    * @param[in]     function The calling function, for messages (e.g. "hypergraph::apply").
    * @throws invalid_argument_error for a placement mismatch, a moved-from or poisoned hypergraph,
    *         an invalid batch, or a copy the copy policy refuses.
-   * @throws not_supported_error    for incidence edits (0.4), or a device batch without CUDA.
+   * @throws not_supported_error    for incidence edits under escher storage (they need slack_csr
+   *         storage), or a device batch without CUDA.
    * @throws capacity_error         if the batch exceeds the store's int32 payload.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @guarantee Strong: nothing is changed.
@@ -136,6 +140,10 @@ class hyper_transaction {
   [[nodiscard]] const hyper_applied& applied() const;
 
  private:
+  // The store phase of slack_csr storage (the incidence edits, the pair delta, the CSR apply)
+  // and its part of the applied record; `ids` receives the inserted ids.
+  void commit_slack_csr(hyper_applied& applied, std::vector<std::int64_t>& ids);
+
   resources res_;  ///< a copy: the handle is shared, and the caller's may be a temporary
   container_type& h_;
   const char* function_;
@@ -143,6 +151,10 @@ class hyper_transaction {
   host_input<std::int64_t> offsets_;
   host_input<vertex_t> members_;
   host_input<weight_t> weights_;
+  host_input<std::int64_t> removal_ids_;    ///< delete_incidence_hyperedge
+  host_input<vertex_t> removal_vertices_;   ///< delete_incidence_vertex
+  host_input<std::int64_t> addition_ids_;   ///< insert_incidence_hyperedge
+  host_input<vertex_t> addition_vertices_;  ///< insert_incidence_vertex
   batch_view_type host_;
   hyper_staged_batch<weight_t> staged_;
   bool committed_ = false;

@@ -392,6 +392,7 @@
   #include <dyng/graph/graph.hpp>
   #include <dyng/graph/graph_properties.hpp>
   #include <dyng/graph/graph_view.hpp>
+  #include <dyng/hyper_sssp.hpp>
   #include <dyng/hypergraph/hyper_apply_summary.hpp>
   #include <dyng/hypergraph/hyperedge_batch.hpp>
   #include <dyng/hypergraph/hyperedge_list.hpp>
@@ -501,7 +502,7 @@
       std::int64_t max_weight = 100
       std::uint64_t seed = 1
   template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_list< vertex_t, weight_t > dyng::generators::uniform_hypergraph(const uniform_hypergraph_options &opt)
-  enum class dyng::generators::hyperedge_batch_mix : std::uint8_t { insert_only, delete_only, mixed, reuse, heavy_delete, delete_all, reinsert, larger, duplicates, dead_ids, skewed, limits, empty }
+  enum class dyng::generators::hyperedge_batch_mix : std::uint8_t { insert_only, delete_only, mixed, reuse, heavy_delete, delete_all, reinsert, larger, duplicates, dead_ids, skewed, limits, empty, incidence_removals, incidence_additions, incidence_mixed, incidence_emptying, incidence_same_batch, incidence_repeats, incidence_out_of_range }
   [[nodiscard]] std::string_view dyng::generators::to_string(hyperedge_batch_mix mix) noexcept
   struct dyng::generators::hyperedge_batch_options
       hyperedge_batch_mix mix = hyperedge_batch_mix::mixed
@@ -774,6 +775,47 @@
       [[nodiscard]] edge_t num_edges() const noexcept
       [[nodiscard]] int num_weights() const noexcept
 
+[dyng/hyper_sssp.hpp] tracked
+  enum class dyng::hyper_sssp::budget_action : std::uint8_t { recompute, error }
+  enum class dyng::hyper_sssp::fallback_reason : std::uint8_t { none, work_budget, iterations, distance_width, invalidation_depth }
+  [[nodiscard]] std::string_view dyng::hyper_sssp::to_string(budget_action a) noexcept
+  [[nodiscard]] std::string_view dyng::hyper_sssp::to_string(fallback_reason r) noexcept
+  struct dyng::hyper_sssp::options
+      double work_budget = 1.0
+      std::int64_t max_iterations = 4096
+      budget_action on_budget = budget_action::recompute
+      engine cuda_engine = engine::automatic
+      bool validate_inputs = true
+  struct dyng::hyper_sssp::stats : public dyng::update_stats
+      hyper_apply_summary batch
+      std::int64_t line_graph_insertions = 0
+      std::int64_t line_graph_deletions = 0
+      std::int64_t invalidated = 0
+      std::int64_t relaxations = 0
+      hyper_sssp::fallback_reason fallback_reason = hyper_sssp::fallback_reason::none
+  #define DYNG_HYPER_SSSP_TYPES_MESSAGE
+  #define DYNG_HYPER_SSSP_CONTAINER_MESSAGE
+  template <typename vertex_t, typename distance_t = std::int64_t> class dyng::hyper_sssp::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] vertex_t source() const noexcept
+      [[nodiscard]] array_view< const distance_t > hyperedge_distances() const
+      [[nodiscard]] array_view< const std::int32_t > hyperedge_parents() const
+      [[nodiscard]] distance_t distance_to(vertex_t target) const
+      [[nodiscard]] array_view< const distance_t > vertex_distances() const
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+  template <typename vertex_t, typename weight_t> [[nodiscard]] result< vertex_t > dyng::hyper_sssp::compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, vertex_t source, const options &opt={})
+  template <typename vertex_t, typename weight_t> stats dyng::hyper_sssp::update(const resources &res, hypergraph< vertex_t, weight_t > &h, const hyperedge_batch_view< vertex_t, weight_t > &batch, result< vertex_t > &r)
+  detail: template <typename vertex_t, typename weight_t> inline constexpr bool hyper_sssp_supported_v = std::is_same_v<vertex_t, std::int32_t> && std::is_same_v<weight_t, std::int32_t>;
+  detail: template <typename vertex_t, typename distance_t> struct update_traits<hyper_sssp::result<vertex_t, distance_t>> { using stats_type = hyper_sssp::stats; }
+
 [dyng/hypergraph/hyper_apply_summary.hpp] frozen
   struct dyng::hyper_apply_summary
       std::int64_t inserted_hyperedges = 0
@@ -951,7 +993,10 @@
       static constexpr std::uint64_t deleted_members = 1U
       static constexpr std::uint64_t expected_ids = 2U
       static constexpr std::uint64_t insert_first = 4U
-      static constexpr std::uint64_t known = deleted_members | expected_ids | insert_first
+      static constexpr std::uint64_t incidence_edits = 8U
+      static constexpr std::uint64_t known_graph = 0U
+      static constexpr std::uint64_t known_hypergraph = 15U
+      static constexpr std::uint64_t known = known_graph | known_hypergraph
   struct dyng::io::batch_file_header
       std::uint32_t format_version = 1
       container_kind kind = container_kind::graph
@@ -1354,6 +1399,11 @@
       std::int64_t flips_beyond_margin = 0
       double largest_flip_distance = 0.0
   [[nodiscard]] class_agreement dyng::testing::class_agreement_with(const std::vector< float > &labels, const harmonic_result &f, const std::vector< std::uint8_t > &present, const std::vector< std::int8_t > &seed_labels, double margin)
+
+[dyng/testing/hyper_sssp_reference.hpp] tracked
+  [[nodiscard]] std::pair< std::vector< std::int64_t >, std::vector< std::int32_t > > dyng::testing::hyper_sssp_reference(const std::vector< std::int64_t > &h2v_offsets, const std::vector< std::int32_t > &h2v_members, std::int32_t num_vertices, const std::vector< std::int64_t > &weights, std::int64_t source, bool source_is_vertex=false)
+  [[nodiscard]] std::pair< std::int64_t, std::int64_t > dyng::testing::check_hyper_sssp_tree(const std::vector< std::int64_t > &h2v_offsets, const std::vector< std::int32_t > &h2v_members, std::int32_t num_vertices, const std::vector< std::int64_t > &weights, std::int64_t source, bool source_is_vertex, const std::vector< std::int64_t > &distances, const std::vector< std::int32_t > &parents)
+  [[nodiscard]] std::pair< std::vector< std::pair< std::int64_t, std::int64_t > >, std::vector< std::pair< std::int64_t, std::int64_t > > > dyng::testing::line_graph_delta(const std::vector< std::int64_t > &pre_offsets, const std::vector< std::int32_t > &pre_members, const std::vector< std::int64_t > &post_offsets, const std::vector< std::int32_t > &post_members, std::int32_t num_vertices)
 
 [dyng/testing/line_graph_oracle.hpp] tracked
   struct dyng::testing::line_graph_rows

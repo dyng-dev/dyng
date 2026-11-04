@@ -45,6 +45,7 @@
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/graph/graph_view.hpp>
+#include <dyng/hyper_sssp.hpp>
 #include <dyng/hypergraph/hyper_apply_summary.hpp>
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 #include <dyng/hypergraph/hyperedge_list.hpp>

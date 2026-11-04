@@ -174,15 +174,17 @@ dyng_add_module(
   NAME hypergraph
   SOURCES
     src/hypergraph/capacity.cpp
-    src/hypergraph/escher/flatten.cpp
     src/hypergraph/escher/store_policy.cpp
     src/hypergraph/hyper_update.cpp
     src/hypergraph/hypergraph.cpp
     src/hypergraph/id_allocator.cpp
     src/hypergraph/incidence_model.cpp
     src/hypergraph/line_graph/flat_adjacency.cpp
+    src/hypergraph/line_graph/incidence_delta.cpp
     src/hypergraph/line_graph/sorted_merge_host.cpp
     src/hypergraph/names.cpp
+    src/hypergraph/slack_csr/host_store.cpp
+    src/hypergraph/slack_csr/slack_line_graph.cpp
     src/hypergraph/store.cpp
   CUDA_SOURCES
     src/hypergraph/escher_store.cu
@@ -196,7 +198,11 @@ dyng_add_module(
     src/hypergraph/escher/locator.cu
     src/hypergraph/escher/payload.cu
     src/hypergraph/escher/unfill.cu
+    src/hypergraph/line_graph/incidence_delta.cu
+    src/hypergraph/line_graph/slack_csr_h2h.cu
     src/hypergraph/line_graph/sorted_merge.cu
+    src/hypergraph/slack_csr/device_store.cu
+    src/hypergraph/slack_csr/slack_csr_store.cu
 )
 
 dyng_add_module(
@@ -306,6 +312,20 @@ if(DYNG_ENABLE_OPENMP)
 endif()
 dyng_set_warnings(dyng_testing_triad_reference)
 dyng_enable_sanitizers(dyng_testing_triad_reference)
+# The hyper_sssp oracle (M11a criterion 5, ADR 0082): MOSP_ESCHER's HypergraphOracle algorithms
+# (the line graph, the node-weighted Dijkstra, the canonical parents, the line-graph delta), the
+# standard library only, checked to share nothing with hyper_sssp or the container
+# (hyper_sssp_reference_isolation).
+add_library(dyng_testing_hyper_sssp_reference OBJECT src/testing/hyper_sssp_reference.cpp)
+target_include_directories(
+  dyng_testing_hyper_sssp_reference PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include"
+)
+target_compile_features(dyng_testing_hyper_sssp_reference PRIVATE cxx_std_17)
+set_target_properties(
+  dyng_testing_hyper_sssp_reference PROPERTIES POSITION_INDEPENDENT_CODE ON
+)
+dyng_set_warnings(dyng_testing_hyper_sssp_reference)
+dyng_enable_sanitizers(dyng_testing_hyper_sssp_reference)
 add_library(
   dyng_testing
   src/testing/dijkstra.cpp
@@ -316,6 +336,7 @@ add_library(
   $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
   $<TARGET_OBJECTS:dyng_testing_label_propagation>
   $<TARGET_OBJECTS:dyng_testing_triad_reference>
+  $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(

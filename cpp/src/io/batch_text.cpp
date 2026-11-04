@@ -53,12 +53,13 @@ bool is_reserved_vertex_op(std::string_view op) noexcept {
   return op == "+v" || op == "-v";
 }
 
-bool is_hyperedge_op(std::string_view op) noexcept {
-  return op == "+h" || op == "-h";
-}
-
 bool is_incidence_op(std::string_view op) noexcept {
   return op == "+i" || op == "-i";
+}
+
+/// The operations of a hypergraph file: hyperedges and (0.4) incidence edits.
+bool is_hyperedge_op(std::string_view op) noexcept {
+  return op == "+h" || op == "-h" || is_incidence_op(op);
 }
 
 /// The container kinds a `.dgt` file can hold (named on its `%dgt 1 <kind>` line).
@@ -144,7 +145,7 @@ void scan_dgt(detail::text_scanner& scanner, dgt_kind kind, new_batch_t&& new_ba
       new_batch();
       continue;
     }
-    if (op.front() != '%' && !is_reserved_vertex_op(op) && !is_incidence_op(op)) {
+    if (op.front() != '%' && !is_reserved_vertex_op(op)) {
       const bool foreign =
           kind == dgt_kind::graph ? is_hyperedge_op(op) : (op == "+e" || op == "-e");
       if (foreign) {
@@ -164,14 +165,10 @@ void scan_dgt(detail::text_scanner& scanner, dgt_kind kind, new_batch_t&& new_ba
     }
     if (is_reserved_vertex_op(op)) {
       scanner.fail(tok, "the vertex operation '" + std::string(op) +
-                            "' is reserved for the vertex batches of label_propagation (0.4); "
-                            "this release reads edge operations ('+e', '-e') and hyperedge "
-                            "operations ('+h', '-h') only");
-    }
-    if (is_incidence_op(op)) {
-      scanner.fail(tok, "the incidence operation '" + std::string(op) +
-                            "' is reserved for the incidence edits of hypergraph batches (0.4); "
-                            "this release reads hyperedge operations ('+h', '-h') only");
+                            "' is reserved for the vertex batches of label_propagation (a later "
+                            "release); this release reads edge operations ('+e', '-e'), "
+                            "hyperedge operations ('+h', '-h') and incidence edits ('+i', '-i') "
+                            "only");
     }
     if (op.front() == '%') {
       scanner.fail(tok,
@@ -179,7 +176,7 @@ void scan_dgt(detail::text_scanner& scanner, dgt_kind kind, new_batch_t&& new_ba
     }
     scanner.fail(tok, "unknown operation '" + std::string(op) +
                           (kind == dgt_kind::graph ? "' (expected '+e' or '-e')"
-                                                   : "' (expected '+h' or '-h')"));
+                                                   : "' (expected '+h', '-h', '+i' or '-i')"));
   }
 }
 
@@ -372,6 +369,35 @@ std::vector<hyperedge_batch<vertex_t, weight_t>> read_hyperedge_batches(
   std::vector<vertex_t> members;
   const auto on_op = [&](const detail::token& op_token) {
     const std::string_view op = op_token.text;
+    if (is_incidence_op(op)) {
+      // `-i h v` / `+i h v` (0.4): h a hyperedge id >= 0, v a vertex id (in range when the
+      // vertex count is given).
+      const char* form = op == "-i" ? "-i h v" : "+i h v";
+      split_line(scanner, tokens);
+      if (tokens.size() < 2) {
+        scanner.fail_line(std::string("incomplete operation (expected '") + form + "')");
+      }
+      if (tokens.size() > 2) {
+        scanner.fail(tokens[2], "unexpected '" + std::string(tokens[2].text) + "' (the line is '" +
+                                    form + "')");
+      }
+      const auto h = detail::parse_integer<std::int64_t>(
+          scanner, tokens[0], 0, std::numeric_limits<std::int64_t>::max(), "hyperedge id");
+      const auto v = detail::parse_integer<vertex_t>(scanner, tokens[1], 0,
+                                                     detail::max_as_int64<vertex_t>(), "vertex id");
+      if (static_cast<std::int64_t>(v) > id_max) {
+        scanner.fail(tokens[1], "vertex id " + std::to_string(static_cast<std::int64_t>(v)) +
+                                    " out of range [0, " + std::to_string(id_max) +
+                                    "]: the hypergraph has " + std::to_string(id_max + 1) +
+                                    " vertices, fixed when it is built (its num_vertices)");
+      }
+      if (op == "-i") {
+        batches.back().delete_incidence(h, v);
+      } else {
+        batches.back().insert_incidence(h, v);
+      }
+      return true;
+    }
     if (op != "+h" && op != "-h") {
       return false;
     }
@@ -441,15 +467,7 @@ void write_hyperedge_batches(
     const std::vector<hyperedge_batch_view<vertex_t, weight_t>>& batches) try {
   constexpr bool weighted = !is_unweighted_v<weight_t>;
   for (std::size_t b = 0; b < batches.size(); ++b) {
-    const auto& batch = batches[b];
-    if (!batch.delete_incidence_hyperedge.empty() || !batch.delete_incidence_vertex.empty() ||
-        !batch.insert_incidence_hyperedge.empty() || !batch.insert_incidence_vertex.empty()) {
-      throw not_supported_error(detail::concat_message(
-          "dyng: write_hyperedge_batches: batch ", b,
-          " has incidence edits, which the .dgt files of this release do not hold (planned for "
-          "0.4)"));
-    }
-    detail::check_hyperedge_batch_arrays(batch, "write_hyperedge_batches", b);
+    detail::check_hyperedge_batch_arrays(batches[b], "write_hyperedge_batches", b);
   }
   detail::text_writer out(path);
   out.put(std::string_view("%dgt 1 hypergraph\n"));
@@ -463,6 +481,18 @@ void write_hyperedge_batches(
       out.put(batch.delete_hyperedges[j]);
       out.put_char('\n');
     }
+    // The incidence edits (0.4) in the order apply() takes them: removals, then additions.
+    const auto put_edits = [&](std::string_view op, const auto& ids, const auto& vertices) {
+      for (std::size_t j = 0; j < ids.size(); ++j) {
+        out.put(op);
+        out.put(ids[j]);
+        out.put_char(' ');
+        out.put(static_cast<std::int64_t>(vertices[j]));
+        out.put_char('\n');
+      }
+    };
+    put_edits("-i ", batch.delete_incidence_hyperedge, batch.delete_incidence_vertex);
+    put_edits("+i ", batch.insert_incidence_hyperedge, batch.insert_incidence_vertex);
     for (std::size_t i = 0; i < batch.num_insertions(); ++i) {
       out.put(std::string_view("+h"));
       const auto e = static_cast<std::size_t>(batch.insert_offsets[i + 1]);

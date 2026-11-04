@@ -44,6 +44,13 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "maturity": "tutorial",
         "python": "yes",
     },
+    "hyper_sssp": {
+        "title": "Dynamic single-source shortest hyperpaths",
+        "since": "0.4",
+        "container": "hypergraph",
+        "maturity": "experimental",
+        "python": "no",
+    },
     "triad_count": {
         "title": "Dynamic hypergraph triad counts",
         "since": "0.3",

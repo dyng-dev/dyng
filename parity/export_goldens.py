@@ -9,7 +9,9 @@ mosp_scale ...` the paper-scale mosp goldens (SHA-256 of the outputs of MOSP-Ope
 `mosp` on the benchmark inputs, cross-checked with MOSP-CUDA@e220ee2; parity/mosp_scale_goldens.py,
 M7); `parity/export_goldens.py triad_count ...` ESCHER-GPU@abcf9b2's triad counts and batches
 (parity/triad_goldens.py, M9a); `parity/export_goldens.py label_propagation ...`
-LabelPropagation-CUDA@a276a3a's golden sets (parity/label_propagation_goldens.py, M10a).
+LabelPropagation-CUDA@a276a3a's golden sets (parity/label_propagation_goldens.py, M10a);
+`parity/export_goldens.py hyper_sssp ...` MOSP_ESCHER@4b86159's H-SOSP dumps
+(parity/hsosp_goldens.py, M11a).
 
 PLAN Sections 6.3 (steps 1-2) and 8.3. The goldens are written OUTSIDE the repository, to
 $DYNG_SCRATCH/goldens/sssp (default ~/Projects/dyng-work); the repository keeps only
@@ -826,6 +828,11 @@ def main() -> int:
         import label_propagation_goldens
 
         return label_propagation_goldens.export_main(sys.argv[2:])
+    if sys.argv[1:2] == ["hyper_sssp"]:  # MOSP_ESCHER's H-SOSP dumps (M11a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import hsosp_goldens
+
+        return hsosp_goldens.export_main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "--scratch",

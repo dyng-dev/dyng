@@ -1,0 +1,316 @@
+{
+ "record": "M11a review (criterion 20; HD16, the D14 path): the placement of the escher-storage delete and insert stages' host code in the reviewed library, against the merge base",
+ "sides": {
+  "A": "the merge base b2b1524 (parity-cuda build; $DYNG_SCRATCH/m11-builds/src-base/build/parity-cuda/cpp/libdyng.so.0.4.0, sha256 56cbfd4df6a7fa1387f8be49ecbc03e545e5a491a441dbb4ef0a1e2a16696085)",
+  "B": "the reviewed library (3fec063, the library of ba1120b; $DYNG_SCRATCH/wt-m11/build/parity-cuda/cpp/libdyng.so.0.4.0, sha256 b5ac04668da50477dda3f489acb08bd32d9ec0c74ea125735cd3d76073f2607f)"
+ },
+ "why": "dyng-compat-escher is the same executable as step 5's (sha256 771af8d3...) but loads libdyng.so, which the review's fixes changed (the slack_csr store, hyper_sssp, the generators: no escher-path file); the review's ADR 0024 readings moved (cuda coauth-DBLP .apply.insert 1.08, .apply.delete within the bar) against step 5's (insert[b3] 1.021, delete 1.027)",
+ "method": "as M11a-adr0024-placement.json: nm -S for each function's address and size, objdump -d of both libraries; each instruction stream with addresses, RIP displacements, objdump's symbol comments and the anonymous-namespace hash removed; 'identical but member offsets / constants' = the same instructions with other immediates; address_mod_64 = [A, B], with step 5's [A, B] beside it",
+ "release_builds": [
+  {
+   "function": "_ZN4dyng6detail5hyper12id_allocator5eraseERKSt6vectorIiSaIiEE",
+   "instructions": [
+    33,
+    78
+   ],
+   "code": "changed",
+   "address_mod_64": [
+    32,
+    0
+   ],
+   "address_mod_64_step5": [
+    32,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15group_by_vertexERKNS1_11member_rowsERKSt6vectorIlSaIlEERNS1_18grouped_incidencesE",
+   "instructions": [
+    375,
+    375
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    0
+   ],
+   "address_mod_64_step5": [
+    32,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15group_by_vertexERKNS1_11member_rowsERKSt6vectorIlSaIlEERNS1_18grouped_incidencesE.cold",
+   "instructions": [
+    8,
+    8
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    18,
+    54
+   ],
+   "address_mod_64_step5": [
+    18,
+    54
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE",
+   "instructions": [
+    90,
+    90
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    32,
+    48
+   ],
+   "address_mod_64_step5": [
+    32,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE._omp_fn.0",
+   "instructions": [
+    207,
+    207
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    32,
+    0
+   ],
+   "address_mod_64_step5": [
+    32,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE._omp_fn.0.cold",
+   "instructions": [
+    5,
+    5
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    38,
+    32
+   ],
+   "address_mod_64_step5": [
+    38,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE.cold",
+   "instructions": [
+    10,
+    10
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    54,
+    8
+   ],
+   "address_mod_64_step5": [
+    54,
+    8
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_removeERKNS1_18grouped_incidencesE",
+   "instructions": [
+    64,
+    64
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    32,
+    48
+   ],
+   "address_mod_64_step5": [
+    32,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_removeERKNS1_18grouped_incidencesE._omp_fn.0",
+   "instructions": [
+    112,
+    112
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    16
+   ],
+   "address_mod_64_step5": [
+    0,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model5eraseERKSt6vectorIlSaIlEE",
+   "instructions": [
+    149,
+    149
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    16,
+    32
+   ],
+   "address_mod_64_step5": [
+    16,
+    48
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model5eraseERKSt6vectorIlSaIlEE.cold",
+   "instructions": [
+    8,
+    8
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    50
+   ],
+   "address_mod_64_step5": [
+    32,
+    50
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE",
+   "instructions": [
+    307,
+    307
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    16,
+    48
+   ],
+   "address_mod_64_step5": [
+    16,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE.cold",
+   "instructions": [
+    14,
+    14
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    58
+   ],
+   "address_mod_64_step5": [
+    0,
+    58
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store10v2h_appendERKNS1_18grouped_incidencesE",
+   "instructions": [
+    191,
+    191
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    48,
+    0
+   ],
+   "address_mod_64_step5": [
+    48,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store10v2h_removeERKNS1_18grouped_incidencesE",
+   "instructions": [
+    191,
+    191
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    16,
+    32
+   ],
+   "address_mod_64_step5": [
+    16,
+    48
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store5eraseERKSt6vectorIlSaIlEE",
+   "instructions": [
+    178,
+    178
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    16
+   ],
+   "address_mod_64_step5": [
+    32,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE",
+   "instructions": [
+    389,
+    389
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    16
+   ],
+   "address_mod_64_step5": [
+    32,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store7to_keysERKSt6vectorIlSaIlEE",
+   "instructions": [
+    115,
+    115
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    16
+   ],
+   "address_mod_64_step5": [
+    32,
+    32
+   ]
+  },
+  {
+   "function": "_ZSt16__introsort_loopIN9__gnu_cxx17__normal_iteratorIPmSt6vectorImSaImEEEElNS0_5__ops15_Iter_less_iterEEvT_S9_T0_T1_.isra.0",
+   "instructions": [
+    134,
+    134
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    32
+   ],
+   "address_mod_64_step5": [
+    0,
+    48
+   ]
+  }
+ ],
+ "conclusion": "every host function of the cuda delete and insert stages (the escher device store's erase, insert, v2h_remove, v2h_append, to_keys; group_by_vertex; the introsort) has the same instruction stream as the merge base's; only their alignments moved again (the device store's insert and to_keys from 32 to 16 mod 64, v2h_append from 16 to 0, group_by_vertex from 16 to 0, the introsort from 48 to 32), as the code the review added elsewhere in libdyng shifted them. The one changed function is still id_allocator::erase (host backends). Code placement, as step 5 located it; the device code is SASS-identical (M11a-sass-identity-0.3.json)."
+}

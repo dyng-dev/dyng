@@ -146,6 +146,16 @@ class hyper_count_problem : public hfw::problem_base<derived_t, hfw::family::agg
     f.ids = batch.normalized->deletions.data();
     f.size = static_cast<std::int64_t>(batch.normalized->deletions.size());
     f.on_device = false;
+    if (!batch.normalized->edited_ids.empty()) {
+      // Incidence edits (slack_csr storage, 0.4): an edited hyperedge leaves with its old row and
+      // comes back with its new one, so it is in both frontiers.
+      fake_hyper_workspace& ws = ws_->get();
+      ws.host_ids.assign(batch.normalized->deletions.begin(), batch.normalized->deletions.end());
+      ws.host_ids.insert(ws.host_ids.end(), batch.normalized->edited_ids.begin(),
+                         batch.normalized->edited_ids.end());
+      f.ids = ws.host_ids.data();
+      f.size = static_cast<std::int64_t>(ws.host_ids.size());
+    }
     old_.emplace(g);
   }
   void count(hfw::context& ctx, hfw::old_view<container_t> g, id_frontier& f, hfw::sign s,
@@ -167,6 +177,16 @@ class hyper_count_problem : public hfw::problem_base<derived_t, hfw::family::agg
       f.on_device = true;
     } else {
       f.ids = record.inserted_ids.data();
+      f.on_device = false;
+    }
+    if (!record.edited_ids.empty()) {
+      // The edited hyperedges with their new rows (slack_csr storage; on cuda the host frontier
+      // is uploaded by the count, fake_hyper_kernels.cu).
+      fake_hyper_workspace& ws = ws_->get();
+      ws.host_ids.assign(record.inserted_ids.begin(), record.inserted_ids.end());
+      ws.host_ids.insert(ws.host_ids.end(), record.edited_ids.begin(), record.edited_ids.end());
+      f.ids = ws.host_ids.data();
+      f.size = static_cast<std::int64_t>(ws.host_ids.size());
       f.on_device = false;
     }
 #if defined(DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS)

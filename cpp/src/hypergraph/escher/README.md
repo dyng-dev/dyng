@@ -103,7 +103,8 @@ word (below); a row is never truncated (B's literal 1,024-hop bound is not porte
 
 **The three padding rules.**
 
-1. *Construct* (`flatten_rows`, A's `flatten2DVector`): a row of `n` values takes
+1. *Construct* (A's `flatten2DVector`; its port `flatten_rows` is a test helper since 0.4,
+   `cpp/tests/support/escher_flatten.hpp`, ADR 0084): a row of `n` values takes
    `((n + 4) / 4) * 4` slots: the values, zeros, `INT_MIN` in the last slot (so an empty row takes
    4 slots).
 2. *Surplus rows of an insert* (`insert_cbst`): `aligned = ceil(n / alignment) * alignment`

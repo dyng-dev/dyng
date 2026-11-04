@@ -26,6 +26,7 @@ triangle_delta
 triad_count
 experimental
 label_propagation
+hyper_sssp
 generators
 testing
 ```

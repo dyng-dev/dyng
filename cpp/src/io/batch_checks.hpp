@@ -27,7 +27,8 @@ bool host_readable(const view_t& view) noexcept {
 /**
  * @brief Check a hyperedge batch for a batch file: host memory; num_insertions() + 1 offsets
  *        from 0, non-decreasing, ending at the member count; no empty insertion; members and
- *        deletion ids >= 0; one weight >= 1 per insertion (none for unweighted).
+ *        deletion ids >= 0; one weight >= 1 per insertion (none for unweighted); incidence
+ *        arrays of equal lengths with ids and vertices >= 0.
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Weight type.
  * @param[in] batch The batch.
@@ -64,6 +65,24 @@ void check_hyperedge_batch_arrays(const hyperedge_batch_view<vertex_t, weight_t>
                  " deletes the negative id ", batch.delete_hyperedges[j],
                  " (a batch file holds ids >= 0)");
   }
+  // The incidence edits (0.4): one vertex per hyperedge, ids and vertices >= 0.
+  DYNG_EXPECTS(host_readable(batch.delete_incidence_hyperedge) &&
+                   host_readable(batch.delete_incidence_vertex) &&
+                   host_readable(batch.insert_incidence_hyperedge) &&
+                   host_readable(batch.insert_incidence_vertex),
+               who, ": batch ", index, " must be in host-accessible memory");
+  DYNG_EXPECTS(batch.delete_incidence_hyperedge.size() == batch.delete_incidence_vertex.size() &&
+                   batch.insert_incidence_hyperedge.size() == batch.insert_incidence_vertex.size(),
+               who, ": the incidence arrays of batch ", index, " disagree in size");
+  const auto check_edits = [&](const auto& ids, const auto& vertices, const char* what) {
+    for (std::size_t j = 0; j < ids.size(); ++j) {
+      DYNG_EXPECTS(ids[j] >= 0 && vertices[j] >= 0, who, ": batch ", index, " has the incidence ",
+                   what, " (", ids[j], ", ", static_cast<std::int64_t>(vertices[j]),
+                   ") with a negative id or vertex (a batch file holds ids >= 0)");
+    }
+  };
+  check_edits(batch.delete_incidence_hyperedge, batch.delete_incidence_vertex, "removal");
+  check_edits(batch.insert_incidence_hyperedge, batch.insert_incidence_vertex, "addition");
   if constexpr (is_unweighted_v<weight_t>) {
     DYNG_EXPECTS(batch.insert_weights.empty(), who, ": batch ", index,
                  " has weights for an unweighted type");

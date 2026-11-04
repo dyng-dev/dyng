@@ -1,0 +1,27 @@
+{
+ "record": "M11a review (criterion 21): the dry 0.4 certify restricted to hyper_sssp on the committed records of the reviewed code, outside benchmarks/results",
+ "command": "parity/certify.py write --results <dir> --version 0.4.0 --dry-run hyper_sssp",
+ "tree": "0108401 (the records of the readings and replays taken again on the formatted tree 18805af committed in 642964e and 6c67f0d; the library of 18805af, equal to ba1120b's but for the layout of dyng-compat-hsosp's Step-0 sum)",
+ "results_dir": "parity/results/M11a-ia3_hsosp itself for the passing run (its parity.json, committed in 0108401), copies of it for the two negative runs (bench_suite.py summarize benchmarks/paper/ia3_hsosp.yaml --version 0.4.0 over $DYNG_SCRATCH/runs/bench/M11a: the gated readings of both datasets on 18805af / e118379, the memory reading on 18805af, the default-clock and kernel readings on df6e99b; the replay records of compare.py hyper_sssp --certificate on df6e99b)",
+ "passed": {
+  "verdict": "PASSED (a dry run of hyper_sssp; outside it: 20 parts)",
+  "rc": 0
+ },
+ "fails_without_a_gate_row": {
+  "edit": "static[b2] removed from the record of dblp_vertex_50000",
+  "rc": 1,
+  "problems": [
+   "ia3_hsosp.json: cuda-dblp dblp_vertex_50000 static[b2]: not in its record ia3_hsosp-cuda-dblp-dblp_vertex_50000.json",
+   "ia3_hsosp.json: cuda-dblp (ia3_hsosp-cuda-dblp-dblp_vertex_50000.json): dblp_vertex_50000: 3 batches; no gated row static[b2]"
+  ]
+ },
+ "fails_without_a_replay": {
+  "edit": "parity-hyper_sssp_mosp_escher-sequential-hyper_sssp-by_key.json removed",
+  "rc": 1,
+  "problems": [
+   "golden set hyper_sssp_mosp_escher: 10 of the 10 cases of sequential:hyper_sssp/by_key have no passed replay (first: paper/dblp_vertex_50000; compare.py hyper_sssp --certificate <results>)"
+  ]
+ },
+ "m10_scoped_dry_run": "not run: M10's (0, 4) entries are not on this branch (origin/main is still b2b1524: M10a is not merged into main yet); the second of M10b / M11b to freeze runs both scoped dry runs on the merged tree",
+ "earlier": "the same dry certify over the records of the reviewed code before the format commit (19f77bc: the gated readings on d20cc90, the default-clock, kernel and memory readings on 3fec063, the replays on ba1120b) passed with the same two negative checks; those records are replaced"
+}

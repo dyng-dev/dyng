@@ -56,7 +56,10 @@
  * (default: engine::automatic), fused_available(ctx) -> bool (whether the fused engine can run in
  * this call, e.g. on the CUDA backend with cooperative launch; default: not provided, read as
  * true), algorithm_budget(ctx) -> budget (default: unchecked), recompute(ctx, new, stats&)
- * (needed only for on_limit::fallback_recompute). engine::automatic resolves to fused when the
+ * (needed only for on_limit::fallback_recompute and over_budget), over_budget(ctx) -> bool (the
+ * problem's own work budget, asked after every loop call of an update: true ends Step 2 through
+ * the recompute hook, as the cap under on_limit::fallback_recompute does; default: not provided,
+ * no budget; a problem whose budget throws instead does so from this hook). engine::automatic resolves to fused when the
  * problem has a fused engine and it can run (fused_available), else to operators; a problem with
  * both a Tier A engine and a fused one must provide fused_available or select_engine
  * (framework/conformance.hpp), because a fused engine is written for one backend (PLAN 4.5.4).
@@ -202,6 +205,22 @@ struct problem_base {
    * @return not_provided.
    */
   not_provided algorithm_budget(context& /*ctx*/) {
+    return {};
+  }
+
+  /**
+   * @brief The problem's own work budget of an update (default: not provided, no budget).
+   *
+   * update() asks it after every loop call of Step 2: true ends Step 2 like the convergence cap
+   * under on_limit::fallback_recompute (the recompute hook in the stage `recompute`, then
+   * stats.fallback_used = true; finalize is not called), whatever the policy's at_limit. A
+   * problem that throws instead (convergence_error under an "error" budget action) throws from
+   * this hook. compute() never asks it (compute() is the recomputation). A problem that provides
+   * it must provide recompute (framework/conformance.hpp). H-SOSP's work budget (hyper_sssp's
+   * host engine, M11a) is its first user.
+   * @return not_provided.
+   */
+  not_provided over_budget(context& /*ctx*/) {
     return {};
   }
 

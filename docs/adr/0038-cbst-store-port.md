@@ -9,6 +9,8 @@
 - **Date:** 2026-10-07
 - **Deciders:** the AI assistant, on the author's behalf (M8a, step verbatim-port)
 - **Number:** 0035 is the 0.2.0 release branch's, 0036 the trace format's, 0037 the host model's.
+- **Amended by:** ADR 0084 (0.4: `flatten_rows`, which no library code calls, moved from
+  `flatten.cpp` to the test helper `cpp/tests/support/escher_flatten.hpp`)
 
 ## Context
 

@@ -2016,3 +2016,80 @@ class_margin_sha256 = "90473eea8ab9870de82c03d52233f5a45fe079004ca957a9e472a4b05
 [sets.label_propagation_oracle.coverage]
 sequential = ["5k5_d1e-6_s42", "5k5_d1e-6_s42_inplace", "50k_d1e-6_s42", "50k_d1e-6_s42_inplace"]
 cuda = ["5k5_d1e-6_s42", "5k5_d1e-6_s42_inplace", "50k_d1e-6_s42", "50k_d1e-6_s42_inplace", "500k_d1e-4_s42", "500k_d1e-4_s42_inplace", "5m_d1e-4_s42", "5m_d1e-4_s42_inplace"]
+
+[sets.hyper_sssp_mosp_escher]
+reference = "MOSP_ESCHER"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+kind = "hyper_sssp"
+what = "MOSP_ESCHER's make-test H-SOSP sessions (T) and the 16 paper configurations (P: coauth-DBLP and coauth-MAG-Geology, hyperedge and vertex batches of 25K-200K, 3 batches, --del 50, --verify none); P50 with every array, the rest with digests"
+location = "$DYNG_SCRATCH/goldens/hyper_sssp/mosp_escher"
+generated_by = "parity/hsosp_goldens.py export --twice (parity/export_goldens.py hyper_sssp)"
+num_cases = 25
+num_files = 56
+num_bytes = 600724206
+manifest_sha256 = "6211339456bbd391e1054caec3e936184433ccc43b41e722124de5b2effec872"
+
+[sets.hyper_sssp_mosp_escher.coverage]
+# Which backend replays which cases (HD2, decided by the author on 2026-10-28).
+status = "decided by the author on 2026-10-28 (HD2)"
+cuda = ["test", "paper"]
+sequential = ["test", "paper/dblp_hyperedge_50000", "paper/dblp_vertex_50000", "paper/geology_hyperedge_50000"]
+openmp = ["container level only (HD14: no hyper_sssp OpenMP backend in 0.4)"]
+
+[sets.hyper_sssp_mosp_escher.modes]
+# The parity modes per backend (ADR 0080 section 2; M11a criterion 14).
+cuda.by_id = ["test", "paper"]
+cuda.by_id_public = ["test", "paper/dblp_hyperedge_50000", "paper/dblp_vertex_50000", "paper/geology_hyperedge_50000", "paper/geology_vertex_50000"]
+cuda.by_key = ["test", "paper/dblp_vertex_50000"]
+sequential.by_id = ["test", "paper/dblp_hyperedge_50000", "paper/dblp_vertex_50000", "paper/geology_hyperedge_50000"]
+sequential.by_id_public = ["test"]
+sequential.by_key = ["test", "paper/dblp_vertex_50000"]
+
+[sets.hyper_sssp_mosp_escher.loads]
+"dblp" = { sha256 = "4aeea4c00c8ce989b1e9c2578a63099a1a4121af1acb78d04752287ce28bb91b" }
+"geology" = { sha256 = "6a0264b58cb2ccf634dc7731c19ad49d2b64bc4bf81c9f3cbb0eee51078b3e73" }
+
+[sets.hyper_sssp_mosp_escher.cases]
+"paper/dblp_hyperedge_100000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "b404f142edc7c75a621d58d38325da5901aa71fe96936b63522d8c33901e45a2" }
+"paper/dblp_hyperedge_200000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "96f641e2dac2fa1b1290b779388381e82a840cca16b6261aaa0b0867eaec65a1" }
+"paper/dblp_hyperedge_25000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "3baac48cbcae607da77e10f2f36008f22de9a91b64ee9af17dfb8b4ce6dd89f5" }
+"paper/dblp_hyperedge_50000" = { sessions = 1, batches = 3, digest_mode = false, sha256 = "bbf4c852669b7bd8990bce6de947523117f322e7d49baecc1b9382208aa50066" }
+"paper/dblp_vertex_100000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "501ddb6d2fdf47f9062e6e151d974cf723a61b7ae34095c47fec55e32c56dc3e" }
+"paper/dblp_vertex_200000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "48b2df6ff5b038cf07814c8e6002b111f3f9956671d53c1e5deb70df70336de2" }
+"paper/dblp_vertex_25000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "b79f6f4fb363b97da7d9b55d35b2d3f2e7add58517d61fdfd349df2ea4915d39" }
+"paper/dblp_vertex_50000" = { sessions = 1, batches = 3, digest_mode = false, sha256 = "72263e99108b2a8444e10bd319e862650a908db65c2ae431d2066073a60fdcbb" }
+"paper/geology_hyperedge_100000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "6f7508d9dfe536ce544d70a79b405309160851cf37a2478cff78ac2a400eb95e" }
+"paper/geology_hyperedge_200000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "cabb938f73ffb7e22cc18f52acd230210db771c9f69c88d07c269593060e26c5" }
+"paper/geology_hyperedge_25000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "3e41ef21a5bf4c051559df25002476d4305b74a6b975e6ca7e7c9c7a3dcd47e4" }
+"paper/geology_hyperedge_50000" = { sessions = 1, batches = 3, digest_mode = false, sha256 = "c3def8cc490ae457b1d3a5795fa66f8b0f9e8a898b55f4e173ff23f770d3fc7f" }
+"paper/geology_vertex_100000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "1e01d518b426aca24bb8a11932da3decd96a39d0ff572080f97e810c828a84ca" }
+"paper/geology_vertex_200000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "a1bccc999e2a78cdd67912a22a09a2db0009bccf956f73b3131de5ac6eb67999" }
+"paper/geology_vertex_25000" = { sessions = 1, batches = 3, digest_mode = true, sha256 = "65ab49cd869d5420915c601be95ffed953502602b7f89a2e57029dc3757d8b28" }
+"paper/geology_vertex_50000" = { sessions = 1, batches = 3, digest_mode = false, sha256 = "0e6cc2c224b6cee970fae00f5c609358b3db9eef4b81903065da0e45ca5be79f" }
+"test/01-test_h2h_construction" = { sessions = 26, batches = 0, digest_mode = false, sha256 = "97157eab63199855945b53679bbd15b88a6171bb97b94d60dcbdf168df488ea4" }
+"test/02-test_h2h_delta" = { sessions = 15, batches = 90, digest_mode = false, sha256 = "8d7ea8205a5cafe30c828e2b9cd30063546e9fb609f530e260ff62e94b349e4f" }
+"test/03-test_hsosp_matches_dijkstra" = { sessions = 31, batches = 383, digest_mode = false, sha256 = "135b5a21af08a86290e35aa92460121a7c69d7faecfe3ecb88aeb30d2475ab7d" }
+"test/04-test_hsosp_scale" = { sessions = 1, batches = 7, digest_mode = false, sha256 = "0b08914aae98e7a2e7c1492e7c25ea4f03ccf7b2baa8ec1598dfb46fec564b4c" }
+"test/05-hsospStress" = { sessions = 50, batches = 150, digest_mode = false, sha256 = "e05a3dc8602db5e3493c0aa84a2fe1d29966fe1f737998a1a3c3d35c227edf98" }
+"test/06-hsospStress_escher" = { sessions = 20, batches = 60, digest_mode = false, sha256 = "17874203fe045302456d5b3535b375748cb16f2cb6db5b5d66803b1efa115f7d" }
+"test/07-hsospBench_smoke" = { sessions = 8, batches = 26, digest_mode = false, sha256 = "3df38b5afeedce2571ba4725ae456a30547062c3185e0be15eb858e402fd8a4a" }
+"test/08-hsospBench_real_hyperedge" = { sessions = 1, batches = 3, digest_mode = false, sha256 = "3b8bc9676a96456646dfd1b8f5750e4dded8a3b110c3b1d49884539e6035d935" }
+"test/09-hsospBench_real_vertex" = { sessions = 1, batches = 3, digest_mode = false, sha256 = "f841cb09292ff5cf2da36d552be7aa8a1732fe569660a30bd108d20db2d4363e" }
+
+[sets.hyper_sssp_mosp_escher.converted]
+# dyng-compat-hsosp to-dgb of every case (hsosp_goldens.py convert): converted twice
+# with the same bytes and every session replayed by id; sha256 is the SHA-256 of the sorted
+# "<sha256>  <file>" lines of the converted files (.s<k>.hg / .dgb / .txt).
+"paper/dblp_hyperedge_50000" = { sessions = 1, files = 3, sha256 = "45c676ffd45fd3b584dadf1c8dee09ee8339d302b81140c9ef5aa3ac7b8a6dc4" }
+"paper/dblp_vertex_50000" = { sessions = 1, files = 3, sha256 = "3a10450e0dbc9caea8029993a6f1f48a84f76e2aa90f31c927b777cacdf66f50" }
+"paper/geology_hyperedge_50000" = { sessions = 1, files = 3, sha256 = "584102b243984939776cceddda14b43ebae5cd427ccc2096e3b2769fe983c5c6" }
+"paper/geology_vertex_50000" = { sessions = 1, files = 3, sha256 = "27d5048930a72216ebf1bb45cce7a4e1463cb8a50ae31c6b4bd19661efb72b9d" }
+"test/01-test_h2h_construction" = { sessions = 26, files = 78, sha256 = "a72b780ec84966543e3e6fe38e2634ca35d52139426c6ac1eb70957fa18b806c" }
+"test/02-test_h2h_delta" = { sessions = 15, files = 45, sha256 = "7aaa08cb7af2c79fd5c43f2f95f90db6a40bb6729e8bcca9b1623f815592cc7d" }
+"test/03-test_hsosp_matches_dijkstra" = { sessions = 28, files = 84, sha256 = "8477521c2622b3db6eb49efd6e429c745386e1facbf197d2c7f364319b25bd5e" }
+"test/04-test_hsosp_scale" = { sessions = 1, files = 3, sha256 = "4dc61c7110ef8287ee4ef4b4f80980eb87606739dab2c29ecd44122c985587ea" }
+"test/05-hsospStress" = { sessions = 50, files = 150, sha256 = "ee39d3ca826b558e1c13d875ec0e505e33ee6b142271a1a48c48b49df4766cac" }
+"test/06-hsospStress_escher" = { sessions = 20, files = 60, sha256 = "a5cc2c65d0e4ca2f7c5e631be634ba45b1785b6be6f57c2801b32d3e43a2e745" }
+"test/07-hsospBench_smoke" = { sessions = 8, files = 24, sha256 = "6620f5f66faa61ecb6131d11b18659a53f45c956ea2f4c054b110d3005256d61" }
+"test/08-hsospBench_real_hyperedge" = { sessions = 1, files = 3, sha256 = "c1d6625810ce32592d7d2163992126edfd12cc73f73b205f98172486d0e1b574" }
+"test/09-hsospBench_real_vertex" = { sessions = 1, files = 3, sha256 = "78855a6d25c72a1f46b802bc92b5b6b10a26c104ae1c9f02c3bb30e7512cd0f8" }

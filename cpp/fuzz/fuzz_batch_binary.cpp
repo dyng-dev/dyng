@@ -71,13 +71,16 @@ struct hyper_copy {
   std::vector<weight_t> weights;
   std::vector<std::int64_t> del_offsets, expected;
   std::vector<vertex_t> del_members;
+  std::vector<std::int64_t> rem_ids, add_ids;  // the incidence edits (0.4)
+  std::vector<vertex_t> rem_vertices, add_vertices;
   bool operator==(const hyper_copy& o) const {
     const auto offs = [](const std::vector<std::int64_t>& x) {
       return x.size() <= 1 ? std::vector<std::int64_t>{} : x;  // {0} and {} mean no insertion
     };
     return del == o.del && offs(offsets) == offs(o.offsets) && members == o.members &&
            weights == o.weights && del_offsets == o.del_offsets && expected == o.expected &&
-           del_members == o.del_members;
+           del_members == o.del_members && rem_ids == o.rem_ids && rem_vertices == o.rem_vertices &&
+           add_ids == o.add_ids && add_vertices == o.add_vertices;
   }
 };
 
@@ -143,9 +146,17 @@ template <typename vertex_t, typename weight_t>
 hyper_copy<vertex_t, weight_t> take(const io::batch_reader& in) {
   const auto v = in.hyperedge_batch<vertex_t, weight_t>();
   const auto a = in.annotations<vertex_t>();
-  return {copy(v.delete_hyperedges), copy(v.insert_offsets),  copy(v.insert_members),
-          copy(v.insert_weights),    copy(a.deleted_offsets), copy(a.expected_ids),
-          copy(a.deleted_members)};
+  return {copy(v.delete_hyperedges),
+          copy(v.insert_offsets),
+          copy(v.insert_members),
+          copy(v.insert_weights),
+          copy(a.deleted_offsets),
+          copy(a.expected_ids),
+          copy(a.deleted_members),
+          copy(v.delete_incidence_hyperedge),
+          copy(v.insert_incidence_hyperedge),
+          copy(v.delete_incidence_vertex),
+          copy(v.insert_incidence_vertex)};
 }
 
 template <typename vertex_t, typename weight_t>
@@ -185,6 +196,14 @@ void run_hyperedges(const std::string& path, const io::batch_reader_options& opt
     DYNG_FUZZ_CHECK(deleted ? b.del_offsets.size() == b.del.size() + 1 : b.del_offsets.empty());
     DYNG_FUZZ_CHECK(expected ? b.expected.size() == ni : b.expected.empty());
     for (const vertex_t v : b.del_members) DYNG_FUZZ_CHECK(v >= 0 && v <= limit);
+    const bool edits = (header.flags & io::batch_file_flags::incidence_edits) != 0;
+    DYNG_FUZZ_CHECK(edits || (b.rem_ids.empty() && b.add_ids.empty()));
+    DYNG_FUZZ_CHECK(b.rem_ids.size() == b.rem_vertices.size() &&
+                    b.add_ids.size() == b.add_vertices.size());
+    for (const std::int64_t id : b.rem_ids) DYNG_FUZZ_CHECK(id >= 0);
+    for (const std::int64_t id : b.add_ids) DYNG_FUZZ_CHECK(id >= 0);
+    for (const vertex_t v : b.rem_vertices) DYNG_FUZZ_CHECK(v >= 0 && v <= limit);
+    for (const vertex_t v : b.add_vertices) DYNG_FUZZ_CHECK(v >= 0 && v <= limit);
   }
   dyng::fuzz::round_trip([&] {
     // write -> read
@@ -197,6 +216,10 @@ void run_hyperedges(const std::string& path, const io::batch_reader_options& opt
         v.insert_offsets = dyng::host_view(b.offsets);
         v.insert_members = dyng::host_view(b.members);
         v.insert_weights = dyng::host_view(b.weights);
+        v.delete_incidence_hyperedge = dyng::host_view(b.rem_ids);
+        v.delete_incidence_vertex = dyng::host_view(b.rem_vertices);
+        v.insert_incidence_hyperedge = dyng::host_view(b.add_ids);
+        v.insert_incidence_vertex = dyng::host_view(b.add_vertices);
         io::hyperedge_batch_annotations<vertex_t> a;
         a.deleted_offsets = dyng::host_view(b.del_offsets);
         a.deleted_members = dyng::host_view(b.del_members);

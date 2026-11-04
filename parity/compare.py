@@ -13,7 +13,8 @@ the replays through dynG by key and by content, parity/triad_replay.py); `parity
 label_propagation --verify` LabelPropagation-CUDA's goldens (parity/label_propagation_goldens.py,
 M10a; `parity/compare.py label_propagation generator|model|check-runs|oracle|margin|subset` the
 replays of the legacy generator and the oracles, parity/label_propagation_replay.py, M10a step 2;
-the replays of the port arrive with it).
+the replays of the port arrive with it); `parity/compare.py hyper_sssp ...` MOSP_ESCHER's H-SOSP
+goldens (parity/hsosp_goldens.py, M11a: --verify [--full], --list, --part delta|results).
 
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
@@ -392,11 +393,18 @@ def main() -> int:
         import triad_goldens
 
         return triad_goldens.compare_main(sys.argv[2:])
+    # M10 label_propagation
     if sys.argv[1:2] == ["label_propagation"]:  # LabelPropagation-CUDA's goldens (M10a)
         sys.path.insert(0, str(REPO / "parity"))
         import label_propagation_goldens
 
         return label_propagation_goldens.compare_main(sys.argv[2:])
+    # M11 slack_csr / hyper_sssp
+    if sys.argv[1:2] == ["hyper_sssp"]:  # MOSP_ESCHER's H-SOSP goldens (M11a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import hsosp_goldens
+
+        return hsosp_goldens.compare_main(sys.argv[2:])
     scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--goldens", type=Path, default=scratch / "goldens" / "sssp")

@@ -27,6 +27,16 @@ an include-graph and link test checks their object files):
   its components in the original's numbering, the 64-bit supernode weights and the initial
   labels. It replays LabelPropagation-CUDA's recorded traces field for field.
 
+`hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`
+(`dyng/testing/hyper_sssp_reference.hpp`, M11a, ADR 0082) are the oracle of `hyper_sssp`,
+following MOSP_ESCHER's test oracle: the line graph rebuilt from the hyperedges, a node-weighted
+Dijkstra (stepping into a hyperedge costs its weight) from a source hyperedge at distance 0 or a
+source vertex (every hyperedge holding it starts at its own weight), the canonical parents (the
+lowest-id tight neighbour), a check that counts distance and parent differences apart, and the net
+line-graph change between two states of a hypergraph. They share no code with `hyper_sssp` or the
+container either (an include-graph and link test, with a planted violation that must fail it), and
+their results are standard-library types.
+
 ```{doxygengroup} testing
 :content-only:
 :members:

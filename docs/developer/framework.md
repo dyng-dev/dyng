@@ -126,7 +126,14 @@ o)` (AG, `<algo>.count`) → `finalize` (`<algo>.finalize`). In Tier B it runs
   both a Tier A engine and a fused one must provide `fused_available` or `select_engine`
   (a compile-time check), because a fused engine is written for one backend.
 - `algorithm_budget(ctx) -> budget`. Default: `budget::unchecked()`.
-- `recompute(ctx, new, stats)`. Needed only for `on_limit::fallback_recompute`.
+- `recompute(ctx, new, stats)`. Needed only for `on_limit::fallback_recompute` and `over_budget`.
+- `over_budget(ctx) -> bool`. The problem's own work budget of an update (0.4, ADR 0092; H-SOSP's
+  work budget in hyper_sssp's host engine is its first user). update() asks it after every `loop`
+  call; true ends Step 2 like the cap under `on_limit::fallback_recompute` (the `recompute` hook in
+  `<algo>.recompute`, `fallback_used = true`, no `finalize`), whatever the policy's `at_limit`. A
+  problem whose budget action is an error throws `convergence_error` from it (after the commit:
+  the result is poisoned). compute() never asks it. A problem with it must have `recompute` (a
+  compile-time check). Default: not provided, no budget.
 
 **Lifecycle members**. The enactor and the participant adapter use them; they have no stage, and
 they are the "argument validation, version check, result bookkeeping" of `<algo>.cpp` (PLAN 4.8):
@@ -151,7 +158,8 @@ The enactor sets the fields of `update_stats` that it decides:
 - `engine_used`: `fused` when `enact_fused` ran, `operators` otherwise. `finalize` may refine it;
   sssp's OpenMP engine is the ported paper engine and reports `fused`.
 - `converged`: false only under `on_limit::report`.
-- `fallback_used`: true after `on_limit::fallback_recompute`.
+- `fallback_used`: true after `on_limit::fallback_recompute`, or after the problem's own budget
+  (`over_budget`) was spent.
 
 The adapter copies the commit's `apply_summary` into `stats.batch` when the stats type has that
 field. The problem fills everything else in `finalize` or `enact_fused`: `affected`,
@@ -527,4 +535,5 @@ Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
 | Tier B replaces `identify_affected` … `finalize` | cycle_count's `enact_fused` / `compute_fused` open the ported code's own stages inside `<algo>.enact_fused` | The regions of `parity/timed_regions/cycle_count.toml` (the paper's `kernel_ms` is `cycle_count.count`) keep their stages; the only new row is `cycle_count.enact_fused` on CUDA. |
 | the problem's `normalize` after the framework's | under set semantics cycle_count's `normalize` hook takes the framework's lists (a second call of the `cycle_count.normalize` stage) | The hook is Step 0 for every semantics; the stage rows are unchanged. |
 | `schedule`, `sync_rule`, `tie_break` | not yet | No two users. |
+| the budget policy (PLAN 4.5.3: `on_limit` on the iteration cap) | also `over_budget(ctx)`, a problem's own work budget asked after every `loop` call, ending Step 2 through `recompute` | H-SOSP's work budget counts relaxations, not iterations (M11a, ADR 0092): the fixed-point fake `test_hyper_hops` (PLAN R3) showed that the iteration cap alone cannot express it on a Tier A engine. |
 | `snapshot.hpp`, `budget.hpp` | `views.hpp`, `budgets.hpp` | Names of the extraction task. |

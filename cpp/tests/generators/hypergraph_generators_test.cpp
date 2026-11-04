@@ -257,6 +257,14 @@ TEST_F(HyperedgeBatches, EveryMixDoesWhatItSaysAndApplies) {
       case m::empty:
         EXPECT_TRUE(b.empty());
         break;
+      case m::incidence_removals:
+      case m::incidence_additions:
+      case m::incidence_mixed:
+      case m::incidence_emptying:
+      case m::incidence_same_batch:
+      case m::incidence_repeats:
+      case m::incidence_out_of_range:
+        break;  // not in all_mixes(): IncidenceMixesDoWhatTheySayOnSlackCsr
     }
     const auto s = h.apply(res_, b.view());
     h.check_integrity(res_);
@@ -279,6 +287,113 @@ TEST_F(HyperedgeBatches, EveryMixDoesWhatItSaysAndApplies) {
     if (mix == m::delete_all) {
       EXPECT_EQ(h.num_hyperedges(), 0);
     }
+  }
+}
+
+std::vector<gen::hyperedge_batch_mix> incidence_mixes() {
+  using m = gen::hyperedge_batch_mix;
+  return {m::incidence_removals,    m::incidence_additions,  m::incidence_mixed,
+          m::incidence_emptying,    m::incidence_same_batch, m::incidence_repeats,
+          m::incidence_out_of_range};
+}
+
+template <typename weight_t>
+std::uint64_t hash_with_edits(const dyng::hyperedge_batch<std::int32_t, weight_t>& b) {
+  std::uint64_t h = hash_of(b);
+  h = fnv_all(h, b.delete_incidence_hyperedge());
+  h = fnv_all(h, b.delete_incidence_vertex());
+  h = fnv_all(h, b.insert_incidence_hyperedge());
+  h = fnv_all(h, b.insert_incidence_vertex());
+  return h;
+}
+
+// The incidence mixes (0.4, appended: the streams of the hyperedge mixes above are unchanged, and
+// these are pinned from 0.4 on), and what each promises on a slack_csr hypergraph (the edits'
+// counts, MOSP_ESCHER's skip rules).
+TEST_F(HyperedgeBatches, IncidenceMixesDoWhatTheySayOnSlackCsr) {
+  dyng::hypergraph_properties slack = props_;
+  slack.storage = dyng::hypergraph_storage::slack_csr;
+  slack.line_graph = dyng::line_graph_policy::slack_csr;
+  hgraph h0 = hgraph::from_hyperedges(
+      res_, gen::uniform_hypergraph<std::int32_t, std::int32_t>(base(5)).view(), slack);
+  dyng::hyperedge_batch<std::int32_t, std::int32_t> d;
+  for (std::int64_t id = 0; id < 400; id += 3) d.delete_hyperedge(id);
+  (void)h0.apply(res_, d.view());
+  const std::vector<std::uint64_t> golden = {
+      0x9659727534e02784ULL,  // incidence_removals
+      0x6a965365fa13fe75ULL,  // incidence_additions
+      0x7e9af259165fd60bULL,  // incidence_mixed
+      0x2dc46143c7d7f703ULL,  // incidence_emptying
+      0x311acab757dd12bcULL,  // incidence_same_batch
+      0x73a6934fb977ecf9ULL,  // incidence_repeats
+      0xc83269c035a1c8a9ULL,  // incidence_out_of_range
+  };
+  const auto mixes = incidence_mixes();
+  for (std::size_t i = 0; i < mixes.size(); ++i) {
+    SCOPED_TRACE(std::string(gen::to_string(mixes[i])));
+    hgraph h = h0.clone(res_);
+    gen::hyperedge_batch_options o;
+    o.mix = mixes[i];
+    o.seed = 42;
+    o.size = 20;
+    o.max_cardinality = 6;
+    o.max_weight = 9;
+    const auto b = gen::random_hyperedge_batch(res_, h, o);
+    EXPECT_EQ(hash_with_edits(b), golden[i]);
+    const auto s = h.apply(res_, b.view());
+    h.check_integrity(res_);
+    const std::int64_t skipped = s.skipped_ops - s.ignored_deletions - s.dropped_members;
+    const auto requested = static_cast<std::int64_t>(b.delete_incidence_hyperedge().size() +
+                                                     b.insert_incidence_hyperedge().size());
+    EXPECT_EQ(s.deleted_incidences + s.inserted_incidences + skipped, requested);
+    using m = gen::hyperedge_batch_mix;
+    switch (mixes[i]) {
+      case m::incidence_removals:
+        EXPECT_EQ(s.deleted_incidences, 20);
+        EXPECT_EQ(skipped, 0);
+        break;
+      case m::incidence_additions:
+        EXPECT_EQ(s.inserted_incidences, 20);
+        EXPECT_EQ(skipped, 0);
+        break;
+      case m::incidence_mixed:
+        EXPECT_EQ(s.deleted_hyperedges, 10);
+        EXPECT_EQ(s.deleted_incidences, 10);
+        EXPECT_EQ(s.inserted_incidences, 10);
+        EXPECT_EQ(s.inserted_hyperedges, 10);
+        EXPECT_EQ(skipped, 0);
+        break;
+      case m::incidence_emptying:
+        EXPECT_EQ(skipped, 2);  // the last member of each
+        EXPECT_GT(s.deleted_incidences, 0);
+        break;
+      case m::incidence_same_batch:
+        EXPECT_EQ(skipped, 6);  // 2 deleted ids x 2 edits, the bound x 2
+        EXPECT_EQ(s.deleted_incidences + s.inserted_incidences, 2);
+        EXPECT_EQ(s.inserted_hyperedges, 2);
+        break;
+      case m::incidence_repeats:
+        EXPECT_EQ(s.deleted_incidences, 1);
+        EXPECT_EQ(s.inserted_incidences, 1);
+        EXPECT_EQ(skipped, 3);
+        break;
+      case m::incidence_out_of_range:
+        EXPECT_EQ(skipped, 8);  // with the two edits of the dead id 0
+        EXPECT_EQ(s.inserted_incidences, 1);
+        break;
+      default:
+        ADD_FAILURE() << "not an incidence mix";
+    }
+  }
+  // escher storage refuses every one of them.
+  const hgraph e = start();
+  for (const auto mix : mixes) {
+    hgraph h = e.clone(res_);
+    gen::hyperedge_batch_options o;
+    o.mix = mix;
+    o.seed = 1;
+    const auto b = gen::random_hyperedge_batch(res_, h, o);
+    EXPECT_THROW((void)h.apply(res_, b.view()), dyng::not_supported_error) << gen::to_string(mix);
   }
 }
 

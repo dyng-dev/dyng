@@ -68,3 +68,53 @@ lines = 2467389
 vertices = 1930378
 loaded_hyperedges = 2466792
 loaded_by = "bin/hsospBench --hg <file> (--maxcard 25, the default): 2,466,792 hyperedges kept, the count of MOSP_ESCHER's results/README.md; the bulk load recorded in the dblp50k batch dumps holds 2,466,794 rows (the virtual source, id 1, and target, id 2,466,794, added) and builds a line graph of 250,891,568 entries (125,445,784 pairs; parity/results/M8a.md)"
+
+# coauth-MAG-Geology (M11a, HD15: decided by the author on 2026-10-28): Benson's Geology archives,
+# downloaded on 2026-10-28 from the Google Drive links of the collection's page, and H-SOSP's input
+# derived from them (parity/hsosp_goldens.py datasets re-derives and checks every entry below).
+# The full archive (no restriction on the simplex size) re-derives to a DIFFERENT file than the
+# one MOSP_ESCHER's results were measured on (e14e2558..., 1,204,704 lines, 1,261,129 vertices);
+# that file, geology.hg (884e04ff...), is derived byte for byte, by both converters, from the
+# collection's restricted archive coauth-MAG-Geology (simplices of at most 25 nodes), whose counts
+# MOSP_ESCHER's results/README.md reports (1,203,895 hyperedges, 1,256,385 vertices) although it
+# names the full archive. The goldens and the gates use geology.hg (parity/results/M11a.md
+# section 2; decided by the author on 2026-10-29, GOVERNANCE.md approvals log).
+[[dataset]]
+name = "coauth-MAG-Geology-full"
+kind = "archive"
+file = "datasets/hyper/raw/coauth-MAG-Geology-full-2026-10-28/coauth-MAG-Geology-full.tar.gz"
+sha256 = "798cf0fbfd0cd2bd8c9c7d4ece042f659849083f898b1332e24ccb4713778077"
+source = "the coauth-MAG-Geology-full archive ('full data without restriction on simplex size: timestamped simplices, node labels, and simplex labels') of Austin R. Benson's hypergraph data collection, https://www.cs.cornell.edu/~arb/data/coauth-MAG-Geology/ (Google Drive id 1bk5uTnuijgHEAOi5sA-sM8Cxyg3Ejr43, downloaded 2026-10-28); derived from the Microsoft Academic Graph (publications tagged 'Geology'; authors as nodes, years as timestamps)"
+cite = "Austin R. Benson, Rediet Abebe, Michael T. Schaub, Ali Jadbabaie and Jon Kleinberg. Simplicial closure and higher-order link prediction. PNAS, 2018. doi:10.1073/pnas.1800683115; and Arnab Sinha, Zhihong Shen, Yang Song, Hao Ma, Darrin Eide, Bo-June (Paul) Hsu and Kuansan Wang. An Overview of Microsoft Academic Service (MAS) and Applications. WWW 2015. doi:10.1145/2740908.2742839"
+simplices = 1591166
+derives_to = "e14e2558738c0d31f4a14260ee4f63ed2636c7753b530f166088f0c2a2ee78af"
+derives_to_note = "scripts/benson_to_hg.py of MOSP_ESCHER@4b86159 and datasets/preprocess/benson_to_hg.py --variant hsosp both write 1,204,704 lines (1,261,129 vertices; 809 lines of more than 25 vertices) with this SHA-256: not the file of MOSP_ESCHER's results, so no entry uses it"
+
+[[dataset]]
+name = "coauth-MAG-Geology"
+kind = "archive"
+file = "datasets/hyper/raw/coauth-MAG-Geology-2026-10-28/coauth-MAG-Geology.tar.gz"
+sha256 = "193d6f276191ad982958897cde94346c21e2fd0d9aec14f8f6583e2aab5cad24"
+source = "the coauth-MAG-Geology archive ('data restricted to simplices with at most 25 nodes: timestamped simplices, node labels, and simplex labels') of Austin R. Benson's hypergraph data collection, https://www.cs.cornell.edu/~arb/data/coauth-MAG-Geology/ (Google Drive id 14MOWsEJyNGiFKumvmgMcU1CqekDBayYV, downloaded 2026-10-28); derived from the Microsoft Academic Graph"
+cite = "Austin R. Benson, Rediet Abebe, Michael T. Schaub, Ali Jadbabaie and Jon Kleinberg. Simplicial closure and higher-order link prediction. PNAS, 2018. doi:10.1073/pnas.1800683115; and Arnab Sinha, Zhihong Shen, Yang Song, Hao Ma, Darrin Eide, Bo-June (Paul) Hsu and Kuansan Wang. An Overview of Microsoft Academic Service (MAS) and Applications. WWW 2015. doi:10.1145/2740908.2742839"
+simplices = 1590335
+
+# H-SOSP's Geology input (MOSP_ESCHER results/README.md: 1,203,895 hyperedges, 1,256,385 vertices
+# at --maxcard 25; the file of its Geology rows, derived on 2026-09-26 in the MOSP_ESCHER fix
+# effort): re-derived on 2026-10-28 from the restricted archive above with the same bytes by both
+# converters.
+[[dataset]]
+name = "coauth-MAG-Geology-hsosp"
+kind = "derived"
+file = "datasets/hyper/geology.hg"
+sha256 = "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+source = "coauth-MAG-Geology"
+reference = "MOSP_ESCHER"
+converter = "scripts/benson_to_hg.py"
+arguments = "coauth-MAG-Geology/coauth-MAG-Geology <out>.hg"
+dyng_converter = "datasets/preprocess/benson_to_hg.py --variant hsosp"
+lines = 1203895
+vertices = 1256385
+bytes = 25210320
+loaded_by = "bin/hsospBench --hg <file> (--maxcard 25, the default): every line is kept (no line has more than 25 vertices); the counts of MOSP_ESCHER's results/README.md (parity/results/M11a.md section 2 records the loader's line of an unpatched run)"
+note = "MOSP_ESCHER's results/README.md names coauth-MAG-Geology-full as the input; the full archive re-derives to another file (coauth-MAG-Geology-full, derives_to), this restricted archive to the measured one"

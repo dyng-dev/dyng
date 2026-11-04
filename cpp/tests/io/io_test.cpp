@@ -111,7 +111,7 @@ TEST_F(BatchText, RejectsMalformedFiles) {
       {"+e 0 x 1\n", -1, 1},            // not an integer
       {"+v 3 1\n", -1, 1},              // vertex operations: 0.4
       {"-h 4\n", -1, 1},                // hyperedge operations: read_hyperedge_batches()
-      {"+i 4 1\n", -1, 1},              // incidence edits: 0.4
+      {"+i 4 1\n", -1, 1},              // incidence edits: read_hyperedge_batches()
       {"%dgt 1 hypergraph\n", -1, 1},   // a hypergraph file
       {"%dgt 1 tree\n", -1, 1},         // an unknown container kind
       {"+e 0 1 2\n-h 0\n", -1, 2},      // the kinds do not mix

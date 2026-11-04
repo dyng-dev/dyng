@@ -18,7 +18,11 @@
  * id i - 1; the virtual source and target hyperedges are ordinary rows, their weight 0 loaded as
  * 1), `begin_batch` the operations and the final ids; replayed under {insert_first,
  * mosp_escher(extra of the session's trees)}, ops naming a virtual id filtered out and counted;
- * a session is replayed up to its first batch with incidence edits (vertex-kind, M11).
+ * under escher storage a session is replayed up to its first batch with incidence edits
+ * (vertex-kind); under slack_csr storage (options::storage, M11a step 2, ADRs 0085 and 0086) every
+ * session is replayed whole, the edits applied with MOSP_ESCHER's rules, and after every batch
+ * also the dead ids (deadHe - 1) and, with the line graph, the pair delta's directed keys (the
+ * count finishBatch received) are compared.
  */
 #pragma once
 
@@ -36,9 +40,12 @@ namespace dyng::test::hypergraph_ids {
 /// What a replay does.
 struct options {
   std::string mode = "both";  ///< "by_id", "by_content" (A only) or "both"
-  bool model = true;          ///< the lockstep with the host model
-  bool integrity = true;      ///< check_integrity() after every batch
-  bool compare = true;        ///< compare the rows with the original's (off: apply only)
+  /// B's sessions: "escher" (0.3: up to the first vertex-kind batch) or "slack_csr" (whole, the
+  /// incidence edits applied; line_graph_policy::slack_csr with --line-graph).
+  std::string storage = "escher";
+  bool model = true;      ///< the lockstep with the host model
+  bool integrity = true;  ///< check_integrity() after every batch
+  bool compare = true;    ///< compare the rows with the original's (off: apply only)
   /// A: the by-id container keeps the line graph (line_graph_policy::sorted_merge) and its H2H
   /// is compared with A's after the build and every batch (M8b step 2, criterion 7): the layout
   /// (row offsets and payload) against the hashes of A's H2H construct and rebuild inputs, and,
@@ -67,12 +74,17 @@ struct options {
 
 /// The result of one trace.
 struct report {
-  std::string trace, repo, backend, mode;
+  std::string trace, repo, backend, mode, storage;
   int threads = 0;
   std::int64_t sessions = 0;          ///< bulk loads (B) or builds (A)
   std::int64_t batches = 0;           ///< batches replayed
-  std::int64_t vertex_batches = 0;    ///< B batches with incidence edits (not replayed, M11)
+  std::int64_t vertex_batches = 0;    ///< B batches with incidence edits (escher: not replayed)
   std::int64_t stopped_sessions = 0;  ///< B sessions stopped at their first vertex-kind batch
+  /// slack_csr storage: the vertex-kind batches replayed, the incidence edits dynG applied and
+  /// skipped, the batches whose dead ids were compared, the batches whose directed delta keys
+  /// were compared with finishBatch's and those keys.
+  std::int64_t vertex_batches_replayed = 0, removals = 0, additions = 0, skipped_edits = 0;
+  std::int64_t dead_compared = 0, key_batches = 0, directed_keys = 0;
   /// B hyperedge-kind batches after a session stopped (not replayed until M11) and their ids.
   std::int64_t hyperedge_batches_after_stop = 0, ids_after_stop = 0;
   std::int64_t line_graph_oracle_states = 0;  ///< states whose h2h was checked against the oracle

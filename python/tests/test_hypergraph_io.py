@@ -119,8 +119,12 @@ def test_dgt_kinds_are_not_mixed(tmp_path: Path) -> None:
     with pytest.raises(dyng.FileFormatError):
         dyng.io.read_batches(f)
     i = _write(tmp_path / "i.dgt", "+i 0 1\n")
-    with pytest.raises(dyng.FileFormatError, match="0.4"):
+    # The incidence edits of 0.4: read by the C++ library, refused by the Python layer until M11b
+    # (rather than dropped).
+    with pytest.raises(dyng.NotSupportedError, match="0.4"):
         dyng.io.read_hyperedge_batches(i)
+    with pytest.raises(dyng.FileFormatError):
+        dyng.io.read_batches(i)
 
 
 # -- .dgb ---------------------------------------------------------------------------------------
@@ -272,3 +276,21 @@ def test_reader_options_beyond_int64_are_invalid_arguments(tmp_path: Path, value
         dyng.io.read_hypergraph(path, num_vertices=value)
     with pytest.raises(dyng.InvalidArgumentError, match="outside"):
         dyng.io.BatchReader(path, num_vertices=value)
+
+
+def test_dgb_incidence_edits_are_refused_until_m11b(tmp_path: Path) -> None:
+    # The seed written from the specification (cpp/fuzz/make_dgb_seeds.py): the flag
+    # incidence_edits of 0.4, which the Python layer takes with M11b (refused, never dropped).
+    seed = (
+        Path(__file__).resolve().parents[2]
+        / "cpp"
+        / "fuzz"
+        / "corpus"
+        / "batch_binary"
+        / "hyper_incidence_edits"
+    )
+    data = seed.read_bytes()
+    f = tmp_path / "edits.dgb"
+    f.write_bytes(data[data.index(b"\n") + 1 :])
+    with pytest.raises(dyng.NotSupportedError, match="0.4"):
+        dyng.io.read_binary_batches(f)

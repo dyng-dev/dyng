@@ -27,6 +27,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
+#include <map>
 #include <memory>
 #include <random>
 #include <set>
@@ -188,11 +189,13 @@ std::string check_line_graph(const hypergraph<std::int32_t, weight_t>& h) {
   return problems;
 }
 
-/// One batch of the tests: raw deletions and raw inserted rows (repeated members allowed).
+/// One batch of the tests: raw deletions and raw inserted rows (repeated members allowed), and
+/// the incidence edits as (id, vertex) (slack_csr storage).
 struct test_batch {
   std::vector<std::int64_t> deletions;
   rows insertions;
   std::vector<std::int32_t> weights;  ///< one per insertion for weighted hypergraphs
+  std::vector<std::pair<std::int64_t, std::int32_t>> removals, additions;
 };
 
 /// A test batch as a hyperedge_batch.
@@ -207,6 +210,8 @@ hyperedge_batch<std::int32_t, weight_t> batch_of(const test_batch& b) {
     }
     out.insert_hyperedge(host_view(b.insertions[i]), w);
   }
+  for (const auto& [h, v] : b.removals) out.delete_incidence(h, v);
+  for (const auto& [h, v] : b.additions) out.insert_incidence(h, v);
   return out;
 }
 
@@ -254,6 +259,7 @@ class lockstep {
   struct outcome {
     std::vector<std::int64_t> ids;
     std::int64_t ignored = 0, dropped = 0;
+    std::int64_t skipped_edits = 0;  ///< incidence edits skipped (MOSP_ESCHER's rules)
     bool ok = true;  ///< false: a store operation failed (the container is then poisoned)
     std::string error_type;
   };
@@ -290,10 +296,68 @@ class lockstep {
       (void)h2v_->record(k, rec);
       deleted.push_back(rec.row);
     }
+    // The incidence edits (slack_csr storage): MOSP_ESCHER's HostHypergraph::applyBatch rules in
+    // its phase order (removals, then additions, each in batch order) against the rows after the
+    // deletions; the applied ones as (key, value) in batch order.
+    std::set<std::int32_t> deleted_keys(keys.begin(), keys.end());
+    std::map<std::int32_t, std::vector<std::int32_t>> work;  // key -> sorted row (+1 values)
+    const auto row_of = [&](std::int64_t id) -> std::vector<std::int32_t>* {
+      if (id < 0 || id >= INT_MAX) return nullptr;
+      const auto key = static_cast<std::int32_t>(id + 1);
+      if (deleted_keys.count(key) != 0) return nullptr;
+      auto it = work.find(key);
+      if (it == work.end()) {
+        dyng::testing::cbst_key_record rec;
+        if (!h2v_->record(key, rec) || rec.avail != 0) return nullptr;
+        std::vector<std::int32_t> row = rec.row;
+        std::sort(row.begin(), row.end());
+        it = work.emplace(key, std::move(row)).first;
+      }
+      return &it->second;
+    };
+    std::vector<std::pair<std::int32_t, std::int32_t>> removed_inc, added_inc;
+    for (const auto& [id, v] : b.removals) {
+      std::vector<std::int32_t>* row = row_of(id);
+      if (row == nullptr || v < 0 || v >= n_) {
+        ++out.skipped_edits;
+        continue;
+      }
+      const auto it = std::lower_bound(row->begin(), row->end(), v + 1);
+      if (it == row->end() || *it != v + 1 || row->size() == 1) {
+        ++out.skipped_edits;
+        continue;
+      }
+      row->erase(it);
+      removed_inc.emplace_back(static_cast<std::int32_t>(id + 1), v + 1);
+    }
+    for (const auto& [id, v] : b.additions) {
+      std::vector<std::int32_t>* row = row_of(id);
+      if (row == nullptr || v < 0 || v >= n_) {
+        ++out.skipped_edits;
+        continue;
+      }
+      const auto it = std::lower_bound(row->begin(), row->end(), v + 1);
+      if (it != row->end() && *it == v + 1) {
+        ++out.skipped_edits;
+        continue;
+      }
+      row->insert(it, v + 1);
+      added_inc.emplace_back(static_cast<std::int32_t>(id + 1), v + 1);
+    }
     std::vector<std::int32_t> mapping;
     const auto erase_phase = [&]() {
       if (!keys.empty() && !check(h2v_->erase(keys), out)) return false;
-      return remove(deleted, keys, out);
+      // H2V unfill (grouped by key, a stable sort: MOSP_ESCHER's flushGrouped), then V2H unfill
+      // (the deleted rows' members, then the removed incidences), then H2V fill.
+      if (!edit_h2v(removed_inc, false, out)) return false;
+      rows removed = deleted;
+      std::vector<std::int32_t> removed_keys = keys;
+      for (const auto& [k, v] : removed_inc) {
+        removed.push_back({v});
+        removed_keys.push_back(k);
+      }
+      if (!remove(removed, removed_keys, out)) return false;
+      return edit_h2v(added_inc, true, out);
     };
     const auto insert_phase = [&]() {
       if (inserted.empty()) return true;
@@ -308,7 +372,18 @@ class lockstep {
       mapping = r.mapping;
       return true;
     };
-    const auto fill_phase = [&]() { return append(inserted, mapping, out); };
+    // V2H fill: the added incidences, then the inserted rows.
+    const auto fill_phase = [&]() {
+      rows added;
+      std::vector<std::int32_t> added_keys;
+      for (const auto& [k, v] : added_inc) {
+        added.push_back({v});
+        added_keys.push_back(k);
+      }
+      added.insert(added.end(), inserted.begin(), inserted.end());
+      added_keys.insert(added_keys.end(), mapping.begin(), mapping.end());
+      return append(added, added_keys, out);
+    };
     if (props_.reuse == id_reuse::erase_first) {
       if (!erase_phase() || !insert_phase() || !fill_phase()) return out;
     } else {
@@ -318,7 +393,7 @@ class lockstep {
     return out;
   }
 
-  /// The model's h2v rows by id (0-based members), up to its largest key.
+  /// The model's h2v rows by id (0-based members, sorted), up to its largest key.
   rows expected_h2v() const {
     rows out;
     for (const auto& rec : h2v_->records()) {
@@ -327,6 +402,8 @@ class lockstep {
       if (rec.avail != 0) continue;
       auto& row = out[static_cast<std::size_t>(rec.key) - 1];
       for (const std::int32_t v : rec.row) row.push_back(v - 1);
+      // A row is a set: its read order after fills and unfills (slack_csr) is the slots'.
+      std::sort(row.begin(), row.end());
     }
     return out;
   }
@@ -411,6 +488,28 @@ class lockstep {
     out.ok = false;
     out.error_type = r.error_type;
     return false;
+  }
+
+  // H2V unfill (append = false) or fill of (key, value) incidences, grouped by key in batch order.
+  bool edit_h2v(const std::vector<std::pair<std::int32_t, std::int32_t>>& inc, bool append,
+                outcome& out) {
+    if (inc.empty()) return true;
+    std::vector<std::size_t> order(inc.size());
+    for (std::size_t i = 0; i < order.size(); ++i) order[i] = i;
+    std::stable_sort(order.begin(), order.end(),
+                     [&](std::size_t a, std::size_t b) { return inc[a].first < inc[b].first; });
+    std::vector<std::int32_t> hkeys, values, prefix;
+    for (const std::size_t i : order) {
+      if (hkeys.empty() || hkeys.back() != inc[i].first) {
+        if (!hkeys.empty()) prefix.push_back(static_cast<std::int32_t>(values.size()));
+        hkeys.push_back(inc[i].first);
+      }
+      values.push_back(inc[i].second);
+    }
+    prefix.push_back(static_cast<std::int32_t>(values.size()));
+    return check(
+        append ? h2v_->append(hkeys, values, prefix) : h2v_->remove_values(hkeys, values, prefix),
+        out);
   }
 
   // V2H removals: grouped by vertex, the deleted keys in batch order (groupByVertex).

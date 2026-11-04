@@ -1,0 +1,190 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The rename map of hyper_sssp's CUDA engine (M11a step 4, the transplant commit c1; ADR 0091):
+# MOSP_ESCHER@4b86159's SOSP state and kernels as they are, engine::fused of hyper_sssp: its
+# HsospState, UpdateConfig and UpdateStats (hsosp/include/hsosp.cuh), the recompute and update
+# kernels (pullDistancesWarp, collectCandidatesWarp, the packed-word kernels of hsospUpdate:
+# hsosp/src/hsospDevice.cu) and the host loops (HsospState's lifecycle, propagate,
+# checkBlockSize, resetForRecompute, hsospRecompute, hsospUpdate). Not ported: compareDistances
+# and countMismatchesKernel (the harness compares on the host), zeroDegreeKernel (the container's
+# CSR apply zeroes the dead degrees, ADR 0089: the engine writes no container state), the device
+# graph (the slack_csr store of M11a step 3, rename_map_hsosp.toml).
+#
+#   python3 parity/escher_port/transplant.py --map parity/escher_port/rename_map_hyper_sssp.toml \
+#       --check --rev <transplant commit>
+#
+# regenerates the transplant (assemble the parts, rewrite the includes, rename whole tokens,
+# #pragma once, the namespace, the SPDX and provenance header, clang-format, then the manual hunks
+# of manual_hunks_hyper_sssp.patch). The original is read with `git show 4b86159:<path>` only.
+
+schema = 1
+origin = "MOSP_ESCHER"
+original_dir = "MOSP_ESCHER"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+namespace = "dyng::detail::hsosp"
+target_dir = "cpp/src/algorithms/hyper_sssp"
+hunks = "manual_hunks_hyper_sssp.patch"
+note = "parity/escher_port/rename_map_hyper_sssp.toml (M11a, ADR 0091)."
+
+[[file]]
+target = "state.cuh"
+brief = "The device state of a CUDA hyper_sssp result (MOSP_ESCHER's HsospState: the distances and parents, the packed words, the invalidation and frontier arrays, the counters), the update's configuration and counters (UpdateConfig, UpdateStats), and the device graph as the engine reads it."
+parts = [
+  { path = "hsosp/include/hsosp.cuh", lines = [1, 2] },
+  { path = "hsosp/include/hsosp.cuh", lines = [28, 31] },
+  { path = "hsosp/include/hsosp.cuh", lines = [217, 313] },
+  { path = "hsosp/include/hsosp.cuh", lines = [321, 321] },
+]
+
+[[file]]
+target = "kernels.cuh"
+brief = "The kernels of hyper_sssp's CUDA engine (MOSP_ESCHER's hsospRecompute kernels, one warp per candidate, and the packed-word kernels of hsospUpdate: pack and unpack, the roots, pointer jumping, invalidation, the pulls, the inserted pairs, the push)."
+parts = [
+  { path = "hsosp/src/hsospInternal.cuh", lines = [1, 2] },
+  { path = "hsosp/src/hsospInternal.cuh", lines = [29, 32] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [26, 30] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [40, 52] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [157, 238] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [249, 326] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [331, 484] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [486, 486] },
+  { path = "hsosp/src/hsospInternal.cuh", lines = [50, 50] },
+]
+
+[[file]]
+target = "engine.cu"
+brief = "hyper_sssp's CUDA engine (engine::fused): the device state's lifecycle and MOSP_ESCHER's host loops, the shared propagation of the recompute (propagate), hsospRecompute and hsospUpdate with their budget and fallback."
+parts = [
+  { path = "hsosp/src/hsospDevice.cu", lines = [9, 19] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [799, 1195] },
+]
+
+[includes]
+'"hsosp.cuh"' = '"algorithms/hyper_sssp/state.cuh"'
+'"hsospInternal.cuh"' = '"algorithms/hyper_sssp/kernels.cuh"'
+'"DynamicHypergraph.hpp"' = ''
+'"HostHypergraph.hpp"' = ''
+'<cub/cub.cuh>' = ''
+'<thrust/iterator/transform_iterator.h>' = ''
+
+# Whole-token renames (identifiers, and the same words in comments and strings): camelCase ->
+# snake_case (PLAN 4.4.1); kernels <verb>_<object>_kernel.
+[names]
+# types
+HsospState = "device_state"
+UpdateConfig = "engine_config"
+UpdateStats = "engine_stats"
+DeviceH2H = "device_graph"
+DeviceDelta = "device_delta"
+UpdCounter = "upd_counter"
+# constants
+INF_VALUE = "inf_value"
+PACKED_INF = "packed_inf"
+PACKED_DIST_LIMIT = "packed_dist_limit"
+kCntList = "cnt_list"
+kCntNext = "cnt_next"
+kCntActive = "cnt_active"
+kCntWork = "cnt_work"
+kCntOverflow = "cnt_overflow"
+kUpdCounters = "upd_counters"
+# kernels and device functions
+fillLLKernel = "fill_ll_kernel"
+fillIntKernel = "fill_int_kernel"
+pullDistancesWarp = "pull_distances_warp_kernel"
+collectCandidatesWarp = "collect_candidates_warp_kernel"
+packStateKernel = "pack_state_kernel"
+unpackStateKernel = "unpack_state_kernel"
+markDeletedTreeEdgesKernel = "mark_deleted_tree_edges_kernel"
+markIdsKernel = "mark_ids_kernel"
+initJumpKernel = "init_jump_kernel"
+jumpKernel = "jump_kernel"
+invalidateKernel = "invalidate_kernel"
+pullInvalidatedKernel = "pull_invalidated_kernel"
+relaxInsertedKernel = "relax_inserted_kernel"
+pushKernel = "push_kernel"
+packDist = "pack_dist"
+packedDist = "packed_dist"
+packedParent = "packed_parent"
+# functions
+hsospUpdate = "update"
+hsospRecompute = "recompute"
+checkBlockSize = "check_block_size"
+resetForRecompute = "reset_for_recompute"
+gridFor = "grid_for"
+downloadDistances = "download_distances"
+downloadParents = "download_parents"
+downloadParentIds = "download_parent_ids"
+deviceBytes = "device_bytes"
+readCounters = "read_counters"
+# members (HsospState)
+maxNodes = "max_nodes"
+d_isAffected = "d_is_affected"
+d_isCandidate = "d_is_candidate"
+d_candList = "d_cand_list"
+d_affList = "d_aff_list"
+d_invA = "d_inv_a"
+d_invB = "d_inv_b"
+d_jumpA = "d_jump_a"
+d_jumpB = "d_jump_b"
+d_updCounters = "d_upd_counters"
+h_updCounters = "h_upd_counters"
+parentIds = "parent_ids"
+# members (UpdateConfig, UpdateStats)
+maxIterations = "max_iterations"
+workBudget = "work_budget"
+blockSize = "block_size"
+fallbackRecompute = "fallback_recompute"
+fallbackIterations = "fallback_iterations"
+maxFrontier = "max_frontier"
+seedCount = "seed_count"
+jumpRounds = "jump_rounds"
+# members (DeviceH2H, DeviceDelta)
+numNodes = "num_nodes"
+numEntries = "num_entries"
+d_rowStart = "d_row_start"
+d_colInd = "d_col_ind"
+d_nodeW = "d_node_w"
+numDel = "num_del"
+numIns = "num_ins"
+numNew = "num_new"
+numDead = "num_dead"
+# locals and parameters
+startWithCandidates = "start_with_candidates"
+initialList = "initial_list"
+maxFrontierOut = "max_frontier_out"
+sourceId = "source_id"
+listCount = "list_count"
+d_initial = "d_initial"
+candCount = "cand_count"
+affCount = "aff_count"
+d_affCount = "d_aff_count"
+d_candCount = "d_cand_count"
+candList = "cand_list"
+numCand = "num_cand"
+rowStart = "row_start"
+colInd = "col_ind"
+nodeW = "node_w"
+isCandidate = "is_candidate"
+isAffected = "is_affected"
+affList = "aff_list"
+numAff = "num_aff"
+bestP = "best_p"
+candCount_ = "cand_count_"
+invIn = "inv_in"
+invOut = "inv_out"
+jumpIn = "jump_in"  # codespell:ignore (MOSP_ESCHER's identifier)
+jumpOut = "jump_out"
+treeOk = "tree_ok"
+workLimit = "work_limit"
+budgetExceeded = "budget_exceeded"
+nInv = "n_inv"
+delPairs = "del_pairs"
+insPairs = "ins_pairs"
+newIds = "new_ids"
+deadIds = "dead_ids"
+nDel = "n_del"
+nIns = "n_ins"
+nList = "n_list"
+nFront = "n_front"
+rcfg = "rcfg"

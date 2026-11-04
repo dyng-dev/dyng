@@ -1,0 +1,486 @@
+{
+ "record": "M11a step 5 (criterion 20; HD16, the D14 path): where the ADR 0024 regions of the escher-storage hypergraph.apply above the 1.02 bar come from",
+ "sides": {
+  "A": "the merge base b2b1524 (parity-cuda build; $DYNG_SCRATCH/m11-builds/src-base/build/parity-cuda/cpp/libdyng.so.0.4.0)",
+  "B": "the final library (code freeze c78e4ef; $DYNG_SCRATCH/wt-m11/build/parity-cuda/cpp/libdyng.so.0.4.0)",
+  "A_fb": "b2b1524 rebuilt with R020's flag set FB ($DYNG_SCRATCH/m11-builds/fb/base)",
+  "B_fb": "the final library rebuilt with FB ($DYNG_SCRATCH/m11-builds/fb/head)"
+ },
+ "method": "objdump -d of both libraries; each function's instruction stream with addresses, RIP displacements, objdump's symbol comments and the anonymous-namespace hash removed; 'identical but member offsets / constants' = the same instructions with other displacements (incidence_model's members moved because id_allocator gained its dead-key bitset and overflow tails); address_mod_64 = [A, B] (the JCC-erratum boundary is 32 bytes)",
+ "functions": "the host code of the delete and insert stages: group_by_vertex and its std::sort (introsort), the escher device store's erase / insert / v2h_remove / v2h_append / to_keys (cuda), incidence_model's (the host stores) and id_allocator::erase",
+ "release_builds": [
+  {
+   "function": "_ZN4dyng6detail5hyper12id_allocator5eraseERKSt6vectorIiSaIiEE",
+   "instructions": [
+    35,
+    81
+   ],
+   "code": "changed",
+   "address_mod_64": [
+    32,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15group_by_vertexERKNS1_11member_rowsERKSt6vectorIlSaIlEERNS1_18grouped_incidencesE",
+   "instructions": [
+    377,
+    377
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15group_by_vertexERKNS1_11member_rowsERKSt6vectorIlSaIlEERNS1_18grouped_incidencesE.cold",
+   "instructions": [
+    8,
+    8
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    18,
+    54
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE",
+   "instructions": [
+    91,
+    91
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    32,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE._omp_fn.0",
+   "instructions": [
+    209,
+    209
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    32,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE._omp_fn.0.cold",
+   "instructions": [
+    6,
+    6
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    38,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE.cold",
+   "instructions": [
+    10,
+    10
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    54,
+    8
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_removeERKNS1_18grouped_incidencesE",
+   "instructions": [
+    66,
+    66
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    32,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_removeERKNS1_18grouped_incidencesE._omp_fn.0",
+   "instructions": [
+    114,
+    114
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model5eraseERKSt6vectorIlSaIlEE",
+   "instructions": [
+    150,
+    150
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    16,
+    48
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model5eraseERKSt6vectorIlSaIlEE.cold",
+   "instructions": [
+    9,
+    9
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    50
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE",
+   "instructions": [
+    308,
+    308
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    16,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE.cold",
+   "instructions": [
+    14,
+    14
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    58
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store10v2h_appendERKNS1_18grouped_incidencesE",
+   "instructions": [
+    193,
+    193
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    48,
+    16
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store10v2h_removeERKNS1_18grouped_incidencesE",
+   "instructions": [
+    193,
+    193
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    16,
+    48
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store5eraseERKSt6vectorIlSaIlEE",
+   "instructions": [
+    180,
+    180
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE",
+   "instructions": [
+    391,
+    391
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store7to_keysERKSt6vectorIlSaIlEE",
+   "instructions": [
+    117,
+    117
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    32,
+    32
+   ]
+  },
+  {
+   "function": "_ZSt16__introsort_loopIN9__gnu_cxx17__normal_iteratorIPmSt6vectorImSaImEEEElNS0_5__ops15_Iter_less_iterEEvT_S9_T0_T1_.isra.0",
+   "instructions": [
+    135,
+    135
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    48
+   ]
+  }
+ ],
+ "fb_builds": [
+  {
+   "function": "_ZN4dyng6detail5hyper12id_allocator5eraseERKSt6vectorIiSaIiEE",
+   "instructions": [
+    35,
+    82
+   ],
+   "code": "changed",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15group_by_vertexERKNS1_11member_rowsERKSt6vectorIlSaIlEERNS1_18grouped_incidencesE",
+   "instructions": [
+    387,
+    387
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15group_by_vertexERKNS1_11member_rowsERKSt6vectorIlSaIlEERNS1_18grouped_incidencesE.cold",
+   "instructions": [
+    9,
+    9
+   ],
+   "code": "changed",
+   "address_mod_64": [
+    0,
+    58
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE",
+   "instructions": [
+    95,
+    95
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE._omp_fn.0",
+   "instructions": [
+    218,
+    218
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE._omp_fn.0.cold",
+   "instructions": [
+    6,
+    6
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    48,
+    58
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_appendERKNS1_18grouped_incidencesE.cold",
+   "instructions": [
+    10,
+    10
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    32
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_removeERKNS1_18grouped_incidencesE",
+   "instructions": [
+    66,
+    66
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model10v2h_removeERKNS1_18grouped_incidencesE._omp_fn.0",
+   "instructions": [
+    121,
+    121
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model5eraseERKSt6vectorIlSaIlEE",
+   "instructions": [
+    154,
+    154
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model5eraseERKSt6vectorIlSaIlEE.cold",
+   "instructions": [
+    9,
+    9
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    42,
+    10
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE",
+   "instructions": [
+    315,
+    315
+   ],
+   "code": "identical but member offsets / constants",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper15incidence_model6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE.cold",
+   "instructions": [
+    14,
+    14
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    10,
+    20
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store10v2h_appendERKNS1_18grouped_incidencesE",
+   "instructions": [
+    197,
+    197
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store10v2h_removeERKNS1_18grouped_incidencesE",
+   "instructions": [
+    197,
+    197
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store5eraseERKSt6vectorIlSaIlEE",
+   "instructions": [
+    183,
+    183
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store6insertERKNS1_11member_rowsERSt6vectorIlSaIlEE",
+   "instructions": [
+    396,
+    396
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZN4dyng6detail5hyper48_GLOBAL__N__H_15_escher_store_cu_139209d619escher_device_store7to_keysERKSt6vectorIlSaIlEE",
+   "instructions": [
+    122,
+    122
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  },
+  {
+   "function": "_ZSt16__introsort_loopIN9__gnu_cxx17__normal_iteratorIPmSt6vectorImSaImEEEElNS0_5__ops15_Iter_less_iterEEvT_S9_T0_T1_.isra.0",
+   "instructions": [
+    144,
+    144
+   ],
+   "code": "identical",
+   "address_mod_64": [
+    0,
+    0
+   ]
+  }
+ ],
+ "device_code": "the CUDA objects of the escher store, escher_store.cu, sorted_merge and triad_count: SASS identical (M11a-sass-identity-0.3.json)",
+ "readings": {
+  "release": [
+   "M11a-adr0024-host-syn1m.json",
+   "M11a-adr0024-host-coauth.json",
+   "M11a-adr0024-cuda-coauth.json",
+   "M11a-adr0024-cuda-syn1m.json",
+   "M11a-adr0024-cuda-syn1m-long.json"
+  ],
+  "fb": [
+   "M11a-adr0024-fb-cuda.json",
+   "M11a-adr0024-fb-host.json"
+  ]
+ },
+ "conclusion": "code placement: on cuda every function of the delete and insert stages has the same instructions on both sides at other alignments, and the FB rebuild of both sides reads every region within the bar (syn1m apply 1.012, delete 1.001, insert 1.001; coauth apply 1.005, delete 1.003, insert 1.000); on the host backends the delete stage's only changed function is id_allocator::erase (the dead-key bit of ADR 0089's bitset), whose cost reads 1.003-1.012 under FB, within the bar (sequential delete 1.007, openmp-8 1.009). Not fixed in code: listed for the author's acknowledgement (GOVERNANCE.md, Open decisions, M11 (HD))."
+}

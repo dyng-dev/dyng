@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file sha256.hpp
- * @brief SHA-256 (FIPS 180-4) for the parity tests: the digests the DynLP recorder's digest mode
- *        stores (parity/exporters/dynlp, the same implementation), so a test can compare an array
- *        with a recorded digest without the original data.
+ * @brief SHA-256 (FIPS 180-4) for the parity tests and tools: the digests the DynLP recorder's
+ *        digest mode stores (parity/exporters/dynlp, the same implementation), and the digest
+ *        cases of the H-SOSP golden set, which store canonical arrays as their SHA-256
+ *        (parity/hsosp_goldens.py, ADR 0081), so a test can compare an array with a recorded
+ *        digest without the original data. Header-only, standard library only.
  */
 #pragma once
 
@@ -42,6 +44,17 @@ class sha256 {
         block(buf_);
         used_ = 0;
       }
+    }
+  }
+
+  /// @brief Add the little-endian bytes of int32 values. @param[in] values The values.
+  void update_le(const std::vector<std::int32_t>& values) {
+    for (const std::int32_t v : values) {
+      const auto u = static_cast<std::uint32_t>(v);
+      const std::uint8_t b[4] = {static_cast<std::uint8_t>(u), static_cast<std::uint8_t>(u >> 8),
+                                 static_cast<std::uint8_t>(u >> 16),
+                                 static_cast<std::uint8_t>(u >> 24)};
+      update(b, 4);
     }
   }
 

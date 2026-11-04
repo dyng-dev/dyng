@@ -17,7 +17,7 @@
  * | C2  | the oracle over random graphs x sizes x batch mixes x 3 batches: oracle = compute: after every batch the result equals compute(G_i) (and an independent oracle, if the traits have one); oracle = reference: both are near the converged reference |
  * | C3  | the backends agree (sequential == OpenMP == CUDA) at the declared level, deterministic counters included |
  * | C4  | fused engine == operators engine where a backend has both |
- * | C5  | a batch followed by its inverse returns the original result (history-independent algorithms) |
+ * | C5  | a batch followed by its inverse returns the original result (history-independent algorithms; by content where the traits give content_snapshot) |
  * | C6  | two runs give identical output and deterministic counters |
  * | C7  | invalid input is rejected with the documented exception (nothing changes) or counted as skipped |
  * | C8  | budgets (DYNG_DEBUG_BUDGETS builds): once reserved, the algorithm phase allocates nothing (library memory resources and, where the counting operator new is linked, the host heap) and synchronizes at most the problem's budget; the commit is reported separately |
@@ -231,6 +231,18 @@ struct has_near_reference<traits_t, graph_t,
                               std::declval<const resources&>(), std::declval<const graph_t&>(),
                               std::declval<const typename traits_t::snapshot&>()))>>
     : std::true_type {};
+
+/// Whether the traits compare C5 by content (test_traits::content_snapshot(res, r, g)): an
+/// algorithm whose result is indexed by ids the container chooses (hyper_sssp's distances by
+/// hyperedge id) is history-independent by content, not by id.
+template <typename traits_t, typename graph_t, typename = void>
+struct has_content_snapshot : std::false_type {};
+template <typename traits_t, typename graph_t>
+struct has_content_snapshot<traits_t, graph_t,
+                            std::void_t<decltype(traits_t::template content_snapshot<graph_t>(
+                                std::declval<const resources&>(),
+                                std::declval<const typename traits_t::template result<graph_t>&>(),
+                                std::declval<const graph_t&>()))>> : std::true_type {};
 
 template <typename traits_t, typename = void>
 struct has_run_budget : std::false_type {};
@@ -861,7 +873,7 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
   };
 
   /// C7 under one preset on one backend: invalid batches are rejected before anything changes
-  /// (invalid_argument_error; incidence edits not_supported_error, planned for 0.4); skipped
+  /// (invalid_argument_error; incidence edits under escher storage not_supported_error); skipped
   /// deletions and dropped members are counted; duplicates still give compute().
   static void invalid_input(backend be, const kit_preset<hypergraph_properties>& p) {
     std::mt19937_64 rng(7000);
@@ -925,11 +937,12 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
         expect_rejected(b.view(), "weights on an unweighted batch", false);
       }
     }
-    {
+    if (p.props.storage == hypergraph_storage::escher) {
+      // escher storage refuses incidence edits (slack_csr only in 0.4, HD9).
       raw_batch b = one({0, 1}, 1);
       b.incidence_hyperedge = {0};
       b.incidence_vertex = {1};
-      expect_rejected(b.view(), "an incidence edit (planned for 0.4)", true);
+      expect_rejected(b.view(), "an incidence edit (slack_csr storage only)", true);
     }
     // Bad options: each must throw invalid_argument_error.
     for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
@@ -1001,10 +1014,19 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
         << "applied + skipped != requested";
     EXPECT_EQ(a.ignored_deletions, gen.expected_ignored);
     EXPECT_EQ(a.dropped_members, gen.expected_dropped);
-    EXPECT_EQ(a.skipped_ops, a.ignored_deletions + a.dropped_members);
+    EXPECT_EQ(a.skipped_ops, a.ignored_deletions + a.dropped_members + gen.expected_skipped_edits)
+        << "skipped_ops counts every skipped operation";
     EXPECT_EQ(a.deleted_hyperedges, static_cast<std::int64_t>(gen.deleted.size()));
-    EXPECT_EQ(a.inserted_incidences, 0);
-    EXPECT_EQ(a.deleted_incidences, 0);
+    // The incidence edits (slack_csr storage): applied + skipped = requested, as the model says.
+    const auto edits =
+        static_cast<std::int64_t>(gen.batch.view().delete_incidence_hyperedge.size() +
+                                  gen.batch.view().insert_incidence_hyperedge.size());
+    EXPECT_EQ(a.inserted_incidences + a.deleted_incidences +
+                  (a.skipped_ops - a.ignored_deletions - a.dropped_members),
+              edits)
+        << "applied + skipped != requested incidence edits";
+    EXPECT_EQ(a.inserted_incidences, gen.expected_additions);
+    EXPECT_EQ(a.deleted_incidences, gen.expected_removals);
     EXPECT_EQ(a.num_hyperedges_after, h.num_hyperedges());
     EXPECT_EQ(a.id_bound_after, h.hyperedge_id_bound());
     ASSERT_EQ(static_cast<std::int64_t>(a.inserted_ids.size()), a.inserted_hyperedges);
@@ -1419,6 +1441,16 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
           typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
           kit_detail::chain<TypeParam> c(kit_detail::resources_for<TypeParam>(b), model, p.props);
           const auto before = c.take();
+          // By content where the traits say so (content_snapshot: a result indexed by ids the
+          // container chooses), else the snapshot itself.
+          const auto content = [&c]() {
+            if constexpr (kit_detail::has_content_snapshot<traits, graph_t>::value) {
+              return traits::template content_snapshot<graph_t>(c.res, *c.r, *c.g);
+            } else {
+              return c.take();
+            }
+          };
+          const auto before_content = content();
           const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
           ASSERT_TRUE(ct::invertible(gen));
           const auto forward = c.step(ct::batch_of(gen));
@@ -1428,7 +1460,13 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
           // member sets.
           const typename ct::generated_type inverse = ct::inverse(model, gen, forward.batch);
           ct::observe(model, inverse, c.step(ct::batch_of(inverse)).batch);
-          EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+          if constexpr (kit_detail::has_content_snapshot<traits, graph_t>::value) {
+            (void)before;
+            EXPECT_EQ(before_content, content()) << "the result by content differs";
+          } else {
+            (void)before_content;
+            EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+          }
           (void)sizeof(graph_t);
         }
       }
@@ -1447,6 +1485,9 @@ TYPED_TEST_P(conformance, C6_RunsAreDeterministic) {
       SCOPED_TRACE(p.label);
       for (const size_class size : {size_class::small, size_class::medium}) {
         for (const auto mix : ct::mixes(kit_check::c6)) {
+          if (!ct::mix_applies(mix, p.props)) {
+            continue;
+          }
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
           std::mt19937_64 rng(6000 + static_cast<std::uint64_t>(mix));
           typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);

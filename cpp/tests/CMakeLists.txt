@@ -128,6 +128,83 @@ dyng_add_test(
   LIBRARIES dyng_cbst_trace
 )
 list(APPEND _dyng_private_tests dyng_cbst_trace_tests)
+# The H-SOSP dumps of MOSP_ESCHER@4b86159 (M11a, ADRs 0081 and 0082): the host-only dump reader,
+# the oracle check of a dump (the go/no-go of criterion 5: dyng::testing's hyper_sssp oracle
+# against B's distances, parents and pairs), the tool parity/hsosp_goldens.py oracle drives over
+# the golden set, and the test of the committed subset (cpp/tests/data/goldens/hyper_sssp).
+add_library(dyng_hsosp_dump STATIC parity/hsosp/hsosp_dump.cpp)
+target_include_directories(dyng_hsosp_dump PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(dyng_hsosp_dump PUBLIC dyng::testing)
+target_compile_features(dyng_hsosp_dump PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_hsosp_dump)
+dyng_enable_sanitizers(dyng_hsosp_dump)
+# The container side of hyper_sssp's parity (M11a step 2, ADRs 0085 and 0086): the sessions of the
+# dumps replayed whole through dyng::hypergraph on slack_csr storage, by id (the tool
+# parity/compare.py hyper_sssp --part delta drives over the golden set); and its result side (M11a
+# step 4, ADR 0091: every update and recompute B recorded against hyper_sssp's, in the modes
+# by_id, by_id_public and by_key; --part results).
+# The result side needs hyper_sssp (a build whose DYNG_ALGORITHMS leaves it out has the container
+# side only: DYNG_HSOSP_RESULTS=0).
+add_library(dyng_hsosp_replay STATIC parity/hsosp/hsosp_replay.cpp)
+if(TARGET dyng_hyper_sssp)
+  target_sources(dyng_hsosp_replay PRIVATE parity/hsosp/hsosp_results.cpp)
+  target_compile_definitions(dyng_hsosp_replay PUBLIC DYNG_HSOSP_RESULTS=1)
+endif()
+target_link_libraries(dyng_hsosp_replay PUBLIC dyng_hsosp_dump dyng_cbst_compare dyng::dyng)
+target_include_directories(dyng_hsosp_replay PUBLIC "${PROJECT_SOURCE_DIR}/cpp/src")
+dyng_set_warnings(dyng_hsosp_replay)
+dyng_enable_sanitizers(dyng_hsosp_replay)
+add_executable(dyng_hsosp_replay_tool parity/hsosp/hsosp_replay_main.cpp)
+set_target_properties(dyng_hsosp_replay_tool PROPERTIES OUTPUT_NAME dyng_hsosp_replay)
+target_link_libraries(dyng_hsosp_replay_tool PRIVATE dyng_hsosp_replay)
+dyng_set_warnings(dyng_hsosp_replay_tool)
+dyng_enable_sanitizers(dyng_hsosp_replay_tool)
+dyng_add_test(
+  NAME dyng_hsosp_replay_tests
+  SOURCES parity/hsosp/hsosp_replay_test.cpp
+  LABELS cpu parity hyper_sssp hypergraph
+  LIBRARIES dyng_hsosp_replay
+)
+target_compile_definitions(dyng_hsosp_replay_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+list(APPEND _dyng_private_tests dyng_hsosp_replay_tests)
+# The result side (M11a step 4, criterion 14): the subset through hyper_sssp in the three modes,
+# and the planted results, batch orders and drops the comparator must catch (sequential; cuda in
+# CUDA builds).
+if(TARGET dyng_hyper_sssp)
+  dyng_add_test(
+    NAME dyng_hsosp_results_tests
+    SOURCES parity/hsosp/hsosp_results_test.cpp
+    LABELS cpu parity hyper_sssp
+    LIBRARIES dyng_hsosp_replay
+  )
+  target_compile_definitions(dyng_hsosp_results_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+  list(APPEND _dyng_private_tests dyng_hsosp_results_tests)
+  if(DYNG_ENABLE_CUDA)
+    dyng_add_test(
+      NAME dyng_hsosp_results_cuda_tests
+      SOURCES parity/hsosp/hsosp_results_test.cpp
+      LABELS gpu parity hyper_sssp
+      LIBRARIES dyng_hsosp_replay
+      TEST_PREFIX cuda.
+    )
+    target_compile_definitions(
+      dyng_hsosp_results_cuda_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}" DYNG_TEST_CUDA=1
+    )
+    list(APPEND _dyng_private_tests dyng_hsosp_results_cuda_tests)
+  endif()
+endif()
+add_executable(dyng_hsosp_oracle parity/hsosp/hsosp_oracle_main.cpp)
+target_link_libraries(dyng_hsosp_oracle PRIVATE dyng_hsosp_dump)
+dyng_set_warnings(dyng_hsosp_oracle)
+dyng_enable_sanitizers(dyng_hsosp_oracle)
+dyng_add_test(
+  NAME dyng_hsosp_dump_tests
+  SOURCES parity/hsosp/hsosp_dump_test.cpp
+  LABELS cpu parity hyper_sssp
+  LIBRARIES dyng_hsosp_dump
+)
+target_compile_definitions(dyng_hsosp_dump_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+list(APPEND _dyng_private_tests dyng_hsosp_dump_tests)
 # The CBST host model (dyng::testing::cbst_host_model) and the trace replay comparator (M8a step
 # 2, ADR 0037): the comparator library, the replay tool that parity/compare.py cbst_trace drives
 # over the golden sets, the model's tests (the cbst_test layout sizes, the perturbed traces, the
@@ -361,6 +438,52 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(triad_reference_isolation PROPERTIES LABELS "cpu;testing;triad_count")
+  # The hyper_sssp oracle (M11a criterion 5, ADR 0082): MOSP_ESCHER's oracle algorithms, sharing
+  # no code with hyper_sssp (cpp/src/algorithms/hyper_sssp) or the container's internals
+  # (cpp/src/hypergraph). The two planted violations prove that the check fails: a source that
+  # includes a container header, and an object that references a dynG symbol.
+  set(_hsosp_isolation
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/hyper_sssp_reference.hpp
+  )
+  add_test(
+    NAME hyper_sssp_reference_isolation
+    COMMAND
+      ${_hsosp_isolation} -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/hyper_sssp_reference.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(hyper_sssp_reference_isolation PROPERTIES LABELS "cpu;testing;hyper_sssp")
+  add_library(dyng_hsosp_isolation_planted OBJECT testing/hyper_sssp_isolation_planted_link.cpp)
+  target_include_directories(dyng_hsosp_isolation_planted PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+  target_compile_features(dyng_hsosp_isolation_planted PRIVATE cxx_std_17)
+  add_test(
+    NAME hyper_sssp_reference_isolation_planted_include
+    COMMAND
+      ${_hsosp_isolation}
+      -DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/testing/hyper_sssp_isolation_planted_include.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  add_test(
+    NAME hyper_sssp_reference_isolation_planted_link
+    COMMAND
+      ${_hsosp_isolation}
+      -DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/testing/hyper_sssp_isolation_planted_link.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_hsosp_isolation_planted>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  # Each must fail for its own reason (the check's message), not for another one.
+  set_tests_properties(
+    hyper_sssp_reference_isolation_planted_include
+    PROPERTIES LABELS "cpu;testing;hyper_sssp" PASS_REGULAR_EXPRESSION
+               "/cpp/src/hypergraph/row_views.hpp"
+  )
+  set_tests_properties(
+    hyper_sssp_reference_isolation_planted_link
+    PROPERTIES LABELS "cpu;testing;hyper_sssp" PASS_REGULAR_EXPRESSION
+               "U dyng::detail::planted_isolation_violation"
+  )
 endif()
 # The hypergraph container (M8b, ADR 0041): construction, apply semantics, guarantees,
 # placement, the host id allocator against the CBST host model, random streams in lockstep with
@@ -370,7 +493,8 @@ dyng_add_test(
   NAME dyng_hypergraph_tests
   SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
           hypergraph/hypergraph_store_test.cpp hypergraph/hypergraph_line_graph_test.cpp
-          hypergraph/hypergraph_update_test.cpp
+          hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
+          hypergraph/hypergraph_slack_overflow_test.cpp hypergraph/hypergraph_fixed_point_test.cpp
   LABELS cpu hypergraph
   LIBRARIES dyng_cbst_compare
 )
@@ -388,7 +512,10 @@ if(DYNG_ENABLE_CUDA)
     NAME dyng_hypergraph_cuda_tests
     SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
             hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
-            hypergraph/hypergraph_update_test.cpp framework/fake_hyper_kernels.cu
+            hypergraph/hypergraph_update_test.cpp hypergraph/hypergraph_slack_test.cpp
+            hypergraph/hypergraph_slack_overflow_test.cpp
+            hypergraph/hypergraph_fixed_point_test.cpp
+            framework/fake_hyper_kernels.cu
             hypergraph/stream_probe_kernels.cu
     LABELS gpu hypergraph
     LIBRARIES dyng_cbst_compare
@@ -412,11 +539,25 @@ set_target_properties(dyng_hypergraph_ids_tool PROPERTIES OUTPUT_NAME dyng_hyper
 target_link_libraries(dyng_hypergraph_ids_tool PRIVATE dyng_hypergraph_ids)
 dyng_set_warnings(dyng_hypergraph_ids_tool)
 dyng_enable_sanitizers(dyng_hypergraph_ids_tool)
+# The host id allocator in lockstep with MOSP_ESCHER's recorded CBST trees and the host model (M11a
+# criterion 8, ADR 0085): the library, the tool parity/hypergraph_ids.py allocator drives over the
+# golden sets, and its test on the committed traces.
+add_library(dyng_allocator_lockstep STATIC parity/escher/allocator_lockstep.cpp)
+target_link_libraries(dyng_allocator_lockstep PUBLIC dyng_cbst_compare dyng::dyng)
+target_include_directories(dyng_allocator_lockstep PUBLIC "${PROJECT_SOURCE_DIR}/cpp/src")
+target_compile_features(dyng_allocator_lockstep PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_allocator_lockstep)
+dyng_enable_sanitizers(dyng_allocator_lockstep)
+add_executable(dyng_allocator_lockstep_tool parity/escher/allocator_lockstep_main.cpp)
+set_target_properties(dyng_allocator_lockstep_tool PROPERTIES OUTPUT_NAME dyng_allocator_lockstep)
+target_link_libraries(dyng_allocator_lockstep_tool PRIVATE dyng_allocator_lockstep)
+dyng_set_warnings(dyng_allocator_lockstep_tool)
+dyng_enable_sanitizers(dyng_allocator_lockstep_tool)
 dyng_add_test(
   NAME dyng_hypergraph_ids_tests
-  SOURCES parity/escher/hypergraph_ids_test.cpp
+  SOURCES parity/escher/hypergraph_ids_test.cpp parity/escher/allocator_lockstep_test.cpp
   LABELS cpu parity hypergraph
-  LIBRARIES dyng_hypergraph_ids
+  LIBRARIES dyng_hypergraph_ids dyng_allocator_lockstep
 )
 list(APPEND _dyng_private_tests dyng_hypergraph_ids_tests)
 if(DYNG_ENABLE_CUDA)
@@ -632,6 +773,17 @@ dyng_add_test(
 target_include_directories(dyng_operators_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 if(DYNG_ENABLE_OPENMP)
   target_link_libraries(dyng_operators_tests PRIVATE OpenMP::OpenMP_CXX)
+endif()
+# The host executors' for_each carries an exception out of its region (ADR 0083): its own
+# executable, since it replaces operator new (support/failing_allocator.hpp).
+dyng_add_test(
+  NAME dyng_operators_execution_tests
+  SOURCES operators/execution_test.cpp
+  LABELS cpu operators
+)
+target_include_directories(dyng_operators_execution_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_operators_execution_tests PRIVATE OpenMP::OpenMP_CXX)
 endif()
 if(DYNG_ENABLE_CUDA)
   dyng_add_test(
@@ -1026,6 +1178,14 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       "control||pass"
       "h2v_not_deduplicated|DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED|fail"
       "allocator_ties_reversed|DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES|fail"
+      # M11a's host sites of the hyper_sssp suite (criterion 16; registered in parity/mutate.py by
+      # step 5): #4 the allocator's H2V unfill drops the last value, #3's host twin (the slack CSR
+      # apply skips the last deletion of a row), #7 the pair count adds the deletions, #8 the
+      # line-graph delta drops its post-batch candidate pass.
+      "hsosp_allocator_unfill_drops_last|DYNG_MUTATION_HSOSP_ALLOCATOR_UNFILL_DROPS_LAST|fail"
+      "hsosp_csr_skips_last_deletion|DYNG_MUTATION_HSOSP_CSR_SKIPS_LAST_DELETION|fail"
+      "hsosp_pair_count_adds_deletions|DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS|fail"
+      "hsosp_delta_no_post_pass|DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS|fail"
       "mirror_additions_dropped|DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED|fail"
   )
   foreach(_entry IN LISTS _dyng_hypergraph_mutants)
@@ -1043,13 +1203,18 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       hypergraph/hypergraph_random_test.cpp
       hypergraph/hypergraph_store_test.cpp
       hypergraph/hypergraph_line_graph_test.cpp
+      hypergraph/hypergraph_slack_test.cpp
+      hypergraph/hypergraph_slack_overflow_test.cpp
       parity/escher/hypergraph_ids_test.cpp
       parity/escher/hypergraph_ids.cpp
+      parity/escher/allocator_lockstep_test.cpp
+      parity/escher/allocator_lockstep.cpp
       parity/escher/cbst_trace.cpp
       parity/escher/escher_dump.cpp
       parity/escher/cbst_compare.cpp
       $<TARGET_OBJECTS:dyng_testing_cbst_model>
       $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+      $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
     )
     foreach(_target ${_lib}_hypergraph ${_lib} ${_exe})
       target_compile_features(${_target} PRIVATE cxx_std_17)
@@ -1086,10 +1251,171 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
                      -DNAME=hypergraph.${_name} -P
                      "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
     )
+    # M11a's sites also carry the label hyper_sssp (ctest -L hyper_sssp runs the suite's mutants).
+    set(_labels "cpu;mutation;hypergraph")
+    if(_name MATCHES "^hsosp_")
+      set(_labels "${_labels};hyper_sssp")
+    endif()
     set_tests_properties(
-      hypergraph.mutation.${_name} PROPERTIES LABELS "cpu;mutation;hypergraph" ENVIRONMENT
+      hypergraph.mutation.${_name} PROPERTIES LABELS "${_labels}" ENVIRONMENT
                                               "${DYNG_TEST_ENVIRONMENT}"
     )
+    # The CUDA twins of M11a's sites (criterion 16, M11a step 3): the same mutant library against
+    # the slack_csr suites on cuda (#3 and #8 have their own CUDA sites in the device graph, #7 in
+    # the CUDA store, #4 the host model the CUDA store shares).
+    if(DYNG_ENABLE_CUDA AND (_name STREQUAL "control" OR _name MATCHES "^hsosp_"))
+      set(_cuda_exe dyng_hypergraph_cuda_mutant_${_name}_tests)
+      add_executable(
+        ${_cuda_exe} hypergraph/hypergraph_slack_test.cpp
+                     hypergraph/hypergraph_slack_overflow_test.cpp
+                     $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
+                     $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+      )
+      target_compile_features(${_cuda_exe} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_cuda_exe} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                             "${PROJECT_SOURCE_DIR}/cpp/src" "${CMAKE_CURRENT_SOURCE_DIR}"
+      )
+      target_compile_definitions(${_cuda_exe} PRIVATE DYNG_TEST_CUDA=1)
+      if(_define)
+        target_compile_definitions(${_cuda_exe} PRIVATE ${_define}=1)
+      endif()
+      dyng_set_warnings(${_cuda_exe})
+      dyng_set_cuda_options(${_cuda_exe})
+      dyng_mutant_cuda_architectures(${_cuda_exe})
+      target_link_libraries(
+        ${_cuda_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      add_test(NAME hypergraph.mutation.cuda.${_name}
+               COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_cuda_exe}> -DEXPECT=${_expect}
+                       -DNAME=hypergraph.cuda.${_name} "-DFILTER=*/cuda" -P
+                       "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+      )
+      set(_labels "gpu;mutation;hypergraph")
+      if(_name MATCHES "^hsosp_")
+        set(_labels "${_labels};hyper_sssp")
+      endif()
+      set_tests_properties(
+        hypergraph.mutation.cuda.${_name} PROPERTIES LABELS "${_labels}" ENVIRONMENT
+                                                     "${DYNG_TEST_ENVIRONMENT}"
+      )
+    endif()
+  endforeach()
+endif()
+
+# hyper_sssp's mutations (M11a criterion 16, PLAN 8.4; MOSP_ESCHER@4b86159's own mutation record,
+# its CHANGES.md): #1 the pull adds the neighbour's weight instead of the node's, #2 the pull
+# records a non-tight parent (the distances unchanged). Each site is in both engines (the CUDA
+# kernels and their sequential twins in sequential.cpp): a copy of libdyng whose hyper_sssp module
+# is rebuilt with DYNG_MUTATION_HSOSP_<NAME>, linked with hyper_sssp's hand cases and the result
+# replay of the committed subset (hyper_sssp.mutation.<name>, labels cpu;mutation;hyper_sssp,
+# every build: the sequential twin) and, in CUDA builds, with the same suites on cuda
+# (hyper_sssp.mutation.cuda.<name>, labels gpu;mutation;hyper_sssp). The CTest passes when the
+# suite fails; the control copy must pass. parity/mutate.py registers the suite (M11a step 5).
+option(DYNG_HYPER_SSSP_MUTATION_TESTS "Build the mutation tests of hyper_sssp" ${DYNG_MUTATION_TESTS})
+if(DYNG_HYPER_SSSP_MUTATION_TESTS AND TARGET dyng_hyper_sssp)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_property(_dyng_hsosp_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_dyng_hyper_sssp)
+  set(_dyng_hsosp_sources)
+  foreach(_source IN LISTS _dyng_hsosp_relative)
+    if(NOT IS_ABSOLUTE "${_source}")
+      set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+    endif()
+    list(APPEND _dyng_hsosp_sources "${_source}")
+  endforeach()
+  set(_dyng_hsosp_other_objects)
+  foreach(_module IN LISTS _dyng_modules)
+    if(NOT _module STREQUAL "dyng_hyper_sssp")
+      list(APPEND _dyng_hsosp_other_objects $<TARGET_OBJECTS:${_module}>)
+    endif()
+  endforeach()
+  # name|define|expected verdict
+  set(_dyng_hyper_sssp_mutants
+      "control||pass"
+      "pull_adds_neighbour_weight|DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT|fail"
+      "non_tight_parent|DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT|fail"
+  )
+  set(_dyng_hsosp_mutant_suite
+      algorithms/hyper_sssp/hyper_sssp_test.cpp
+      parity/hsosp/hsosp_results_test.cpp
+      parity/hsosp/hsosp_results.cpp
+      parity/hsosp/hsosp_replay.cpp
+      parity/hsosp/hsosp_dump.cpp
+      parity/escher/cbst_trace.cpp
+      parity/escher/escher_dump.cpp
+      parity/escher/cbst_compare.cpp
+      $<TARGET_OBJECTS:dyng_testing_cbst_model>
+      $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+      $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
+  )
+  foreach(_entry IN LISTS _dyng_hyper_sssp_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _expect)
+    set(_lib dyng_hyper_sssp_mutant_${_name})
+    add_library(${_lib}_module OBJECT ${_dyng_hsosp_sources})
+    add_library(${_lib} STATIC ${_dyng_hsosp_other_objects} $<TARGET_OBJECTS:${_lib}_module>)
+    set(_exes dyng_hyper_sssp_mutant_${_name}_tests)
+    add_executable(dyng_hyper_sssp_mutant_${_name}_tests ${_dyng_hsosp_mutant_suite})
+    if(DYNG_ENABLE_CUDA)
+      add_executable(dyng_hyper_sssp_cuda_mutant_${_name}_tests ${_dyng_hsosp_mutant_suite})
+      target_compile_definitions(dyng_hyper_sssp_cuda_mutant_${_name}_tests PRIVATE DYNG_TEST_CUDA=1)
+      list(APPEND _exes dyng_hyper_sssp_cuda_mutant_${_name}_tests)
+    endif()
+    foreach(_target ${_lib}_module ${_lib} ${_exes})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_module PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_module)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
+    endif()
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    foreach(_exe ${_exes})
+      target_compile_definitions(${_exe} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      if(_exe MATCHES "_cuda_mutant_")
+        dyng_mutant_cuda_architectures(${_exe})
+        add_test(NAME hyper_sssp.mutation.cuda.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=hyper_sssp.cuda.${_name} -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          hyper_sssp.mutation.cuda.${_name} PROPERTIES LABELS "gpu;mutation;hyper_sssp" ENVIRONMENT
+                                                       "${DYNG_TEST_ENVIRONMENT}"
+        )
+      else()
+        add_test(NAME hyper_sssp.mutation.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=hyper_sssp.${_name} -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          hyper_sssp.mutation.${_name} PROPERTIES LABELS "cpu;mutation;hyper_sssp" ENVIRONMENT
+                                                  "${DYNG_TEST_ENVIRONMENT}"
+        )
+      endif()
+    endforeach()
   endforeach()
 endif()
 
@@ -1383,6 +1709,15 @@ dyng_add_test(
   LABELS cpu testing triad_count
   LIBRARIES dyng::testing
 )
+# The hyper_sssp oracle (M11a criterion 5, ADR 0082): hand cases of both source kinds, weights
+# 0, dead rows, the canonical parents, the separate parent count, the line-graph delta, the
+# refusals.
+dyng_add_test(
+  NAME dyng_hyper_sssp_reference_tests
+  SOURCES testing/hyper_sssp_reference_test.cpp
+  LABELS cpu testing hyper_sssp
+  LIBRARIES dyng::testing
+)
 # The oracle's planted mutation (parity/mutate.py, triad_reference_class_map): two classes of its
 # representative list swapped; its tests must fail (testing.mutation.triad_reference_class_map
 # passes when the suite fails; the control is dyng_triad_reference_tests). Labels
@@ -1568,6 +1903,11 @@ if(TARGET dyng_triad_count_conformance_cuda_tests)
     dyng_triad_count_conformance_cuda_tests
     PRIVATE algorithms/triad_count/triad_count_types_conformance_test.cpp framework/fake_hyper_kernels.cu
   )
+endif()
+# hyper_sssp's kit: C10's partners are a second source and the kit's hypergraph fake, whose CUDA
+# counts are kernels.
+if(TARGET dyng_hyper_sssp_conformance_cuda_tests)
+  target_sources(dyng_hyper_sssp_conformance_cuda_tests PRIVATE framework/fake_hyper_kernels.cu)
 endif()
 
 # The registry and the kit agree: every algorithm of dyng::algorithms() has test_traits here.

@@ -1,0 +1,22 @@
+{
+ "record": "M11a review: the final checks of the reviewed tree (criteria 17 and 22)",
+ "tree": "0932d02 for ci/check.sh, TSan-openmp and the wheels (the library of 18805af, the review's formatted code; the later commits change records only); 18805af's library for the rest (chain4's checks ran on 3fec063 / e118379 and 642964e, whose library and tests differ from 18805af's only by the layout of the formatted files)",
+ "drivers": "$DYNG_SCRATCH/runs/m11a-review/chain4.sh (2026-11-03 18:37Z to 2026-11-04 00:32Z) and chain6.sh (2026-11-04 00:37Z-01:33Z), their logs beside them, under flock -s / nice -n 10 outside every exclusive window, GPU-1 jobs after locklog.py quiet-ok",
+ "ci_check_sh": {
+  "first_run": "chain4 (3fec063): failed only its format and pre-commit steps (the review's C++ and Python files not formatted: clang-format 22, ruff); fixed by 18805af (layout only)",
+  "final_run": "chain6 (0932d02): all checks passed (format, cpu-only ctest -L cpu 1463/1463, dev ctest -L cpu 1501/1501, consumer, tidy, reuse, provenance 299 files, testdata 1,074,029 of 1,250,000 B, regen, harness pytest 430 passed, python 737 passed / 81 skipped, api: no breaking change of the frozen C++ or Python API against origin/main, scaffold 80 + 3 + 54 + 41 tests, docs with the API baselines' 1401 and 1294 declarations, pre-commit)"
+ },
+ "openmp_off": "chain4: a fresh cpu-only build with DYNG_ENABLE_OPENMP=OFF: built, ctest -L cpu 1254/1254",
+ "fortified": "chain4: a fresh cpu-only build with -D_FORTIFY_SOURCE=3 and DYNG_BUILD_PYTHON=ON: built, 0 warnings",
+ "clang18_syntax": "chain4, ci-local/clang_syntax.py: the fortified build's database with the Python bindings, 629 files, 0 failures; the dev-cuda database, 1271 files, 0 failures",
+ "gcc13": "chain4: GCC 13.4.0 (the conda package cache; no GCC 13 on the machine) at -O2 -D_FORTIFY_SOURCE=3 -Werror over the 296 host .cpp translation units of the dev-cuda database: 3 failures, the test files of step 2's open issue, unchanged since b2b1524 (cpp/tests/graph/allocation_failure_test.cpp, cpp/tests/io/fuzz_regression_test.cpp, cpp/tests/algorithms/mosp/mosp_allocation_failure_test.cpp: -Wmismatched-new-delete on their replaced global operator new / delete under -O2); every translation unit of the review compiles",
+ "asan_ubsan": "chain4, ci/sanitizers.sh asan (fresh build/asan): 1355/1355",
+ "tsan_openmp": "chain6, ci/sanitizers.sh tsan-openmp (fresh build/tsan-openmp; CXX = the local wrapper of the conda Clang 18.1.8, DYNG_ARCHER_LIBRARY = dyng-clang's libarcher.so.bak): 1355/1355 (95 skipped: the 88 of step 5's run and 7 host instances of the review's new tests that do not apply there: hyper_sssp's openmp instances, which openmp refuses (HD14), and the cuda-only iteration-trigger and corrupt-device-row tests)",
+ "wheels": {
+  "how": "chain6: DYNG_WHEEL_SKIP_TESTS=1 DYNG_PLUGINS=cu13 ci/plugin_wheels.sh (the core sdist and wheel by ci/wheels.sh, the dyng-cu13 plugin with CUDA 13.1; auditwheel, twine check, ci/wheel_check.py with the 90 MB budget): rc 0; cu12 not built (no CUDA 12 toolkit on the machine)",
+  "dyng-0.4.0.dev0-cp312-abi3-manylinux_2_28_x86_64.whl": {"bytes": 2216575, "step_5": 2216474, "0.3.0rc1": "1.96 MB"},
+  "dyng_cu13-0.4.0.dev0-cp312-abi3-manylinux_2_28_x86_64.whl": {"bytes": 10074291, "step_5": 10070989, "0.3.0rc1": "8.72 MB"},
+  "budget": "90 MB: both within"
+ },
+ "gpu_local": "chain4, ci/gpu_local.sh (dev-cuda, GPU 1, 2026-11-03 21:00Z to 2026-11-04 00:32Z, the record names 642964e; DYNG_GPU_SKIP='cpu parity memcheck synccheck racecheck plugin experimental tidy'; DYNG_LOCKLOG_MILESTONE=M11a, every heavy command after locklog.py quiet-ok): every step passed (build; ctest -L gpu 949/949; the cbst sanitizers, replays and lockstep; the hypergraph sanitizers and replays; triad_count's sanitizers and replays; slack_csr's four compute-sanitizer tools, a forced-overflow session and the make-test replays on cuda; hyper_sssp's four tools, forced fallbacks and the make-test replays in the three modes with update == compute); 33 ERROR SUMMARY lines, all 0 errors; 15 RACECHECK SUMMARY lines, 0 hazards; 3 LEAK SUMMARY lines, 0 bytes"
+}

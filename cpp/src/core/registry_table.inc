@@ -68,6 +68,19 @@ table.push_back(algorithm_info{
     {},
 });
 #endif
+#if defined(DYNG_ALGORITHM_HYPER_SSSP)
+table.push_back(algorithm_info{
+    "hyper_sssp",
+    "Dynamic single-source shortest hyperpaths",
+    algorithm_family::fixed_point,
+    container_kind::hypergraph,
+    maturity_level::experimental,
+    determinism::bitwise,
+    oracle_kind::compute,
+    {backend::sequential, backend::cuda},
+    {"hsosp2026"},
+});
+#endif
 #if defined(DYNG_ALGORITHM_TRIAD_COUNT)
 table.push_back(algorithm_info{
     "triad_count",

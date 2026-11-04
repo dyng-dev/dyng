@@ -203,6 +203,8 @@ EQUIVALENCE_TARGETS = [
     # M10 label_propagation
     "dyng-compat-dynlp",
     # M11 slack_csr / hyper_sssp
+    "dyng-compat-hsosp",
+    "dyng-compat-escher",
 ]
 EQUIVALENCE_FILES = [
     "cpp/libdyng.so",
@@ -211,6 +213,8 @@ EQUIVALENCE_FILES = [
     # M10 label_propagation
     "tools/compat/dyng-compat-dynlp",
     # M11 slack_csr / hyper_sssp
+    "tools/compat/dyng-compat-hsosp",
+    "tools/compat/dyng-compat-escher",
 ]
 # Sections that may differ besides the listed functions' code: the build id, the unwind tables
 # (a listed function's frame range and call-site table) and the symbol tables (its size, which the
@@ -257,9 +261,27 @@ HYPERGRAPH_ID_REPLAYS = {
         "ids": ["sequential", "openmp", "cuda"],
         "line_graph": ["cuda"],
     },
-    "cbst_trace_mosp_escher_test": {"ids": ["sequential", "openmp", "cuda"]},
-    "cbst_trace_mosp_escher_dblp50k_hyperedge": {"ids": ["sequential", "openmp", "cuda"]},
+    "cbst_trace_mosp_escher_test": {
+        "ids": ["sequential", "openmp", "cuda"],
+        "whole_sessions": {"backends": ["sequential", "openmp", "cuda"], "since": (0, 4)},
+    },
+    "cbst_trace_mosp_escher_dblp50k_hyperedge": {
+        "ids": ["sequential", "openmp", "cuda"],
+        "whole_sessions": {"backends": ["sequential", "openmp", "cuda"], "since": (0, 4)},
+    },
+    # From 0.4 (M11a criterion 21): MOSP_ESCHER's vertex-kind DBLP sessions, which escher storage
+    # stops at their first batch, replayed whole on slack_csr storage.
+    "cbst_trace_mosp_escher_dblp50k_vertex": {
+        "since": (0, 4),
+        "whole_sessions": ["sequential", "openmp", "cuda"],
+    },
 }
+# The series from which an entry of HYPERGRAPH_ID_REPLAYS is required: an entry's own "since", a
+# feature's own ({"backends": [...], "since": (major, minor)}), else HYPERGRAPH_ID_SINCE. From 0.4
+# MOSP_ESCHER's sessions replayed whole with their incidence edits on slack_csr storage (M11a: the
+# M8b stop at the first vertex-kind batch removed; `hypergraph_ids.py --storage slack_csr
+# --certificate`, feature slack_csr) are the feature whole_sessions; the 0.3 requirements are
+# unchanged.
 HYPERGRAPH_ID_SINCE = (0, 3)
 # The triad_count golden replays (M9a, ADR 0056): from the 0.3 series (triad_count is part of
 # 0.3.0, Appendix F; decision D2) a certificate needs, for every backend of the set's coverage
@@ -297,7 +319,23 @@ LABEL_PROPAGATION_PARITY_CUDA = ("label_propagation_damped", "label_propagation_
 LABEL_PROPAGATION_FIXED_CASES = {"label_propagation_hub": ["hub"]}
 LABEL_PROPAGATION_CALIBRATED = ("label_propagation_inplace", "label_propagation_oracle")
 # The features of a hypergraph-id config that count as an id replay.
-HYPERGRAPH_ID_MODES = {"ids": ("by_id", "both"), "line_graph": ("line_graph",)}
+HYPERGRAPH_ID_MODES = {
+    "ids": ("by_id", "both"),
+    "line_graph": ("line_graph",),
+    "whole_sessions": ("slack_csr",),
+}
+# The hyper_sssp golden replays (M11a, ADR 0081; criterion 21): from the 0.4 series (hyper_sssp is
+# part of 0.4.0, Appendix F) a certificate needs, for every backend and parity mode of the set's
+# [modes] table (parity/goldens.toml; the coverage of HD2, decided by the author on 2026-10-28),
+# passed replays (config "<backend>:hyper_sssp/<by_id|by_id_public|by_key>") covering every case
+# the table gives that mode ("test" = every make-test case, "paper" = every paper configuration).
+# A 0.1-0.3 certificate lists the set without a verdict.
+HYPER_SSSP_REPLAYS_SINCE = (0, 4)
+HYPER_SSSP_MODES = ("by_id", "by_id_public", "by_key")
+# The slack_csr store check of the same set (criteria 8 and 10: ids, pairs and counters by id on
+# the CUDA store, every make-test session and every paper configuration; `compare.py hyper_sssp
+# --part delta --backend cuda --certificate`, config "cuda:hyper_sssp/store").
+HYPER_SSSP_STORE = {"cuda": ["test", "paper"]}
 # The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
 # series on which its algorithm's gates became part of the release (PLAN 8.6, Appendix F): sssp and
 # cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
@@ -319,6 +357,9 @@ REQUIRED_SUITES = {
     # release-only reading when its release gate state is "gated" (missing_gates).
     "ics26_dynlp": {"algorithm": "label_propagation", "since": (0, 4)},
     # M11 slack_csr / hyper_sssp
+    # hyper_sssp against MOSP_ESCHER (M11a; 0.4, HD3-HD6): the per-batch timing gates of the 16
+    # paper configurations, end to end, and the memory gates (the nsys peak, D1; graph_mb's scope).
+    "ia3_hsosp": {"algorithm": "hyper_sssp", "since": (0, 4)},
 }
 # The release checks a certificate needs (checks.json), each from the release series on which it
 # became part of the release (docs/developer/release.md, steps 1-4), with the narrowest scope its
@@ -376,6 +417,10 @@ GPU_LOCAL_STEPS = {
         # M10 label_propagation
         "label_propagation (CUDA tests, kit, replays of P, in_place cloud, oracle; sanitizers)",
         # M11 slack_csr / hyper_sssp
+        "slack_csr sanitizers (all four tools; a forced-overflow session)",
+        "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
+        "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)",
+        "hyper_sssp replays (cuda, make test; three modes, update == compute)",
     ],
 }
 # The results of a step of ci/gpu_local.sh that are not a failure (only "passed" counts as run).
@@ -713,6 +758,23 @@ def replay_matrix(record: dict) -> tuple[dict, int, int]:
     return matrix, compared, failed
 
 
+def hypergraph_id_requirements(name: str, version: str = "") -> dict[str, list[str]]:
+    """{feature: backends} of HYPERGRAPH_ID_REPLAYS that a certificate of `version` needs for the
+    set `name` (each from its feature's or its entry's "since", else HYPERGRAPH_ID_SINCE; every
+    feature for an unparsable version)."""
+    entry = HYPERGRAPH_ID_REPLAYS.get(name) or {}
+    series = release_series(version)
+    out = {}
+    for feature, spec in entry.items():
+        if feature == "since":
+            continue
+        backends = spec["backends"] if isinstance(spec, dict) else spec
+        since = spec["since"] if isinstance(spec, dict) else entry.get("since", HYPERGRAPH_ID_SINCE)
+        if series is None or series >= since:
+            out[feature] = list(backends)
+    return out
+
+
 def hypergraph_id_coverage(entry: dict) -> dict[str, set[str]]:
     """{feature: backends} of the passed hypergraph-id replays of a golden-set entry. Only full
     replays count (M8b review): with the host-model lockstep, on goldens re-hashed against their
@@ -748,6 +810,42 @@ def triad_required_cases(spec: dict) -> dict[str, set[str]]:
     }
 
 
+def hyper_sssp_required_cases(spec: dict) -> dict[str, set[str]]:
+    """{"<backend>:hyper_sssp/<mode>": cases} of a hyper_sssp set's [modes] table ("test" and
+    "paper" name every case of that part)."""
+    cases = set(spec.get("cases", {}))
+    out: dict[str, set[str]] = {}
+    for backend, modes in (spec.get("modes") or {}).items():
+        for mode, items in modes.items():
+            if mode not in HYPER_SSSP_MODES:
+                continue
+            want: set[str] = set()
+            for item in items:
+                want |= (
+                    {c for c in cases if c.startswith(item + "/")} if "/" not in item else {item}
+                )
+            out[f"{backend}:hyper_sssp/{mode}"] = want
+    for backend, items in HYPER_SSSP_STORE.items():
+        want = set()
+        for item in items:
+            want |= {c for c in cases if c.startswith(item + "/")} if "/" not in item else {item}
+        out[f"{backend}:hyper_sssp/store"] = want
+    return out
+
+
+def hyper_sssp_coverage(entry: dict) -> dict[str, set[str]]:
+    """{config: the cases with an "equal" verdict} of the passed hyper_sssp replays of an entry."""
+    out: dict[str, set[str]] = {}
+    for r in entry["replays"]:
+        if not r["passed"]:
+            continue
+        for case, row in r["matrix"].items():
+            for config, verdict in row.items():
+                if ":hyper_sssp/" in config and verdict == "equal":
+                    out.setdefault(config, set()).add(case)
+    return out
+
+
 def triad_coverage(entry: dict) -> dict[str, dict[str, set[str]]]:
     """{backend: {mode: cases}} of the passed triad replays of a golden-set entry with the
     algorithm counter (the oracle's replays of the go/no-go do not count)."""
@@ -774,8 +872,12 @@ def set_algorithm(name: str, spec: dict) -> str:
         return "triad_count"
     if kind == "cbst_trace":
         return "cbst"
+    # M10 label_propagation
     if kind.startswith("label_propagation_"):  # M10a's sets (ADR 0065)
         return "label_propagation"
+    # M11 slack_csr / hyper_sssp
+    if kind == "hyper_sssp":
+        return "hyper_sssp"
     return "cycle_count" if name.startswith("cycle_count") else name.removesuffix("_scale")
 
 
@@ -882,6 +984,7 @@ def golden_suites(
             entry["required"] = "from 0.3 on (the triad_count replays of M9a)"
             out.append(entry)
             continue
+        # M10 label_propagation
         if entry["kind"].startswith("label_propagation_"):
             # LabelPropagation-CUDA's goldens (M10a, ADRs 0065, 0078): required from the 0.4
             # series; a 0.3 or older certificate lists them without a verdict (None, which the
@@ -893,6 +996,16 @@ def golden_suites(
                 out.append(entry)
                 continue
             label_propagation_replays(name, spec, entry, problems)
+            out.append(entry)
+            continue
+        # M11 slack_csr / hyper_sssp
+        hsosp_required = entry["kind"] == "hyper_sssp" and (
+            series is None or series >= HYPER_SSSP_REPLAYS_SINCE
+        )
+        if entry["kind"] == "hyper_sssp" and not hsosp_required and not entry["replays"]:
+            # MOSP_ESCHER's H-SOSP goldens (M11a, ADR 0081): required from the 0.4 series only.
+            entry["passed"] = None
+            entry["required"] = "from 0.4 on (the hyper_sssp replays of M11a)"
             out.append(entry)
             continue
         missing = [b for b in REQUIRED_REPLAYS.get(name, []) if b not in covered]
@@ -924,6 +1037,22 @@ def golden_suites(
                             "--certificate <results>)"
                         )
                         entry["passed"] = False
+        # M10 label_propagation
+        # M11 slack_csr / hyper_sssp
+        if hsosp_required:
+            # Every backend and parity mode of the set's [modes] table, every case it lists.
+            wanted = hyper_sssp_required_cases(spec)
+            have = hyper_sssp_coverage(entry)
+            entry["required_coverage"] = {c: len(cases) for c, cases in sorted(wanted.items())}
+            for config, cases in sorted(wanted.items()):
+                absent = cases - have.get(config, set())
+                if absent:
+                    problems.append(
+                        f"golden set {name}: {len(absent)} of the {len(cases)} cases of {config} "
+                        f"have no passed replay (first: {sorted(absent)[0]}; compare.py "
+                        "hyper_sssp --certificate <results>)"
+                    )
+                    entry["passed"] = False
         if entry["kind"] == "cbst_trace":
             # The CBST trace goldens (M8a): replays of the dynG store under the original's preset
             # and dynG's default are required (CBST_REQUIRED_PRESETS).
@@ -943,9 +1072,8 @@ def golden_suites(
                     "(compare.py cbst_trace --store device --certificate <results>)"
                 )
                 entry["passed"] = False
-            series = release_series(version)
-            wanted_ids = HYPERGRAPH_ID_REPLAYS.get(name)
-            if wanted_ids and (series is None or series >= HYPERGRAPH_ID_SINCE):
+            wanted_ids = hypergraph_id_requirements(name, version)
+            if wanted_ids:
                 # The hypergraph container's replays of the set's batch records (M8b, 0.3).
                 have = hypergraph_id_coverage(entry)
                 entry["required_hypergraph_ids"] = wanted_ids
@@ -956,8 +1084,9 @@ def golden_suites(
                         problems.append(
                             f"golden set {name}: no passed hypergraph-id replay ({feature}) on "
                             f"{', '.join(absent)} (compare.py hypergraph_ids "
-                            f"{'--line-graph ' if feature == 'line_graph' else ''}"
-                            "--certificate <results>)"
+                            + ("--line-graph " if feature == "line_graph" else "")
+                            + ("--storage slack_csr " if feature == "whole_sessions" else "")
+                            + "--certificate <results>)"
                         )
                         entry["passed"] = False
         out.append(entry)
@@ -1390,6 +1519,18 @@ def record_region(record: dict | None, region: dict) -> dict | None:
     result = by_case.get(key)
     if not isinstance(result, dict):
         return None
+    if region["region"].startswith("graph_memory"):
+        # hyper_sssp's graph-scope accounting (bytes per point, M11a): "graph_memory[b2]".
+        for point in result.get("graph_accounting") or []:
+            if point.get("row") == region["region"]:
+                original = point.get("mosp_escher_graph_bytes")
+                port = point.get("dyng_graph_bytes")
+                return (
+                    None
+                    if original is None or port is None
+                    else {"original": original, "port": port}
+                )
+        return None
     if region["region"].startswith("store_memory"):
         # triad_count's store accounting (bytes per point, M9a): "store_memory[b2]".
         for point in result.get("store_accounting") or []:
@@ -1487,6 +1628,45 @@ def recheck_lp_readings(
         bench_suite.check_lp_record(job, reading, record, where, problems)
 
 
+def recheck_hsosp_readings(
+    doc: dict, name: str, results: Path, suite: dict, problems: list[str]
+) -> None:
+    """hyper_sssp's readings checked against their compacted records with bench_suite's rules
+    (hsosp_read_record: the configurations, the protocol fields, the probe's clocks, the medians
+    and round counts recomputed from the samples, the guards, the audit, HD7's scope, every gated
+    row of every batch and both memory gates), and every gated row those rules derive present in
+    the summary (M11a criterion 21)."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import bench_suite
+
+    jobs = {
+        (j["reading"], j["dataset"]): j
+        for j in bench_suite.plan(suite, records=results, build_root=Path("build"))
+    }
+    base_name = suite["backends"]["cuda"]["baseline"]
+    for reading in doc.get("readings", []):
+        job = jobs.get((reading.get("reading"), reading.get("dataset")))
+        rec = reading.get("record")
+        if job is None or not rec or not (results / rec).is_file():
+            continue  # suite_coverage reports a reading without its record or plan
+        record = json.loads((results / rec).read_text())
+        where = f"{name}: {reading['reading']} ({rec})"
+        spec = next(r for r in suite["readings"] if r["name"] == job["reading"])
+        fresh = bench_suite.hsosp_read_record(
+            suite, job, spec, record, suite["tolerance"], problems, where, base_name
+        )
+        if not job.get("gated"):
+            continue
+        present = {
+            (g.get("case"), g.get("region")) for g in reading.get("regions", []) if "gate" in g
+        }
+        for g in fresh["regions"]:
+            if "gate" in g and (g["case"], g["region"]) not in present:
+                problems.append(
+                    f"{where}: the summary has no gated row {g['region']} of {g['case']}"
+                )
+
+
 def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> dict[int, dict]:
     """Recomputes every gated row of a summary instead of trusting its flags: the medians must be
     those of the compacted record next to it, the ratio port / original, the gate the suite
@@ -1517,7 +1697,7 @@ def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> d
             kind = region.get("gate_kind")
             unit = (
                 "bytes"
-                if region["region"].startswith("store_memory")
+                if region["region"].startswith(("store_memory", "graph_memory"))
                 else "mib"
                 if kind == "memory"
                 else "ms"
@@ -1564,6 +1744,8 @@ def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> d
         recheck_triad_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
     if doc.get("algorithm") == "label_propagation" and rel and (REPO / rel).is_file():
         recheck_lp_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
+    if doc.get("algorithm") == "hyper_sssp" and rel and (REPO / rel).is_file():
+        recheck_hsosp_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
     verdict = doc.get("verdict") or {}
     if verdict.get("gated_regions") != gated or verdict.get("within_gate") != gated - exceeded:
         problems.append(

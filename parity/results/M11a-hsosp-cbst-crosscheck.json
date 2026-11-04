@@ -1,0 +1,60 @@
+{
+ "pairs": {
+  "test/01-test_h2h_construction": {
+   "trace": "mosp_escher_test/013-test_h2h_construction",
+   "records": 52,
+   "differences": []
+  },
+  "test/02-test_h2h_delta": {
+   "trace": "mosp_escher_test/014-test_h2h_delta",
+   "records": 210,
+   "differences": []
+  },
+  "test/03-test_hsosp_matches_dijkstra": {
+   "trace": "mosp_escher_test/015-test_hsosp_matches_dijkstra",
+   "records": 832,
+   "differences": []
+  },
+  "test/04-test_hsosp_scale": {
+   "trace": "mosp_escher_test/016-test_hsosp_scale",
+   "records": 16,
+   "differences": []
+  },
+  "test/05-hsospStress": {
+   "trace": "mosp_escher_test/017-hsospStress",
+   "records": 400,
+   "differences": []
+  },
+  "test/06-hsospStress_escher": {
+   "trace": "mosp_escher_test/018-hsospStress",
+   "records": 160,
+   "differences": []
+  },
+  "test/07-hsospBench_smoke": {
+   "trace": "mosp_escher_test/019-hsospBench",
+   "records": 68,
+   "differences": []
+  },
+  "test/08-hsospBench_real_hyperedge": {
+   "trace": "mosp_escher_test/020-hsospBench",
+   "records": 8,
+   "differences": []
+  },
+  "test/09-hsospBench_real_vertex": {
+   "trace": "mosp_escher_test/021-hsospBench",
+   "records": 8,
+   "differences": []
+  },
+  "paper/dblp_hyperedge_50000": {
+   "trace": "mosp_escher_dblp50k_hyperedge",
+   "records": 8,
+   "differences": []
+  },
+  "paper/dblp_vertex_50000": {
+   "trace": "mosp_escher_dblp50k_vertex",
+   "records": 8,
+   "differences": []
+  }
+ },
+ "ok": true
+}

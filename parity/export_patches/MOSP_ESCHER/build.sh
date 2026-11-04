@@ -17,11 +17,20 @@
 # Recording is on only when DYNG_CBST_TRACE_DIR is set (ADR 0036); otherwise a twin behaves as
 # the original (parity/exporters/escher/check_twins.py compares their outputs). It also builds
 # parity_export/bin/cbst_crossreplay, the cross-check driver of PLAN 6.3 step 2 (build_crossreplay.sh).
+#
+# The H-SOSP dump (M11a, ADR 0081; additive): the twins that link hsosp/src/hsospDelta.cu.o also
+# link parity/exporters/hsosp (the dump writer and its adapter) with -Xlinker --wrap=<symbol> for
+# every symbol of wrap_hsosp.txt (the session's Caps, buildDeviceH2H, applyBatch, hsospUpdate,
+# hsospRecompute, compareDistances); recorder_mosp_escher_hooks.cpp's bulkLoad and beginBatch
+# hooks feed it too. It records only when DYNG_HSOSP_DUMP_DIR is set, into its own dump; the CBST
+# trace (DYNG_CBST_TRACE_DIR) is unchanged by it and stays off unless that variable is set.
 set -euo pipefail
 copy="${1:?usage: build.sh <patched copy>}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "${here}/../../exporters/escher/relink_twins.sh" "${copy}" recorder_mosp_escher.cpp \
-  "${here}/wrap_symbols.txt" recorder_mosp_escher_hooks.cpp "${here}/wrap_hooks.txt" build/hypergraph/src/DynamicHypergraph.cpp.o "escher/include escher/kernel hypergraph/include" -- \
+  "${here}/wrap_symbols.txt" recorder_mosp_escher_hooks.cpp "${here}/wrap_hooks.txt" build/hypergraph/src/DynamicHypergraph.cpp.o "escher/include escher/kernel hypergraph/include hsosp/include" \
+  --extra hsosp/hsosp_dump.hpp,hsosp/hsosp_dump.cpp,hsosp/recorder_mosp_escher_hsosp.cpp \
+  "${here}/wrap_hsosp.txt" build/hsosp/src/hsospDelta.cu.o -- \
   bin/main bin/stressTest bin/parallelStressTest bin/hsospBench bin/hsospStress \
   bin/test_cbst_smoke bin/test_cbst_ops bin/test_dynamicgraph_roundtrip \
   bin/test_snapshot_matches_updateCSR bin/test_h2h_construction bin/test_h2h_delta \

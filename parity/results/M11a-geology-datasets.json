@@ -1,0 +1,53 @@
+{
+ "entries": {
+  "coauth-MAG-Geology-full": {
+   "file": "datasets/hyper/raw/coauth-MAG-Geology-full-2026-10-28/coauth-MAG-Geology-full.tar.gz",
+   "sha256": "798cf0fbfd0cd2bd8c9c7d4ece042f659849083f898b1332e24ccb4713778077",
+   "registry": "798cf0fbfd0cd2bd8c9c7d4ece042f659849083f898b1332e24ccb4713778077"
+  },
+  "coauth-MAG-Geology": {
+   "file": "datasets/hyper/raw/coauth-MAG-Geology-2026-10-28/coauth-MAG-Geology.tar.gz",
+   "sha256": "193d6f276191ad982958897cde94346c21e2fd0d9aec14f8f6583e2aab5cad24",
+   "registry": "193d6f276191ad982958897cde94346c21e2fd0d9aec14f8f6583e2aab5cad24"
+  },
+  "coauth-MAG-Geology-hsosp": {
+   "file": "datasets/hyper/geology.hg",
+   "sha256": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1",
+   "registry": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+  },
+  "coauth-DBLP-hsosp": {
+   "file": "datasets/hyper/coauth.hg",
+   "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6",
+   "registry": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+  },
+  "coauth-MAG-Geology-full -> hg": [
+   {
+    "converter": "B scripts/benson_to_hg.py",
+    "sha256": "e14e2558738c0d31f4a14260ee4f63ed2636c7753b530f166088f0c2a2ee78af",
+    "lines": 1204704,
+    "stderr": "1591166 simplices, 1204704 distinct, 1261129 vertices -> $DYNG_SCRATCH/runs/hsosp-datasets-8t9gk19k/out.hg"
+   },
+   {
+    "converter": "dynG benson_to_hg.py --variant hsosp",
+    "sha256": "e14e2558738c0d31f4a14260ee4f63ed2636c7753b530f166088f0c2a2ee78af",
+    "lines": 1204704,
+    "stderr": "1591166 simplices -> 1204704 distinct hyperedges, 1261129 vertices -> $DYNG_SCRATCH/runs/hsosp-datasets-8t9gk19k/out.hg"
+   }
+  ],
+  "coauth-MAG-Geology -> hg": [
+   {
+    "converter": "B scripts/benson_to_hg.py",
+    "sha256": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1",
+    "lines": 1203895,
+    "stderr": "1590335 simplices, 1203895 distinct, 1256385 vertices -> $DYNG_SCRATCH/runs/hsosp-datasets-8t9gk19k/out.hg"
+   },
+   {
+    "converter": "dynG benson_to_hg.py --variant hsosp",
+    "sha256": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1",
+    "lines": 1203895,
+    "stderr": "1590335 simplices -> 1203895 distinct hyperedges, 1256385 vertices -> $DYNG_SCRATCH/runs/hsosp-datasets-8t9gk19k/out.hg"
+   }
+  ]
+ },
+ "ok": true
+}

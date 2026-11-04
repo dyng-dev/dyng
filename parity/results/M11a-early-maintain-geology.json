@@ -1,0 +1,3483 @@
+{
+ "schema": 1,
+ "algorithm": "hyper_sssp (the container's maintain row)",
+ "what": "M11a criterion 12: the early maintain reading against MOSP_ESCHER@4b86159 (dyng-compat-hsosp bench --maintain-only; a go/no-go on the host costs, not the binding gate)",
+ "date": "2026-10-29T22:59:21Z",
+ "date_end": "2026-10-29T23:02:18Z",
+ "protocol": {
+  "rounds": 11,
+  "order": "A/B alternation (B first in every round)",
+  "gpu": 0,
+  "clocks": {
+   "control": "base",
+   "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+   "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+   "before": {
+    "pstate": "P8",
+    "sm_mhz": 210,
+    "memory_mhz": 405
+   },
+   "locked": {
+    "pstate": "P2",
+    "sm_mhz": 1170,
+    "memory_mhz": 7601
+   },
+   "check": "every busy GPU sample of every accepted round at the locked clocks",
+   "after_reset": {
+    "pstate": "P0",
+    "sm_mhz": 1695,
+    "memory_mhz": 8001
+   }
+  },
+  "lock": {
+   "DYNG_PERF_LOCK": "",
+   "DYNG_PERF_LOCK_HELD": "1"
+  },
+  "layout": "one (--out <work>/hsosp-ab.csv, --timing <work>/hsosp-ab.json)",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify none",
+  "port": "dyng-compat-hsosp bench --maintain-only --sync-stages --digests (the golden's batches; --threads = the machine's hardware threads, as B's OpenMP default)",
+  "statistic": "median",
+  "contamination_monitor": "rejected rounds repeated (perf_ab.MachineMonitor)",
+  "guard": "every round: B's h2h_pairs, overflow_rebuilds and mismatch_static and the port's pairs digest, pair count and CSR rebuilds of every batch against the golden; a failure stops the reading",
+  "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above 1.05 fixed (criterion 12)"
+ },
+ "reference": {
+  "repo": "MOSP_ESCHER",
+  "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+  "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
+ },
+ "port": {
+  "commit": "d1d7bf4f50dfbacaf9999ecb43c14b039a4fae5f+dirty",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-hsosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "geology_hyperedge_200000": {
+   "config": "geology_hyperedge_200000",
+   "dataset": "geology",
+   "kind": "hyperedge",
+   "batch": 200000,
+   "rounds": 11,
+   "rows": [
+    {
+     "row": "maintain[b1]",
+     "original": "t_delta_ms+t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 160.1575,
+     "port_ms": 105.549,
+     "ratio": 0.6590325148681767,
+     "original_rounds": [
+      159.3046,
+      160.1488,
+      160.5571,
+      159.384,
+      160.4041,
+      159.9275,
+      162.6279,
+      160.6409,
+      161.5665,
+      159.5158,
+      160.1575
+     ],
+     "port_rounds": [
+      105.506,
+      105.688,
+      105.675,
+      107.273,
+      107.075,
+      105.549,
+      105.521,
+      105.321,
+      106.189,
+      105.11,
+      105.456
+     ],
+     "verdict": "GO"
+    },
+    {
+     "row": "delta[b1]",
+     "original": "t_delta_ms",
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.ids",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 140.377,
+     "port_ms": 76.048,
+     "ratio": 0.5417411684250268,
+     "original_rounds": [
+      139.49,
+      140.377,
+      140.732,
+      139.571,
+      140.59,
+      140.139,
+      142.839,
+      140.834,
+      141.771,
+      139.673,
+      140.343
+     ],
+     "port_rounds": [
+      76.12899999999999,
+      76.26299999999999,
+      76.12899999999999,
+      77.76299999999999,
+      75.92699999999999,
+      76.048,
+      76.092,
+      75.84,
+      76.027,
+      75.721,
+      75.926
+     ]
+    },
+    {
+     "row": "csr_apply[b1]",
+     "original": "t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 19.813,
+     "port_ms": 22.37,
+     "ratio": 1.1290566799576036,
+     "original_rounds": [
+      19.8146,
+      19.7718,
+      19.8251,
+      19.813,
+      19.8141,
+      19.7885,
+      19.7889,
+      19.8069,
+      19.7955,
+      19.8428,
+      19.8145
+     ],
+     "port_rounds": [
+      22.284,
+      22.335,
+      22.276,
+      22.41,
+      23.976,
+      22.35,
+      22.332,
+      22.385,
+      23.095,
+      22.377,
+      22.37
+     ]
+    },
+    {
+     "row": "maintain[b2]",
+     "original": "t_delta_ms+t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 155.4126,
+     "port_ms": 112.813,
+     "ratio": 0.7258935247206468,
+     "original_rounds": [
+      157.54719999999998,
+      154.92849999999999,
+      159.0472,
+      153.9536,
+      154.90290000000002,
+      154.44,
+      155.9697,
+      155.4126,
+      157.8998,
+      153.62030000000001,
+      155.9991
+     ],
+     "port_rounds": [
+      112.806,
+      111.894,
+      112.467,
+      113.041,
+      112.813,
+      114.054,
+      112.905,
+      113.748,
+      114.025,
+      112.652,
+      112.725
+     ],
+     "verdict": "GO"
+    },
+    {
+     "row": "delta[b2]",
+     "original": "t_delta_ms",
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.ids",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 135.651,
+     "port_ms": 81.095,
+     "ratio": 0.5978208785781158,
+     "original_rounds": [
+      137.76,
+      135.141,
+      139.272,
+      134.168,
+      135.098,
+      134.671,
+      135.864,
+      135.651,
+      138.13,
+      133.84,
+      136.238
+     ],
+     "port_rounds": [
+      80.81,
+      80.30199999999999,
+      80.72,
+      81.336,
+      81.09100000000001,
+      82.213,
+      81.162,
+      81.94,
+      82.41199999999999,
+      80.917,
+      81.095
+     ]
+    },
+    {
+     "row": "csr_apply[b2]",
+     "original": "t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 19.7803,
+     "port_ms": 21.222,
+     "ratio": 1.0728856488526464,
+     "original_rounds": [
+      19.7872,
+      19.7875,
+      19.7752,
+      19.7856,
+      19.8049,
+      19.769,
+      20.1057,
+      19.7616,
+      19.7698,
+      19.7803,
+      19.7611
+     ],
+     "port_rounds": [
+      21.5,
+      21.205,
+      21.214,
+      21.223,
+      21.207,
+      21.221,
+      21.251,
+      21.238,
+      21.222,
+      21.234,
+      21.176
+     ]
+    },
+    {
+     "row": "maintain[b3]",
+     "original": "t_delta_ms+t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 153.05790000000002,
+     "port_ms": 112.946,
+     "ratio": 0.7379298945039752,
+     "original_rounds": [
+      151.23999999999998,
+      151.15519999999998,
+      154.5396,
+      153.6769,
+      154.4955,
+      153.3416,
+      152.6083,
+      153.05790000000002,
+      154.6408,
+      150.5769,
+      152.7609
+     ],
+     "port_rounds": [
+      112.728,
+      112.248,
+      112.923,
+      112.946,
+      112.527,
+      113.089,
+      113.405,
+      113.165,
+      115.209,
+      112.538,
+      113.24
+     ],
+     "verdict": "GO"
+    },
+    {
+     "row": "delta[b3]",
+     "original": "t_delta_ms",
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.ids",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 133.263,
+     "port_ms": 83.89399999999999,
+     "ratio": 0.6295370808101273,
+     "original_rounds": [
+      131.456,
+      131.378,
+      134.75,
+      133.876,
+      134.718,
+      133.566,
+      132.798,
+      133.263,
+      134.857,
+      130.804,
+      132.993
+     ],
+     "port_rounds": [
+      83.583,
+      83.155,
+      83.67399999999999,
+      83.89399999999999,
+      83.41799999999999,
+      83.929,
+      84.219,
+      83.973,
+      86.13499999999999,
+      83.48899999999999,
+      84.01599999999999
+     ]
+    },
+    {
+     "row": "csr_apply[b3]",
+     "original": "t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 19.7838,
+     "port_ms": 21.245,
+     "ratio": 1.0738584094056753,
+     "original_rounds": [
+      19.784,
+      19.7772,
+      19.7896,
+      19.8009,
+      19.7775,
+      19.7756,
+      19.8103,
+      19.7949,
+      19.7838,
+      19.7729,
+      19.7679
+     ],
+     "port_rounds": [
+      21.253,
+      21.222,
+      21.245,
+      21.228,
+      21.257,
+      21.257,
+      21.254,
+      21.233,
+      21.24,
+      21.256,
+      21.215
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 4.219925880432129,
+       "program_cpu_s": 21.496306999999998,
+       "foreign_cpu_cores": 1.1928128935488682,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 49
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 9
+       },
+       "gpu": {
+        "samples": 84,
+        "busy_samples": 53,
+        "pstates_busy": {
+         "P2": 53
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.047733306884766,
+       "program_cpu_s": 9.562145000000001,
+       "foreign_cpu_cores": 1.0667408224572137,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 7
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 121,
+        "busy_samples": 26,
+        "pstates_busy": {
+         "P2": 26
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.208046197891235,
+       "program_cpu_s": 21.298441,
+       "foreign_cpu_cores": 1.1972513518933474,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 84,
+        "busy_samples": 41,
+        "pstates_busy": {
+         "P2": 41
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.022217273712158,
+       "program_cpu_s": 9.596634000000002,
+       "foreign_cpu_cores": 1.0873900264329837,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 120,
+        "busy_samples": 28,
+        "pstates_busy": {
+         "P2": 28
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.175548553466797,
+       "program_cpu_s": 21.170099,
+       "foreign_cpu_cores": 1.0204999284017713,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 83,
+        "busy_samples": 36,
+        "pstates_busy": {
+         "P2": 36
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.0597169399261475,
+       "program_cpu_s": 9.636222000000004,
+       "foreign_cpu_cores": 1.1230536121127401,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 8
+       },
+       "gpu": {
+        "samples": 121,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.155290126800537,
+       "program_cpu_s": 21.366918,
+       "foreign_cpu_cores": 1.1076588780206045,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 7
+       },
+       "gpu": {
+        "samples": 82,
+        "busy_samples": 62,
+        "pstates_busy": {
+         "P2": 62
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.061506271362305,
+       "program_cpu_s": 9.70091099999999,
+       "foreign_cpu_cores": 1.0864033961932926,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 19
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 8
+       },
+       "gpu": {
+        "samples": 120,
+        "busy_samples": 26,
+        "pstates_busy": {
+         "P2": 26
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.223458290100098,
+       "program_cpu_s": 21.093989000000008,
+       "foreign_cpu_cores": 1.0830110503704071,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 85,
+        "busy_samples": 61,
+        "pstates_busy": {
+         "P2": 61
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.04154372215271,
+       "program_cpu_s": 9.600080999999989,
+       "foreign_cpu_cores": 1.0822167812459975,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 120,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.130189657211304,
+       "program_cpu_s": 21.306904000000003,
+       "foreign_cpu_cores": 1.192800914781105,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 35
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 82,
+        "busy_samples": 36,
+        "pstates_busy": {
+         "P2": 36
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.047259330749512,
+       "program_cpu_s": 9.657133999999985,
+       "foreign_cpu_cores": 1.0866582098675224,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 121,
+        "busy_samples": 33,
+        "pstates_busy": {
+         "P2": 33
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.133836507797241,
+       "program_cpu_s": 21.099399000000034,
+       "foreign_cpu_cores": 1.0440403225677677,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 82,
+        "busy_samples": 52,
+        "pstates_busy": {
+         "P2": 52
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.0296454429626465,
+       "program_cpu_s": 9.61451199999999,
+       "foreign_cpu_cores": 1.0538762285555991,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 7
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 120,
+        "busy_samples": 27,
+        "pstates_busy": {
+         "P2": 27
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.130367755889893,
+       "program_cpu_s": 20.89012299999999,
+       "foreign_cpu_cores": 1.0640396356520783,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 83,
+        "busy_samples": 37,
+        "pstates_busy": {
+         "P2": 37
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.139374256134033,
+       "program_cpu_s": 9.904440999999991,
+       "foreign_cpu_cores": 1.1811127150829352,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 122,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.182098627090454,
+       "program_cpu_s": 21.037520999999998,
+       "foreign_cpu_cores": 0.9954389820417244,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 52
+       },
+       "gpu": {
+        "samples": 83,
+        "busy_samples": 45,
+        "pstates_busy": {
+         "P2": 45
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.063929557800293,
+       "program_cpu_s": 9.66432500000002,
+       "foreign_cpu_cores": 1.1072465362776294,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 121,
+        "busy_samples": 24,
+        "pstates_busy": {
+         "P2": 24
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.127423048019409,
+       "program_cpu_s": 21.081395999999984,
+       "foreign_cpu_cores": 0.9615869164523021,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 83,
+        "busy_samples": 42,
+        "pstates_busy": {
+         "P2": 42
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.03314995765686,
+       "program_cpu_s": 9.639039000000025,
+       "foreign_cpu_cores": 1.067527584642949,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 120,
+        "busy_samples": 27,
+        "pstates_busy": {
+         "P2": 27
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.137700796127319,
+       "program_cpu_s": 21.186032999999952,
+       "foreign_cpu_cores": 1.0051016749779356,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 82,
+        "busy_samples": 37,
+        "pstates_busy": {
+         "P2": 37
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 6.121089935302734,
+       "program_cpu_s": 9.70969500000001,
+       "foreign_cpu_cores": 1.1020422945287367,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 122,
+        "busy_samples": 22,
+        "pstates_busy": {
+         "P2": 22
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.1972513518933474,
+    "original_pstates_busy": {
+     "P2": 502
+    },
+    "original_sm_mhz_busy_median": 1170.0,
+    "port_pstates_busy": {
+     "P2": 295
+    },
+    "port_sm_mhz_busy_median": 1170,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "samples": 20,
+     "load_average_max": 3.35009765625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 21,
+     "load_average_max": 3.14208984375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 21,
+     "load_average_max": 3.0458984375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 20,
+     "load_average_max": 3.85498046875,
+     "procs_blocked_max": 1
+    },
+    {
+     "samples": 21,
+     "load_average_max": 3.7060546875,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 20,
+     "load_average_max": 3.51708984375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 21,
+     "load_average_max": 3.28369140625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 21,
+     "load_average_max": 4.19384765625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 20,
+     "load_average_max": 8.4228515625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 21,
+     "load_average_max": 7.98828125,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 21,
+     "load_average_max": 7.140625,
+     "procs_blocked_max": 0
+    }
+   ],
+   "audit": {
+    "rule": {
+     "load_average": 16.0,
+     "procs_blocked": 4,
+     "why": "B's quiet maximum 7.03 is at most 8.0: ADR 0056's thresholds kept (HD4)"
+    },
+    "flagged_rounds": [],
+    "flagged": false
+   },
+   "guard": {
+    "rounds_checked": 11,
+    "passed": true
+   },
+   "original_csv": [
+    [
+     {
+      "t_delta_ms": 139.49,
+      "t_csr_apply_ms": 19.8146
+     },
+     {
+      "t_delta_ms": 137.76,
+      "t_csr_apply_ms": 19.7872
+     },
+     {
+      "t_delta_ms": 131.456,
+      "t_csr_apply_ms": 19.784
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 140.377,
+      "t_csr_apply_ms": 19.7718
+     },
+     {
+      "t_delta_ms": 135.141,
+      "t_csr_apply_ms": 19.7875
+     },
+     {
+      "t_delta_ms": 131.378,
+      "t_csr_apply_ms": 19.7772
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 140.732,
+      "t_csr_apply_ms": 19.8251
+     },
+     {
+      "t_delta_ms": 139.272,
+      "t_csr_apply_ms": 19.7752
+     },
+     {
+      "t_delta_ms": 134.75,
+      "t_csr_apply_ms": 19.7896
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 139.571,
+      "t_csr_apply_ms": 19.813
+     },
+     {
+      "t_delta_ms": 134.168,
+      "t_csr_apply_ms": 19.7856
+     },
+     {
+      "t_delta_ms": 133.876,
+      "t_csr_apply_ms": 19.8009
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 140.59,
+      "t_csr_apply_ms": 19.8141
+     },
+     {
+      "t_delta_ms": 135.098,
+      "t_csr_apply_ms": 19.8049
+     },
+     {
+      "t_delta_ms": 134.718,
+      "t_csr_apply_ms": 19.7775
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 140.139,
+      "t_csr_apply_ms": 19.7885
+     },
+     {
+      "t_delta_ms": 134.671,
+      "t_csr_apply_ms": 19.769
+     },
+     {
+      "t_delta_ms": 133.566,
+      "t_csr_apply_ms": 19.7756
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 142.839,
+      "t_csr_apply_ms": 19.7889
+     },
+     {
+      "t_delta_ms": 135.864,
+      "t_csr_apply_ms": 20.1057
+     },
+     {
+      "t_delta_ms": 132.798,
+      "t_csr_apply_ms": 19.8103
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 140.834,
+      "t_csr_apply_ms": 19.8069
+     },
+     {
+      "t_delta_ms": 135.651,
+      "t_csr_apply_ms": 19.7616
+     },
+     {
+      "t_delta_ms": 133.263,
+      "t_csr_apply_ms": 19.7949
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 141.771,
+      "t_csr_apply_ms": 19.7955
+     },
+     {
+      "t_delta_ms": 138.13,
+      "t_csr_apply_ms": 19.7698
+     },
+     {
+      "t_delta_ms": 134.857,
+      "t_csr_apply_ms": 19.7838
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 139.673,
+      "t_csr_apply_ms": 19.8428
+     },
+     {
+      "t_delta_ms": 133.84,
+      "t_csr_apply_ms": 19.7803
+     },
+     {
+      "t_delta_ms": 130.804,
+      "t_csr_apply_ms": 19.7729
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 140.343,
+      "t_csr_apply_ms": 19.8145
+     },
+     {
+      "t_delta_ms": 136.238,
+      "t_csr_apply_ms": 19.7611
+     },
+     {
+      "t_delta_ms": 132.993,
+      "t_csr_apply_ms": 19.7679
+     }
+    ]
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 2005.829,
+     "hypergraph.build@0": 1947.714,
+     "hypergraph.upload@0": 372.892,
+     "maintain_ms@1": 105.526,
+     "hypergraph.apply.normalize@1": 9.166,
+     "hypergraph.apply.incidence@1": 33.687999999999995,
+     "hypergraph.apply.ids@1": 12.089,
+     "hypergraph.apply.translate@1": 21.186,
+     "hypergraph.apply.line_graph@1": 22.284,
+     "hypergraph.apply@1": 105.506,
+     "maintain_ms@2": 112.812,
+     "hypergraph.apply.normalize@2": 9.199,
+     "hypergraph.apply.incidence@2": 30.889,
+     "hypergraph.apply.ids@2": 18.884,
+     "hypergraph.apply.translate@2": 21.838,
+     "hypergraph.apply.line_graph@2": 21.5,
+     "hypergraph.apply@2": 112.806,
+     "maintain_ms@3": 112.734,
+     "hypergraph.apply.normalize@3": 9.267,
+     "hypergraph.apply.incidence@3": 33.689,
+     "hypergraph.apply.ids@3": 19.049,
+     "hypergraph.apply.translate@3": 21.578,
+     "hypergraph.apply.line_graph@3": 21.253,
+     "hypergraph.apply@3": 112.728,
+     "total_ms@3": 5730.644
+    },
+    {
+     "load_ms@0": 1983.473,
+     "hypergraph.build@0": 1918.679,
+     "hypergraph.upload@0": 357.574,
+     "maintain_ms@1": 105.697,
+     "hypergraph.apply.normalize@1": 9.163,
+     "hypergraph.apply.incidence@1": 33.58299999999999,
+     "hypergraph.apply.ids@1": 12.114,
+     "hypergraph.apply.translate@1": 21.403,
+     "hypergraph.apply.line_graph@1": 22.335,
+     "hypergraph.apply@1": 105.688,
+     "maintain_ms@2": 111.899,
+     "hypergraph.apply.normalize@2": 9.035,
+     "hypergraph.apply.incidence@2": 30.701,
+     "hypergraph.apply.ids@2": 18.811,
+     "hypergraph.apply.translate@2": 21.755,
+     "hypergraph.apply.line_graph@2": 21.205,
+     "hypergraph.apply@2": 111.894,
+     "maintain_ms@3": 112.254,
+     "hypergraph.apply.normalize@3": 8.996,
+     "hypergraph.apply.incidence@3": 33.495999999999995,
+     "hypergraph.apply.ids@3": 19.102,
+     "hypergraph.apply.translate@3": 21.561,
+     "hypergraph.apply.line_graph@3": 21.222,
+     "hypergraph.apply@3": 112.248,
+     "total_ms@3": 5705.403
+    },
+    {
+     "load_ms@0": 1995.232,
+     "hypergraph.build@0": 1904.961,
+     "hypergraph.upload@0": 359.969,
+     "maintain_ms@1": 105.683,
+     "hypergraph.apply.normalize@1": 9.168,
+     "hypergraph.apply.incidence@1": 33.583999999999996,
+     "hypergraph.apply.ids@1": 12.123,
+     "hypergraph.apply.translate@1": 21.254,
+     "hypergraph.apply.line_graph@1": 22.276,
+     "hypergraph.apply@1": 105.675,
+     "maintain_ms@2": 112.473,
+     "hypergraph.apply.normalize@2": 9.128,
+     "hypergraph.apply.incidence@2": 30.762,
+     "hypergraph.apply.ids@2": 19.013,
+     "hypergraph.apply.translate@2": 21.817,
+     "hypergraph.apply.line_graph@2": 21.214,
+     "hypergraph.apply@2": 112.467,
+     "maintain_ms@3": 112.929,
+     "hypergraph.apply.normalize@3": 9.13,
+     "hypergraph.apply.incidence@3": 33.784,
+     "hypergraph.apply.ids@3": 19.142,
+     "hypergraph.apply.translate@3": 21.618,
+     "hypergraph.apply.line_graph@3": 21.245,
+     "hypergraph.apply@3": 112.923,
+     "total_ms@3": 5734.561
+    },
+    {
+     "load_ms@0": 1979.46,
+     "hypergraph.build@0": 1910.56,
+     "hypergraph.upload@0": 358.677,
+     "maintain_ms@1": 107.283,
+     "hypergraph.apply.normalize@1": 9.19,
+     "hypergraph.apply.incidence@1": 33.928999999999995,
+     "hypergraph.apply.ids@1": 12.044,
+     "hypergraph.apply.translate@1": 22.6,
+     "hypergraph.apply.line_graph@1": 22.41,
+     "hypergraph.apply@1": 107.273,
+     "maintain_ms@2": 113.047,
+     "hypergraph.apply.normalize@2": 9.283,
+     "hypergraph.apply.incidence@2": 31.317000000000004,
+     "hypergraph.apply.ids@2": 18.913,
+     "hypergraph.apply.translate@2": 21.823,
+     "hypergraph.apply.line_graph@2": 21.223,
+     "hypergraph.apply@2": 113.041,
+     "maintain_ms@3": 112.951,
+     "hypergraph.apply.normalize@3": 9.208,
+     "hypergraph.apply.incidence@3": 33.952999999999996,
+     "hypergraph.apply.ids@3": 19.114,
+     "hypergraph.apply.translate@3": 21.619,
+     "hypergraph.apply.line_graph@3": 21.228,
+     "hypergraph.apply@3": 112.946,
+     "total_ms@3": 5742.027
+    },
+    {
+     "load_ms@0": 1983.011,
+     "hypergraph.build@0": 1906.549,
+     "hypergraph.upload@0": 360.681,
+     "maintain_ms@1": 107.083,
+     "hypergraph.apply.normalize@1": 9.073,
+     "hypergraph.apply.incidence@1": 33.669999999999995,
+     "hypergraph.apply.ids@1": 11.92,
+     "hypergraph.apply.translate@1": 21.264,
+     "hypergraph.apply.line_graph@1": 23.976,
+     "hypergraph.apply@1": 107.075,
+     "maintain_ms@2": 112.819,
+     "hypergraph.apply.normalize@2": 9.169,
+     "hypergraph.apply.incidence@2": 31.349,
+     "hypergraph.apply.ids@2": 18.75,
+     "hypergraph.apply.translate@2": 21.823,
+     "hypergraph.apply.line_graph@2": 21.207,
+     "hypergraph.apply@2": 112.813,
+     "maintain_ms@3": 112.534,
+     "hypergraph.apply.normalize@3": 9.079,
+     "hypergraph.apply.incidence@3": 33.797999999999995,
+     "hypergraph.apply.ids@3": 19.012,
+     "hypergraph.apply.translate@3": 21.529,
+     "hypergraph.apply.line_graph@3": 21.257,
+     "hypergraph.apply@3": 112.527,
+     "total_ms@3": 5721.086
+    },
+    {
+     "load_ms@0": 2002.227,
+     "hypergraph.build@0": 1944.915,
+     "hypergraph.upload@0": 360.695,
+     "maintain_ms@1": 105.557,
+     "hypergraph.apply.normalize@1": 9.343,
+     "hypergraph.apply.incidence@1": 33.412,
+     "hypergraph.apply.ids@1": 12.042,
+     "hypergraph.apply.translate@1": 21.251,
+     "hypergraph.apply.line_graph@1": 22.35,
+     "hypergraph.apply@1": 105.549,
+     "maintain_ms@2": 114.06,
+     "hypergraph.apply.normalize@2": 9.997,
+     "hypergraph.apply.incidence@2": 31.008,
+     "hypergraph.apply.ids@2": 19.256,
+     "hypergraph.apply.translate@2": 21.952,
+     "hypergraph.apply.line_graph@2": 21.221,
+     "hypergraph.apply@2": 114.054,
+     "maintain_ms@3": 113.096,
+     "hypergraph.apply.normalize@3": 9.113,
+     "hypergraph.apply.incidence@3": 33.963,
+     "hypergraph.apply.ids@3": 19.269,
+     "hypergraph.apply.translate@3": 21.584,
+     "hypergraph.apply.line_graph@3": 21.257,
+     "hypergraph.apply@3": 113.089,
+     "total_ms@3": 5728.511
+    },
+    {
+     "load_ms@0": 1971.854,
+     "hypergraph.build@0": 1902.626,
+     "hypergraph.upload@0": 357.047,
+     "maintain_ms@1": 105.53,
+     "hypergraph.apply.normalize@1": 9.13,
+     "hypergraph.apply.incidence@1": 33.62499999999999,
+     "hypergraph.apply.ids@1": 12.061,
+     "hypergraph.apply.translate@1": 21.276,
+     "hypergraph.apply.line_graph@1": 22.332,
+     "hypergraph.apply@1": 105.521,
+     "maintain_ms@2": 112.911,
+     "hypergraph.apply.normalize@2": 9.169,
+     "hypergraph.apply.incidence@2": 31.26,
+     "hypergraph.apply.ids@2": 18.968,
+     "hypergraph.apply.translate@2": 21.765,
+     "hypergraph.apply.line_graph@2": 21.251,
+     "hypergraph.apply@2": 112.905,
+     "maintain_ms@3": 113.411,
+     "hypergraph.apply.normalize@3": 9.303,
+     "hypergraph.apply.incidence@3": 33.937,
+     "hypergraph.apply.ids@3": 19.398,
+     "hypergraph.apply.translate@3": 21.581,
+     "hypergraph.apply.line_graph@3": 21.254,
+     "hypergraph.apply@3": 113.405,
+     "total_ms@3": 5710.968
+    },
+    {
+     "load_ms@0": 2065.551,
+     "hypergraph.build@0": 2044.179,
+     "hypergraph.upload@0": 361.866,
+     "maintain_ms@1": 105.329,
+     "hypergraph.apply.normalize@1": 9.263,
+     "hypergraph.apply.incidence@1": 33.181,
+     "hypergraph.apply.ids@1": 12.067,
+     "hypergraph.apply.translate@1": 21.329,
+     "hypergraph.apply.line_graph@1": 22.385,
+     "hypergraph.apply@1": 105.321,
+     "maintain_ms@2": 113.753,
+     "hypergraph.apply.normalize@2": 9.638,
+     "hypergraph.apply.incidence@2": 31.319000000000003,
+     "hypergraph.apply.ids@2": 19.131,
+     "hypergraph.apply.translate@2": 21.852,
+     "hypergraph.apply.line_graph@2": 21.238,
+     "hypergraph.apply@2": 113.748,
+     "maintain_ms@3": 113.171,
+     "hypergraph.apply.normalize@3": 9.348,
+     "hypergraph.apply.incidence@3": 33.766999999999996,
+     "hypergraph.apply.ids@3": 19.196,
+     "hypergraph.apply.translate@3": 21.662,
+     "hypergraph.apply.line_graph@3": 21.233,
+     "hypergraph.apply@3": 113.165,
+     "total_ms@3": 5820.005
+    },
+    {
+     "load_ms@0": 1998.946,
+     "hypergraph.build@0": 1930.218,
+     "hypergraph.upload@0": 363.831,
+     "maintain_ms@1": 106.198,
+     "hypergraph.apply.normalize@1": 9.095,
+     "hypergraph.apply.incidence@1": 33.495,
+     "hypergraph.apply.ids@1": 12.05,
+     "hypergraph.apply.translate@1": 21.387,
+     "hypergraph.apply.line_graph@1": 23.095,
+     "hypergraph.apply@1": 106.189,
+     "maintain_ms@2": 114.031,
+     "hypergraph.apply.normalize@2": 9.234,
+     "hypergraph.apply.incidence@2": 31.486,
+     "hypergraph.apply.ids@2": 19.766,
+     "hypergraph.apply.translate@2": 21.926,
+     "hypergraph.apply.line_graph@2": 21.222,
+     "hypergraph.apply@2": 114.025,
+     "maintain_ms@3": 115.215,
+     "hypergraph.apply.normalize@3": 9.192,
+     "hypergraph.apply.incidence@3": 35.061,
+     "hypergraph.apply.ids@3": 20.136,
+     "hypergraph.apply.translate@3": 21.746,
+     "hypergraph.apply.line_graph@3": 21.24,
+     "hypergraph.apply@3": 115.209,
+     "total_ms@3": 5744.987
+    },
+    {
+     "load_ms@0": 1979.127,
+     "hypergraph.build@0": 1901.85,
+     "hypergraph.upload@0": 356.627,
+     "maintain_ms@1": 105.118,
+     "hypergraph.apply.normalize@1": 9.129,
+     "hypergraph.apply.incidence@1": 33.434,
+     "hypergraph.apply.ids@1": 11.962,
+     "hypergraph.apply.translate@1": 21.196,
+     "hypergraph.apply.line_graph@1": 22.377,
+     "hypergraph.apply@1": 105.11,
+     "maintain_ms@2": 112.657,
+     "hypergraph.apply.normalize@2": 9.168,
+     "hypergraph.apply.incidence@2": 30.91,
+     "hypergraph.apply.ids@2": 18.997,
+     "hypergraph.apply.translate@2": 21.842,
+     "hypergraph.apply.line_graph@2": 21.234,
+     "hypergraph.apply@2": 112.652,
+     "maintain_ms@3": 112.544,
+     "hypergraph.apply.normalize@3": 9.208,
+     "hypergraph.apply.incidence@3": 33.559999999999995,
+     "hypergraph.apply.ids@3": 19.07,
+     "hypergraph.apply.translate@3": 21.651,
+     "hypergraph.apply.line_graph@3": 21.256,
+     "hypergraph.apply@3": 112.538,
+     "total_ms@3": 5710.362
+    },
+    {
+     "load_ms@0": 1992.813,
+     "hypergraph.build@0": 1930.184,
+     "hypergraph.upload@0": 361.17,
+     "maintain_ms@1": 105.465,
+     "hypergraph.apply.normalize@1": 9.276,
+     "hypergraph.apply.incidence@1": 33.351,
+     "hypergraph.apply.ids@1": 11.981,
+     "hypergraph.apply.translate@1": 21.318,
+     "hypergraph.apply.line_graph@1": 22.37,
+     "hypergraph.apply@1": 105.456,
+     "maintain_ms@2": 112.73,
+     "hypergraph.apply.normalize@2": 9.284,
+     "hypergraph.apply.incidence@2": 31.029000000000003,
+     "hypergraph.apply.ids@2": 18.806,
+     "hypergraph.apply.translate@2": 21.976,
+     "hypergraph.apply.line_graph@2": 21.176,
+     "hypergraph.apply@2": 112.725,
+     "maintain_ms@3": 113.246,
+     "hypergraph.apply.normalize@3": 9.568,
+     "hypergraph.apply.incidence@3": 33.87799999999999,
+     "hypergraph.apply.ids@3": 18.964,
+     "hypergraph.apply.translate@3": 21.606,
+     "hypergraph.apply.line_graph@3": 21.215,
+     "hypergraph.apply@3": 113.24,
+     "total_ms@3": 5798.246
+    }
+   ]
+  },
+  "geology_vertex_25000": {
+   "config": "geology_vertex_25000",
+   "dataset": "geology",
+   "kind": "vertex",
+   "batch": 25000,
+   "rounds": 11,
+   "rows": [
+    {
+     "row": "maintain[b1]",
+     "original": "t_delta_ms+t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 14.23942,
+     "port_ms": 11.557,
+     "ratio": 0.8116201362134131,
+     "original_rounds": [
+      14.23942,
+      14.412180000000001,
+      14.342379999999999,
+      14.136510000000001,
+      14.32975,
+      14.22521,
+      14.194840000000001,
+      16.1855,
+      14.00922,
+      14.1144,
+      14.24785
+     ],
+     "port_rounds": [
+      16.481,
+      11.65,
+      11.212,
+      16.174,
+      11.462,
+      11.359,
+      11.557,
+      11.464,
+      11.938,
+      13.37,
+      11.241
+     ],
+     "verdict": "GO"
+    },
+    {
+     "row": "delta[b1]",
+     "original": "t_delta_ms",
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.ids",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 11.9345,
+     "port_ms": 9.431,
+     "ratio": 0.7902300054463949,
+     "original_rounds": [
+      11.9882,
+      12.1155,
+      12.0779,
+      11.864,
+      12.0556,
+      11.9116,
+      11.903,
+      13.8988,
+      11.7096,
+      11.8051,
+      11.9345
+     ],
+     "port_rounds": [
+      14.292,
+      9.529,
+      9.084,
+      13.99,
+      9.325,
+      9.221,
+      9.431,
+      9.352,
+      9.789,
+      11.185,
+      9.135
+     ]
+    },
+    {
+     "row": "csr_apply[b1]",
+     "original": "t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 2.29184,
+     "port_ms": 2.098,
+     "ratio": 0.9154216699246019,
+     "original_rounds": [
+      2.25122,
+      2.29668,
+      2.26448,
+      2.27251,
+      2.27415,
+      2.31361,
+      2.29184,
+      2.2867,
+      2.29962,
+      2.3093,
+      2.31335
+     ],
+     "port_rounds": [
+      2.13,
+      2.081,
+      2.09,
+      2.126,
+      2.098,
+      2.104,
+      2.088,
+      2.073,
+      2.108,
+      2.14,
+      2.07
+     ]
+    },
+    {
+     "row": "maintain[b2]",
+     "original": "t_delta_ms+t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 12.94621,
+     "port_ms": 8.636,
+     "ratio": 0.6670678136690197,
+     "original_rounds": [
+      12.99606,
+      13.003870000000001,
+      16.50627,
+      12.88273,
+      12.922450000000001,
+      12.94621,
+      12.95664,
+      12.88362,
+      12.78203,
+      12.90255,
+      13.01986
+     ],
+     "port_rounds": [
+      8.656,
+      8.618,
+      8.636,
+      8.631,
+      8.619,
+      8.679,
+      8.587,
+      8.808,
+      8.569,
+      8.661,
+      8.712
+     ],
+     "verdict": "GO"
+    },
+    {
+     "row": "delta[b2]",
+     "original": "t_delta_ms",
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.ids",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 11.0001,
+     "port_ms": 6.521,
+     "ratio": 0.5928127926109763,
+     "original_rounds": [
+      11.0506,
+      11.0562,
+      14.5615,
+      10.9383,
+      10.967,
+      11.0001,
+      11.0111,
+      10.9373,
+      10.8344,
+      10.9553,
+      11.0719
+     ],
+     "port_rounds": [
+      6.55,
+      6.492,
+      6.497999999999999,
+      6.521,
+      6.507,
+      6.561000000000001,
+      6.472,
+      6.680000000000001,
+      6.46,
+      6.533,
+      6.595
+     ]
+    },
+    {
+     "row": "csr_apply[b2]",
+     "original": "t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 1.94632,
+     "port_ms": 2.017,
+     "ratio": 1.0363146861769903,
+     "original_rounds": [
+      1.94546,
+      1.94767,
+      1.94477,
+      1.94443,
+      1.95545,
+      1.94611,
+      1.94554,
+      1.94632,
+      1.94763,
+      1.94725,
+      1.94796
+     ],
+     "port_rounds": [
+      2.008,
+      2.009,
+      2.022,
+      2.013,
+      2.016,
+      2.018,
+      2.017,
+      2.017,
+      2.013,
+      2.028,
+      2.017
+     ]
+    },
+    {
+     "row": "maintain[b3]",
+     "original": "t_delta_ms+t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 12.442889999999998,
+     "port_ms": 8.497,
+     "ratio": 0.6828799418784544,
+     "original_rounds": [
+      12.46818,
+      12.48705,
+      12.35586,
+      12.916649999999999,
+      15.90808,
+      12.48664,
+      12.442889999999998,
+      12.36956,
+      12.3153,
+      12.40599,
+      12.44051
+     ],
+     "port_rounds": [
+      8.594,
+      8.719,
+      8.694,
+      8.395,
+      8.403,
+      8.497,
+      8.292,
+      8.527,
+      8.406,
+      8.411,
+      8.562
+     ],
+     "verdict": "GO"
+    },
+    {
+     "row": "delta[b3]",
+     "original": "t_delta_ms",
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.ids",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 10.6946,
+     "port_ms": 6.656,
+     "ratio": 0.6223701681222299,
+     "original_rounds": [
+      10.7156,
+      10.7334,
+      10.5972,
+      11.1603,
+      14.1466,
+      10.722,
+      10.6946,
+      10.6141,
+      10.5672,
+      10.6474,
+      10.6796
+     ],
+     "port_rounds": [
+      6.757,
+      6.894,
+      6.853000000000001,
+      6.566999999999999,
+      6.558,
+      6.656,
+      6.463,
+      6.684,
+      6.572,
+      6.574999999999999,
+      6.731
+     ]
+    },
+    {
+     "row": "csr_apply[b3]",
+     "original": "t_csr_apply_ms",
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 1.75635,
+     "port_ms": 1.815,
+     "ratio": 1.0333931164061831,
+     "original_rounds": [
+      1.75258,
+      1.75365,
+      1.75866,
+      1.75635,
+      1.76148,
+      1.76464,
+      1.74829,
+      1.75546,
+      1.7481,
+      1.75859,
+      1.76091
+     ],
+     "port_rounds": [
+      1.818,
+      1.805,
+      1.824,
+      1.812,
+      1.829,
+      1.812,
+      1.812,
+      1.825,
+      1.815,
+      1.818,
+      1.814
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 2.8424487113952637,
+       "program_cpu_s": 16.835444999999993,
+       "foreign_cpu_cores": 1.06018025527286,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4527456760406494,
+       "program_cpu_s": 5.686721999999975,
+       "foreign_cpu_cores": 1.1111025611642156,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 17,
+        "pstates_busy": {
+         "P2": 17
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.8547534942626953,
+       "program_cpu_s": 16.97563200000002,
+       "foreign_cpu_cores": 1.0463565438677054,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 20,
+        "pstates_busy": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.473752975463867,
+       "program_cpu_s": 5.689404999999965,
+       "foreign_cpu_cores": 1.0848176945391244,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 7
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.8420844078063965,
+       "program_cpu_s": 16.579821000000038,
+       "foreign_cpu_cores": 1.0722461272376527,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 19
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 28,
+        "pstates_busy": {
+         "P2": 28
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.449061155319214,
+       "program_cpu_s": 5.635565999999983,
+       "foreign_cpu_cores": 1.0442732287208523,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 48,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.8297464847564697,
+       "program_cpu_s": 16.858671000000015,
+       "foreign_cpu_cores": 1.1057852771967869,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 17,
+        "pstates_busy": {
+         "P2": 17
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4687917232513428,
+       "program_cpu_s": 5.697844000000032,
+       "foreign_cpu_cores": 1.0771297453342326,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.8515119552612305,
+       "program_cpu_s": 16.96267599999993,
+       "foreign_cpu_cores": 1.1335930029449806,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 27,
+        "pstates_busy": {
+         "P2": 27
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.449550151824951,
+       "program_cpu_s": 5.620392999999979,
+       "foreign_cpu_cores": 1.0989936250284535,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 7
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 15,
+        "pstates_busy": {
+         "P2": 15
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.832188606262207,
+       "program_cpu_s": 16.642731000000026,
+       "foreign_cpu_cores": 1.0911127155198221,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 56
+       },
+       "gpu": {
+        "samples": 56,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4958972930908203,
+       "program_cpu_s": 5.759261000000038,
+       "foreign_cpu_cores": 1.2585013036649997,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 50,
+        "busy_samples": 7,
+        "pstates_busy": {
+         "P2": 7
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.8556599617004395,
+       "program_cpu_s": 17.53169600000001,
+       "foreign_cpu_cores": 1.098882234871012,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.446495532989502,
+       "program_cpu_s": 5.677104999999926,
+       "foreign_cpu_cores": 1.0854824645238852,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 7
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.791398048400879,
+       "program_cpu_s": 16.42802400000005,
+       "foreign_cpu_cores": 1.0742344691624472,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 23
+       },
+       "gpu": {
+        "samples": 55,
+        "busy_samples": 27,
+        "pstates_busy": {
+         "P2": 27
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.435539960861206,
+       "program_cpu_s": 5.621603999999934,
+       "foreign_cpu_cores": 1.112680162980313,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 20
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 20,
+        "pstates_busy": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.7689273357391357,
+       "program_cpu_s": 16.02900999999997,
+       "foreign_cpu_cores": 0.9996192271648917,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 55,
+        "busy_samples": 25,
+        "pstates_busy": {
+         "P2": 25
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4448764324188232,
+       "program_cpu_s": 5.607381000000032,
+       "foreign_cpu_cores": 1.0942753442979107,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 49,
+        "busy_samples": 15,
+        "pstates_busy": {
+         "P2": 15
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.7638943195343018,
+       "program_cpu_s": 16.07836800000007,
+       "foreign_cpu_cores": 1.0730710572905098,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 38
+       },
+       "gpu": {
+        "samples": 55,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4986743927001953,
+       "program_cpu_s": 5.68989299999987,
+       "foreign_cpu_cores": 1.2575832248396548,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 50,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.8402459621429443,
+       "program_cpu_s": 16.409910999999965,
+       "foreign_cpu_cores": 1.1120899534063113,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 55
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 56,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.4872162342071533,
+       "program_cpu_s": 5.750653000000057,
+       "foreign_cpu_cores": 1.198554416713766,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 13
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 7
+       },
+       "gpu": {
+        "samples": 50,
+        "busy_samples": 20,
+        "pstates_busy": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.2585013036649997,
+    "original_pstates_busy": {
+     "P2": 206
+    },
+    "original_sm_mhz_busy_median": 1170,
+    "port_pstates_busy": {
+     "P2": 187
+    },
+    "port_sm_mhz_busy_median": 1170,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "samples": 11,
+     "load_average_max": 6.3759765625,
+     "procs_blocked_max": 1
+    },
+    {
+     "samples": 11,
+     "load_average_max": 6.025390625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 10,
+     "load_average_max": 5.7265625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 11,
+     "load_average_max": 5.7265625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 11,
+     "load_average_max": 5.427734375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 11,
+     "load_average_max": 5.15283203125,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 11,
+     "load_average_max": 8.83203125,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 10,
+     "load_average_max": 8.83203125,
+     "procs_blocked_max": 1
+    },
+    {
+     "samples": 11,
+     "load_average_max": 8.28466796875,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 11,
+     "load_average_max": 7.78125,
+     "procs_blocked_max": 1
+    },
+    {
+     "samples": 10,
+     "load_average_max": 11.3701171875,
+     "procs_blocked_max": 0
+    }
+   ],
+   "audit": {
+    "rule": {
+     "load_average": 16.0,
+     "procs_blocked": 4,
+     "why": "B's quiet maximum 7.03 is at most 8.0: ADR 0056's thresholds kept (HD4)"
+    },
+    "flagged_rounds": [],
+    "flagged": false
+   },
+   "guard": {
+    "rounds_checked": 11,
+    "passed": true
+   },
+   "original_csv": [
+    [
+     {
+      "t_delta_ms": 11.9882,
+      "t_csr_apply_ms": 2.25122
+     },
+     {
+      "t_delta_ms": 11.0506,
+      "t_csr_apply_ms": 1.94546
+     },
+     {
+      "t_delta_ms": 10.7156,
+      "t_csr_apply_ms": 1.75258
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 12.1155,
+      "t_csr_apply_ms": 2.29668
+     },
+     {
+      "t_delta_ms": 11.0562,
+      "t_csr_apply_ms": 1.94767
+     },
+     {
+      "t_delta_ms": 10.7334,
+      "t_csr_apply_ms": 1.75365
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 12.0779,
+      "t_csr_apply_ms": 2.26448
+     },
+     {
+      "t_delta_ms": 14.5615,
+      "t_csr_apply_ms": 1.94477
+     },
+     {
+      "t_delta_ms": 10.5972,
+      "t_csr_apply_ms": 1.75866
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 11.864,
+      "t_csr_apply_ms": 2.27251
+     },
+     {
+      "t_delta_ms": 10.9383,
+      "t_csr_apply_ms": 1.94443
+     },
+     {
+      "t_delta_ms": 11.1603,
+      "t_csr_apply_ms": 1.75635
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 12.0556,
+      "t_csr_apply_ms": 2.27415
+     },
+     {
+      "t_delta_ms": 10.967,
+      "t_csr_apply_ms": 1.95545
+     },
+     {
+      "t_delta_ms": 14.1466,
+      "t_csr_apply_ms": 1.76148
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 11.9116,
+      "t_csr_apply_ms": 2.31361
+     },
+     {
+      "t_delta_ms": 11.0001,
+      "t_csr_apply_ms": 1.94611
+     },
+     {
+      "t_delta_ms": 10.722,
+      "t_csr_apply_ms": 1.76464
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 11.903,
+      "t_csr_apply_ms": 2.29184
+     },
+     {
+      "t_delta_ms": 11.0111,
+      "t_csr_apply_ms": 1.94554
+     },
+     {
+      "t_delta_ms": 10.6946,
+      "t_csr_apply_ms": 1.74829
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 13.8988,
+      "t_csr_apply_ms": 2.2867
+     },
+     {
+      "t_delta_ms": 10.9373,
+      "t_csr_apply_ms": 1.94632
+     },
+     {
+      "t_delta_ms": 10.6141,
+      "t_csr_apply_ms": 1.75546
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 11.7096,
+      "t_csr_apply_ms": 2.29962
+     },
+     {
+      "t_delta_ms": 10.8344,
+      "t_csr_apply_ms": 1.94763
+     },
+     {
+      "t_delta_ms": 10.5672,
+      "t_csr_apply_ms": 1.7481
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 11.8051,
+      "t_csr_apply_ms": 2.3093
+     },
+     {
+      "t_delta_ms": 10.9553,
+      "t_csr_apply_ms": 1.94725
+     },
+     {
+      "t_delta_ms": 10.6474,
+      "t_csr_apply_ms": 1.75859
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 11.9345,
+      "t_csr_apply_ms": 2.31335
+     },
+     {
+      "t_delta_ms": 11.0719,
+      "t_csr_apply_ms": 1.94796
+     },
+     {
+      "t_delta_ms": 10.6796,
+      "t_csr_apply_ms": 1.76091
+     }
+    ]
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 1967.5,
+     "hypergraph.build@0": 1902.1309999999999,
+     "hypergraph.upload@0": 352.304,
+     "maintain_ms@1": 16.495,
+     "hypergraph.apply.normalize@1": 5.228,
+     "hypergraph.apply.incidence@1": 5.627,
+     "hypergraph.apply.ids@1": 0.007,
+     "hypergraph.apply.translate@1": 3.43,
+     "hypergraph.apply.line_graph@1": 2.13,
+     "hypergraph.apply@1": 16.481,
+     "maintain_ms@2": 8.659,
+     "hypergraph.apply.normalize@2": 2.191,
+     "hypergraph.apply.incidence@2": 2.291,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.067,
+     "hypergraph.apply.line_graph@2": 2.008,
+     "hypergraph.apply@2": 8.656,
+     "maintain_ms@3": 8.597,
+     "hypergraph.apply.normalize@3": 2.218,
+     "hypergraph.apply.incidence@3": 2.528,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.01,
+     "hypergraph.apply.line_graph@3": 1.818,
+     "hypergraph.apply@3": 8.594,
+     "total_ms@3": 2128.036
+    },
+    {
+     "load_ms@0": 2001.128,
+     "hypergraph.build@0": 1929.209,
+     "hypergraph.upload@0": 356.188,
+     "maintain_ms@1": 11.659,
+     "hypergraph.apply.normalize@1": 3.632,
+     "hypergraph.apply.incidence@1": 3.214,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.679,
+     "hypergraph.apply.line_graph@1": 2.081,
+     "hypergraph.apply@1": 11.65,
+     "maintain_ms@2": 8.62,
+     "hypergraph.apply.normalize@2": 2.149,
+     "hypergraph.apply.incidence@2": 2.275,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.067,
+     "hypergraph.apply.line_graph@2": 2.009,
+     "hypergraph.apply@2": 8.618,
+     "maintain_ms@3": 8.723,
+     "hypergraph.apply.normalize@3": 2.243,
+     "hypergraph.apply.incidence@3": 2.578,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.072,
+     "hypergraph.apply.line_graph@3": 1.805,
+     "hypergraph.apply@3": 8.719,
+     "total_ms@3": 2150.726
+    },
+    {
+     "load_ms@0": 1986.807,
+     "hypergraph.build@0": 1912.825,
+     "hypergraph.upload@0": 358.245,
+     "maintain_ms@1": 11.22,
+     "hypergraph.apply.normalize@1": 3.221,
+     "hypergraph.apply.incidence@1": 3.165,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.694,
+     "hypergraph.apply.line_graph@1": 2.09,
+     "hypergraph.apply@1": 11.212,
+     "maintain_ms@2": 8.638,
+     "hypergraph.apply.normalize@2": 2.151,
+     "hypergraph.apply.incidence@2": 2.288,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.058,
+     "hypergraph.apply.line_graph@2": 2.022,
+     "hypergraph.apply@2": 8.636,
+     "maintain_ms@3": 8.697,
+     "hypergraph.apply.normalize@3": 2.248,
+     "hypergraph.apply.incidence@3": 2.52,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.084,
+     "hypergraph.apply.line_graph@3": 1.824,
+     "hypergraph.apply@3": 8.694,
+     "total_ms@3": 2131.784
+    },
+    {
+     "load_ms@0": 1986.16,
+     "hypergraph.build@0": 1926.588,
+     "hypergraph.upload@0": 357.383,
+     "maintain_ms@1": 16.188,
+     "hypergraph.apply.normalize@1": 5.531,
+     "hypergraph.apply.incidence@1": 5.593,
+     "hypergraph.apply.ids@1": 0.007,
+     "hypergraph.apply.translate@1": 2.859,
+     "hypergraph.apply.line_graph@1": 2.126,
+     "hypergraph.apply@1": 16.174,
+     "maintain_ms@2": 8.634,
+     "hypergraph.apply.normalize@2": 2.139,
+     "hypergraph.apply.incidence@2": 2.3000000000000003,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.081,
+     "hypergraph.apply.line_graph@2": 2.013,
+     "hypergraph.apply@2": 8.631,
+     "maintain_ms@3": 8.398,
+     "hypergraph.apply.normalize@3": 2.153,
+     "hypergraph.apply.incidence@3": 2.4119999999999995,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.001,
+     "hypergraph.apply.line_graph@3": 1.812,
+     "hypergraph.apply@3": 8.395,
+     "total_ms@3": 2142.702
+    },
+    {
+     "load_ms@0": 1989.843,
+     "hypergraph.build@0": 1910.357,
+     "hypergraph.upload@0": 354.626,
+     "maintain_ms@1": 11.47,
+     "hypergraph.apply.normalize@1": 3.315,
+     "hypergraph.apply.incidence@1": 3.291,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.715,
+     "hypergraph.apply.line_graph@1": 2.098,
+     "hypergraph.apply@1": 11.462,
+     "maintain_ms@2": 8.621,
+     "hypergraph.apply.normalize@2": 2.175,
+     "hypergraph.apply.incidence@2": 2.262,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.069,
+     "hypergraph.apply.line_graph@2": 2.016,
+     "hypergraph.apply@2": 8.619,
+     "maintain_ms@3": 8.406,
+     "hypergraph.apply.normalize@3": 2.137,
+     "hypergraph.apply.incidence@3": 2.4179999999999997,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.002,
+     "hypergraph.apply.line_graph@3": 1.829,
+     "hypergraph.apply@3": 8.403,
+     "total_ms@3": 2136.623
+    },
+    {
+     "load_ms@0": 2027.318,
+     "hypergraph.build@0": 1922.0459999999998,
+     "hypergraph.upload@0": 364.015,
+     "maintain_ms@1": 11.367,
+     "hypergraph.apply.normalize@1": 3.326,
+     "hypergraph.apply.incidence@1": 3.187,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.704,
+     "hypergraph.apply.line_graph@1": 2.104,
+     "hypergraph.apply@1": 11.359,
+     "maintain_ms@2": 8.698,
+     "hypergraph.apply.normalize@2": 2.172,
+     "hypergraph.apply.incidence@2": 2.313,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.075,
+     "hypergraph.apply.line_graph@2": 2.018,
+     "hypergraph.apply@2": 8.679,
+     "maintain_ms@3": 8.499,
+     "hypergraph.apply.normalize@3": 2.157,
+     "hypergraph.apply.incidence@3": 2.484,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.014,
+     "hypergraph.apply.line_graph@3": 1.812,
+     "hypergraph.apply@3": 8.497,
+     "total_ms@3": 2172.175
+    },
+    {
+     "load_ms@0": 1979.677,
+     "hypergraph.build@0": 1901.568,
+     "hypergraph.upload@0": 356.87,
+     "maintain_ms@1": 11.565,
+     "hypergraph.apply.normalize@1": 3.444,
+     "hypergraph.apply.incidence@1": 3.254,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.729,
+     "hypergraph.apply.line_graph@1": 2.088,
+     "hypergraph.apply@1": 11.557,
+     "maintain_ms@2": 8.59,
+     "hypergraph.apply.normalize@2": 2.156,
+     "hypergraph.apply.incidence@2": 2.254,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.061,
+     "hypergraph.apply.line_graph@2": 2.017,
+     "hypergraph.apply@2": 8.587,
+     "maintain_ms@3": 8.295,
+     "hypergraph.apply.normalize@3": 2.107,
+     "hypergraph.apply.incidence@3": 2.3689999999999998,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 1.986,
+     "hypergraph.apply.line_graph@3": 1.812,
+     "hypergraph.apply@3": 8.292,
+     "total_ms@3": 2125.099
+    },
+    {
+     "load_ms@0": 1961.823,
+     "hypergraph.build@0": 1898.116,
+     "hypergraph.upload@0": 351.308,
+     "maintain_ms@1": 11.474,
+     "hypergraph.apply.normalize@1": 3.425,
+     "hypergraph.apply.incidence@1": 3.279,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.644,
+     "hypergraph.apply.line_graph@1": 2.073,
+     "hypergraph.apply@1": 11.464,
+     "maintain_ms@2": 8.812,
+     "hypergraph.apply.normalize@2": 2.165,
+     "hypergraph.apply.incidence@2": 2.438,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.076,
+     "hypergraph.apply.line_graph@2": 2.017,
+     "hypergraph.apply@2": 8.808,
+     "maintain_ms@3": 8.53,
+     "hypergraph.apply.normalize@3": 2.138,
+     "hypergraph.apply.incidence@3": 2.513,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.032,
+     "hypergraph.apply.line_graph@3": 1.825,
+     "hypergraph.apply@3": 8.527,
+     "total_ms@3": 2109.815
+    },
+    {
+     "load_ms@0": 1981.297,
+     "hypergraph.build@0": 1919.784,
+     "hypergraph.upload@0": 353.466,
+     "maintain_ms@1": 11.948,
+     "hypergraph.apply.normalize@1": 3.792,
+     "hypergraph.apply.incidence@1": 3.267,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.726,
+     "hypergraph.apply.line_graph@1": 2.108,
+     "hypergraph.apply@1": 11.938,
+     "maintain_ms@2": 8.572,
+     "hypergraph.apply.normalize@2": 2.15,
+     "hypergraph.apply.incidence@2": 2.238,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.071,
+     "hypergraph.apply.line_graph@2": 2.013,
+     "hypergraph.apply@2": 8.569,
+     "maintain_ms@3": 8.409,
+     "hypergraph.apply.normalize@3": 2.15,
+     "hypergraph.apply.incidence@3": 2.413,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 2.008,
+     "hypergraph.apply.line_graph@3": 1.815,
+     "hypergraph.apply@3": 8.406,
+     "total_ms@3": 2129.396
+    },
+    {
+     "load_ms@0": 2024.376,
+     "hypergraph.build@0": 1951.864,
+     "hypergraph.upload@0": 365.965,
+     "maintain_ms@1": 13.38,
+     "hypergraph.apply.normalize@1": 4.026,
+     "hypergraph.apply.incidence@1": 4.101,
+     "hypergraph.apply.ids@1": 0.005,
+     "hypergraph.apply.translate@1": 3.053,
+     "hypergraph.apply.line_graph@1": 2.14,
+     "hypergraph.apply@1": 13.37,
+     "maintain_ms@2": 8.663,
+     "hypergraph.apply.normalize@2": 2.184,
+     "hypergraph.apply.incidence@2": 2.264,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.084,
+     "hypergraph.apply.line_graph@2": 2.028,
+     "hypergraph.apply@2": 8.661,
+     "maintain_ms@3": 8.414,
+     "hypergraph.apply.normalize@3": 2.154,
+     "hypergraph.apply.incidence@3": 2.4279999999999995,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 1.992,
+     "hypergraph.apply.line_graph@3": 1.818,
+     "hypergraph.apply@3": 8.411,
+     "total_ms@3": 2174.297
+    },
+    {
+     "load_ms@0": 2023.817,
+     "hypergraph.build@0": 1994.77,
+     "hypergraph.upload@0": 360.445,
+     "maintain_ms@1": 11.251,
+     "hypergraph.apply.normalize@1": 3.37,
+     "hypergraph.apply.incidence@1": 3.1109999999999998,
+     "hypergraph.apply.ids@1": 0.004,
+     "hypergraph.apply.translate@1": 2.65,
+     "hypergraph.apply.line_graph@1": 2.07,
+     "hypergraph.apply@1": 11.241,
+     "maintain_ms@2": 8.714,
+     "hypergraph.apply.normalize@2": 2.15,
+     "hypergraph.apply.incidence@2": 2.3979999999999997,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 2.046,
+     "hypergraph.apply.line_graph@2": 2.017,
+     "hypergraph.apply@2": 8.712,
+     "maintain_ms@3": 8.565,
+     "hypergraph.apply.normalize@3": 2.205,
+     "hypergraph.apply.incidence@3": 2.546,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 1.979,
+     "hypergraph.apply.line_graph@3": 1.814,
+     "hypergraph.apply@3": 8.562,
+     "total_ms@3": 2170.484
+    }
+   ]
+  }
+ },
+ "window": {
+  "log": "$DYNG_SCRATCH/perf-lock.log (tools/locklog.py run --reset-gpu 0 EXCL)",
+  "start": "START EXCL M11a cuda-slack-csr-translate-early-read early-maintain-reading-geology 2026-10-29T22:59:21Z 60",
+  "end": "END EXCL M11a cuda-slack-csr-translate-early-read 2026-10-29T23:02:19Z rc=0 reset=ok"
+ }
+}

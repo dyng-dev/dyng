@@ -105,6 +105,12 @@ struct has_recompute<problem_t, std::void_t<decltype(std::declval<problem_t&>().
                                     std::declval<typename problem_t::stats_type&>()))>>
     : std::true_type {};
 
+/// Whether a problem has its own work budget (over_budget).
+template <typename problem_t>
+struct has_over_budget
+    : std::bool_constant<is_provided_v<decltype(std::declval<problem_t&>().over_budget(
+          std::declval<context&>()))>> {};
+
 /// Whether a problem decides where its fused engine runs (fused_available or select_engine).
 template <typename problem_t>
 struct decides_engine
@@ -201,6 +207,11 @@ constexpr bool check_update_hooks() {
                 "`return ctx.on_cuda();`) or `engine select_engine(context&)`; a fused engine "
                 "is written for one backend (PLAN 4.5.4), so engine::automatic cannot pick it "
                 "everywhere");
+  static_assert(!hook_detail::has_over_budget<problem_t>::value ||
+                    hook_detail::has_recompute<problem_t>::value,
+                "dyng framework: a problem with its own work budget (`bool over_budget(context&)`) "
+                "must provide `recompute(context&, new_view<container_type>, stats_type&)`: an "
+                "update over its budget ends Step 2 through the recompute hook");
   if constexpr (problem_t::problem_family == family::fixed_point) {
     static_assert(hook_detail::has_loop<problem_t>::value || fused,
                   "dyng framework: a fixed_point problem must provide `loop(context&, "

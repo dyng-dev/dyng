@@ -165,7 +165,7 @@ def _planned() -> list[dict[str, str]]:
 def _planned_scaffold() -> tuple[str, list[str]]:
     """The first planned algorithm and the new_algorithm.py arguments of its scaffold; skips the
     test once no algorithm is planned. (mosp left the list in M7, triad_count in M9a,
-    label_propagation in M10a.)"""
+    label_propagation in M10a, hyper_sssp in M11a.)"""
     entries = _planned()
     if not entries:
         pytest.skip("no algorithm is planned")

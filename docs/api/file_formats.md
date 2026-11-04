@@ -16,7 +16,17 @@ From 0.3.0, `.hg`, `.dgb` (`DYNGBAT1`, format version 1) and the triad bins (`"d
 version 1) are **stable-tier formats** (the author's decision of 2026-10-22, GOVERNANCE.md;
 `.dgt` since 0.1.0): a later release reads every file of version 1 as this page describes it, and
 a change of a format's rules is a new format version with a CHANGELOG entry, never a silent
-change of version 1.
+change of version 1. **The rule for additions** (the author's decisions HD10 and AD13 of
+2026-10-28): an additive flag, weight code or operation that version 1 reserved, and that every
+earlier reader refuses loudly (with an `io_error`), is not a silent change of version 1, so it
+keeps the version; anything an earlier reader would read differently without refusing it is a
+new version. Under that rule 0.4 adds to version 1 only what 0.3 reserved or refused: for
+hypergraph files (M11) the `.dgt` incidence operations `+i` / `-i` and the `.dgb` flag
+`incidence_edits` (bit 3); for graph files (label_propagation, also 0.4) the `.dgb` flag bit 4
+`vertex_records` and the weight code 3 (float32), which this page reserves for it.
+Every file 0.3 reads reads the same, the writers write every batch without the new parts byte
+for byte as 0.3 did, and a reader of 0.3 refuses a file with the new parts with an `io_error` (an
+operation reserved for 0.4; an unknown flag or weight code).
 
 ## MOSP text CSR (`read_csr_triplet` / `write_csr_triplet`)
 
@@ -64,17 +74,27 @@ batches in one ASCII text file, one operation per line. Format version 1.
   applies first is the hypergraph's `id_reuse` property, not the file's. Ids of inserted
   hyperedges are the hypergraph's choice (`hyper_apply_summary::inserted_ids`): a `-h` in a later
   batch names an id of the state that batch applies to.
-- Reserved and rejected with an `io_error` / `FileFormatError` naming 0.4: the vertex operations
-  `+v u [label]`, `-v u` (label_propagation) and the incidence edits `+i h v`, `-i h v`
-  (hyper_sssp).
+- **Incidence edits** (`read_hyperedge_batches`, 0.4): `-i h v` removes vertex v from the live
+  hyperedge with id h, `+i h v` adds it (h `>= 0`; v a vertex id `>= 0` and, when the reader is
+  given a vertex count, below it). They are kept in file order (removals and additions each),
+  applied by `hypergraph::apply()` on `hypergraph_storage::slack_csr` storage (escher storage
+  refuses a batch with one) after the batch's deletions, removals first, then additions, then the
+  insertions, whatever their order in the file; an edit that cannot apply (a dead id, an
+  out-of-range vertex, a removal of a non-member or of a hyperedge's last member, an addition of a
+  member) is kept in the file and skipped, and counted, by `apply()`. In a graph file they are
+  hypergraph operations (an `io_error` naming `read_hyperedge_batches()`). A reader of 0.3 rejects
+  them (they were reserved for 0.4).
+- Reserved and rejected with an `io_error` / `FileFormatError` naming a later release: the vertex
+  operations `+v u [label]`, `-v u` (label_propagation).
 - Every token is a whole decimal integer; errors report the path, line and column.
 
 The graph writer writes `%dgt 1`, then per batch `%batch <i>`, its deletions and its insertions in
 batch order, and requires one K for every batch with insertions. The hypergraph writer writes
-`%dgt 1 hypergraph`, then per batch `%batch <i>`, its deletions (`-h id`) and its insertions
-(`+h v1 .. vk`, with ` ; w` when weighted). Both refuse a batch that would not read back (a
-negative id, an empty hyperedge, a weight below 1) with an `invalid_argument_error`, and incidence
-edits with `not_supported_error`. C++: `dyng::io::read_batches<V, W>()`, `write_batches<V, W>()`,
+`%dgt 1 hypergraph`, then per batch `%batch <i>`, its deletions (`-h id`), its incidence removals
+(`-i h v`), its incidence additions (`+i h v`) and its insertions (`+h v1 .. vk`, with ` ; w` when
+weighted), each in batch order. Both refuse a batch that would not read back (a negative id or
+vertex, an empty hyperedge, a weight below 1, incidence arrays of unequal lengths) with an
+`invalid_argument_error`. C++: `dyng::io::read_batches<V, W>()`, `write_batches<V, W>()`,
 `read_hyperedge_batches<V, W>()` and `write_hyperedge_batches<V, W>()` in
 `<dyng/io/batch_io.hpp>` (`W` may be `dyng::unweighted`); Python: `dyng.io.read_batches()` (int64
 ids, converted with range checks to the graph's types when a batch is applied) and
@@ -94,6 +114,8 @@ update --batch FILE.dgt`.
 %dgt 1 hypergraph
 %batch 0
 -h 4
+-i 2 7
++i 2 1
 +h 0 2 7 ; 3
 %batch 1
 +h 1 5 ; 9
@@ -115,7 +137,7 @@ little-endian.
 | 12 | 4 | header size in bytes (u32): 64 |
 | 16 | 1 | container kind: 0 graph, 1 hypergraph |
 | 17 | 1 | vertex id type: 1 int32, 2 int64 |
-| 18 | 1 | weight type: 0 none, 1 int32, 2 int64 |
+| 18 | 1 | weight type: 0 none, 1 int32, 2 int64 (3 is reserved for float32 weights of graph files, for label_propagation in 0.4; until it is declared a reader rejects it) |
 | 19 | 1 | hyperedge id type: 0 for graph files, 2 (int64) for hypergraph files |
 | 20 | 4 | K (u32): weights per insertion; 0 or 1 for hypergraph files (one weight per hyperedge); at most 64 |
 | 24 | 8 | flags (u64), below |
@@ -127,7 +149,15 @@ little-endian.
 also carries the member set of the hyperedge it deleted when the batch was generated: replay by
 content), bit 1 `expected_ids` (every insertion carries the id the generating run gave it: replay
 by key, checked against `inserted_ids`), bit 2 `insert_first` (those ids hold under
-`id_reuse::insert_first`; without it, `erase_first`). A reader rejects a file with any other bit.
+`id_reuse::insert_first`; without it, `erase_first`), bit 3 `incidence_edits` (0.4: every record
+also carries the batch's incidence removals and additions, below). Bit 4 is reserved for
+`vertex_records` of graph files (the vertex operations of label_propagation in 0.4; until it is
+declared a reader rejects it).
+A reader rejects a file with any other bit, and a graph file with any bit; a reader of 0.3
+rejects a file with `incidence_edits` (an unknown flag). The writers set the flags when the file
+is opened: the whole-file writers set `incidence_edits` only when a batch has an edit, so a file
+of batches without edits is byte-for-byte the file 0.3 wrote; `batch_writer` refuses a batch
+with incidence edits for a file opened without the flag (`invalid_argument_error`).
 
 **Records**, one per batch, back to back after the header: the payload length (u64, a multiple
 of 8), the CRC32 of the payload (u32), 4 zero bytes, then the payload. The payload starts with
@@ -137,7 +167,7 @@ start (zero padding after an array of 4-byte values):
 | Kind | Counts | Arrays, in this order |
 |---|---|---|
 | graph | batch id, deletions d, insertions i | deletion sources [d], deletion destinations [d], insertion sources [i], insertion destinations [i] (vertex type), weights [i x K] (weight type, insertion-major; absent for K = 0) |
-| hypergraph | batch id, deletions d, insertions i, members m, deleted members q (0 without `deleted_members`; a reader rejects a non-zero q without the flag) | deleted ids [d] (int64), insertion offsets [i + 1] (int64, from 0, strictly increasing, ending at m), members [m] (vertex type), weights [i] (weight type; absent for unweighted); with `deleted_members`: deleted-member offsets [d + 1] (int64, from 0, strictly increasing, ending at q: every deleted member set is non-empty) and deleted members [q] (vertex type); with `expected_ids`: expected ids [i] (int64) |
+| hypergraph | batch id, deletions d, insertions i, members m, deleted members q (0 without `deleted_members`; a reader rejects a non-zero q without the flag); with `incidence_edits` also removals r and additions a (a 56-byte count block instead of 40) | deleted ids [d] (int64), insertion offsets [i + 1] (int64, from 0, strictly increasing, ending at m), members [m] (vertex type), weights [i] (weight type; absent for unweighted); with `deleted_members`: deleted-member offsets [d + 1] (int64, from 0, strictly increasing, ending at q: every deleted member set is non-empty) and deleted members [q] (vertex type); with `expected_ids`: expected ids [i] (int64); with `incidence_edits`: removal hyperedges [r] (int64, `>= 0`), removal vertices [r] (vertex type), addition hyperedges [a] (int64, `>= 0`), addition vertices [a] (vertex type), each in batch order |
 
 The payload length equals what its counts imply. The batch ids are non-negative and strictly
 increasing (the writers number 0, 1, ...); the number of records equals the header's count, and
@@ -163,7 +193,8 @@ C++ (`<dyng/io/batch_io.hpp>`): `batch_writer` (header, `write()` per batch with
 its flags need, `close()` writes the count), `batch_reader` (`header()`, `next()`,
 `edge_batch<V, W>()`, `hyperedge_batch<V, W>()`, `annotations<V>()`), and
 `write_binary_batches` / `read_binary_batches` / `write_binary_hyperedge_batches` /
-`read_binary_hyperedge_batches` for whole files. `.dgt` and `.dgb` hold the same batches:
+`read_binary_hyperedge_batches` for whole files (`hyperedge_batch()` includes the incidence
+edits of a file with `incidence_edits`). `.dgt` and `.dgb` hold the same batches:
 converting either way and back gives the same batches, with one limit: a `.dgb` file holds at
 most K = 64 weights per insertion, while `.dgt` has no limit on K, so a graph batch with more
 weights per insertion has no `.dgb` form (`write_binary_batches` raises
@@ -172,7 +203,9 @@ weights per insertion has no `.dgb` form (`write_binary_batches` raises
 `deleted_members` and `expected_ids`. Python (`dyng.io`): `write_binary_batches(path, batches,
 *, deleted_members, expected_ids, insert_first)` (graph or hypergraph batches, the flags from the
 arguments), `read_binary_batches(path)` and the streaming `BatchReader(path)` (records with
-`batch_id`, `batch`, `deleted_members` and `expected_ids`; host batches).
+`batch_id`, `batch`, `deleted_members` and `expected_ids`; host batches). The Python layer reads
+and writes incidence edits from M11b of 0.4: until then its readers refuse a file with
+`incidence_edits` or a `.dgt` batch with `+i` / `-i` (`NotSupportedError`).
 
 ## Hypergraphs (`.hg`: `read_hypergraph` / `write_hypergraph`)
 

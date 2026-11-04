@@ -25,7 +25,11 @@ namespace dyng {
  */
 enum class hypergraph_storage : std::uint8_t {
   escher,     ///< the ESCHER store (ESCHER, IPDPS'26; best-fit reuse, ESCHER+, TKDE'26)
-  slack_csr,  ///< slack rows (H-SOSP's DeviceIncidence); planned for 0.4, not_supported_error now
+  slack_csr,  ///< MOSP_ESCHER's H-SOSP storage (0.4): sorted rows with the ids of the ESCHER
+              ///< store's best-fit reuse, the incidence edits (hyperedge_batch's
+              ///< delete_incidence / insert_incidence: on this storage only in 0.4) and the
+              ///< slack line graph; needs store_v2h. Every backend (the cuda store keeps the
+              ///< slack line graph and the incidence mirror on the device)
 };
 
 /**
@@ -35,15 +39,27 @@ enum class hypergraph_storage : std::uint8_t {
 enum class line_graph_policy : std::uint8_t {
   none,          ///< no line graph: hypergraph::h2h() throws
   automatic,     ///< built when it is first read (hypergraph::h2h(), or an algorithm that
-                 ///< reads it), then maintained as sorted_merge
+                 ///< reads it), then maintained as sorted_merge under escher storage and as
+                 ///< slack_csr under slack_csr storage
   sorted_merge,  ///< built with the hypergraph and maintained by every batch with ESCHER-GPU's
-                 ///< sorted delta merge (needs v2h)
-  slack_csr,     ///< H-SOSP's slack h2h CSR; planned for 0.4, not_supported_error now
+                 ///< sorted delta merge (needs v2h; escher storage only: under slack_csr storage
+                 ///< not_supported_error)
+  slack_csr,     ///< H-SOSP's slack h2h CSR (0.4), built with the hypergraph and maintained by
+                 ///< every batch from its order-free pair delta (slack_csr storage only: under
+                 ///< escher storage not_supported_error)
 };
 
 /**
  * @brief The order in which one batch's deletions and insertions reach the store, which decides
  *        the ids that best-fit reuse gives the inserted hyperedges.
+ *
+ * With incidence edits (slack_csr storage) the edits are checked in the batch's phase order
+ * (hyperedge deletions, then incidence removals, then incidence additions, then hyperedge
+ * insertions; MOSP_ESCHER's) against the hypergraph before the batch whatever the order, and
+ * reach the store's id model (the removals and additions change the rows' slots) as follows:
+ * insert_first is MOSP_ESCHER's beginBatch / finishBatch (the insertions, then the deletions, the
+ * removals, the additions); erase_first is the deletions, the removals, the additions, then the
+ * insertions.
  * @ingroup hypergraph
  */
 enum class id_reuse : std::uint8_t {

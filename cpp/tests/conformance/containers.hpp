@@ -68,6 +68,7 @@
 #include <random>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace dyng::conformance {
@@ -99,6 +100,26 @@ struct has_extra_properties : std::false_type {};
 template <typename traits_t>
 struct has_extra_properties<traits_t, std::void_t<decltype(traits_t::extra_properties())>>
     : std::true_type {};
+
+/// Whether the traits filter the presets (test_traits::accepts(props): an algorithm that reads
+/// one storage only, e.g. triad_count the escher storage of a hypergraph).
+template <typename traits_t, typename properties_t, typename = void>
+struct has_accepts : std::false_type {};
+template <typename traits_t, typename properties_t>
+struct has_accepts<traits_t, properties_t,
+                   std::void_t<decltype(traits_t::accepts(std::declval<const properties_t&>()))>>
+    : std::true_type {};
+
+/// Whether a preset is one the algorithm runs on: test_traits::accepts(props), default every one.
+template <typename traits_t, typename properties_t>
+bool accepts(const properties_t& props) {
+  if constexpr (has_accepts<traits_t, properties_t>::value) {
+    return traits_t::accepts(props);
+  } else {
+    (void)props;
+    return true;
+  }
+}
 
 template <typename traits_t, typename = void>
 struct has_num_weights : std::false_type {};
