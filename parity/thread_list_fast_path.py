@@ -63,7 +63,7 @@ using dyng::detail::thread_list;
 namespace {
 // --plant: a fast path that also reads the carrier (one more load and branch per push).
 template <typename value_t>
-inline void planted_push_back(thread_list<value_t>& list, value_t value,
+inline void planted_push_back(thread_list<value_t>& list, const value_t& value,
                               region_exceptions& errors) noexcept {
   if (!errors.failed() && list.size() != list.capacity()) {
     list.push_back(value);

@@ -130,28 +130,34 @@ struct alignas(cache_line_bytes) padded_thread_list {
  * @param[in,out] errors The region's carrier.
  */
 template <typename value_t>
-[[gnu::noinline, gnu::cold]] void region_grow_push_back(thread_list<value_t>& list, value_t value,
+[[gnu::noinline, gnu::cold]] void region_grow_push_back(thread_list<value_t>& list,
+                                                        const value_t& value,
                                                         region_exceptions& errors) noexcept {
-  errors.run([&list, value] { list.push_back(value); });
+  errors.run([&list, &value] { list.push_back(value); });
 }
 
 /**
  * @brief Append `value` to a thread's list inside an OpenMP parallel region, without letting an
  *        allocation failure leave the region (ADR 0061's rule, D13; ADR 0094).
  *
- * The fast path is the list's own capacity compare, the one push_back makes (the same compare
- * and store; util/thread_list_fast_path.py checks the instructions): a list with room never
+ * The fast path is the list's own capacity compare, the one push_back makes (same compare and
+ * store; parity/thread_list_fast_path.py checks the instructions): a list with room never
  * allocates. A full list takes region_grow_push_back(), whose failure is kept in `errors`; the
  * thread continues to every barrier and `single` of the region, and the caller calls
  * errors.rethrow() after the region (which throws the std::bad_alloc on the calling thread, where
  * the entry point translates it to out_of_memory_error).
+ *
+ * The value is passed by reference, as push_back takes it, down to the cold path: the push loops
+ * of sssp's engine then compile to the instructions they had with push_back (the same register
+ * allocation; by value, GCC 12 kept the element in a register and spilled the vertex the per-edge
+ * loop reads, which read 2-4 % slower; ADR 0094, "The reading").
  * @tparam value_t Element type.
  * @param[in,out] list   The thread's list.
  * @param[in]     value  The element.
  * @param[in,out] errors The region's carrier.
  */
 template <typename value_t>
-inline void region_push_back(thread_list<value_t>& list, value_t value,
+inline void region_push_back(thread_list<value_t>& list, const value_t& value,
                              region_exceptions& errors) noexcept {
   if (list.size() != list.capacity()) {
     list.push_back(value);  // within the capacity: no allocation
