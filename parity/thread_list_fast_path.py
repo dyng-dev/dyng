@@ -104,10 +104,13 @@ SYMBOL = re.compile(r"^([0-9a-f]+) <(.+)>:$")
 MEM = re.compile(r"(-?0x[0-9a-f]+)?\((%[a-z0-9]+)(?:,[^)]*)?\)")
 
 
-def disassemble(obj: Path, section: str = ".text") -> dict[str, list[dict]]:
-    """Every function of `section`: its instructions (address, mnemonic, operands, relocated)."""
+def disassemble(obj: Path, section: str | None = ".text") -> dict[str, list[dict]]:
+    """Every function of `section` (None: of every section, the per-function sections of
+    -ffunction-sections and the cold ones included): its instructions (address, mnemonic,
+    operands, relocated)."""
+    only = ["-j", section] if section else []
     out = subprocess.run(
-        ["objdump", "-dr", "--no-show-raw-insn", "-j", section, str(obj)],
+        ["objdump", "-dr", "--no-show-raw-insn", *only, str(obj)],
         check=True,
         capture_output=True,
         text=True,
@@ -314,20 +317,17 @@ def objects(args: argparse.Namespace) -> int:
     sides = {}
     for label, obj in (("base", args.base), ("head", args.head)):
         functions = {}
-        for section in (".text", ".text.unlikely"):
-            try:
-                for name, body in disassemble(obj, section).items():
-                    entry = functions.setdefault(
-                        name.removesuffix(".cold"),
-                        {"instructions": 0, "calls": 0, "capacity_compares": 0, "cold": 0},
-                    )
-                    entry["instructions"] += len(body)
-                    entry["calls"] += sum(1 for i in body if i["op"].startswith("call"))
-                    entry["capacity_compares"] += capacity_compares(body)
-                    if section != ".text":
-                        entry["cold"] += len(body)
-            except subprocess.CalledProcessError:
-                continue
+        for name, body in disassemble(obj, None).items():
+            cold = name.endswith(".cold")
+            entry = functions.setdefault(
+                name.removesuffix(".cold"),
+                {"instructions": 0, "calls": 0, "capacity_compares": 0, "cold": 0},
+            )
+            entry["instructions"] += len(body)
+            entry["calls"] += sum(1 for i in body if i["op"].startswith("call"))
+            entry["capacity_compares"] += capacity_compares(body)
+            if cold:
+                entry["cold"] += len(body)
         sides[label] = functions
     rows = []
     for name in sorted(set(sides["base"]) | set(sides["head"])):
