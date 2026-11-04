@@ -120,6 +120,19 @@ statement:** 5 rounds take about 18 min (under 2 h) with no rejected round (unde
 reading at 5m1, on `0c815a1`, had missed the bar (1.080); its cause and fix are ADR 0079, and
 no bar, round count or protocol was changed.
 
+**Amendments of the M10a review.** (1) A label_propagation set passes only when the passed cases
+of each required backend cover the set's cases (its coverage table, else its case table, the
+in_place thresholds' cases or the hub's one case): a replay of a subset certifies nothing of the
+rest. (2) certify.py re-checks every label_propagation record of the summary with
+`bench_suite.check_lp_record` (the rounds, one sample per round and the medians those of the
+samples, the guard, the clock lock; the memory sides counted, nvidia-smi before, during and after,
+no foreign process, the side's own process seen during the reading), the
+`recheck_triad_readings` precedent. (3) The oracle's frozen tolerance is read from what the
+replay applied (the bound / delta of every batch, the class limit / m, the class rule exactly at
+delta 1e-6), never from constants. (4) The memory sampler polls every 0.25 s. The readings on the
+fixed library: `parity/results/M10a.md` section 13.4 (12 / 12 gated rows within; 50m damped 1.011
+/ 1.060 over 3 rounds, the release gate stays `gated`).
+
 ## Consequences
 
 - R040 reads `release-damped-50m` with `bench_suite.py run --release-only`; it may switch the

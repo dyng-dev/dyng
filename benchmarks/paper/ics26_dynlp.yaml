@@ -231,7 +231,10 @@ readings:      # one window per case; the lock is the baseline's recorded 3-roun
         (the original about 102 s, the port about 109 s of wall time per round) and 0 of 3 rounds
         were rejected, so 5 rounds take about 18 min, under 2 h, with no rejected round (the
         limits: 2 h, 30 %); the pre-port baseline's probe agrees (98 s per round of the original,
-        0 of 6 rejected; parity/results/M10-baseline-2026-10-29.json). The reading is gated at R040
+        0 of 6 rejected; parity/results/M10-baseline-2026-10-29.json); read again on the library of
+        the M10a review fixes (parity/results/M10a-gates-review.json): 3 rounds in 10 min 54 s
+        (end_to_end medians 102.6 s and 108.8 s), 0 of 3 rejected, the same statement. The reading
+        is gated at R040
 paper_reference:   # informational: LabelPropagation-CUDA results/README.md (3ecb438, "new", RTX A5000)
   hardware: RTX A5000 (sm_86), 56 host threads (shared, load average 40-60), CUDA 13.1, driver 590.48
   schedule: in_place (the default update rule of 3ecb438)

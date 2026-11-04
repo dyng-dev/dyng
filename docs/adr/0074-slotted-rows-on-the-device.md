@@ -103,6 +103,25 @@ fast math (the graph module is not a FAST_MATH target).
   `num_vertices()`, `host_edges()`, `normalize()` and `apply()`): code compiled into the stable
   algorithms' paths. Step 5 re-reads every ADR 0024 region on the final library.
 
+## Amendments of the M10a review
+
+- **The poison is host state.** It lived in the device copy only, so an apply on host resources
+  (whose host apply drops the device copy) or any apply of a `clone()` / `to_backend()` copy
+  accepted a poisoned graph. It is `slotted_rows::poisoned` now: `settle_slotted()` sets it,
+  `graph_access::normalize()` settles a pending device apply and refuses a poisoned graph on
+  every resources, `check_integrity()` reports it, and a copy keeps it.
+- **64-bit slot arithmetic.** The append's slot (`row_end + rank`) and the advanced row end are
+  computed in 64 bits: with 32-bit offsets a row near the end of 2^31 - 1 slots wrapped past the
+  row-end check and was written out of bounds (memcheck). The original's arithmetic is `edge_t`;
+  no valid batch's result changes.
+- **The vertex arrays grow with headroom.** The device arrays of a batch's ids and labels take the
+  first vertex batch's size exactly (as the original sizes its batch buffers once) and a later
+  larger batch 1.5x; Del_eff's array is sized with the deletions it is a subset of; the edge
+  scratch grows the same way when `graph::reserve()` did not size it. The published streams'
+  updates after the published setup allocate in b0 and b1 only (the CUDA test
+  `UpdatesAfterReserveAllocateOnlyInTheFirstBatches`); the headroom costs 5m1's one large batch
+  14.7 MiB of live peak (device memory 1.012 of the original, `parity/results/M10a.md` 13.4).
+
 ## Alternatives considered
 
 - **Step 0's capacity check on the host against host row ends kept current**: the row ends would

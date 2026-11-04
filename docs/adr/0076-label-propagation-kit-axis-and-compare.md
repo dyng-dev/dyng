@@ -117,6 +117,13 @@ executable carries the label `slow` (as triad_count's kit, M9a finding 20): the 
 jobs (`ctest -L cpu -LE slow`) leave it out, `cpu.yml` and `ci/check.sh` run it; the hosted times
 are not measured in M10a (no workflow is dispatched from the branch).
 
+### Amendment of the M10a review
+
+near_reference takes the expected seeds from the kit's own rule (`kit_seed_label`, every present
+vertex), not from the result under test, and requires the result to report exactly them: with
+the result's own seeds, a backend that dropped every seed was compared with the harmonic solution
+of its own wrong seed set and passed the host kit.
+
 ## Consequences
 
 - label_propagation passes C0-C3, C6-C12 on sequential and cuda (C4 skipped: one engine per backend

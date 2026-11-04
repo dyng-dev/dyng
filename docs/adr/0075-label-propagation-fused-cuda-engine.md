@@ -123,6 +123,15 @@ round) and `memory --side port` are the port side of ADR 0064's harness.
   fatbin (7.6 MB of it IrLP's CUB segmented sort), about 3.3 MB compressed: a projected plugin wheel
   of about 12 MB against 0.3.0's 8.7 MB and the 90 MB limit.
 
+## Amendments of the M10a review
+
+- **The SASS gate compares whole instructions.** `label_propagation_sass.py port` failed only on
+  a different sequence of floating-point opcodes, which a reversed reduction order passes; it
+  now needs each ported kernel's SASS equal but for the parameter offsets and its floating-point
+  instructions (I2F / I2FP included) equal with their operands, as section 1 states.
+- **A fallback whose IrLP reaches the cap is not converged.** `batch_result::irlp_capped` carries
+  run_irlp's cap: `stats::converged = !capped || (recomputed && !irlp_capped)`, as on the host.
+
 ## Alternatives considered
 
 - **A caller-provided second stream** for O's overlap: a frozen-core API change, not chosen by the

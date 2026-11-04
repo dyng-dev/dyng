@@ -121,6 +121,20 @@ vertex-arrival generators (`generators::legacy::dynlp_vertex_arrival_stream`, AD
 | `testing::harmonic_options`, `harmonic_result`, `label_error`, `label_error_against`, `class_agreement`, `class_agreement_with`, `lp_model_batch`, `lp_model_report` | ADR 0068 | the oracles' types |
 | `testing::lp_host_model::vertex_state::{inactive, active, deleted}` | ADR 0068 | the host model's own per-vertex state (added to this list by the M10a review; its order is not `vertex_status`'s: the two are compared by name, never by value, C8) |
 
+### 6. Amendments of the M10a review
+
+- `on_limit::fallback_recompute`: if IrLP reaches the cap too, its labels are kept and
+  `stats::converged` is false (`compute()` raises convergence_error there).
+- `compute()`, `result::reserve()` and `result::clone()` report a host allocation failure as
+  `out_of_memory_error` (function-try-blocks with `DYNG_TRANSLATE_ALLOCATION_FAILURE`, as every
+  other algorithm's entries).
+- `update()` and its `dyng::update()` participant make the entry checks that read nothing of the
+  batch (backend, placement, poisoned and stale result, layout, options) before Step 0
+  (`framework::checked_participant`; ADR 0070 section 1).
+- The documentation of `result::reserve()` and `options::similarity_threshold` says what each
+  covers or costs (the graph's own per-batch storage; the per-update download of the rows on
+  cuda when the threshold is unset).
+
 ## Consequences
 
 - M10b reviews and freezes the header (with Python and the command line); the names above are
