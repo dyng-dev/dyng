@@ -2,8 +2,8 @@
  "schema": 1,
  "algorithm": "hyper_sssp",
  "what": "the H-SOSP engine's kernels of both sides at locked clocks (Nsight Compute --clock-control base), the load's launches skipped; recorded, not gated (ADR 0018 rule 1)",
- "date": "2026-11-03T03:06:50Z",
- "date_end": "2026-11-03T03:11:18Z",
+ "date": "2026-11-03T23:47:19Z",
+ "date_end": "2026-11-03T23:51:48Z",
  "protocol": {
   "rounds": 3,
   "order": "A/B alternation (B first in every round)",
@@ -102,7 +102,7 @@
   "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
  },
  "port": {
-  "commit": "3fec063e7afb76db5358df981eb043ff81a70b8d",
+  "commit": "df6e99b2c04968372a35b5479c07bb852d69ff26",
   "binary": "build/parity-cuda/tools/compat/dyng-compat-hsosp",
   "build": {
    "CMAKE_BUILD_TYPE": "Release",
@@ -140,55 +140,55 @@
      "region": "kernels.all",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 278.820512,
-     "port_ms": 282.564608,
-     "ratio": 1.013428337725741,
+     "original_ms": 279.314816,
+     "port_ms": 282.75184,
+     "ratio": 1.0123051975875137,
      "original_runs": [
-      278.820512,
-      278.654368,
-      279.787392
+      278.725888,
+      279.664896,
+      279.314816
      ],
      "port_runs": [
-      282.564608,
-      282.127744,
-      282.954432
+      281.871328,
+      282.75184,
+      282.941088
      ],
      "original_launches": [
-      195,
       191,
-      187
+      197,
+      189
      ],
      "port_launches": [
-      190,
-      186,
-      180
+      188,
+      192,
+      184
      ]
     },
     {
      "region": "kernels.all[b1]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 96.352032,
-     "port_ms": 97.665536,
-     "ratio": 1.0136323435296104,
+     "original_ms": 96.507104,
+     "port_ms": 97.87664,
+     "ratio": 1.0141910382058505,
      "original_runs": [
-      96.435424,
-      96.30736,
-      96.352032
+      95.856512,
+      96.507104,
+      96.991616
      ],
      "port_runs": [
-      97.665536,
-      97.910272,
-      97.479008
+      97.369376,
+      98.030976,
+      97.87664
      ],
      "original_launches": [
+      67,
       71,
-      65,
-      65
+      69
      ],
      "port_launches": [
       67,
-      67,
+      71,
       65
      ]
     },
@@ -196,27 +196,27 @@
      "region": "kernels.all[b2]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 91.5072,
-     "port_ms": 92.407328,
-     "ratio": 1.0098366904462164,
+     "original_ms": 91.139552,
+     "port_ms": 92.156768,
+     "ratio": 1.0111610818539025,
      "original_runs": [
-      91.080448,
-      91.5072,
-      91.865056
+      91.429216,
+      91.139552,
+      90.892032
      ],
      "port_runs": [
-      92.407328,
-      92.17232,
-      92.865472
+      92.156768,
+      91.894976,
+      92.323456
      ],
      "original_launches": [
+      66,
       64,
-      60,
       60
      ],
      "port_launches": [
       62,
-      60,
+      62,
       58
      ]
     },
@@ -224,46 +224,46 @@
      "region": "kernels.all[b3]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 91.30464,
-     "port_ms": 92.491744,
-     "ratio": 1.0130015736330595,
+     "original_ms": 91.44016,
+     "port_ms": 92.740992,
+     "ratio": 1.014226046848562,
      "original_runs": [
-      91.30464,
-      90.839808,
-      91.570304
+      91.44016,
+      92.01824,
+      91.431168
      ],
      "port_runs": [
-      92.491744,
-      92.045152,
-      92.609952
+      92.345184,
+      92.825888,
+      92.740992
      ],
      "original_launches": [
-      60,
-      66,
-      62
+      58,
+      62,
+      60
      ],
      "port_launches": [
-      61,
       59,
-      57
+      59,
+      61
      ]
     },
     {
      "region": "kernels.fill_ll",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.090368,
-     "port_ms": 0.089696,
-     "ratio": 0.9925637393767704,
+     "original_ms": 0.090688,
+     "port_ms": 0.090048,
+     "ratio": 0.9929428369795342,
      "original_runs": [
-      0.091168,
-      0.089824,
-      0.090368
+      0.090688,
+      0.090688,
+      0.089824
      ],
      "port_runs": [
-      0.089696,
-      0.089952,
-      0.089024
+      0.095296,
+      0.090048,
+      0.089344
      ],
      "original_launches": [
       3,
@@ -280,18 +280,18 @@
      "region": "kernels.fill_int",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.053024,
-     "port_ms": 0.054112,
-     "ratio": 1.0205190102595052,
+     "original_ms": 0.058496,
+     "port_ms": 0.054912,
+     "ratio": 0.9387308533916849,
      "original_runs": [
-      0.053504,
-      0.053024,
-      0.052224
+      0.061568,
+      0.058496,
+      0.057664
      ],
      "port_runs": [
-      0.050368,
-      0.064128,
-      0.054112
+      0.047776,
+      0.066304,
+      0.054912
      ],
      "original_launches": [
       3,
@@ -308,74 +308,74 @@
      "region": "kernels.pull_distances_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 209.23584,
-     "port_ms": 212.613312,
-     "ratio": 1.0161419382071446,
+     "original_ms": 209.684096,
+     "port_ms": 212.716768,
+     "ratio": 1.014463052076205,
      "original_runs": [
-      209.23584,
-      209.11504,
-      210.198144
+      209.049312,
+      209.89696,
+      209.684096
      ],
      "port_runs": [
-      212.613312,
-      212.2712,
-      212.96256
+      211.918816,
+      212.716768,
+      212.827424
      ],
      "original_launches": [
-      51,
       49,
-      47
+      52,
+      48
      ],
      "port_launches": [
-      51,
-      49,
-      46
+      50,
+      52,
+      48
      ]
     },
     {
      "region": "kernels.collect_candidates_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 49.415552,
-     "port_ms": 49.66416,
-     "ratio": 1.005030966769328,
+     "original_ms": 49.555296,
+     "port_ms": 49.726592,
+     "ratio": 1.0034566638447684,
      "original_runs": [
-      49.4144,
-      49.415552,
-      49.483936
+      49.555296,
+      49.61824,
+      49.501184
      ],
      "port_runs": [
-      49.66416,
-      49.574464,
-      49.713728
+      49.698528,
+      49.726592,
+      49.837824
      ],
      "original_launches": [
-      51,
       49,
-      47
+      52,
+      48
      ],
      "port_launches": [
-      51,
-      49,
-      46
+      50,
+      52,
+      48
      ]
     },
     {
      "region": "kernels.pack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.221248,
-     "port_ms": 0.221344,
-     "ratio": 1.0004339022273647,
+     "original_ms": 0.221344,
+     "port_ms": 0.221504,
+     "ratio": 1.000722856729796,
      "original_runs": [
-      0.221984,
-      0.22016,
-      0.221248
+      0.22144,
+      0.221344,
+      0.220672
      ],
      "port_runs": [
-      0.221344,
-      0.221888,
-      0.22128
+      0.221504,
+      0.222272,
+      0.22064
      ],
      "original_launches": [
       3,
@@ -392,18 +392,18 @@
      "region": "kernels.unpack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.216128,
-     "port_ms": 0.216608,
-     "ratio": 1.002220906129701,
+     "original_ms": 0.216512,
+     "port_ms": 0.216256,
+     "ratio": 0.998817617499261,
      "original_runs": [
-      0.216096,
-      0.216128,
-      0.217056
+      0.216832,
+      0.215456,
+      0.216512
      ],
      "port_runs": [
-      0.216512,
-      0.216608,
-      0.219488
+      0.216256,
+      0.216192,
+      0.216608
      ],
      "original_launches": [
       3,
@@ -420,18 +420,18 @@
      "region": "kernels.mark_deleted_tree_edges",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.363616,
-     "port_ms": 0.359008,
-     "ratio": 0.9873272903282584,
+     "original_ms": 0.362784,
+     "port_ms": 0.3584,
+     "ratio": 0.9879156743406545,
      "original_runs": [
-      0.363616,
-      0.363712,
-      0.362688
+      0.362784,
+      0.363936,
+      0.3624
      ],
      "port_runs": [
-      0.359232,
-      0.359008,
-      0.359008
+      0.358336,
+      0.3584,
+      0.358944
      ],
      "original_launches": [
       3,
@@ -448,18 +448,18 @@
      "region": "kernels.mark_ids",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.016224,
-     "port_ms": 0.016128,
-     "ratio": 0.9940828402366865,
+     "original_ms": 0.016256,
+     "port_ms": 0.01616,
+     "ratio": 0.9940944881889765,
      "original_runs": [
-      0.01616,
-      0.016288,
-      0.016224
+      0.016224,
+      0.016256,
+      0.016256
      ],
      "port_runs": [
       0.016128,
-      0.016128,
-      0.016128
+      0.01616,
+      0.01616
      ],
      "original_launches": [
       3,
@@ -476,18 +476,18 @@
      "region": "kernels.init_jump",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.135168,
-     "port_ms": 0.133952,
-     "ratio": 0.9910037878787877,
+     "original_ms": 0.133984,
+     "port_ms": 0.133536,
+     "ratio": 0.9966563171721996,
      "original_runs": [
-      0.1328,
-      0.135168,
-      0.136224
+      0.133984,
+      0.136128,
+      0.133856
      ],
      "port_runs": [
-      0.133952,
-      0.13344,
-      0.134336
+      0.133184,
+      0.13424,
+      0.133536
      ],
      "original_launches": [
       3,
@@ -504,18 +504,18 @@
      "region": "kernels.jump",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 1.88576,
-     "port_ms": 1.889024,
-     "ratio": 1.0017308671304939,
+     "original_ms": 1.882528,
+     "port_ms": 1.889664,
+     "ratio": 1.0037906474697853,
      "original_runs": [
-      1.886048,
-      1.884736,
-      1.88576
+      1.881056,
+      1.887904,
+      1.882528
      ],
      "port_runs": [
-      1.889024,
-      1.889184,
-      1.88816
+      1.891328,
+      1.889664,
+      1.889664
      ],
      "original_launches": [
       15,
@@ -532,18 +532,18 @@
      "region": "kernels.invalidate",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.224576,
-     "port_ms": 0.224096,
-     "ratio": 0.9978626389284696,
+     "original_ms": 0.224832,
+     "port_ms": 0.2248,
+     "ratio": 0.9998576715058355,
      "original_runs": [
-      0.224544,
-      0.225504,
-      0.224576
+      0.224448,
+      0.224832,
+      0.22496
      ],
      "port_runs": [
-      0.224096,
-      0.224064,
-      0.224608
+      0.2248,
+      0.225088,
+      0.224352
      ],
      "original_launches": [
       3,
@@ -560,18 +560,18 @@
      "region": "kernels.pull_invalidated",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 3.651904,
-     "port_ms": 3.847776,
-     "ratio": 1.0536355829726083,
+     "original_ms": 3.652,
+     "port_ms": 3.85072,
+     "ratio": 1.0544140197152245,
      "original_runs": [
-      3.665088,
-      3.651904,
-      3.642528
+      3.64656,
+      3.652,
+      3.652224
      ],
      "port_runs": [
-      3.847776,
-      3.846304,
-      3.853472
+      3.848896,
+      3.856736,
+      3.85072
      ],
      "original_launches": [
       3,
@@ -588,18 +588,18 @@
      "region": "kernels.relax_inserted",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.74272,
-     "port_ms": 0.752928,
-     "ratio": 1.0137440758293839,
+     "original_ms": 0.739296,
+     "port_ms": 0.75312,
+     "ratio": 1.0186988702765876,
      "original_runs": [
-      0.749024,
-      0.739456,
-      0.74272
+      0.745024,
+      0.739296,
+      0.73904
      ],
      "port_runs": [
-      0.753568,
-      0.751488,
-      0.752928
+      0.74976,
+      0.75312,
+      0.756512
      ],
      "original_launches": [
       3,
@@ -616,18 +616,18 @@
      "region": "kernels.push",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 12.335424,
-     "port_ms": 12.469888,
-     "ratio": 1.010900638680924,
+     "original_ms": 12.341504,
+     "port_ms": 12.464448,
+     "ratio": 1.0099618328527868,
      "original_runs": [
-      12.357984,
-      12.335424,
-      12.321312
+      12.32912,
+      12.350816,
+      12.341504
      ],
      "port_runs": [
-      12.48544,
-      12.469888,
-      12.4656
+      12.45072,
+      12.480256,
+      12.464448
      ],
      "original_launches": [
       43,
@@ -644,13 +644,13 @@
      "region": "kernels.zero_degree",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.01088,
+     "original_ms": 0.010848,
      "port_ms": 0.0,
      "ratio": 0.0,
      "original_runs": [
-      0.01088,
-      0.01104,
-      0.010816
+      0.010848,
+      0.010848,
+      0.010656
      ],
      "port_runs": [
       0.0,
@@ -672,13 +672,13 @@
      "region": "kernels.count_mismatches",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.181408,
+     "original_ms": 0.18144,
      "port_ms": 0.0,
      "ratio": 0.0,
      "original_runs": [
-      0.181376,
-      0.181408,
-      0.181568
+      0.180704,
+      0.181696,
+      0.18144
      ],
      "port_runs": [
       0.0,
@@ -741,7 +741,7 @@
      },
      "push": {
       "launch__registers_per_thread": 30.0,
-      "launch__grid_size": 29121.0,
+      "launch__grid_size": 29122.0,
       "launch__block_size": 256.0
      },
      "unpack_state": {
@@ -823,7 +823,7 @@
      },
      "push": {
       "launch__registers_per_thread": 30.0,
-      "launch__grid_size": 29117.0,
+      "launch__grid_size": 29119.0,
       "launch__block_size": 256.0
      },
      "unpack_state": {
@@ -868,111 +868,111 @@
      "region": "kernels.all",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 267.246816,
-     "port_ms": 267.4656,
-     "ratio": 1.0008186589583166,
+     "original_ms": 267.467264,
+     "port_ms": 268.4608,
+     "ratio": 1.0037146078557113,
      "original_runs": [
-      266.33488,
-      267.246816,
-      267.60736
+      267.467264,
+      267.555008,
+      266.590304
      ],
      "port_runs": [
-      268.211328,
-      267.21184,
-      267.4656
+      268.114528,
+      268.4608,
+      269.729472
      ],
      "original_launches": [
-      184,
-      190,
-      188
+      180,
+      186,
+      182
      ],
      "port_launches": [
-      183,
-      183,
-      185
+      177,
+      181,
+      183
      ]
     },
     {
      "region": "kernels.all[b1]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 88.903136,
-     "port_ms": 88.648352,
-     "ratio": 0.9971341393401466,
+     "original_ms": 88.292352,
+     "port_ms": 88.503296,
+     "ratio": 1.0023891537060878,
      "original_runs": [
-      88.62432,
-      89.010528,
-      88.903136
+      88.644,
+      88.292352,
+      88.128672
      ],
      "port_runs": [
-      88.867552,
-      88.460352,
-      88.648352
+      88.487584,
+      88.503296,
+      90.62192
      ],
      "original_launches": [
-      64,
-      68,
-      66
+      60,
+      62,
+      58
      ],
      "port_launches": [
+      59,
       63,
-      63,
-      61
+      63
      ]
     },
     {
      "region": "kernels.all[b2]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 89.69056,
-     "port_ms": 90.642528,
-     "ratio": 1.010613915221401,
+     "original_ms": 90.279392,
+     "port_ms": 90.445728,
+     "ratio": 1.001842458132638,
      "original_runs": [
-      89.624448,
-      89.69056,
-      89.960928
+      90.279392,
+      90.666048,
+      89.82528
      ],
      "port_runs": [
-      90.669632,
-      89.933952,
-      90.642528
+      90.445728,
+      90.735488,
+      90.207328
      ],
      "original_launches": [
-      60,
       62,
+      64,
       62
      ],
      "port_launches": [
       61,
-      59,
-      63
+      61,
+      59
      ]
     },
     {
      "region": "kernels.all[b3]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 88.545728,
-     "port_ms": 88.674144,
-     "ratio": 1.0014502788886666,
+     "original_ms": 88.596608,
+     "port_ms": 89.181216,
+     "ratio": 1.006598537045572,
      "original_runs": [
-      88.086112,
-      88.545728,
-      88.743296
+      88.543872,
+      88.596608,
+      88.636352
      ],
      "port_runs": [
-      88.674144,
-      88.817536,
-      88.17472
+      89.181216,
+      89.222016,
+      88.900224
      ],
      "original_launches": [
+      58,
       60,
-      60,
-      60
+      62
      ],
      "port_launches": [
-      59,
-      61,
+      57,
+      57,
       61
      ]
     },
@@ -980,18 +980,18 @@
      "region": "kernels.fill_ll",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.088992,
-     "port_ms": 0.088832,
-     "ratio": 0.9982020855807263,
+     "original_ms": 0.088672,
+     "port_ms": 0.088544,
+     "ratio": 0.9985564778058462,
      "original_runs": [
-      0.088768,
-      0.088992,
-      0.089376
+      0.088608,
+      0.089248,
+      0.088672
      ],
      "port_runs": [
-      0.088896,
+      0.088064,
       0.088544,
-      0.088832
+      0.088992
      ],
      "original_launches": [
       3,
@@ -1008,18 +1008,18 @@
      "region": "kernels.fill_int",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.061024,
-     "port_ms": 0.051072,
-     "ratio": 0.8369166229680125,
+     "original_ms": 0.055776,
+     "port_ms": 0.051168,
+     "ratio": 0.9173838209982789,
      "original_runs": [
-      0.061024,
-      0.047872,
-      0.064544
+      0.06256,
+      0.054144,
+      0.055776
      ],
      "port_runs": [
-      0.052192,
-      0.051072,
-      0.047776
+      0.051264,
+      0.047552,
+      0.051168
      ],
      "original_launches": [
       3,
@@ -1036,74 +1036,74 @@
      "region": "kernels.pull_distances_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 206.343584,
-     "port_ms": 206.559648,
-     "ratio": 1.0010471079149232,
+     "original_ms": 206.479424,
+     "port_ms": 207.445632,
+     "ratio": 1.004679439632687,
      "original_runs": [
-      205.459104,
-      206.343584,
-      206.650976
+      206.479424,
+      206.555744,
+      205.632928
      ],
      "port_runs": [
-      207.210176,
-      206.36304,
-      206.559648
+      207.15232,
+      207.445632,
+      208.618176
      ],
      "original_launches": [
-      49,
-      52,
-      51
+      47,
+      50,
+      48
      ],
      "port_launches": [
-      50,
-      50,
-      51
+      47,
+      49,
+      50
      ]
     },
     {
      "region": "kernels.collect_candidates_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 48.668224,
-     "port_ms": 48.688192,
-     "ratio": 1.0004102882406394,
+     "original_ms": 48.734784,
+     "port_ms": 48.75712,
+     "ratio": 1.0004583174104147,
      "original_runs": [
-      48.622496,
-      48.668224,
-      48.679552
+      48.734784,
+      48.763968,
+      48.710752
      ],
      "port_runs": [
-      48.737984,
-      48.60768,
-      48.688192
+      48.719968,
+      48.75712,
+      48.8768
      ],
      "original_launches": [
-      49,
-      52,
-      51
+      47,
+      50,
+      48
      ],
      "port_launches": [
-      50,
-      50,
-      51
+      47,
+      49,
+      50
      ]
     },
     {
      "region": "kernels.pack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.219424,
-     "port_ms": 0.218496,
-     "ratio": 0.9957707452238588,
+     "original_ms": 0.219904,
+     "port_ms": 0.2184,
+     "ratio": 0.9931606519208382,
      "original_runs": [
-      0.219328,
-      0.219424,
-      0.219648
+      0.219072,
+      0.220544,
+      0.219904
      ],
      "port_runs": [
-      0.218496,
-      0.21904,
-      0.217984
+      0.2184,
+      0.219488,
+      0.217568
      ],
      "original_launches": [
       3,
@@ -1120,18 +1120,18 @@
      "region": "kernels.unpack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.21424,
-     "port_ms": 0.2152,
-     "ratio": 1.0044809559372665,
+     "original_ms": 0.214048,
+     "port_ms": 0.214144,
+     "ratio": 1.0004484975332637,
      "original_runs": [
-      0.214176,
-      0.21424,
-      0.21472
+      0.214048,
+      0.21344,
+      0.214304
      ],
      "port_runs": [
-      0.2152,
-      0.213984,
-      0.216704
+      0.213312,
+      0.219168,
+      0.214144
      ],
      "original_launches": [
       3,
@@ -1148,18 +1148,18 @@
      "region": "kernels.mark_deleted_tree_edges",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.145536,
-     "port_ms": 0.145952,
-     "ratio": 1.002858399296394,
+     "original_ms": 0.145408,
+     "port_ms": 0.145408,
+     "ratio": 1.0,
      "original_runs": [
-      0.145184,
-      0.145984,
-      0.145536
+      0.145408,
+      0.146144,
+      0.145248
      ],
      "port_runs": [
-      0.14624,
-      0.145952,
-      0.145952
+      0.144832,
+      0.145408,
+      0.145696
      ],
      "original_launches": [
       3,
@@ -1176,18 +1176,18 @@
      "region": "kernels.init_jump",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.12464,
-     "port_ms": 0.124608,
-     "ratio": 0.9997432605905006,
+     "original_ms": 0.125088,
+     "port_ms": 0.12512,
+     "ratio": 1.0002558199027884,
      "original_runs": [
-      0.12464,
-      0.125568,
-      0.124512
+      0.124576,
+      0.125088,
+      0.125536
      ],
      "port_runs": [
-      0.12448,
-      0.124832,
-      0.124608
+      0.124608,
+      0.125184,
+      0.12512
      ],
      "original_launches": [
       3,
@@ -1204,18 +1204,18 @@
      "region": "kernels.jump",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 1.877664,
-     "port_ms": 1.888704,
-     "ratio": 1.005879646198681,
+     "original_ms": 1.876928,
+     "port_ms": 1.884672,
+     "ratio": 1.0041258908173356,
      "original_runs": [
-      1.876832,
-      1.877664,
-      1.87776
+      1.876928,
+      1.8816,
+      1.874688
      ],
      "port_runs": [
-      1.885536,
-      1.89008,
-      1.888704
+      1.884672,
+      1.887456,
+      1.883424
      ],
      "original_launches": [
       15,
@@ -1232,18 +1232,18 @@
      "region": "kernels.invalidate",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.174656,
-     "port_ms": 0.174208,
-     "ratio": 0.997434957860022,
+     "original_ms": 0.174624,
+     "port_ms": 0.174176,
+     "ratio": 0.997434487813817,
      "original_runs": [
       0.17488,
-      0.17456,
-      0.174656
+      0.174624,
+      0.17456
      ],
      "port_runs": [
-      0.174016,
-      0.174368,
-      0.174208
+      0.174208,
+      0.174176,
+      0.174144
      ],
      "original_launches": [
       3,
@@ -1260,18 +1260,18 @@
      "region": "kernels.pull_invalidated",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 1.975264,
-     "port_ms": 2.080608,
-     "ratio": 1.0533316052942796,
+     "original_ms": 1.977152,
+     "port_ms": 2.082656,
+     "ratio": 1.053361602952125,
      "original_runs": [
-      1.972032,
-      1.975264,
-      1.979904
+      1.977152,
+      1.976768,
+      1.978368
      ],
      "port_runs": [
-      2.080608,
-      2.083872,
-      2.074496
+      2.082688,
+      2.082656,
+      2.074784
      ],
      "original_launches": [
       3,
@@ -1288,18 +1288,18 @@
      "region": "kernels.relax_inserted",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.2824,
-     "port_ms": 0.285984,
-     "ratio": 1.0126912181303118,
+     "original_ms": 0.282432,
+     "port_ms": 0.287744,
+     "ratio": 1.0188080670745523,
      "original_runs": [
-      0.282336,
-      0.2824,
-      0.286368
+      0.279904,
+      0.28336,
+      0.282432
      ],
      "port_runs": [
-      0.285952,
-      0.289856,
-      0.285984
+      0.287744,
+      0.288928,
+      0.285504
      ],
      "original_launches": [
       3,
@@ -1316,18 +1316,18 @@
      "region": "kernels.push",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 6.914016,
-     "port_ms": 6.95952,
-     "ratio": 1.0065814137543216,
+     "original_ms": 6.906816,
+     "port_ms": 6.973952,
+     "ratio": 1.0097202531528275,
      "original_runs": [
-      6.914016,
-      6.900832,
-      6.919648
+      6.9104,
+      6.890368,
+      6.906816
      ],
      "port_runs": [
-      6.991552,
-      6.95952,
-      6.952512
+      6.972448,
+      6.979488,
+      6.973952
      ],
      "original_launches": [
       41,
@@ -1344,13 +1344,13 @@
      "region": "kernels.count_mismatches",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.18016,
+     "original_ms": 0.179968,
      "port_ms": 0.0,
      "ratio": 0.0,
      "original_runs": [
-      0.180064,
-      0.182208,
-      0.18016
+      0.17952,
+      0.179968,
+      0.18032
      ],
      "port_runs": [
       0.0,
@@ -1408,7 +1408,7 @@
      },
      "push": {
       "launch__registers_per_thread": 30.0,
-      "launch__grid_size": 8301.0,
+      "launch__grid_size": 8303.0,
       "launch__block_size": 256.0
      },
      "unpack_state": {
@@ -1525,130 +1525,130 @@
      "region": "kernels.all",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 98.226272,
-     "port_ms": 98.163936,
-     "ratio": 0.9993653836317845,
+     "original_ms": 97.821888,
+     "port_ms": 97.84624,
+     "ratio": 1.0002489422408203,
      "original_runs": [
-      97.925664,
-      98.226272,
-      98.501824
+      97.790016,
+      97.821888,
+      98.517792
      ],
      "port_runs": [
-      98.163936,
-      97.474496,
-      98.608192
+      97.84624,
+      98.094304,
+      97.555072
      ],
      "original_launches": [
       238,
-      234,
-      240
+      238,
+      238
      ],
      "port_launches": [
-      235,
-      235,
-      235
+      233,
+      233,
+      231
      ]
     },
     {
      "region": "kernels.all[b1]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 32.865664,
-     "port_ms": 33.031072,
-     "ratio": 1.0050328513064577,
+     "original_ms": 33.230176,
+     "port_ms": 33.269792,
+     "ratio": 1.0011921694305803,
      "original_runs": [
-      32.8136,
-      32.865664,
-      33.428096
+      32.973184,
+      33.676544,
+      33.230176
      ],
      "port_runs": [
-      33.031072,
-      32.76736,
-      33.723136
+      33.273632,
+      33.269792,
+      33.01696
      ],
      "original_launches": [
       83,
-      77,
-      81
+      83,
+      83
      ],
      "port_launches": [
       81,
       81,
-      81
+      77
      ]
     },
     {
      "region": "kernels.all[b2]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 32.736672,
-     "port_ms": 32.702592,
-     "ratio": 0.9989589656517316,
+     "original_ms": 32.541568,
+     "port_ms": 32.201184,
+     "ratio": 0.9895400246232757,
      "original_runs": [
-      32.841088,
-      32.736672,
-      32.671232
+      32.81408,
+      32.073152,
+      32.541568
      ],
      "port_runs": [
-      32.947712,
-      32.702592,
-      32.495456
+      32.008128,
+      32.414752,
+      32.201184
      ],
      "original_launches": [
       76,
       76,
-      78
+      76
      ],
      "port_launches": [
       74,
-      76,
-      76
+      74,
+      74
      ]
     },
     {
      "region": "kernels.all[b3]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 32.402496,
-     "port_ms": 32.185152,
-     "ratio": 0.9932923685879015,
+     "original_ms": 32.072192,
+     "port_ms": 32.40976,
+     "ratio": 1.0105252550246642,
      "original_runs": [
-      32.270976,
-      32.623936,
-      32.402496
+      32.002752,
+      32.072192,
+      32.746048
      ],
      "port_runs": [
-      32.185152,
-      32.004544,
-      32.3896
+      32.56448,
+      32.40976,
+      32.336928
      ],
      "original_launches": [
       79,
-      81,
-      81
+      79,
+      79
      ],
      "port_launches": [
-      80,
       78,
-      78
+      78,
+      80
      ]
     },
     {
      "region": "kernels.fill_ll",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.053664,
-     "port_ms": 0.047168,
-     "ratio": 0.8789505068574835,
+     "original_ms": 0.053248,
+     "port_ms": 0.05136,
+     "ratio": 0.9645432692307694,
      "original_runs": [
-      0.050368,
-      0.060864,
-      0.053664
+      0.047072,
+      0.053248,
+      0.060096
      ],
      "port_runs": [
-      0.047168,
-      0.046752,
-      0.051744
+      0.04688,
+      0.05136,
+      0.0568
      ],
      "original_launches": [
       3,
@@ -1665,18 +1665,18 @@
      "region": "kernels.fill_int",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.026752,
-     "port_ms": 0.026592,
-     "ratio": 0.9940191387559808,
+     "original_ms": 0.027072,
+     "port_ms": 0.038848,
+     "ratio": 1.434988179669031,
      "original_runs": [
-      0.027392,
-      0.026752,
-      0.026752
+      0.027072,
+      0.0392,
+      0.026368
      ],
      "port_runs": [
-      0.026592,
-      0.049568,
-      0.025632
+      0.026176,
+      0.049792,
+      0.038848
      ],
      "original_launches": [
       3,
@@ -1693,74 +1693,74 @@
      "region": "kernels.pull_distances_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 70.715744,
-     "port_ms": 70.76064,
-     "ratio": 1.0006348798366598,
+     "original_ms": 70.32752,
+     "port_ms": 70.468544,
+     "ratio": 1.0020052463104057,
      "original_runs": [
-      70.457536,
-      70.715744,
-      70.85328
+      70.32752,
+      70.327328,
+      70.974144
      ],
      "port_runs": [
-      70.76064,
-      70.14864,
-      71.201568
+      70.468544,
+      70.707648,
+      70.26256
      ],
      "original_launches": [
       69,
-      67,
-      70
+      69,
+      69
      ],
      "port_launches": [
-      70,
-      70,
-      70
+      69,
+      69,
+      68
      ]
     },
     {
      "region": "kernels.collect_candidates_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 16.599072,
-     "port_ms": 16.56368,
-     "ratio": 0.9978678326113654,
+     "original_ms": 16.570784,
+     "port_ms": 16.516768,
+     "ratio": 0.9967402870015082,
      "original_runs": [
-      16.57392,
-      16.599072,
-      16.724064
+      16.542528,
+      16.570784,
+      16.630592
      ],
      "port_runs": [
-      16.56368,
-      16.465152,
-      16.585792
+      16.530464,
+      16.516768,
+      16.440224
      ],
      "original_launches": [
       69,
-      67,
-      70
+      69,
+      69
      ],
      "port_launches": [
-      70,
-      70,
-      70
+      69,
+      69,
+      68
      ]
     },
     {
      "region": "kernels.pack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.111008,
-     "port_ms": 0.111296,
-     "ratio": 1.0025944076102624,
+     "original_ms": 0.111136,
+     "port_ms": 0.111264,
+     "ratio": 1.0011517420097897,
      "original_runs": [
-      0.111008,
-      0.111968,
-      0.11056
+      0.111136,
+      0.111168,
+      0.110816
      ],
      "port_runs": [
-      0.111296,
-      0.111232,
-      0.11184
+      0.111168,
+      0.11136,
+      0.111264
      ],
      "original_launches": [
       3,
@@ -1777,18 +1777,18 @@
      "region": "kernels.unpack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.10736,
-     "port_ms": 0.10688,
-     "ratio": 0.9955290611028317,
+     "original_ms": 0.107008,
+     "port_ms": 0.106976,
+     "ratio": 0.999700956937799,
      "original_runs": [
-      0.108288,
-      0.10656,
-      0.10736
+      0.106816,
+      0.113184,
+      0.107008
      ],
      "port_runs": [
-      0.10688,
       0.106976,
-      0.1064
+      0.111712,
+      0.106592
      ],
      "original_launches": [
       3,
@@ -1805,18 +1805,18 @@
      "region": "kernels.mark_deleted_tree_edges",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.187456,
-     "port_ms": 0.18704,
-     "ratio": 0.9977808125640151,
+     "original_ms": 0.186592,
+     "port_ms": 0.185856,
+     "ratio": 0.996055565083176,
      "original_runs": [
-      0.187456,
-      0.189088,
-      0.18736
+      0.186336,
+      0.186592,
+      0.187328
      ],
      "port_runs": [
-      0.18704,
-      0.18704,
-      0.186176
+      0.186208,
+      0.185856,
+      0.185824
      ],
      "original_launches": [
       3,
@@ -1834,17 +1834,17 @@
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
      "original_ms": 0.01584,
-     "port_ms": 0.015744,
-     "ratio": 0.993939393939394,
+     "port_ms": 0.015616,
+     "ratio": 0.9858585858585859,
      "original_runs": [
       0.01584,
-      0.015808,
+      0.015776,
       0.01584
      ],
      "port_runs": [
-      0.015744,
+      0.015648,
       0.015616,
-      0.015808
+      0.015616
      ],
      "original_launches": [
       3,
@@ -1861,18 +1861,18 @@
      "region": "kernels.init_jump",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.06816,
-     "port_ms": 0.063904,
-     "ratio": 0.9375586854460094,
+     "original_ms": 0.064544,
+     "port_ms": 0.063936,
+     "ratio": 0.9905800694100149,
      "original_runs": [
-      0.06816,
-      0.067936,
-      0.069792
+      0.064544,
+      0.064192,
+      0.064576
      ],
      "port_runs": [
       0.063904,
-      0.065952,
-      0.063872
+      0.064352,
+      0.063936
      ],
      "original_launches": [
       3,
@@ -1889,18 +1889,18 @@
      "region": "kernels.jump",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.845472,
-     "port_ms": 0.835104,
-     "ratio": 0.9877370273645963,
+     "original_ms": 0.845536,
+     "port_ms": 0.833216,
+     "ratio": 0.9854293607841653,
      "original_runs": [
-      0.844736,
-      0.845472,
-      0.852032
+      0.8432,
+      0.845536,
+      0.846432
      ],
      "port_runs": [
-      0.835104,
-      0.83664,
-      0.835072
+      0.833216,
+      0.834304,
+      0.83232
      ],
      "original_launches": [
       15,
@@ -1917,18 +1917,18 @@
      "region": "kernels.invalidate",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.12944,
-     "port_ms": 0.129216,
-     "ratio": 0.9982694684796044,
+     "original_ms": 0.129312,
+     "port_ms": 0.129184,
+     "ratio": 0.9990101460034644,
      "original_runs": [
-      0.12944,
-      0.129728,
-      0.12912
+      0.129536,
+      0.129312,
+      0.129184
      ],
      "port_runs": [
-      0.139552,
-      0.129216,
-      0.12896
+      0.129184,
+      0.129344,
+      0.128928
      ],
      "original_launches": [
       3,
@@ -1945,18 +1945,18 @@
      "region": "kernels.pull_invalidated",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 2.126784,
-     "port_ms": 2.136256,
-     "ratio": 1.0044536727754205,
+     "original_ms": 2.126432,
+     "port_ms": 2.153792,
+     "ratio": 1.0128666235271104,
      "original_runs": [
-      2.129184,
-      2.124544,
-      2.126784
+      2.134752,
+      2.12192,
+      2.126432
      ],
      "port_runs": [
-      2.136256,
-      2.13696,
-      2.131136
+      2.154528,
+      2.153792,
+      2.145344
      ],
      "original_launches": [
       3,
@@ -1973,18 +1973,18 @@
      "region": "kernels.relax_inserted",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.39248,
-     "port_ms": 0.393248,
-     "ratio": 1.001956787607012,
+     "original_ms": 0.392,
+     "port_ms": 0.392832,
+     "ratio": 1.002122448979592,
      "original_runs": [
-      0.392128,
-      0.39424,
-      0.39248
+      0.391776,
+      0.392,
+      0.393728
      ],
      "port_runs": [
-      0.392576,
-      0.393408,
-      0.393248
+      0.392832,
+      0.392384,
+      0.392992
      ],
      "original_launches": [
       3,
@@ -2001,18 +2001,18 @@
      "region": "kernels.push",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 6.72976,
-     "port_ms": 6.777504,
-     "ratio": 1.0070944580490242,
+     "original_ms": 6.744416,
+     "port_ms": 6.773824,
+     "ratio": 1.0043603478788972,
      "original_runs": [
-      6.722912,
-      6.72976,
-      6.745472
+      6.75408,
+      6.744416,
+      6.7368
      ],
      "port_runs": [
-      6.777504,
-      6.781344,
-      6.770944
+      6.780512,
+      6.770016,
+      6.773824
      ],
      "original_launches": [
       50,
@@ -2033,9 +2033,9 @@
      "port_ms": 0.0,
      "ratio": 0.0,
      "original_runs": [
+      0.01008,
       0.00976,
-      0.01072,
-      0.0096
+      0.009408
      ],
      "port_runs": [
       0.0,
@@ -2057,13 +2057,13 @@
      "region": "kernels.count_mismatches",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.097664,
+     "original_ms": 0.097728,
      "port_ms": 0.0,
      "ratio": 0.0,
      "original_runs": [
-      0.097536,
-      0.098016,
-      0.097664
+      0.097728,
+      0.097472,
+      0.09904
      ],
      "port_runs": [
       0.0,
@@ -2126,7 +2126,7 @@
      },
      "push": {
       "launch__registers_per_thread": 30.0,
-      "launch__grid_size": 13409.0,
+      "launch__grid_size": 13411.0,
       "launch__block_size": 256.0
      },
      "unpack_state": {
@@ -2208,7 +2208,7 @@
      },
      "push": {
       "launch__registers_per_thread": 30.0,
-      "launch__grid_size": 13421.0,
+      "launch__grid_size": 13412.0,
       "launch__block_size": 256.0
      },
      "unpack_state": {
@@ -2253,102 +2253,102 @@
      "region": "kernels.all",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 95.943296,
-     "port_ms": 97.162656,
-     "ratio": 1.0127091735518445,
+     "original_ms": 96.19392,
+     "port_ms": 97.736512,
+     "ratio": 1.01603627339441,
      "original_runs": [
-      95.838816,
-      95.943296,
-      96.327104
+      95.82816,
+      96.19392,
+      96.798592
      ],
      "port_runs": [
-      97.963392,
-      96.57408,
-      97.162656
+      98.10976,
+      97.736512,
+      97.507712
      ],
      "original_launches": [
       245,
-      245,
-      231
+      249,
+      243
      ],
      "port_launches": [
-      238,
-      242,
-      232
+      246,
+      236,
+      244
      ]
     },
     {
      "region": "kernels.all[b1]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 31.84832,
-     "port_ms": 32.318144,
-     "ratio": 1.0147519241203302,
+     "original_ms": 31.58912,
+     "port_ms": 31.772896,
+     "ratio": 1.0058176992584789,
      "original_runs": [
-      31.899232,
-      31.48224,
-      31.84832
+      31.315328,
+      31.58912,
+      31.78688
      ],
      "port_runs": [
-      32.318144,
-      31.566368,
-      32.615648
+      32.617344,
+      31.772896,
+      31.708672
      ],
      "original_launches": [
+      87,
       85,
-      83,
-      77
+      85
      ],
      "port_launches": [
-      82,
-      80,
-      76
+      84,
+      76,
+      82
      ]
     },
     {
      "region": "kernels.all[b2]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 32.068512,
-     "port_ms": 32.300288,
-     "ratio": 1.0072275258671186,
+     "original_ms": 32.480768,
+     "port_ms": 32.87984,
+     "ratio": 1.0122864089913146,
      "original_runs": [
-      32.002656,
-      32.7432,
-      32.068512
+      32.389408,
+      32.559456,
+      32.480768
      ],
      "port_runs": [
-      32.746848,
-      32.300288,
-      31.983168
+      32.975584,
+      32.844896,
+      32.87984
      ],
      "original_launches": [
-      80,
       78,
-      74
+      80,
+      78
      ],
      "port_launches": [
-      73,
       79,
-      73
+      81,
+      77
      ]
     },
     {
      "region": "kernels.all[b3]",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 31.936928,
-     "port_ms": 32.707424,
-     "ratio": 1.0241255514619314,
+     "original_ms": 32.123424,
+     "port_ms": 32.9192,
+     "ratio": 1.0247724526501283,
      "original_runs": [
-      31.936928,
-      31.717856,
-      32.410272
+      32.123424,
+      32.045344,
+      32.530944
      ],
      "port_runs": [
-      32.8984,
-      32.707424,
-      32.56384
+      32.516832,
+      33.11872,
+      32.9192
      ],
      "original_launches": [
       80,
@@ -2357,26 +2357,26 @@
      ],
      "port_launches": [
       83,
-      83,
-      83
+      79,
+      85
      ]
     },
     {
      "region": "kernels.fill_ll",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.053824,
-     "port_ms": 0.057536,
-     "ratio": 1.0689655172413792,
+     "original_ms": 0.05216,
+     "port_ms": 0.053024,
+     "ratio": 1.0165644171779142,
      "original_runs": [
-      0.053824,
-      0.05536,
-      0.046112
+      0.05216,
+      0.051328,
+      0.057984
      ],
      "port_runs": [
-      0.056672,
-      0.057536,
-      0.063616
+      0.053024,
+      0.0544,
+      0.051552
      ],
      "original_launches": [
       3,
@@ -2393,18 +2393,18 @@
      "region": "kernels.fill_int",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.026624,
-     "port_ms": 0.02592,
-     "ratio": 0.9735576923076923,
+     "original_ms": 0.026336,
+     "port_ms": 0.02624,
+     "ratio": 0.9963547995139733,
      "original_runs": [
-      0.026208,
-      0.026624,
-      0.037504
+      0.025856,
+      0.026336,
+      0.051104
      ],
      "port_runs": [
-      0.02592,
-      0.025632,
-      0.026176
+      0.026784,
+      0.02624,
+      0.025952
      ],
      "original_launches": [
       3,
@@ -2421,74 +2421,74 @@
      "region": "kernels.pull_distances_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 72.053984,
-     "port_ms": 73.32768,
-     "ratio": 1.0176769684241194,
+     "original_ms": 72.278784,
+     "port_ms": 73.839136,
+     "ratio": 1.0215879669475347,
      "original_runs": [
-      71.973824,
-      72.053984,
-      72.392672
+      71.993792,
+      72.278784,
+      72.930592
      ],
      "port_runs": [
-      74.09568,
-      72.799872,
-      73.32768
+      74.248608,
+      73.839136,
+      73.58128
      ],
      "original_launches": [
       73,
-      73,
-      66
+      75,
+      72
      ],
      "port_launches": [
-      71,
-      73,
-      68
+      75,
+      70,
+      74
      ]
     },
     {
      "region": "kernels.collect_candidates_warp",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 16.876608,
-     "port_ms": 16.84032,
-     "ratio": 0.9978498048897028,
+     "original_ms": 16.855616,
+     "port_ms": 16.909664,
+     "ratio": 1.00320652772346,
      "original_runs": [
-      16.859904,
-      16.876608,
-      16.942944
+      16.837696,
+      16.911904,
+      16.855616
      ],
      "port_runs": [
-      16.887168,
-      16.789952,
-      16.84032
+      16.873216,
+      16.909664,
+      16.95632
      ],
      "original_launches": [
       73,
-      73,
-      66
+      75,
+      72
      ],
      "port_launches": [
-      71,
-      73,
-      68
+      75,
+      70,
+      74
      ]
     },
     {
      "region": "kernels.pack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.10976,
-     "port_ms": 0.108384,
-     "ratio": 0.9874635568513119,
+     "original_ms": 0.109504,
+     "port_ms": 0.108448,
+     "ratio": 0.9903565166569258,
      "original_runs": [
-      0.10976,
-      0.109376,
-      0.110176
+      0.117504,
+      0.109504,
+      0.109376
      ],
      "port_runs": [
-      0.108032,
-      0.108384,
-      0.108864
+      0.108448,
+      0.10832,
+      0.108992
      ],
      "original_launches": [
       3,
@@ -2505,18 +2505,18 @@
      "region": "kernels.unpack_state",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.105088,
-     "port_ms": 0.10528,
-     "ratio": 1.0018270401948843,
+     "original_ms": 0.105344,
+     "port_ms": 0.105504,
+     "ratio": 1.0015188335358445,
      "original_runs": [
-      0.105088,
-      0.105536,
-      0.104864
+      0.105344,
+      0.104704,
+      0.10544
      ],
      "port_runs": [
       0.105536,
-      0.10512,
-      0.10528
+      0.104896,
+      0.105504
      ],
      "original_launches": [
       3,
@@ -2533,18 +2533,18 @@
      "region": "kernels.mark_deleted_tree_edges",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.080256,
-     "port_ms": 0.08064,
-     "ratio": 1.0047846889952154,
+     "original_ms": 0.080352,
+     "port_ms": 0.080576,
+     "ratio": 1.0027877339705296,
      "original_runs": [
-      0.080384,
-      0.080224,
-      0.080256
+      0.080288,
+      0.080352,
+      0.085536
      ],
      "port_runs": [
+      0.086944,
       0.080576,
-      0.089728,
-      0.08064
+      0.080128
      ],
      "original_launches": [
       3,
@@ -2562,17 +2562,17 @@
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
      "original_ms": 0.0592,
-     "port_ms": 0.0584,
-     "ratio": 0.9864864864864864,
+     "port_ms": 0.059584,
+     "ratio": 1.0064864864864864,
      "original_runs": [
-      0.063552,
+      0.059296,
       0.059072,
       0.0592
      ],
      "port_runs": [
-      0.058336,
-      0.059072,
-      0.0584
+      0.060064,
+      0.058272,
+      0.059584
      ],
      "original_launches": [
       3,
@@ -2589,18 +2589,18 @@
      "region": "kernels.jump",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.838496,
-     "port_ms": 0.844288,
-     "ratio": 1.0069076059993132,
+     "original_ms": 0.839584,
+     "port_ms": 0.842848,
+     "ratio": 1.0038876395929412,
      "original_runs": [
-      0.83936,
-      0.838336,
-      0.838496
+      0.841408,
+      0.839584,
+      0.836256
      ],
      "port_runs": [
-      0.843584,
-      0.844288,
-      0.845664
+      0.844544,
+      0.842848,
+      0.842688
      ],
      "original_launches": [
       15,
@@ -2617,18 +2617,18 @@
      "region": "kernels.invalidate",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.106944,
-     "port_ms": 0.10704,
-     "ratio": 1.0008976660682225,
+     "original_ms": 0.10672,
+     "port_ms": 0.107168,
+     "ratio": 1.0041979010494753,
      "original_runs": [
-      0.107296,
-      0.106944,
-      0.106816
+      0.10672,
+      0.106784,
+      0.106592
      ],
      "port_runs": [
-      0.10704,
-      0.106912,
-      0.107904
+      0.106848,
+      0.107168,
+      0.107168
      ],
      "original_launches": [
       3,
@@ -2645,18 +2645,18 @@
      "region": "kernels.pull_invalidated",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 1.170208,
-     "port_ms": 1.220256,
-     "ratio": 1.0427684650933853,
+     "original_ms": 1.172608,
+     "port_ms": 1.225984,
+     "ratio": 1.0455190481388494,
      "original_runs": [
-      1.171712,
-      1.170208,
-      1.167296
+      1.172608,
+      1.173728,
+      1.164832
      ],
      "port_runs": [
-      1.220256,
-      1.217568,
-      1.221504
+      1.225984,
+      1.231008,
+      1.21984
      ],
      "original_launches": [
       3,
@@ -2673,18 +2673,18 @@
      "region": "kernels.relax_inserted",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.177664,
-     "port_ms": 0.181024,
-     "ratio": 1.0189121037463977,
+     "original_ms": 0.176768,
+     "port_ms": 0.180192,
+     "ratio": 1.0193700217233888,
      "original_runs": [
-      0.178592,
-      0.176256,
-      0.177664
+      0.176768,
+      0.176576,
+      0.177216
      ],
      "port_runs": [
-      0.18064,
-      0.181024,
-      0.1816
+      0.180416,
+      0.178912,
+      0.180192
      ],
      "original_launches": [
       3,
@@ -2701,18 +2701,18 @@
      "region": "kernels.push",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 4.173408,
-     "port_ms": 4.193952,
-     "ratio": 1.0049225956340717,
+     "original_ms": 4.162912,
+     "port_ms": 4.189344,
+     "ratio": 1.0063494015727452,
      "original_runs": [
-      4.173408,
-      4.188864,
-      4.1672
+      4.162912,
+      4.178848,
+      4.162848
      ],
      "port_runs": [
-      4.193952,
-      4.188992,
-      4.195008
+      4.189344,
+      4.195072,
+      4.188512
      ],
      "original_launches": [
       54,
@@ -2729,13 +2729,13 @@
      "region": "kernels.count_mismatches",
      "gate_kind": "none",
      "reading": "kernel time, clocks locked to base (ncu)",
-     "original_ms": 0.095904,
+     "original_ms": 0.096,
      "port_ms": 0.0,
      "ratio": 0.0,
      "original_runs": [
-      0.095904,
-      0.095904,
-      0.095904
+      0.095808,
+      0.096416,
+      0.096
      ],
      "port_runs": [
       0.0,
@@ -2793,7 +2793,7 @@
      },
      "push": {
       "launch__registers_per_thread": 30.0,
-      "launch__grid_size": 6090.0,
+      "launch__grid_size": 6092.0,
       "launch__block_size": 256.0
      },
      "unpack_state": {
@@ -2865,7 +2865,7 @@
      },
      "push": {
       "launch__registers_per_thread": 30.0,
-      "launch__grid_size": 6092.0,
+      "launch__grid_size": 6091.0,
       "launch__block_size": 256.0
      },
      "unpack_state": {
