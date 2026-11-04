@@ -73,7 +73,7 @@ Before 0.1.0 anything may change.
   (`compute`, `update`, `from_arrays`), `dyng::update()` through them, the upload of the device
   copy and the device merge refuse a graph whose rows are not `row_layout::compact` with a
   `not_supported_error` that names the layout and the fix (`graph::from_csr(res,
-  g.to_csr(res).view(), props)`), before anything changes. Their headers and `update.hpp` gain the
+  g.to_csr(res).view(), props)` with the properties the message lists), before anything changes. Their headers and `update.hpp` gain the
   `@throws` line; nothing else in those algorithms changes, and `triad_count` (hypergraphs) is
   untouched.
 - M10a step 3 (api-change, additive; provisional until M10b's freeze; ADRs 0071-0073):
@@ -151,6 +151,28 @@ Before 0.1.0 anything may change.
 - M10a step 5 (provisional `<dyng/label_propagation.hpp>`, documentation only): the update's doc
   comment and the algorithm page state that after a seed's departure labels far from it can stay
   stale until later batches reach them (the author's decision of 2026-10-30).
+- M10a review fixes (api-change, documentation only: `graph.hpp`, `label_propagation.hpp`): a
+  device row overflow's poison is kept with the graph's host state, so an apply on any resources
+  and every `clone()` / `to_backend()` copy of a poisoned graph raise `capacity_error`; the device
+  append computes slots and row ends in 64 bits (a row near the end of 2^31 - 1 slots wrote out of
+  bounds); the graph's device arrays of a vertex batch grow with headroom and `graph::reserve()`,
+  `result::reserve()` and `options::similarity_threshold` say what each sizes or costs;
+  `run_update()` makes the compact-only guard and label_propagation's entry checks before it reads
+  the batch of a non-compact graph (an invalid vertex batch now gets the named refusal, a stale
+  result `stale_result_error`); the guard's message names the properties its suggested
+  `from_csr()` copy needs (`props.semantics = batch_semantics::upsert_last_wins()`); under
+  `on_limit::fallback_recompute` an update whose IrLP reaches the cap too reports
+  `stats::converged = false`; `compute()`, `result::reserve()` and `result::clone()` report a host
+  allocation failure as `out_of_memory_error`; `graph::num_edges()` documents that a self-loop
+  counts twice on slotted rows.
+- M10a review fixes (parity and certificate): every label_propagation golden set needs all its
+  cases on each required backend; `certify.py` re-checks the label_propagation gate records with
+  `bench_suite.check_lp_record` (rounds, samples, guard, clock lock, counted memory with
+  nvidia-smi before, during and after); the oracle's frozen tolerance is the one its replay
+  applied; the fused engine's trace replay compares every field the golden records; the SASS port
+  gate compares whole instructions; the IrLP replay checks the snapshot counts; the oracle replay
+  checks the flips and the maximum; the memory sampler polls every 0.25 s and counts a side only
+  when it saw its own process.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
