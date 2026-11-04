@@ -98,3 +98,17 @@ def test_the_irlp_counts_need_one_snapshot_per_batch() -> None:
     assert not lpp.irlp_counts(batches, expected, 4 * n * (batches + 1), n, batches)[1]
     assert not lpp.irlp_counts(batches, expected, 4 * n * batches + 4, n, batches)[1]
     assert not lpp.irlp_counts(batches, expected, 4 * n * batches, n, batches + 1)[1]
+
+
+def test_an_in_place_run_skips_only_the_schedule_field() -> None:
+    """The in_place replay compares its deterministic stages with the damped trace golden: the
+    schedule (propagation_begin.update_rule) is the one field that differs by construction."""
+    gold = golden_trace()
+    port = golden_trace(golden=False)
+    for r in port.all:
+        if r.tag == "propagation_begin":
+            r.fields["update_rule"] = f("update_rule", 99)
+    _, bad = lpp.compare_traces(port, gold)
+    assert {m["field"] for m in bad} == {"propagation_begin.update_rule"}
+    _, bad = lpp.compare_traces(port, gold, skip=lpp.SCHEDULE_FIELD)
+    assert bad == []

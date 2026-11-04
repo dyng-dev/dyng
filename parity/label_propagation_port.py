@@ -79,6 +79,8 @@ TRACE_FIELDS = {
         "initial_frontier",
     ],
 }
+# The trace field that is the schedule itself: an in_place run's differs from the damped golden's.
+SCHEDULE_FIELD = frozenset({("propagation_begin", "update_rule")})
 # The fields only the golden records (the batch's inputs, which the generator replay covers byte
 # for byte): every other field a stage of the golden records is compared by the fused engine's
 # replay (compare_traces(..., every_field=True); criterion 12: every trace field).
@@ -133,11 +135,16 @@ def run_compat(exe: Path, argv: list[str], env: dict) -> subprocess.CompletedPro
 
 
 def compare_traces(
-    ours: dlt.Trace, golden: dlt.Trace, every_field: bool = False
+    ours: dlt.Trace,
+    golden: dlt.Trace,
+    every_field: bool = False,
+    skip: frozenset[tuple[str, str]] = frozenset(),
 ) -> tuple[int, list[dict]]:
     """Every deterministic field of every batch (TRACE_FIELDS; b0's row offsets too); with
     `every_field`, every field of every stage the golden records but GOLDEN_ONLY_FIELDS (the
-    fused engine: the labels, the counts and the tags too), a field the port lacks a mismatch."""
+    fused engine: the labels, the counts and the tags too), a field the port lacks a mismatch.
+    `skip` names (stage, field) pairs that differ by construction (an in_place run against the
+    damped trace golden: propagation_begin.update_rule)."""
     # The batch loop only: the port's compute() on the empty graph records an irlp_snapshot
     # outside it (batch -1).
     mine = {b: r for b, r in ours.batches().items() if b >= 0}
@@ -174,6 +181,8 @@ def compare_traces(
             extra = ["row_ptr"] if tag == "append_edges" and b == 0 and not every_field else []
             fields = list(names) + extra
             for name in fields:
+                if (tag, name) in skip:
+                    continue
                 compared += 1
                 f, h = port.fields.get(name), gold.fields.get(name)
                 if f is None or h is None:
@@ -817,7 +826,8 @@ def cmd_inplace(args: argparse.Namespace) -> int:
                 }
             )
         # The deterministic stages (components, G', the initial labels and the initial frontier)
-        # do not depend on the schedule: one traced run against the damped trace golden.
+        # do not depend on the schedule: one traced run against the damped trace golden, every
+        # field of TRACE_FIELDS but the schedule itself (propagation_begin.update_rule).
         dcase = g.Case(size, digest=size == "5m")
         with tempfile.TemporaryDirectory(prefix="lp-inplace-trace-", dir=runs_dir()) as t:
             tmp = Path(t)
@@ -828,7 +838,7 @@ def cmd_inplace(args: argparse.Namespace) -> int:
             golden = dlt.read(
                 decompressed(trace_root / "cases" / dcase.name / "trace.dlt.zst", tmp)
             )
-            compared, mismatches = compare_traces(ours, golden)
+            compared, mismatches = compare_traces(ours, golden, skip=SCHEDULE_FIELD)
         good = all(r["within"] for r in runs) and not mismatches and len(runs) >= 3
         ok = ok and good
         results.append(
