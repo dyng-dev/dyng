@@ -3,7 +3,7 @@
  "what": "M10a step 5's gate readings of ics26_dynlp on the final M10a library (perf_ab.py label_propagation run|memory|kernels through bench_suite.py run; AD2-AD4): compacted from the full records, each named with its SHA-256",
  "readings": {
   "damped-500k-500k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-500k-500k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-500k-500k.json",
    "sha256": "fccce5f3bf6fe808c8e56e92280144a7a79c01512de7c33810ba8f92f7c55e13",
    "command": "run",
    "date": "2026-11-04T02:44:49Z",
@@ -434,7 +434,7 @@
    }
   },
   "damped-50k-50k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-50k-50k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-50k-50k.json",
    "sha256": "0ae411ffda8b684a6cb06461b188106855c8d78a9597e51dd157775abc8781d1",
    "command": "run",
    "date": "2026-11-04T02:41:43Z",
@@ -865,7 +865,7 @@
    }
   },
   "damped-50m-50m": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-50m-50m.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-50m-50m.json",
    "sha256": "7118aff1e2999de5585f7b9382735fec5c2bb6844539536a22df3f48e7ccada3",
    "command": "run",
    "date": "2026-11-04T03:07:47Z",
@@ -1247,7 +1247,7 @@
    }
   },
   "damped-5m-5m": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-5m-5m.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-5m-5m.json",
    "sha256": "79346328477e37765d077c830a03057ab4a81a87b2a949d91a12156a854423e7",
    "command": "run",
    "date": "2026-11-04T02:45:48Z",
@@ -1636,7 +1636,7 @@
    }
   },
   "damped-5m1-5m1": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-5m1-5m1.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-5m1-5m1.json",
    "sha256": "c0d14d17014ff3cb0a2a57fcf0cd921637a0c8b1d8587e6dcf3464be01d72501",
    "command": "run",
    "date": "2026-11-04T02:49:53Z",
@@ -1840,7 +1840,7 @@
    }
   },
   "damped-default-clocks-500k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-default-clocks-500k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-default-clocks-500k.json",
    "sha256": "39a0d7dd22f5256d37ddf109223c235ad80ec4ee98571cd4072b56566e36d7d7",
    "command": "run",
    "date": "2026-11-04T03:01:02Z",
@@ -2227,7 +2227,7 @@
    }
   },
   "damped-default-clocks-50k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-default-clocks-50k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-default-clocks-50k.json",
    "sha256": "3b55df3571f86d58e4bd17ea4c3823317f4bae49c56bbd9d6aec420342a8b72c",
    "command": "run",
    "date": "2026-11-04T03:00:50Z",
@@ -2614,7 +2614,7 @@
    }
   },
   "damped-default-clocks-5m": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-damped-default-clocks-5m.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-damped-default-clocks-5m.json",
    "sha256": "bd388e2de242ea7f54fedca8a5401b0f7a4974b3b875e5e2ffba353239ea124c",
    "command": "run",
    "date": "2026-11-04T03:01:33Z",
@@ -2999,7 +2999,7 @@
    }
   },
   "in_place-500k-500k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-in_place-500k-500k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-in_place-500k-500k.json",
    "sha256": "ae49df177abee1f864bda6e973f09d51d5872ac9d8d988ca7bfce595e5eb55b7",
    "command": "run",
    "date": "2026-11-04T02:54:12Z",
@@ -3576,7 +3576,7 @@
    }
   },
   "in_place-50k-50k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-in_place-50k-50k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-in_place-50k-50k.json",
    "sha256": "29d6b25c9c5759778a3c622e412903e7a1f0505e90f2aea46e6a05aee9b9a8a3",
    "command": "run",
    "date": "2026-11-04T02:53:45Z",
@@ -4166,7 +4166,7 @@
    }
   },
   "in_place-50m-50m": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-in_place-50m-50m.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-in_place-50m-50m.json",
    "sha256": "3f2614a78e703c46d84e013b5c8738dce209844ae5ab05727274d42e8faea95c",
    "command": "run",
    "date": "2026-11-04T03:18:40Z",
@@ -4550,7 +4550,7 @@
    }
   },
   "in_place-5m-5m": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-in_place-5m-5m.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-in_place-5m-5m.json",
    "sha256": "32b5be7a2d75a3ec6096211f227a4e635240f56a635faed8ef1103f9ab3f0568",
    "command": "run",
    "date": "2026-11-04T02:55:06Z",
@@ -5101,7 +5101,7 @@
    }
   },
   "in_place-5m1-5m1": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-in_place-5m1-5m1.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-in_place-5m1-5m1.json",
    "sha256": "4e585ea69ad261b0d4d16642df367a678589825ccf63c91912a0d1cea29b71df",
    "command": "run",
    "date": "2026-11-04T02:58:39Z",
@@ -5324,7 +5324,7 @@
    }
   },
   "kernels-500k-500k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-kernels-500k-500k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-kernels-500k-500k.json",
    "sha256": "00e3876456520cecaac39e842e1e8b97baa9d5eb168ce92587b6183a88d0f2f1",
    "command": "kernels",
    "date": "2026-11-04T03:05:29Z",
@@ -6019,7 +6019,7 @@
    }
   },
   "memory-damped-500k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-memory-damped-500k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-memory-damped-500k.json",
    "sha256": "404b7321db8e6ece40c2520408dcd590da8bb3b514a956575a67a1ff37bc87ec",
    "command": "memory",
    "date": "2026-11-04T02:52:41Z",
@@ -6055,7 +6055,7 @@
    }
   },
   "memory-damped-50k": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-memory-damped-50k.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-memory-damped-50k.json",
    "sha256": "59f3df6a5c2313389d0d9394c5765ba8e9f283c7c2b4560a5cd3e2d43d9fcc6b",
    "command": "memory",
    "date": "2026-11-04T02:52:33Z",
@@ -6091,7 +6091,7 @@
    }
   },
   "memory-damped-5m": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-memory-damped-5m.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-memory-damped-5m.json",
    "sha256": "914e92385dca2fbe04fe0c13a88560effe705b947fcf9b08ec45361a955646cb",
    "command": "memory",
    "date": "2026-11-04T02:52:52Z",
@@ -6127,7 +6127,7 @@
    }
   },
   "memory-damped-5m1": {
-   "record": "$DYNG_SCRATCH/runs/bench/m10a/ics26_dynlp-memory-damped-5m1.json",
+   "record": "$DYNG_SCRATCH/runs/bench/m10a-review/ics26_dynlp-memory-damped-5m1.json",
    "sha256": "29265e5875eb4ef040d19725e7d529d5e94e5683a599afa3a46b4b0703d51b1e",
    "command": "memory",
    "date": "2026-11-04T02:53:24Z",
