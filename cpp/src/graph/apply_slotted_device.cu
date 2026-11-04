@@ -224,8 +224,8 @@ __global__ void advance_row_end_kernel(const std::int32_t* keys, const std::int3
     return;
   }
   // In 64 bits, as append_kernel's slot (the end of the row bounds the result).
-  const std::int64_t end = static_cast<std::int64_t>(row_end[source]) +
-                           static_cast<std::int64_t>(rank[i]) + 1;
+  const std::int64_t end =
+      static_cast<std::int64_t>(row_end[source]) + static_cast<std::int64_t>(rank[i]) + 1;
   const auto limit = static_cast<std::int64_t>(row_ptr[source + 1]);
   row_end[source] = static_cast<edge_t>(end < limit ? end : limit);
 }
@@ -450,10 +450,9 @@ void upload_vertex_batch(const resources& res, device_slotted<vertex_t, edge_t, 
   if (static_cast<std::int64_t>(num_edges) > g.max_edges) {
     const auto want = static_cast<std::int64_t>(
         grown(static_cast<std::size_t>(std::max<std::int64_t>(g.max_edges, 0)), num_edges));
-    reserve_device_slotted(
-        res, g,
-        std::max(static_cast<std::int64_t>(num_edges),
-                 std::min(want, (std::int64_t{1} << 30) - 1)));
+    reserve_device_slotted(res, g,
+                           std::max(static_cast<std::int64_t>(num_edges),
+                                    std::min(want, (std::int64_t{1} << 30) - 1)));
   }
   ensure(res, g.deleted, num_del);
   // Del_eff is a subset of the batch's deletions: sized with them, so that a later batch whose

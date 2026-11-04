@@ -79,8 +79,8 @@ enum class schedule : std::uint8_t {
  * @ingroup label_propagation
  */
 enum class on_limit : std::uint8_t {
-  error,               ///< throw convergence_error (the result is left unusable)
-  report,              ///< keep the labels and report stats::converged = false (the default)
+  error,   ///< throw convergence_error (the result is left unusable)
+  report,  ///< keep the labels and report stats::converged = false (the default)
   /// recompute every label with compute()'s IrLP; stats::fallback_used. If IrLP reaches the
   /// cap too, its labels are kept and stats::converged is false (compute() would raise
   /// convergence_error)

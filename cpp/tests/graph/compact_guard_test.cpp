@@ -186,7 +186,7 @@ TEST(CompactGuard, InvalidBatchesAreRefusedByTheGuardFirst) {
     weighted g = slotted_weighted(res);
     (void)c;
     std::vector<dyng::edge_batch<std::int32_t, std::int32_t>> invalid(3);
-    invalid[0].insert_vertex(1);  // vertex 1 was inserted before
+    invalid[0].insert_vertex(1);   // vertex 1 was inserted before
     invalid[1].delete_edge(0, 1);  // net_effect() has no edge deletions
     invalid[2].insert_vertex(7);   // out of range
     const std::uint64_t version = g.version();

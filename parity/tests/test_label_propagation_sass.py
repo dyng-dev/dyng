@@ -38,8 +38,16 @@ def test_the_committed_record_is_a_go_with_a_failing_negative_control() -> None:
 def test_the_fp_sequence_keeps_the_operands_and_the_conversions() -> None:
     """M10a review: the opcodes alone pass a reversed association; the conversions from integers
     are floating-point instructions too."""
-    a = ["FADD R4, R2, R3 ;", "SHFL.BFLY PT, R5, R4, 0x1, 0x1f ;", "@P0 FMUL R6, R4, c[0x0][0x160] ;"]
-    b = ["FADD R4, R3, R2 ;", "SHFL.BFLY PT, R5, R4, 0x10, 0x1f ;", "@P0 FMUL R6, R4, c[0x0][0x168] ;"]
+    a = [
+        "FADD R4, R2, R3 ;",
+        "SHFL.BFLY PT, R5, R4, 0x1, 0x1f ;",
+        "@P0 FMUL R6, R4, c[0x0][0x160] ;",
+    ]
+    b = [
+        "FADD R4, R3, R2 ;",
+        "SHFL.BFLY PT, R5, R4, 0x10, 0x1f ;",
+        "@P0 FMUL R6, R4, c[0x0][0x168] ;",
+    ]
     assert ls.fp_sequence(a) == ls.fp_sequence(b) == ["FADD", "FMUL"]
     assert ls.fp_sequence(a, operands=True) != ls.fp_sequence(b, operands=True)
     assert ls.fp_sequence(["I2FP.F32.S32 R1, R2 ;", "I2F.F64 R2, R3 ;", "FLO.U32 R1, R2 ;"]) == [
@@ -60,7 +68,11 @@ def test_the_port_gate_fails_on_any_difference_beyond_the_parameter_offsets(
     import argparse
 
     o_name, p_name = next(iter(ls.PORT_KERNELS.items()))
-    base = ["FADD R4, R2, R3 ;", "SHFL.BFLY PT, R5, R4, 0x1, 0x1f ;", "FMUL R6, R4, c[0x0][0x160] ;"]
+    base = [
+        "FADD R4, R2, R3 ;",
+        "SHFL.BFLY PT, R5, R4, 0x1, 0x1f ;",
+        "FMUL R6, R4, c[0x0][0x160] ;",
+    ]
 
     def run(port_code: list[str], graph_code: list[str]) -> dict:
         def kernels_of(objs):

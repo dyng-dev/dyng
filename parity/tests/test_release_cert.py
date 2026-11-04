@@ -3210,16 +3210,12 @@ def test_the_lp_certificate_rechecks_the_gate_records(
         (run, lambda r: run_of(r).update(rounds=20), "rounds, the reading's 21"),
         (
             run,
-            lambda r: run_of(r)["regions"]["update[sum]"]["port"].update(
-                samples=[90.0] * 21
-            ),
+            lambda r: run_of(r)["regions"]["update[sum]"]["port"].update(samples=[90.0] * 21),
             "is not its samples'",
         ),
         (
             run,
-            lambda r: run_of(r)["regions"]["update[sum]"]["original"].update(
-                samples=[100.0] * 5
-            ),
+            lambda r: run_of(r)["regions"]["update[sum]"]["original"].update(samples=[100.0] * 5),
             "5 original samples for 21 rounds",
         ),
     ]:

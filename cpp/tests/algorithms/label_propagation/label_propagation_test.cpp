@@ -513,7 +513,7 @@ TEST(LabelPropagation, AnEdgeOfWeightTauIsNotInGPrime) {
     b.insert_edge(0, 1, {w});
     const lp::stats st = lp::update(res, g, b.view(), r);
     EXPECT_EQ(st.sparsified_edges, w > 0.5F ? 1 : 0);
-    EXPECT_EQ(st.components, w > 0.5F ? 1 : 2);  // one supernode, or two singletons
+    EXPECT_EQ(st.components, w > 0.5F ? 1 : 2);       // one supernode, or two singletons
     EXPECT_NEAR(host_labels(res, r)[1], 0.0F, 1e-3);  // its one neighbour is the class-0 seed
   }
 }

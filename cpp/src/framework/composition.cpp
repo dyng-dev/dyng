@@ -83,8 +83,8 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
   const std::string function = update_function(commit_stage);
   if (g.properties().layout != row_layout::compact) {
     for (std::size_t i = 0; i < count; ++i) {
-      auto* own = dynamic_cast<framework::entry_check<graph<vertex_t, edge_t, weight_t>>*>(
-          participants[i]);
+      auto* own =
+          dynamic_cast<framework::entry_check<graph<vertex_t, edge_t, weight_t>>*>(participants[i]);
       if (own != nullptr) {
         own->check_entry(res, g);
       } else {

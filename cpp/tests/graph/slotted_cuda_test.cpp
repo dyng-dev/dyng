@@ -27,8 +27,8 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdint>
 #include <climits>
+#include <cstdint>
 #include <cstring>
 #include <optional>
 #include <string>

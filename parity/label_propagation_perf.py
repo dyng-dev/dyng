@@ -886,7 +886,9 @@ def memory(args: argparse.Namespace) -> int:
                 shutil.rmtree(out, ignore_errors=True)
                 out.mkdir()
                 cmd = [str(exe), *timed_argv(case, schedule, out), *extra]
-                for attempt in range(1, MEMORY_ATTEMPTS + 1):
+                attempts = 0
+                while attempts < MEMORY_ATTEMPTS:
+                    attempts += 1
                     with GpuProcesses(args.gpu) as gp:
                         nsys = hypergraph_perf.memory_by_range(
                             cmd, env, work / "nsys", "batch", capture=True
@@ -909,7 +911,7 @@ def memory(args: argparse.Namespace) -> int:
                     "peak_in": nsys["peak_in"],
                     "batches": nsys["batches"],
                     "footprint_peak_mib": nsys["footprint_peak_mib"],
-                    "gpu_processes": gp.record(attempt),
+                    "gpu_processes": gp.record(attempts),
                 }
                 note = "" if counted else (
                     f" (NOT COUNTED: foreign processes {gp.foreign})" if gp.foreign
@@ -936,7 +938,9 @@ def memory_side(exe: Path, extra: list[str], case: str, schedule: str, env: dict
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir()
     cmd = [str(exe), *timed_argv(case, schedule, out), *extra]
-    for attempt in range(1, MEMORY_ATTEMPTS + 1):
+    attempts = 0
+    while attempts < MEMORY_ATTEMPTS:
+        attempts += 1
         with GpuProcesses(gpu) as gp:
             nsys = hypergraph_perf.memory_by_range(cmd, env, work / "nsys", "batch", capture=True)
         if gp.foreign or gp.own_seen_during > 0:
@@ -952,7 +956,7 @@ def memory_side(exe: Path, extra: list[str], case: str, schedule: str, env: dict
         "peak_in": nsys["peak_in"],
         "batches": nsys["batches"],
         "footprint_peak_mib": nsys["footprint_peak_mib"],
-        "gpu_processes": gp.record(attempt),
+        "gpu_processes": gp.record(attempts),
     }
 
 
