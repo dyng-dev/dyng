@@ -246,7 +246,9 @@ PORT_KERNELS = {
 O_TUS = ("sparsifySubgraph", "connectedComponents", "labelInitialization",
          "iterativePropagation", "validation")  # fmt: skip
 PORT_TUS = ("sparsify", "components", "label_init", "propagation", "irlp")
-FP_OPCODE = re.compile(r"^(F[A-Z0-9]*|D[A-Z]+|MUFU|H[A-Z0-9]+)(\.|$)")
+# The floating-point instructions: FP32 / FP64 / FP16 arithmetic, compares and selects (F*, D*,
+# H*), MUFU, and the conversions from integers (I2F, I2FP; F2I and F2F are F*).
+FP_OPCODE = re.compile(r"^(F[A-Z0-9]*|D[A-Z]+|MUFU|H[A-Z0-9]+|I2F[A-Z0-9]*)(\.|$)")
 INTEGER_LOOKALIKES = ("FLO",)  # find leading one: an integer instruction
 
 
@@ -283,13 +285,16 @@ def base_name(demangled: str) -> str:
     return head[start:].strip()
 
 
-def fp_sequence(instructions: list[str]) -> list[str]:
+def fp_sequence(instructions: list[str], operands: bool = False) -> list[str]:
+    """The floating-point instructions of a kernel in order: their opcodes, or with `operands`
+    the whole instructions (the predicate guard and the operands, the parameter offsets blanked:
+    the association of the arithmetic, which the opcodes alone do not show; M10a review)."""
     out = []
     for ins in instructions:
         text = re.sub(r"^@!?U?P[T0-9]+\s+", "", ins)  # the predicate guard
         opcode = text.split(" ")[0]
         if FP_OPCODE.match(opcode) and opcode.split(".")[0] not in INTEGER_LOOKALIKES:
-            out.append(opcode)
+            out.append(blank_params([ins])[0] if operands else opcode)
     return out
 
 
@@ -319,17 +324,26 @@ def port_cmd(args: argparse.Namespace) -> int:
         if a is None or b is None:
             bad.append(f"{o_name}: missing ({'original' if a is None else 'port'})")
             continue
-        fa, fb = fp_sequence(a), fp_sequence(b)
+        fa, fb = fp_sequence(a, operands=True), fp_sequence(b, operands=True)
         same_fp = fa == fb
+        same_code = blank_params(a) == blank_params(b)
         if not same_fp:
-            bad.append(f"{o_name}: the floating-point instruction sequence differs")
+            bad.append(
+                f"{o_name}: the floating-point instructions differ (opcodes, operands or order)"
+            )
+        if not same_code:
+            # The go/no-go is the SASS instruction for instruction (ADR 0075 section 1): a
+            # difference outside the floating-point instructions (a shuffle offset, an integer
+            # index) changes what the arithmetic reads, so it fails too.
+            bad.append(f"{o_name}: the SASS differs beyond the parameter offsets")
         kernels[o_name] = {
             "port": p_name,
             "fp_sequence_equal": same_fp,
+            "fp_opcodes_equal": fp_sequence(a) == fp_sequence(b),
             "fp_instructions": [len(fa), len(fb)],
             "fp_sha256": [hashlib.sha256("\n".join(x).encode()).hexdigest() for x in (fa, fb)],
             "identical": a == b,
-            "identical_but_parameter_offsets": blank_params(a) == blank_params(b),
+            "identical_but_parameter_offsets": same_code,
             "instructions": [len(a), len(b)],
             "resources": [o_res.get(o_name), p_res.get(p_name)],
             "resources_equal": o_res.get(o_name) == p_res.get(p_name),
@@ -342,9 +356,10 @@ def port_cmd(args: argparse.Namespace) -> int:
     record = {
         "schema": 1,
         "what": "the fused engine's kernels against LabelPropagation-CUDA@a276a3a's (criterion 12; "
-        "ADR 0075): the floating-point instruction sequence per kernel equal; the whole SASS, the "
-        "SASS without the parameter offsets and the resources recorded; and no floating-point "
-        "instruction in the graph module's device apply",
+        "ADR 0075): per kernel the SASS equal but for the parameter offsets and the "
+        "floating-point instructions equal with their operands; the whole SASS and the resources "
+        "recorded; and no floating-point instruction (conversions included) in the graph "
+        "module's device apply",
         "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "cuobjdump": subprocess.run([cuobjdump(), "--version"], capture_output=True, text=True)
         .stdout.strip()
