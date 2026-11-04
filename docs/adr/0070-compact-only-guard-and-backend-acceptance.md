@@ -143,8 +143,11 @@ JCC-erratum mitigation on both sides (OpenMP; on CUDA `apply` 1.002-1.006, `end_
 1.009-1.014): code placement; half of the CUDA `end_to_end` excursion is the CUDA context's
 creation, about 5 ms longer because
 `CUDA_MODULE_LOADING=EAGER` also loads label_propagation's kernels: a cost of the larger library,
-not placement. This is a STOP of M10a step 5 for the author (GOVERNANCE.md, Open decisions,
-`M10 (AD)`); nothing was changed to move them.
+not placement. This was a STOP of M10a step 5 for the author; nothing was changed to move them.
+**Decided by the author on 2026-11-03** (GOVERNANCE.md's approvals log, the row "The D14-path excursions of M10a step 5"):
+acknowledged as code placement on the D14 path; the module-loading cost is fixed in M10b (the
+kernels of label_propagation in a module of their own, loaded only when it runs; the region read
+again) and the non-product CPU-only `end_to_end` observation located there.
 
 ## Consequences
 
