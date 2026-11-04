@@ -165,6 +165,32 @@ freeze is `c78e4ef` (no library, driver or build change after it).
 - **Certificate:** the dry 0.4 certify restricted to hyper_sssp passes and fails with one gate row
   or one replay removed; M10's scoped dry run waits for M10's entries on the branch.
 
+## Outcome (M11a review)
+
+The independent review's fixes changed the gate scope and the harness (maintain and delta
+include Step 0 of the update, ADR 0080; both datasets at base; the round guards fail closed; the
+audit's quiet maximum from the pre-read record; a vanished GPU-1 process foreign unless seen as
+the reading's own; the store kernels' SASS record; the SASS identity's base commit checked). Every
+reading the dry certify reads was taken again on the final library (`18805af`;
+`parity/results/M11a.md` sections 11.6-11.8 and 12):
+
+- **Gates against MOSP_ESCHER:** **271 of 271 gated rows within their bars** (ratios 0.150-1.050;
+  340 rounds attempted, 336 kept, no audit flag, no fallback decision differing): maintain
+  0.608-1.030 (coauth-DBLP; Geology 0.630-0.836), sosp_update
+  0.990-1.050 (1.050 under the 1.10 bar where B's median is under 10 ms), static 0.981-1.036,
+  dynamic_comparable 0.654-1.029, dynamic 0.150-0.461, load_plus_dynamic 0.648-0.788. Memory: the
+  nsys peak 0.477-0.557 of B's and the graph-scope accounting 1.0000, every byte count equal to
+  step 5's.
+- **The 0.3 paths:** ADR 0024's readings on the reviewed library put every host region within
+  the bar; on cuda the excursions moved to the insert stage (coauth-DBLP `.apply.insert` 1.083,
+  its whole apply 1.021; syn1M `.apply.insert` 1.027), the same instruction streams at other
+  alignments, triad_count's gates against ESCHER-GPU@abcf9b2 holding (update at most 1.027 of
+  1.05). The author acknowledged these regions on 2026-11-03 as code placement on the D14 path,
+  kept as they are for 0.4.0 (GOVERNANCE.md approvals log, "The D14-path excursions of M11a (HD16,
+  sheet B6)").
+- **Certificate:** the dry 0.4 certify restricted to hyper_sssp passes on the committed records
+  and fails with one gate row or one replay removed.
+
 ## Consequences
 
 - A 0.4 certificate cannot pass without hyper_sssp's 16 x 16 timed rows, its memory rows, its
