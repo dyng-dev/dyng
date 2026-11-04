@@ -457,6 +457,37 @@ TEST_P(TriadCount, RequirementsAreCheckedPerPattern) {
   expect_exact(automatic, compute_all(res(), automatic));
 }
 
+// slack_csr storage (0.4) is refused in compute() and by an update before its commit (HD9; the
+// strong guarantee): triad_count reads the escher storage only.
+TEST_P(TriadCount, SlackCsrStorageIsRefused) {
+  dyng::hyperedge_list<std::int32_t, dyng::unweighted> list;
+  list.num_vertices = 13;
+  for (const auto& r : hand_rows) list.add_hyperedge(dyng::host_view(r));
+  dyng::hypergraph_properties props;
+  props.storage = dyng::hypergraph_storage::slack_csr;
+  props.line_graph = dyng::line_graph_policy::slack_csr;
+  hgraph slack = hgraph::from_hyperedges(res(), list.view(), props);
+  for (const tc::pattern p : all_patterns) {
+    SCOPED_TRACE(std::string(tc::to_string(p)));
+    try {
+      (void)tc::compute(res(), slack, kind_of(p));
+      ADD_FAILURE() << "accepted slack_csr storage";
+    } catch (const dyng::not_supported_error& e) {
+      EXPECT_NE(std::string(e.what()).find("hypergraph_storage::escher"), std::string::npos)
+          << e.what();
+    }
+  }
+  // A result of an escher hypergraph refuses the slack_csr one before anything changes.
+  const hgraph escher = make(res(), 13, hand_rows);
+  tc::result r = tc::compute(res(), escher);
+  const counts before = counts_of(r);
+  batch_t b;
+  b.insert_hyperedge({1, 2});
+  EXPECT_THROW((void)tc::update(res(), slack, b.view(), r), dyng::error);
+  EXPECT_EQ(slack.version(), 0U);
+  EXPECT_EQ(counts_of(r), before);
+}
+
 TEST_P(TriadCount, VertexIdsAtTheInt32LimitAreRefusedWhereTheMergeCannotCountThem) {
   // The rows hold vertex + 1 and the classifying merge ends a row at INT32_MAX: with
   // 2,147,483,647 vertices the vertex 2^31 - 2 would read as the end of its row. h_motif and type

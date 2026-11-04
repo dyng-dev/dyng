@@ -1,0 +1,1228 @@
+{
+ "schema": 1,
+ "algorithm": "hyper_sssp",
+ "what": "hyper_sssp against MOSP_ESCHER@4b86159: the Nsight Systems peak of live device allocations of both whole processes (GOVERNANCE D1) and the graph-scope accounting (B's graph_mb scope; HD6)",
+ "date": "2026-11-03T20:04:58Z",
+ "date_end": "2026-11-03T20:07:31Z",
+ "counts": true,
+ "protocol": {
+  "nsys": "nsys profile -t cuda,nvtx --cuda-memory-usage=true (CUDA 13.1), memKind Device (cudaMalloc + cudaMallocAsync)",
+  "gpu": 1,
+  "lock": "shared (flock -s by tools/locklog.py run GPU1-QUIET), in a GPU1-QUIET window of the shared calendar",
+  "lock_env": {
+   "DYNG_PERF_LOCK": null,
+   "DYNG_PERF_LOCK_HELD": null
+  },
+  "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify none (load, build, initial SOSP, 3 batches with their static baselines)",
+  "port": "dyng-compat-hsosp bench --sync-stages --digests (the golden's batches; B's capacities; result B kept as B's stateB) and --nvtx under nsys",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "guard": "every measured process (the two plain runs and the two profiled ones): B's h2h_pairs, overflow_rebuilds, seeds and mismatch_static, the port's pairs, distances' and parents' digests of every batch against the golden",
+  "gpu_samples": "nvidia-smi -i <gpu> --query-compute-apps=pid,process_name,used_memory --format=csv before, every 5 s during and after the reading; it counts only if no process but the reading's own appears",
+  "bar": 1.05
+ },
+ "reference": {
+  "name": "MOSP_ESCHER",
+  "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+  "variant": "unpatched",
+  "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
+ },
+ "port": {
+  "commit": "18805afbe30d4d2bfe7c4b0b6b8f57926a288015",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-hsosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "datasets_sha256": {
+  "dblp": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6",
+  "geology": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+ },
+ "gpu_samples": {
+  "waited_before": [],
+  "before": {
+   "time": "2026-11-03T20:04:58Z",
+   "rc": 0,
+   "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+   "apps": []
+  },
+  "during": [
+   {
+    "time": "2026-11-03T20:04:58Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:05:03Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2988998, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 2416 MiB\n",
+    "apps": [
+     {
+      "pid": 2988998,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "2416 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:08Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2988998, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 11376 MiB\n",
+    "apps": [
+     {
+      "pid": 2988998,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "11376 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:13Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2989304, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 242 MiB\n",
+    "apps": [
+     {
+      "pid": 2989304,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "242 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:18Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2989304, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 6546 MiB\n",
+    "apps": [
+     {
+      "pid": 2989304,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "6546 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:23Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2989304, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 6546 MiB\n",
+    "apps": [
+     {
+      "pid": 2989304,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "6546 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:28Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2989766, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 2444 MiB\n",
+    "apps": [
+     {
+      "pid": 2989766,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "2444 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:33Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2989766, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 11404 MiB\n",
+    "apps": [
+     {
+      "pid": 2989766,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "11404 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:38Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:05:44Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990190, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 270 MiB\n",
+    "apps": [
+     {
+      "pid": 2990190,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "270 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:49Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990190, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 6574 MiB\n",
+    "apps": [
+     {
+      "pid": 2990190,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "6574 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:54Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990190, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 6574 MiB\n",
+    "apps": [
+     {
+      "pid": 2990190,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "6574 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:05:59Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:06:04Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990528, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 2690 MiB\n",
+    "apps": [
+     {
+      "pid": 2990528,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "2690 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:09Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990678, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 242 MiB\n",
+    "apps": [
+     {
+      "pid": 2990678,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "242 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:14Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990678, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3922 MiB\n",
+    "apps": [
+     {
+      "pid": 2990678,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "3922 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:19Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990938, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 1084 MiB\n",
+    "apps": [
+     {
+      "pid": 2990938,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "1084 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:24Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2990938, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 6438 MiB\n",
+    "apps": [
+     {
+      "pid": 2990938,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "6438 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:29Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:06:34Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2991260, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 2478 MiB\n",
+    "apps": [
+     {
+      "pid": 2991260,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "2478 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:39Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:06:44Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2991419, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 388 MiB\n",
+    "apps": [
+     {
+      "pid": 2991419,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "388 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:49Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2991497, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3538 MiB\n",
+    "apps": [
+     {
+      "pid": 2991497,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "3538 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:54Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2991589, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 2196 MiB\n",
+    "apps": [
+     {
+      "pid": 2991589,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "2196 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:06:59Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:07:04Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2991789, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 3566 MiB\n",
+    "apps": [
+     {
+      "pid": 2991789,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "3566 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:07:09Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:07:14Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2991999, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 242 MiB\n",
+    "apps": [
+     {
+      "pid": 2991999,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "242 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:07:19Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2992065, /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench, 836 MiB\n",
+    "apps": [
+     {
+      "pid": 2992065,
+      "name": "/home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+      "used": "836 MiB",
+      "own": true
+     }
+    ]
+   },
+   {
+    "time": "2026-11-03T20:07:24Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+    "apps": []
+   },
+   {
+    "time": "2026-11-03T20:07:29Z",
+    "rc": 0,
+    "csv": "pid, process_name, used_gpu_memory [MiB]\n2992272, /home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp, 1870 MiB\n",
+    "apps": [
+     {
+      "pid": 2992272,
+      "name": "/home/sskg8/Projects/dyng-work/wt-m11/build/parity-cuda/tools/compat/dyng-compat-hsosp",
+      "used": "1870 MiB",
+      "own": true
+     }
+    ]
+   }
+  ],
+  "after": {
+   "time": "2026-11-03T20:07:31Z",
+   "rc": 0,
+   "csv": "pid, process_name, used_gpu_memory [MiB]\n",
+   "apps": []
+  },
+  "foreign": []
+ },
+ "results": {
+  "dblp_hyperedge_200000": {
+   "config": "dblp_hyperedge_200000",
+   "dataset": "dblp",
+   "kind": "hyperedge",
+   "batch": 200000,
+   "batches": 3,
+   "gated": false,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/coauth.hg",
+    "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+   },
+   "original": {
+    "peak_live_mib": 11065.3,
+    "peak_live_bytes": 11602859460,
+    "peak_in": [
+     "thrust::copy_if",
+     "thrust::copy_if"
+    ]
+   },
+   "port": {
+    "peak_live_mib": 6328.6,
+    "peak_live_bytes": 6636025321,
+    "peak_in": [
+     "hyper_sssp.update",
+     "hyper_sssp.commit",
+     "hypergraph.apply",
+     "hypergraph.apply.translate"
+    ],
+    "ratio": 0.5719301646182311
+   },
+   "ratio": 0.5719301646182311,
+   "graph_accounting": [
+    {
+     "point": "build",
+     "row": "graph_memory[build]",
+     "dyng_graph_bytes": 3060094212,
+     "mosp_escher_graph_bytes": 3060094212,
+     "ratio": 1.0,
+     "b_printed_mb": null,
+     "gated": false
+    },
+    {
+     "point": "batch 1",
+     "row": "graph_memory[b1]",
+     "dyng_graph_bytes": 3060094212,
+     "mosp_escher_graph_bytes": 3060094212,
+     "ratio": 1.0,
+     "b_printed_mb": "2918.33",
+     "gated": false
+    },
+    {
+     "point": "batch 2",
+     "row": "graph_memory[b2]",
+     "dyng_graph_bytes": 3060094212,
+     "mosp_escher_graph_bytes": 3060094212,
+     "ratio": 1.0,
+     "b_printed_mb": "2918.33",
+     "gated": false
+    },
+    {
+     "point": "batch 3",
+     "row": "graph_memory[b3]",
+     "dyng_graph_bytes": 3060094212,
+     "mosp_escher_graph_bytes": 3060094212,
+     "ratio": 1.0,
+     "b_printed_mb": "2918.33",
+     "gated": false
+    }
+   ],
+   "graph_worst_ratio": 1.0,
+   "regions": [
+    {
+     "region": "device_memory",
+     "gate_kind": "none",
+     "original_bytes": 11602859460,
+     "port_bytes": 6636025321,
+     "ratio": 0.5719301646182311
+    },
+    {
+     "region": "graph_memory[build]",
+     "gate_kind": "none",
+     "original_bytes": 3060094212,
+     "port_bytes": 3060094212,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b1]",
+     "gate_kind": "none",
+     "original_bytes": 3060094212,
+     "port_bytes": 3060094212,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b2]",
+     "gate_kind": "none",
+     "original_bytes": 3060094212,
+     "port_bytes": 3060094212,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b3]",
+     "gate_kind": "none",
+     "original_bytes": 3060094212,
+     "port_bytes": 3060094212,
+     "ratio": 1.0
+    }
+   ],
+   "nsys": {
+    "original": {
+     "peak_live_mib": 11065.3,
+     "peak_live_bytes": 11602859460,
+     "footprint_peak_mib": 11081.0,
+     "footprint_at_live_peak_mib": 11080.4,
+     "footprint_peak_in": [
+      "thrust::sort_by_key",
+      "thrust::sort_by_key"
+     ],
+     "pool_mib": 288.0,
+     "peak_in": [
+      "thrust::copy_if",
+      "thrust::copy_if"
+     ],
+     "range_peaks_mib": {
+      "thrust::copy_if": 11065.3,
+      "thrust::count_if": 10795.7,
+      "thrust::inclusive_scan": 10804.6,
+      "thrust::sort_by_key": 10796.5
+     },
+     "batch_range": "",
+     "batches": []
+    },
+    "port": {
+     "peak_live_mib": 6328.6,
+     "peak_live_bytes": 6636025321,
+     "footprint_peak_mib": 6336.0,
+     "footprint_at_live_peak_mib": 6336.0,
+     "footprint_peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 6336.0,
+     "peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.translate"
+     ],
+     "range_peaks_mib": {
+      "hyper_sssp.commit": 6328.6,
+      "hyper_sssp.compute": 2703.2,
+      "hyper_sssp.enact_fused": 2703.2,
+      "hyper_sssp.update": 6328.6,
+      "hypergraph.apply": 6328.6,
+      "hypergraph.apply.incidence": 6328.6,
+      "hypergraph.apply.line_graph": 6327.8,
+      "hypergraph.apply.translate": 6328.6,
+      "hypergraph.build": 2511.9,
+      "hypergraph.upload": 2511.9
+     },
+     "batch_range": "hyper_sssp.update",
+     "batches": [
+      {
+       "live_mib_start": 2894.4,
+       "live_mib_end": 6327.8,
+       "pool_mib_end": 6336.0,
+       "slack_mib_end": 8.2,
+       "held_mib_end": 6336.0
+      },
+      {
+       "live_mib_start": 6327.8,
+       "live_mib_end": 6327.8,
+       "pool_mib_end": 6336.0,
+       "slack_mib_end": 8.2,
+       "held_mib_end": 6336.0
+      },
+      {
+       "live_mib_start": 6327.8,
+       "live_mib_end": 6327.8,
+       "pool_mib_end": 6336.0,
+       "slack_mib_end": 8.2,
+       "held_mib_end": 6336.0
+      }
+     ]
+    }
+   },
+   "footprint_ratio_max": 0.5717895496796318,
+   "original_escher_mb": [
+    "4241.45",
+    "4241.45",
+    "4241.45"
+   ],
+   "original_dev_mem_mb": [
+    "11492.3",
+    "11492.3",
+    "11492.3"
+   ],
+   "guard": {
+    "runs_checked": 4,
+    "passed": true
+   }
+  },
+  "dblp_vertex_200000": {
+   "config": "dblp_vertex_200000",
+   "dataset": "dblp",
+   "kind": "vertex",
+   "batch": 200000,
+   "batches": 3,
+   "gated": false,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/coauth.hg",
+    "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+   },
+   "original": {
+    "peak_live_mib": 6096.5,
+    "peak_live_bytes": 6392633069,
+    "peak_in": [
+     "thrust::inclusive_scan",
+     "thrust::inclusive_scan"
+    ]
+   },
+   "port": {
+    "peak_live_mib": 3684.6,
+    "peak_live_bytes": 3863604786,
+    "peak_in": [
+     "hyper_sssp.update",
+     "hyper_sssp.commit",
+     "hypergraph.apply",
+     "hypergraph.apply.line_graph"
+    ],
+    "ratio": 0.6043839438768827
+   },
+   "ratio": 0.6043839438768827,
+   "graph_accounting": [
+    {
+     "point": "build",
+     "row": "graph_memory[build]",
+     "dyng_graph_bytes": 2954494212,
+     "mosp_escher_graph_bytes": 2954494212,
+     "ratio": 1.0,
+     "b_printed_mb": null,
+     "gated": false
+    },
+    {
+     "point": "batch 1",
+     "row": "graph_memory[b1]",
+     "dyng_graph_bytes": 2954494212,
+     "mosp_escher_graph_bytes": 2954494212,
+     "ratio": 1.0,
+     "b_printed_mb": "2817.63",
+     "gated": false
+    },
+    {
+     "point": "batch 2",
+     "row": "graph_memory[b2]",
+     "dyng_graph_bytes": 2954494212,
+     "mosp_escher_graph_bytes": 2954494212,
+     "ratio": 1.0,
+     "b_printed_mb": "2817.63",
+     "gated": false
+    },
+    {
+     "point": "batch 3",
+     "row": "graph_memory[b3]",
+     "dyng_graph_bytes": 2954494212,
+     "mosp_escher_graph_bytes": 2954494212,
+     "ratio": 1.0,
+     "b_printed_mb": "2817.63",
+     "gated": false
+    }
+   ],
+   "graph_worst_ratio": 1.0,
+   "regions": [
+    {
+     "region": "device_memory",
+     "gate_kind": "none",
+     "original_bytes": 6392633069,
+     "port_bytes": 3863604786,
+     "ratio": 0.6043839438768827
+    },
+    {
+     "region": "graph_memory[build]",
+     "gate_kind": "none",
+     "original_bytes": 2954494212,
+     "port_bytes": 2954494212,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b1]",
+     "gate_kind": "none",
+     "original_bytes": 2954494212,
+     "port_bytes": 2954494212,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b2]",
+     "gate_kind": "none",
+     "original_bytes": 2954494212,
+     "port_bytes": 2954494212,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b3]",
+     "gate_kind": "none",
+     "original_bytes": 2954494212,
+     "port_bytes": 2954494212,
+     "ratio": 1.0
+    }
+   ],
+   "nsys": {
+    "original": {
+     "peak_live_mib": 6096.5,
+     "peak_live_bytes": 6392633069,
+     "footprint_peak_mib": 6121.4,
+     "footprint_at_live_peak_mib": 6121.4,
+     "footprint_peak_in": [
+      "thrust::inclusive_scan",
+      "thrust::inclusive_scan"
+     ],
+     "pool_mib": 32.0,
+     "peak_in": [
+      "thrust::inclusive_scan",
+      "thrust::inclusive_scan"
+     ],
+     "range_peaks_mib": {
+      "thrust::inclusive_scan": 6096.5
+     },
+     "batch_range": "",
+     "batches": []
+    },
+    "port": {
+     "peak_live_mib": 3684.6,
+     "peak_live_bytes": 3863604786,
+     "footprint_peak_mib": 3712.0,
+     "footprint_at_live_peak_mib": 3712.0,
+     "footprint_peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 3712.0,
+     "peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "range_peaks_mib": {
+      "hyper_sssp.commit": 3684.6,
+      "hyper_sssp.compute": 2643.7,
+      "hyper_sssp.enact_fused": 2643.7,
+      "hyper_sssp.update": 3684.6,
+      "hypergraph.apply": 3684.6,
+      "hypergraph.apply.line_graph": 3684.6,
+      "hypergraph.apply.translate": 3293.8,
+      "hypergraph.build": 2489.0,
+      "hypergraph.upload": 2489.0
+     },
+     "batch_range": "hyper_sssp.update",
+     "batches": [
+      {
+       "live_mib_start": 2798.3,
+       "live_mib_end": 3684.6,
+       "pool_mib_end": 3712.0,
+       "slack_mib_end": 27.4,
+       "held_mib_end": 3712.0
+      },
+      {
+       "live_mib_start": 3684.6,
+       "live_mib_end": 3684.6,
+       "pool_mib_end": 3712.0,
+       "slack_mib_end": 27.4,
+       "held_mib_end": 3712.0
+      },
+      {
+       "live_mib_start": 3684.6,
+       "live_mib_end": 3684.6,
+       "pool_mib_end": 3712.0,
+       "slack_mib_end": 27.4,
+       "held_mib_end": 3712.0
+      }
+     ]
+    }
+   },
+   "footprint_ratio_max": 0.6063972293919692,
+   "original_escher_mb": [
+    "2195.25",
+    "2195.25",
+    "2195.25"
+   ],
+   "original_dev_mem_mb": [
+    "6526.31",
+    "6526.31",
+    "6526.31"
+   ],
+   "guard": {
+    "runs_checked": 4,
+    "passed": true
+   }
+  },
+  "geology_hyperedge_200000": {
+   "config": "geology_hyperedge_200000",
+   "dataset": "geology",
+   "kind": "hyperedge",
+   "batch": 200000,
+   "batches": 3,
+   "gated": false,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/geology.hg",
+    "sha256": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+   },
+   "original": {
+    "peak_live_mib": 6658.8,
+    "peak_live_bytes": 6982299213,
+    "peak_in": [
+     "thrust::copy_if",
+     "thrust::copy_if"
+    ]
+   },
+   "port": {
+    "peak_live_mib": 3322.0,
+    "peak_live_bytes": 3483403246,
+    "peak_in": [
+     "hyper_sssp.update",
+     "hyper_sssp.commit",
+     "hypergraph.apply",
+     "hypergraph.apply.translate"
+    ],
+    "ratio": 0.49889057167793993
+   },
+   "ratio": 0.49889057167793993,
+   "graph_accounting": [
+    {
+     "point": "build",
+     "row": "graph_memory[build]",
+     "dyng_graph_bytes": 1212260568,
+     "mosp_escher_graph_bytes": 1212260568,
+     "ratio": 1.0,
+     "b_printed_mb": null,
+     "gated": false
+    },
+    {
+     "point": "batch 1",
+     "row": "graph_memory[b1]",
+     "dyng_graph_bytes": 1212260568,
+     "mosp_escher_graph_bytes": 1212260568,
+     "ratio": 1.0,
+     "b_printed_mb": "1156.1",
+     "gated": false
+    },
+    {
+     "point": "batch 2",
+     "row": "graph_memory[b2]",
+     "dyng_graph_bytes": 1212260568,
+     "mosp_escher_graph_bytes": 1212260568,
+     "ratio": 1.0,
+     "b_printed_mb": "1156.1",
+     "gated": false
+    },
+    {
+     "point": "batch 3",
+     "row": "graph_memory[b3]",
+     "dyng_graph_bytes": 1212260568,
+     "mosp_escher_graph_bytes": 1212260568,
+     "ratio": 1.0,
+     "b_printed_mb": "1156.1",
+     "gated": false
+    }
+   ],
+   "graph_worst_ratio": 1.0,
+   "regions": [
+    {
+     "region": "device_memory",
+     "gate_kind": "none",
+     "original_bytes": 6982299213,
+     "port_bytes": 3483403246,
+     "ratio": 0.49889057167793993
+    },
+    {
+     "region": "graph_memory[build]",
+     "gate_kind": "none",
+     "original_bytes": 1212260568,
+     "port_bytes": 1212260568,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b1]",
+     "gate_kind": "none",
+     "original_bytes": 1212260568,
+     "port_bytes": 1212260568,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b2]",
+     "gate_kind": "none",
+     "original_bytes": 1212260568,
+     "port_bytes": 1212260568,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b3]",
+     "gate_kind": "none",
+     "original_bytes": 1212260568,
+     "port_bytes": 1212260568,
+     "ratio": 1.0
+    }
+   ],
+   "nsys": {
+    "original": {
+     "peak_live_mib": 6658.8,
+     "peak_live_bytes": 6982299213,
+     "footprint_peak_mib": 6686.2,
+     "footprint_at_live_peak_mib": 6685.5,
+     "footprint_peak_in": [
+      "thrust::sort_by_key",
+      "thrust::sort_by_key"
+     ],
+     "pool_mib": 160.0,
+     "peak_in": [
+      "thrust::copy_if",
+      "thrust::copy_if"
+     ],
+     "range_peaks_mib": {
+      "thrust::copy_if": 6658.8,
+      "thrust::count_if": 6528.9,
+      "thrust::inclusive_scan": 6530.8,
+      "thrust::sort_by_key": 6529.7
+     },
+     "batch_range": "",
+     "batches": []
+    },
+    "port": {
+     "peak_live_mib": 3322.0,
+     "peak_live_bytes": 3483403246,
+     "footprint_peak_mib": 3328.0,
+     "footprint_at_live_peak_mib": 3328.0,
+     "footprint_peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 3328.0,
+     "peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.translate"
+     ],
+     "range_peaks_mib": {
+      "hyper_sssp.commit": 3322.0,
+      "hyper_sssp.compute": 1027.7,
+      "hyper_sssp.enact_fused": 1027.7,
+      "hyper_sssp.update": 3322.0,
+      "hypergraph.apply": 3322.0,
+      "hypergraph.apply.incidence": 3322.0,
+      "hypergraph.apply.line_graph": 3321.3,
+      "hypergraph.apply.translate": 3322.0,
+      "hypergraph.build": 913.5,
+      "hypergraph.upload": 913.5
+     },
+     "batch_range": "hyper_sssp.update",
+     "batches": [
+      {
+       "live_mib_start": 1141.8,
+       "live_mib_end": 3321.3,
+       "pool_mib_end": 3328.0,
+       "slack_mib_end": 6.7,
+       "held_mib_end": 3328.0
+      },
+      {
+       "live_mib_start": 3321.3,
+       "live_mib_end": 3321.3,
+       "pool_mib_end": 3328.0,
+       "slack_mib_end": 6.7,
+       "held_mib_end": 3328.0
+      },
+      {
+       "live_mib_start": 3321.3,
+       "live_mib_end": 3321.3,
+       "pool_mib_end": 3328.0,
+       "slack_mib_end": 6.7,
+       "held_mib_end": 3328.0
+      }
+     ]
+    }
+   },
+   "footprint_ratio_max": 0.4977416170620083,
+   "original_escher_mb": [
+    "3075.62",
+    "3075.62",
+    "3075.62"
+   ],
+   "original_dev_mem_mb": [
+    "7130.31",
+    "7130.31",
+    "7130.31"
+   ],
+   "guard": {
+    "runs_checked": 4,
+    "passed": true
+   }
+  },
+  "geology_vertex_200000": {
+   "config": "geology_vertex_200000",
+   "dataset": "geology",
+   "kind": "vertex",
+   "batch": 200000,
+   "batches": 3,
+   "gated": false,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/geology.hg",
+    "sha256": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+   },
+   "original": {
+    "peak_live_mib": 2773.7,
+    "peak_live_bytes": 2908399688,
+    "peak_in": [
+     "thrust::inclusive_scan",
+     "thrust::inclusive_scan"
+    ]
+   },
+   "port": {
+    "peak_live_mib": 1628.4,
+    "peak_live_bytes": 1707482365,
+    "peak_in": [
+     "hyper_sssp.update",
+     "hyper_sssp.commit",
+     "hypergraph.apply",
+     "hypergraph.apply.translate"
+    ],
+    "ratio": 0.5870865589915439
+   },
+   "ratio": 0.5870865589915439,
+   "graph_accounting": [
+    {
+     "point": "build",
+     "row": "graph_memory[build]",
+     "dyng_graph_bytes": 1106660568,
+     "mosp_escher_graph_bytes": 1106660568,
+     "ratio": 1.0,
+     "b_printed_mb": null,
+     "gated": false
+    },
+    {
+     "point": "batch 1",
+     "row": "graph_memory[b1]",
+     "dyng_graph_bytes": 1106660568,
+     "mosp_escher_graph_bytes": 1106660568,
+     "ratio": 1.0,
+     "b_printed_mb": "1055.39",
+     "gated": false
+    },
+    {
+     "point": "batch 2",
+     "row": "graph_memory[b2]",
+     "dyng_graph_bytes": 1106660568,
+     "mosp_escher_graph_bytes": 1106660568,
+     "ratio": 1.0,
+     "b_printed_mb": "1055.39",
+     "gated": false
+    },
+    {
+     "point": "batch 3",
+     "row": "graph_memory[b3]",
+     "dyng_graph_bytes": 1106660568,
+     "mosp_escher_graph_bytes": 1106660568,
+     "ratio": 1.0,
+     "b_printed_mb": "1055.39",
+     "gated": false
+    }
+   ],
+   "graph_worst_ratio": 1.0,
+   "regions": [
+    {
+     "region": "device_memory",
+     "gate_kind": "none",
+     "original_bytes": 2908399688,
+     "port_bytes": 1707482365,
+     "ratio": 0.5870865589915439
+    },
+    {
+     "region": "graph_memory[build]",
+     "gate_kind": "none",
+     "original_bytes": 1106660568,
+     "port_bytes": 1106660568,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b1]",
+     "gate_kind": "none",
+     "original_bytes": 1106660568,
+     "port_bytes": 1106660568,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b2]",
+     "gate_kind": "none",
+     "original_bytes": 1106660568,
+     "port_bytes": 1106660568,
+     "ratio": 1.0
+    },
+    {
+     "region": "graph_memory[b3]",
+     "gate_kind": "none",
+     "original_bytes": 1106660568,
+     "port_bytes": 1106660568,
+     "ratio": 1.0
+    }
+   ],
+   "nsys": {
+    "original": {
+     "peak_live_mib": 2773.7,
+     "peak_live_bytes": 2908399688,
+     "footprint_peak_mib": 2801.9,
+     "footprint_at_live_peak_mib": 2801.9,
+     "footprint_peak_in": [
+      "thrust::inclusive_scan",
+      "thrust::inclusive_scan"
+     ],
+     "pool_mib": 32.0,
+     "peak_in": [
+      "thrust::inclusive_scan",
+      "thrust::inclusive_scan"
+     ],
+     "range_peaks_mib": {
+      "thrust::inclusive_scan": 2773.7
+     },
+     "batch_range": "",
+     "batches": []
+    },
+    "port": {
+     "peak_live_mib": 1628.4,
+     "peak_live_bytes": 1707482365,
+     "footprint_peak_mib": 1632.0,
+     "footprint_at_live_peak_mib": 1632.0,
+     "footprint_peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.line_graph"
+     ],
+     "pool_mib": 1632.0,
+     "peak_in": [
+      "hyper_sssp.update",
+      "hyper_sssp.commit",
+      "hypergraph.apply",
+      "hypergraph.apply.translate"
+     ],
+     "range_peaks_mib": {
+      "hyper_sssp.commit": 1628.4,
+      "hyper_sssp.compute": 968.2,
+      "hyper_sssp.enact_fused": 968.2,
+      "hyper_sssp.update": 1628.4,
+      "hypergraph.apply": 1628.4,
+      "hypergraph.apply.line_graph": 1628.4,
+      "hypergraph.apply.translate": 1628.4,
+      "hypergraph.build": 890.6,
+      "hypergraph.upload": 890.6
+     },
+     "batch_range": "hyper_sssp.update",
+     "batches": [
+      {
+       "live_mib_start": 1045.7,
+       "live_mib_end": 1628.4,
+       "pool_mib_end": 1632.0,
+       "slack_mib_end": 3.6,
+       "held_mib_end": 1632.0
+      },
+      {
+       "live_mib_start": 1628.4,
+       "live_mib_end": 1628.4,
+       "pool_mib_end": 1632.0,
+       "slack_mib_end": 3.6,
+       "held_mib_end": 1632.0
+      },
+      {
+       "live_mib_start": 1628.4,
+       "live_mib_end": 1628.4,
+       "pool_mib_end": 1632.0,
+       "slack_mib_end": 3.6,
+       "held_mib_end": 1632.0
+      }
+     ]
+    }
+   },
+   "footprint_ratio_max": 0.5824619008529925,
+   "original_escher_mb": [
+    "1029.42",
+    "1029.42",
+    "1029.42"
+   ],
+   "original_dev_mem_mb": [
+    "3242.31",
+    "3242.31",
+    "3242.31"
+   ],
+   "guard": {
+    "runs_checked": 4,
+    "passed": true
+   }
+  }
+ }
+}

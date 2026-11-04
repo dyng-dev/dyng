@@ -7,11 +7,15 @@
 # parity/export_patches/{ESCHER-GPU,MOSP_ESCHER}/build.sh:
 #
 #   relink_twins.sh <copy> <adapter> <wrap list> <hooks adapter> <hook wrap list> <hook object>
-#                   <include dirs> -- <target>...
+#                   <include dirs> [--extra <sources> <wrap list> <object>]... -- <target>...
 #
 # <adapter> and <hooks adapter> are sources of parity/exporters/escher; the hooks adapter (the
 # batch dumps) and its wrap list are linked only into twins whose link command names
-# <hook object> (the object that defines the hooked functions).
+# <hook object> (the object that defines the hooked functions). Each --extra group (M11a, ADR
+# 0081: the H-SOSP dump of MOSP_ESCHER) is a comma-separated list of files under
+# parity/exporters (its .cpp files are compiled, the others copied next to them), a wrap list
+# and an object: the group's objects and wraps are linked only into twins whose link command
+# names that object.
 # For every target (a make target of the copy, e.g. build/main or bin/test_cbst_ops):
 #   1. the original's own link command is taken from `make -n -B <target>` (with the make
 #      variables of the reference's build command, $DYNG_REFERENCE_BUILD) and kept in
@@ -35,6 +39,15 @@ hook_list="${5:?}"
 hook_object="${6:?}"
 includes="${7:?}"
 shift 7
+extra_sources=()
+extra_lists=()
+extra_objects=()
+while [ "${1:-}" = "--extra" ]; do
+  extra_sources+=("${2:?--extra <sources> <wrap list> <object>}")
+  extra_lists+=("${3:?--extra <sources> <wrap list> <object>}")
+  extra_objects+=("${4:?--extra <sources> <wrap list> <object>}")
+  shift 4
+done
 [ "${1:-}" = "--" ] && shift
 targets=("$@")
 [ "${#targets[@]}" -gt 0 ] || { echo "relink_twins.sh: no targets" >&2; exit 2; }
@@ -52,14 +65,36 @@ cxx="${CXX:-g++}"
 cuda_home="${CUDA_HOME:-/usr/local/cuda-13.1}"
 inc=(-I"${dst}/src" -I"${cuda_home}/include")
 for d in ${includes}; do inc+=(-I"${copy}/${d}"); done
-compile() { # <source> <object>
-  if [ ! -f "$2" ] || [ "$1" -nt "$2" ] || [ "${dst}/src/cbst_recorder.hpp" -nt "$2" ]; then
+compile() { # <source> <object>  (again when any copied source or header is newer)
+  if [ ! -f "$2" ] || [ -n "$(find "${dst}/src" -newer "$2" -print -quit)" ]; then
     "${cxx}" -std=c++17 -O2 -g -Wall -Wextra -c "$1" "${inc[@]}" -o "$2"
   fi
 }
+# The --extra groups' files (copied first: their headers may be included by their sources).
+extra_objs=()   # per group: its objects (space-separated, relative to the copy)
+for g in "${!extra_sources[@]}"; do
+  IFS=',' read -r -a files <<<"${extra_sources[$g]}"
+  for f in "${files[@]}"; do
+    cmp -s "${here}/../${f}" "${dst}/src/$(basename "${f}")" ||
+      cp -p "${here}/../${f}" "${dst}/src/$(basename "${f}")"
+  done
+  cmp -s "${extra_lists[$g]}" "${dst}/src/$(basename "${extra_lists[$g]}")" ||
+    cp -p "${extra_lists[$g]}" "${dst}/src/$(basename "${extra_lists[$g]}")"
+done
 compile "${dst}/src/cbst_recorder.cpp" "${dst}/obj/cbst_recorder.o"
 compile "${dst}/src/${adapter}" "${dst}/obj/${adapter%.cpp}.o"
 compile "${dst}/src/${hooks}" "${dst}/obj/${hooks%.cpp}.o"
+for g in "${!extra_sources[@]}"; do
+  IFS=',' read -r -a files <<<"${extra_sources[$g]}"
+  objs_g=""
+  for f in "${files[@]}"; do
+    [[ "${f}" == *.cpp ]] || continue
+    b="$(basename "${f}" .cpp)"
+    compile "${dst}/src/${b}.cpp" "${dst}/obj/${b}.o"
+    objs_g+=" parity_export/obj/${b}.o"
+  done
+  extra_objs+=("${objs_g}")
+done
 
 wrap_flags() { # <list>
   local sym out=""
@@ -72,6 +107,8 @@ wrap_flags() { # <list>
 }
 cbst_wraps="$(wrap_flags "${wrap_list}")"
 hook_wraps="$(wrap_flags "${hook_list}")"
+extra_wraps=()
+for g in "${!extra_sources[@]}"; do extra_wraps+=("$(wrap_flags "${extra_lists[$g]}")"); done
 
 # The make variables of the reference's build command (NVCC=..., ARCH=... / CUDA_ARCH=...).
 make_vars=()
@@ -93,11 +130,24 @@ for target in "${targets[@]}"; do
     objs+=" parity_export/obj/${hooks%.cpp}.o"
     wraps+="${hook_wraps}"
   fi
+  extra_newest=()
+  for g in "${!extra_sources[@]}"; do
+    if [[ " ${line} " == *"${extra_objects[$g]} "* ]]; then
+      objs+="${extra_objs[$g]}"
+      wraps+="${extra_wraps[$g]}"
+      for o in ${extra_objs[$g]}; do extra_newest+=("${copy}/${o}"); done
+    fi
+  done
   pat=" -o ${target}"
   twin_cmd="${line/"${pat}"/ -o parity_export/bin/${name} ${objs}}${wraps}"
+  if [ -f "${dst}/link/${name}.twin.cmd" ] && ! cmp -s <(printf '%s\n' "${twin_cmd}") \
+    "${dst}/link/${name}.twin.cmd"; then
+    rm -f "${dst}/bin/${name}"  # the twin's link command changed: relink it
+  fi
   printf '%s\n' "${twin_cmd}" >"${dst}/link/${name}.twin.cmd"
   newest="$(ls -t "${dst}/obj/cbst_recorder.o" "${dst}/obj/${adapter%.cpp}.o" \
-    "${dst}/obj/${hooks%.cpp}.o" "${dst}/link/${name}.cmd" | head -n 1)"
+    "${dst}/obj/${hooks%.cpp}.o" ${extra_newest[@]+"${extra_newest[@]}"} \
+    "${dst}/link/${name}.cmd" | head -n 1)"
   if [ ! -x "${dst}/bin/${name}" ] || [ "${newest}" -nt "${dst}/bin/${name}" ] ||
     { [ -f "${copy}/${target}" ] && ! is_twin "${copy}/${target}"; }; then
     (cd "${copy}" && bash -c "${twin_cmd}")

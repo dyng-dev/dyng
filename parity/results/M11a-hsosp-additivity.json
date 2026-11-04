@@ -1,0 +1,8 @@
+{
+ "set": "cbst_trace_mosp_escher_test",
+ "copy": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched-hsosp-1/ref/MOSP_ESCHER@4b86159/patched",
+ "manifest_sha256": "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60",
+ "golden_manifest_sha256": "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60",
+ "identical": true,
+ "cases": 24
+}

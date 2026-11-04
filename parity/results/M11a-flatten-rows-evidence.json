@@ -1,0 +1,45 @@
+{
+ "record": "M11a step 2: escher::flatten_rows leaves the library (ADR 0084), the static evidence (HD16)",
+ "before": "e84d338",
+ "nm_libdyng": {
+  "before": {
+   "dev": "defined (T) + ._omp_fn.0 clone",
+   "cpu-only": "defined (T) + .cold clone",
+   "dev-cuda": "defined (T) + ._omp_fn.0 clone"
+  },
+  "after": {
+   "dev": 0,
+   "cpu-only": 0,
+   "dev-cuda": 0
+  }
+ },
+ "calls_in_libdyng_before": {
+  "dev": 0,
+  "cpu-only": 0,
+  "dev-cuda": 0
+ },
+ "nm_compat_binaries": {
+  "dyng-compat-cycle-enum": {
+   "before": 0,
+   "after": 0
+  },
+  "dyng-compat-escher": {
+   "before": 0,
+   "after": 0
+  },
+  "dyng-compat-mosp": {
+   "before": 0,
+   "after": 0
+  }
+ },
+ "omp_parallel_without_num_threads_in_cpp_src": {
+  "before": [
+   "cpp/src/hypergraph/escher/flatten.cpp:55"
+  ],
+  "after": []
+ },
+ "tests": {
+  "dyng_cbst_host_tests": "7 passed (before and after)"
+ },
+ "timing": "part of the escher-path ADR 0024 reading of M11a step 5"
+}

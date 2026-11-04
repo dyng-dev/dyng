@@ -78,7 +78,7 @@ HYPERGRAPH_REQUIREMENTS = {
     "line_graph": ("any", "required"),
     "store_v2h": ("any", "required"),
     "reuse": ("any", "erase_first", "insert_first"),
-    "storage": ("any", "escher"),
+    "storage": ("any", "escher", "slack_csr"),
 }
 NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 HANDLE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")

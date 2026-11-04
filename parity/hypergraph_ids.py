@@ -29,15 +29,23 @@ one std::mt19937_64(--seed of the run); each must equal A's. The record is then
 M8b-legacy-<set>-<backend>[-t<N>].json. --hg FILE (criterion 13): the .hg file the runs loaded is
 read with the original's option set and must give its loaded rows (record M8b-hg-<set>-...).
 
+--storage slack_csr (M11a step 2, ADRs 0085 and 0086; MOSP_ESCHER's sets): its sessions on
+slack_csr storage, replayed whole with their incidence edits (MOSP_ESCHER's skip rules, the host
+model's H2V fills and unfills in lockstep), the dead ids (deadHe - 1) compared after every batch
+and, with --line-graph (line_graph_policy::slack_csr), the directed keys of the pair delta with
+the count MOSP_ESCHER's finishBatch received; stopped_sessions must be 0. The record is then
+M11a-<kind>-slack_csr-<set>-<backend>[-t<N>].json.
+
 --record writes M8b-hypergraph-ids-<set>-<backend>[-t<N>].json (the totals, every case's report
 and the tool's commit). --certificate DIR (M8b step 5) also writes the replay record of the
 release certificate (parity/certify.py, the hypergraph-id schema): parity-<set>-hypergraph_ids-
 <backend>[-t<N>]-<feature>.json with the set's manifest digest, the port's commit, one config
-"<backend>[/t<N>]:hypergraph_ids/<feature>" (feature: the mode, or line_graph, legacy, hg) and
-per case "equal" or "DIFFERENT"; certify.py requires the id replays of every set of SETS on
-sequential, openmp and cuda, and the line-graph replays of ESCHER-GPU's sets on cuda, from the
-0.3 series. Exit status: 0 every case matched, 1 a mismatch, 2 a usage error, 77 no
-goldens.
+"<backend>[/t<N>]:hypergraph_ids/<feature>" (feature: the mode, or line_graph, legacy, hg, and
+with --storage slack_csr slack_csr or slack_csr_line_graph) and per case "equal" or "DIFFERENT";
+certify.py requires the id replays of every set of SETS on sequential, openmp and cuda, and the
+line-graph replays of ESCHER-GPU's sets on cuda, from the 0.3 series, and MOSP_ESCHER's sessions
+whole on slack_csr storage from the 0.4 series (HYPERGRAPH_ID_REPLAYS). Exit status: 0 every
+case matched, 1 a mismatch, 2 a usage error, 77 no goldens.
 """
 
 from __future__ import annotations
@@ -66,6 +74,9 @@ SETS = {
     "cbst_trace_escher_gpu_syn1m": "ESCHER-GPU",
     "cbst_trace_mosp_escher_test": "MOSP_ESCHER",
     "cbst_trace_mosp_escher_dblp50k_hyperedge": "MOSP_ESCHER",
+    # Vertex-kind sessions: under escher storage they stop at their first batch; whole on
+    # slack_csr storage (M11a step 2).
+    "cbst_trace_mosp_escher_dblp50k_vertex": "MOSP_ESCHER",
     "committed": "both",
 }
 COMMITTED = [
@@ -80,6 +91,13 @@ TOTALS = (
     "stopped_sessions",
     "hyperedge_batches_after_stop",
     "ids_after_stop",
+    "vertex_batches_replayed",
+    "removals",
+    "additions",
+    "skipped_edits",
+    "dead_compared",
+    "key_batches",
+    "directed_keys",
     "line_graph_oracle_states",
     "ids_compared",
     "rows_compared",
@@ -153,6 +171,8 @@ def run_case(exe: Path, trace: Path, args, tmp: Path) -> dict:
         cmd += ["--threads", str(args.threads)]
     if args.no_model:
         cmd.append("--no-model")
+    if args.storage != "escher":
+        cmd += ["--storage", args.storage]
     if args.line_graph:
         cmd.append("--line-graph")
     if args.no_line_graph_oracle:
@@ -203,6 +223,12 @@ def compare_main(argv: list[str]) -> int:
         help="draw A's hypergraph and batches with generators::legacy and compare them",
     )
     p.add_argument("--hg", type=Path, help="the .hg file the runs loaded (read and compared)")
+    p.add_argument(
+        "--storage",
+        choices=["escher", "slack_csr"],
+        default="escher",
+        help="MOSP_ESCHER's sessions on slack_csr storage, whole with their incidence edits",
+    )
     p.add_argument("--scratch", type=Path, default=cbst_trace_goldens.scratch_default())
     p.add_argument("--exe", type=Path, help="dyng_hypergraph_ids (default: find it in build/)")
     p.add_argument("--jobs", type=int, default=1, help="cases replayed at once")
@@ -225,6 +251,9 @@ def compare_main(argv: list[str]) -> int:
         )
         return 2
     names = [full_name(n) for n in args.set]
+    if args.storage == "slack_csr" and any(SETS.get(n) == "ESCHER-GPU" for n in names):
+        print("--storage slack_csr: MOSP_ESCHER's sets only", file=sys.stderr)
+        return 2
     unknown = [n for n in names if n not in SETS]
     if unknown:
         print(f"unknown sets {unknown}; the sets are {', '.join(SETS)}", file=sys.stderr)
@@ -306,6 +335,15 @@ def compare_main(argv: list[str]) -> int:
                     f"{totals['generated_batches']} drawn batches equal A's "
                     f"({totals['batches']} batches)"
                 )
+        if args.storage == "slack_csr" and n != "committed":
+            # Every session to its end, every vertex-kind batch replayed (criterion 10).
+            if totals["stopped_sessions"] != 0:
+                problems.append(f"{totals['stopped_sessions']} sessions stopped")
+            if totals["vertex_batches_replayed"] != totals["vertex_batches"]:
+                problems.append(
+                    f"{totals['vertex_batches_replayed']} of {totals['vertex_batches']} "
+                    "vertex-kind batches replayed"
+                )
         if args.hg and totals["hg_hyperedges"] == 0:
             problems.append(f"--hg {args.hg}: no hyperedge was compared")
         for r in reports:
@@ -318,6 +356,7 @@ def compare_main(argv: list[str]) -> int:
             "backend": args.backend,
             "threads": args.threads,
             "mode": args.mode,
+            "storage": args.storage,
             "model": not args.no_model,
             "line_graph": args.line_graph,
             "line_graph_oracle": args.line_graph and not args.no_line_graph_oracle,
@@ -359,6 +398,15 @@ def compare_main(argv: list[str]) -> int:
             )
             + (f"{totals['hg_hyperedges']} .hg hyperedges compared, " if args.hg else "")
             + (
+                f"slack_csr: {totals['vertex_batches_replayed']} vertex-kind batches replayed, "
+                f"{totals['removals']} removals + {totals['additions']} additions applied, "
+                f"{totals['skipped_edits']} edits skipped, {totals['dead_compared']} dead-id "
+                f"states, {totals['directed_keys']} delta keys in {totals['key_batches']} "
+                "batches, "
+                if args.storage == "slack_csr"
+                else ""
+            )
+            + (
                 f"by content {totals['content_states_equal']}/{totals['content_states']} states "
                 "with A's live sets, "
                 if totals["content_states"]
@@ -381,7 +429,11 @@ def compare_main(argv: list[str]) -> int:
                 if args.hg
                 else "hypergraph-ids"
             )
-            name = f"M8b-{kind}-{short}-{args.backend}"
+            name = (
+                f"M11a-{kind}-slack_csr-{short}-{args.backend}"
+                if args.storage == "slack_csr"
+                else f"M8b-{kind}-{short}-{args.backend}"
+            )
             if args.threads:
                 name += f"-t{args.threads}"
             (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
@@ -397,7 +449,11 @@ def compare_main(argv: list[str]) -> int:
 
 
 def feature_of(args) -> str:
-    """What a replay checks besides the ids: line_graph, legacy, hg, or the id mode."""
+    """What a replay checks besides the ids: slack_csr (MOSP_ESCHER's sessions whole on slack_csr
+    storage, M11a; with the line graph slack_csr_line_graph), line_graph, legacy, hg, or the id
+    mode."""
+    if args.storage == "slack_csr":
+        return "slack_csr" + ("_line_graph" if args.line_graph else "")
     if args.line_graph:
         return "line_graph"
     if args.legacy_generator:
@@ -448,5 +504,170 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
     }
 
 
+# The sets of the allocator lockstep (M11a criterion 8; ADR 0085): MOSP_ESCHER's CBST traces with
+# the H2V trees of make test's H-SOSP sessions and of the 50K DBLP runs (their vertex-kind batches
+# fill and unfill rows), and the targeted scenarios (every tree: they drive CBSTOperations
+# directly).
+ALLOCATOR_SETS = {
+    "cbst_trace_mosp_escher_test": "h2v",
+    "cbst_trace_mosp_escher_dblp50k_hyperedge": "h2v",
+    "cbst_trace_mosp_escher_dblp50k_vertex": "h2v",
+    "cbst_trace_mosp_escher_targeted": "all",
+}
+ALLOCATOR_TOTALS = (
+    "trees",
+    "ops",
+    "states",
+    "keys_compared",
+    "inserts",
+    "fills",
+    "unfills",
+    "multi_segment_unfills",
+    "overflow_fills",
+    "compactions",
+    "exceptions",
+    "not_sets",
+    "unreplayable",
+    "mismatch_count",
+)
+
+
+def find_allocator_exe() -> Path | None:
+    """dyng_allocator_lockstep: $DYNG_ALLOCATOR_LOCKSTEP, else the first build tree that has it."""
+    env = os.environ.get("DYNG_ALLOCATOR_LOCKSTEP")
+    if env:
+        return Path(env)
+    for preset in (
+        "release",
+        "cpu-only",
+        "parity",
+        "dev",
+        "release-cuda",
+        "parity-cuda",
+        "dev-cuda",
+    ):
+        exe = REPO / "build" / preset / "cpp" / "tests" / "dyng_allocator_lockstep"
+        if exe.is_file():
+            return exe
+    return None
+
+
+def allocator_main(argv: list[str]) -> int:
+    """parity/hypergraph_ids.py allocator [--set NAME]... [--record DIR] [--exe PATH]: the host id
+    allocator in lockstep with MOSP_ESCHER's recorded CBST trees and the host model (M11a
+    criterion 8): every operation of every H2V tree (every tree of the targeted scenarios), the
+    allocator's keys, slot lengths, counts, tail occupancy and capacity, segments, bump pointer,
+    capacity, compactions, InsertMappings and exceptions against the trace's state digest and the
+    model. --record writes M11a-allocator-lockstep.json. Exit status: 0 every trace matched, 1 a
+    mismatch, 2 a usage error, 77 no goldens."""
+    p = argparse.ArgumentParser(
+        prog="hypergraph_ids.py allocator", description=allocator_main.__doc__
+    )
+    p.add_argument("--set", action="append", help="a set (default: every set of ALLOCATOR_SETS)")
+    p.add_argument("--scratch", type=Path, default=cbst_trace_goldens.scratch_default())
+    p.add_argument("--exe", type=Path, help="dyng_allocator_lockstep (default: find it in build/)")
+    p.add_argument("--record", type=Path, help="write M11a-allocator-lockstep.json here")
+    p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
+    args = p.parse_args(argv)
+    names = [full_name(n) for n in (args.set or list(ALLOCATOR_SETS))]
+    unknown = [n for n in names if n not in ALLOCATOR_SETS]
+    if unknown:
+        print(f"unknown sets {unknown}; the sets are {', '.join(ALLOCATOR_SETS)}", file=sys.stderr)
+        return 2
+    exe = args.exe or find_allocator_exe()
+    if exe is None or not exe.is_file():
+        print(
+            "dyng_allocator_lockstep not found: build dyng_allocator_lockstep_tool", file=sys.stderr
+        )
+        return 2
+    present = [
+        n
+        for n in names
+        if (cbst_trace_goldens.set_dir(args.scratch, n) / "MANIFEST.sha256").is_file()
+    ]
+    if not present:
+        print(f"no goldens for {names} under {args.scratch}; skipping", file=sys.stderr)
+        return 77
+    runs = args.scratch / "runs"
+    runs.mkdir(parents=True, exist_ok=True)
+    sets = []
+    failed = False
+    for n in present:
+        problems: list[str] = []
+        if not args.skip_verify:
+            problems += cbst_trace_goldens.verify_set(n, args.scratch)
+        cases = cases_of(n, args.scratch)
+        reports = []
+        with tempfile.TemporaryDirectory(dir=runs) as t:
+            for c in cases:
+                out = Path(t) / (c.parent.name + ".json")
+                cmd = [
+                    str(exe),
+                    "--trees",
+                    ALLOCATOR_SETS[n],
+                    "--tmp",
+                    t,
+                    "--json",
+                    str(out),
+                    str(c),
+                ]
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                if proc.returncode not in (0, 1) or not out.is_file():
+                    reports.append(
+                        {
+                            "trace": cbst_trace_goldens.portable(c),
+                            "ok": False,
+                            "error": (proc.stderr or proc.stdout).strip()[-2000:],
+                            "mismatch_count": 1,
+                        }
+                    )
+                    continue
+                r = json.loads(out.read_text())[0]
+                r["trace"] = cbst_trace_goldens.portable(c)
+                reports.append(r)
+        totals = {k: sum(int(r.get(k, 0)) for r in reports) for k in ALLOCATOR_TOTALS}
+        for r in reports:
+            if not r.get("ok", False):
+                first = r.get("error") or (r.get("mismatches") or ["?"])[0]
+                problems.append(f"{r['trace']}: {r.get('mismatch_count', 1)} mismatches ({first})")
+        if totals["states"] == 0:
+            problems.append("no state was compared")
+        print(
+            f"{n}: {len(reports)} traces, {totals['trees']} trees, {totals['ops']} ops, "
+            f"{totals['states']} states, {totals['fills']} fills, {totals['unfills']} unfills "
+            f"({totals['multi_segment_unfills']} items on rows with an overflow segment), "
+            f"{totals['compactions']} compactions, {totals['mismatch_count']} mismatches: "
+            + ("OK" if not problems else "FAILED")
+        )
+        for pr in problems[:20]:
+            print("  " + pr)
+        failed = failed or bool(problems)
+        sets.append(
+            {
+                "set": n,
+                "trees": ALLOCATOR_SETS[n],
+                "verified": not args.skip_verify,
+                "passed": not problems,
+                "totals": totals,
+                "cases": reports,
+                "problems": problems,
+            }
+        )
+    if args.record:
+        args.record.mkdir(parents=True, exist_ok=True)
+        doc = {
+            "record": "the host id allocator in lockstep with MOSP_ESCHER's CBST trees and the "
+            "host model",
+            "commit": git_head(),
+            "tool": cbst_trace_goldens.portable(exe),
+            "passed": not failed,
+            "sets": sets,
+        }
+        (args.record / "M11a-allocator-lockstep.json").write_text(json.dumps(doc, indent=1) + "\n")
+    return 1 if failed else 0
+
+
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["allocator"]:
+        sys.exit(allocator_main(sys.argv[2:]))
     sys.exit(compare_main(sys.argv[1:]))

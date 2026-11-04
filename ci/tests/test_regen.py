@@ -157,12 +157,13 @@ def test_scaffold_and_remove_round_trip(tmp_path: Path) -> None:
 
 def test_a_planned_algorithm_leaves_the_planned_list(tmp_path: Path) -> None:
     root = _copy(tmp_path)
-    # (mosp left the list in M7, triad_count in M9a; label_propagation is a planned graph algorithm)
+    # (mosp left the list in M7, triad_count in M9a, hyper_sssp in M11a; label_propagation is a
+    # planned graph algorithm)
     args = ["label_propagation", "--family", "fixed_point", "--no-changelog", "--root", str(root)]
     assert new_algorithm.main(args) == 0
     planned = (root / "cpp/src/algorithms/planned.toml").read_text()
     assert 'name      = "label_propagation"' not in planned
-    assert 'name      = "hyper_sssp"' in planned
+    assert 'name      = "hyper_sssp"' not in planned  # scaffolded in M11a step 4
     assert regen.main(["--check", "--root", str(root)]) == 0
 
 

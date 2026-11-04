@@ -1,0 +1,108 @@
+{
+ "record": "the escher store's store_stats().device_bytes of the final library against the merge base (M11a criterion 20)",
+ "tool": "parity/experiments/escher_store_bytes.py",
+ "date": "2026-10-30T08:53:21Z",
+ "gpu": 1,
+ "sides": {
+  "A": {
+   "exe": "$DYNG_SCRATCH/m11-builds/src-base/build/parity-cuda/tools/compat/dyng-compat-escher",
+   "sha256": "385eaae9a598b748812b5eea85c5f9c56a712e00699e60e11250b2455ca161d8",
+   "build_tree": "$DYNG_SCRATCH/m11-builds/src-base/build/parity-cuda",
+   "build": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "CMAKE_CXX_FLAGS": "",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+    "DYNG_ENABLE_CUDA": "ON",
+    "DYNG_ENABLE_OPENMP": "ON",
+    "CMAKE_HOME_DIRECTORY": "$DYNG_SCRATCH/m11-builds/src-base"
+   },
+   "source": {
+    "commit": "b2b1524a3975d45b36f803d6958e82505fc86371",
+    "matches": true,
+    "files": 325,
+    "differ": []
+   }
+  },
+  "B": {
+   "exe": "$DYNG_SCRATCH/wt-m11/build/parity-cuda/tools/compat/dyng-compat-escher",
+   "sha256": "771af8d3d0d70a166b27a46225b24557db2976f2bbac1937c336f1a0b4306942",
+   "build_tree": "$DYNG_SCRATCH/wt-m11/build/parity-cuda",
+   "build": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "CMAKE_CXX_FLAGS": "",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+    "DYNG_ENABLE_CUDA": "ON",
+    "DYNG_ENABLE_OPENMP": "ON",
+    "CMAKE_HOME_DIRECTORY": "$DYNG_SCRATCH/wt-m11"
+   },
+   "source": {
+    "commit": "101da354fe3de2d500dc7b0e83b47478de51f069",
+    "matches": true,
+    "files": 356,
+    "differ": []
+   }
+  }
+ },
+ "results": {
+  "coauth_b50k_s1": {
+   "memory_lines": {
+    "A": [
+     "[memory] batch 1: store device bytes 1923300764",
+     "[memory] batch 2: store device bytes 1923713052",
+     "[memory] batch 3: store device bytes 1924170844",
+     "[memory] dynG store device bytes: 1922784204 after init, 1924170844 after the last batch"
+    ],
+    "B": [
+     "[memory] batch 1: store device bytes 1923300764",
+     "[memory] batch 2: store device bytes 1923713052",
+     "[memory] batch 3: store device bytes 1924170844",
+     "[memory] dynG store device bytes: 1922784204 after init, 1924170844 after the last batch"
+    ]
+   },
+   "device_bytes_identical": true,
+   "batch_lines_identical": true,
+   "batch_lines_sha256": "b0cf2f6cc50769f3c74dc28a602196a8c51df1d98888e948e3770299b8177271"
+  },
+  "syn1m_b50k_s1": {
+   "memory_lines": {
+    "A": [
+     "[memory] batch 1: store device bytes 703183432",
+     "[memory] batch 2: store device bytes 703130968",
+     "[memory] batch 3: store device bytes 703185928",
+     "[memory] dynG store device bytes: 703051032 after init, 703185928 after the last batch"
+    ],
+    "B": [
+     "[memory] batch 1: store device bytes 703183432",
+     "[memory] batch 2: store device bytes 703130968",
+     "[memory] batch 3: store device bytes 703185928",
+     "[memory] dynG store device bytes: 703051032 after init, 703185928 after the last batch"
+    ]
+   },
+   "device_bytes_identical": true,
+   "batch_lines_identical": true,
+   "batch_lines_sha256": "256fbe48c02d95f5508c88ee1f3162b56b18d6035afe186f4d5fcf5ba79253dd"
+  },
+  "syn2m_b50k_s1": {
+   "memory_lines": {
+    "A": [
+     "[memory] batch 1: store device bytes 1406769300",
+     "[memory] batch 2: store device bytes 1406707652",
+     "[memory] batch 3: store device bytes 1406784388",
+     "[memory] dynG store device bytes: 1406745268 after init, 1406784388 after the last batch"
+    ],
+    "B": [
+     "[memory] batch 1: store device bytes 1406769300",
+     "[memory] batch 2: store device bytes 1406707652",
+     "[memory] batch 3: store device bytes 1406784388",
+     "[memory] dynG store device bytes: 1406745268 after init, 1406784388 after the last batch"
+    ]
+   },
+   "device_bytes_identical": true,
+   "batch_lines_identical": true,
+   "batch_lines_sha256": "93380e0391f3d264f97df96d3ffbbc5e0a004858821ff50b6d1d8803892ce4e4"
+  }
+ },
+ "identical": true
+}

@@ -142,7 +142,12 @@ algorithms on hypergraphs (triad counting, shortest hyperpaths) walk it over and
 - `automatic` (the default) builds it the first time something reads it (`h2h()`, or an algorithm
   that needs it), then keeps it;
 - `none` never builds it: `h2h()` throws;
-- `slack_csr` (H-SOSP's slack rows) is planned for 0.4.
+- `slack_csr` (0.4, with `hypergraph_storage::slack_csr`) is MOSP_ESCHER's H-SOSP line graph: a
+  slack CSR whose rows are sets kept by every batch from its order-free pair delta (the pairs that
+  start or stop sharing a vertex), so incidence edits (a vertex removed from or added to a live
+  hyperedge) keep it exact. `automatic` under slack_csr storage maintains it as `slack_csr`.
+  Incidence edits need slack_csr storage in 0.4 (escher storage refuses them), and triad_count
+  reads escher storage only. In 0.4.0.dev0 slack_csr runs on the CPU backends.
 
 Each row of `h2h()` is sorted and contiguous, and `out[r]` is the offset of its first neighbour
 with an id greater than `r`, so a loop over `col_ind[out[r] .. row_ptr[r + 1])` visits each pair

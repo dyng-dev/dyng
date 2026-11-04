@@ -178,6 +178,13 @@ struct hyper_batch_arrays {
  */
 template <typename vertex_t, typename weight_t>
 nb::tuple hyper_batch_to_numpy(const hyperedge_batch<vertex_t, weight_t>& b) {
+  // The Python layer takes incidence edits with M11b of 0.4: until then a batch that has one is
+  // refused rather than returned without it.
+  if (!b.delete_incidence_hyperedge().empty() || !b.insert_incidence_hyperedge().empty()) {
+    throw not_supported_error(
+        "dyng: a hyperedge batch with incidence edits ('+i' / '-i'): planned for the Python layer "
+        "of 0.4; until then read the batch from C++");
+  }
   std::vector<std::int64_t> deletions = b.delete_hyperedges();
   std::vector<std::int64_t> offsets = b.insert_offsets();
   if (offsets.empty()) {

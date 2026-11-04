@@ -183,6 +183,14 @@ class HypergraphProperties:
         )
 
     def _to_native(self) -> Any:
+        if "slack_csr" in (self.storage, self.line_graph):
+            # The C++ container has slack_csr storage from 0.4 (M11a); its Python layer (the
+            # incidence edits, hyper_sssp) comes with M11b, until then the Python layer keeps
+            # refusing it as 0.3 did.
+            raise NotSupportedError(
+                'storage="slack_csr" and line_graph="slack_csr" are planned for the Python layer '
+                'of 0.4; use storage="escher"'
+            )
         p = native.HypergraphProperties()
         p.storage = enum_member(native.HypergraphStorage, self.storage, "storage")
         p.line_graph = enum_member(native.LineGraphPolicy, self.line_graph, "line_graph")

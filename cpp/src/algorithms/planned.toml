@@ -13,12 +13,3 @@ family    = "fixed point"
 backends  = "sequential, CUDA"
 paper     = "DynLP (ICS 2026)"
 since     = "0.4"
-
-[[planned]]
-name      = "hyper_sssp"
-computes  = "shortest hyperpaths"
-container = "hypergraph"
-family    = "fixed point"
-backends  = "sequential, CUDA"
-paper     = "H-SOSP (IA3 2026)"
-since     = "0.4"

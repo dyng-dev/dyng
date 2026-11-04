@@ -1,0 +1,308 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The rename map of the CUDA slack_csr store (M11a step 3, the transplant commit c1; ADR 0089):
+# MOSP_ESCHER@4b86159's H-SOSP device graph without its SOSP kernels: the incidence mirror
+# (DeviceIncidence: its slot rules, uploads, build and the mirror check of hsosp/src/hsospDelta.cu),
+# the slack CSR line graph (DeviceH2H and its last delta DeviceDelta, hsosp/include/hsosp.cuh; their
+# lifecycle, buildDeviceH2H / buildCsr, applyDeltaPairs with expandDeltaKeysKernel, applyRowsWarp
+# and scatterWeightsKernel, downloadRows of hsosp/src/hsospDevice.cu), and the order-free line-graph
+# delta (deriveDelta and its kernels, hsosp/src/hsospDelta.cu). Not ported here: applyBatch (the
+# container's commit runs its steps, ADR 0086), BatchTimes, the SOSP state and kernels (hyper_sssp,
+# M11a step 4), the stale paragraph of hsosp.cuh:20-25 (the per-thread row apply it describes was
+# replaced by applyRowsWarp).
+#
+#   python3 parity/escher_port/transplant.py --map parity/escher_port/rename_map_hsosp.toml \
+#       --check --rev <transplant commit>
+#
+# regenerates the transplant (the same steps as rename_map.toml: assemble the parts, rewrite the
+# includes, rename whole tokens, #pragma once, the namespace, the SPDX and provenance header,
+# clang-format, then the manual hunks of manual_hunks_hsosp.patch). The original is read with
+# `git show 4b86159:<path>` only (its working tree holds files that are not part of it).
+
+schema = 1
+origin = "MOSP_ESCHER"
+original_dir = "MOSP_ESCHER"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+namespace = "dyng::detail::hyper::slack"
+target_dir = "cpp/src/hypergraph"
+hunks = "manual_hunks_hsosp.patch"
+note = "parity/escher_port/rename_map_hsosp.toml (M11a, ADR 0089; the layout rules are described in cpp/src/hypergraph/slack_csr/slack_layout.hpp)."
+
+[[file]]
+target = "slack_csr/slack_csr_store.hpp"
+brief = "The device side of slack_csr storage: the incidence mirror (hyperedge and vertex slack rows), the slack CSR line graph with its node weights, and the last batch's pair delta on the device (MOSP_ESCHER's DeviceIncidence, DeviceH2H and DeviceDelta)."
+parts = [
+  { path = "hsosp/include/hsosp.cuh", lines = [1, 4] },
+  { path = "hsosp/include/hsosp.cuh", lines = [9, 18] },
+  { path = "hsosp/include/hsosp.cuh", lines = [26, 35] },
+  { path = "hsosp/src/hsospInternal.cuh", lines = [9, 11] },
+  { path = "hsosp/src/hsospInternal.cuh", lines = [14, 24] },
+  { path = "hsosp/include/hsosp.cuh", lines = [39, 172] },
+  { path = "hsosp/include/hsosp.cuh", lines = [207, 216] },
+  { path = "hsosp/src/hsospInternal.cuh", lines = [29, 45] },
+  { path = "hsosp/include/hsosp.cuh", lines = [321, 321] },
+]
+
+[[file]]
+target = "slack_csr/slack_csr_store.cu"
+brief = "The incidence mirror of slack_csr storage on the device (its slot rules, uploads with tail room, build and the mirror check) and the lifecycle of the device line graph and its delta buffers (MOSP_ESCHER's DeviceIncidence, DeviceH2H and DeviceDelta)."
+parts = [
+  { path = "hsosp/src/hsospDelta.cu", lines = [28, 38] },
+  { path = "hsosp/src/hsospDelta.cu", lines = [44, 47] },
+  { path = "hsosp/src/hsospDelta.cu", lines = [54, 70] },
+  { path = "hsosp/src/hsospDelta.cu", lines = [299, 590] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [487, 605] },
+]
+
+[[file]]
+target = "line_graph/slack_csr_h2h.cu"
+brief = "The slack CSR line graph on the device: its build from the host line graph (also the rebuild after a tail overflow) and the batch's pair delta applied one warp per row, rows that outgrow their slot moved to the tail (MOSP_ESCHER's buildDeviceH2H, buildCsr, applyDeltaPairs, applyRowsWarp, scatterWeightsKernel and downloadRows)."
+parts = [
+  { path = "hsosp/src/hsospDevice.cu", lines = [10, 20] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [26, 27] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [32, 39] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [54, 156] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [484, 485] },
+  { path = "hsosp/src/hsospDevice.cu", lines = [606, 798] },
+]
+
+[[file]]
+target = "line_graph/incidence_delta.cu"
+brief = "incidence_delta on the device: the net sign per incidence, the candidate pairs of the vertex lists before and after the batch (the vertex mirror patched between the two passes), their classification by pre / post overlap, the post-batch hyperedge rows written into the mirror (MOSP_ESCHER's deriveDelta)."
+parts = [
+  { path = "hsosp/src/hsospDelta.cu", lines = [7, 26] },
+  { path = "hsosp/src/hsospDelta.cu", lines = [28, 38] },
+  { path = "hsosp/src/hsospDelta.cu", lines = [44, 47] },
+  { path = "hsosp/src/hsospDelta.cu", lines = [54, 300] },
+  { path = "hsosp/src/hsospDelta.cu", lines = [596, 880] },
+]
+
+[includes]
+'"DynamicHypergraph.hpp"' = ''
+'"HostHypergraph.hpp"' = '"hypergraph/slack_csr/slack_layout.hpp"'
+'"hsosp.cuh"' = '"hypergraph/slack_csr/slack_csr_store.hpp"'
+'"hsospInternal.cuh"' = ''
+
+# The file comment of hsospDelta.cu without its @file / @brief lines (the generated header has its
+# own): a plain comment.
+[[context]]
+pattern = '^ \* The host ships the changed incidences'
+replacement = '/*\n * The host ships the changed incidences'
+# hsosp.cuh's design paragraph as a plain comment (the generated header has the @file block).
+[[context]]
+pattern = '/\*\*\n \* The h2h line graph'
+replacement = '/*\n * The h2h line graph'
+# The scratch's comment keeps its word (the type is renamed below).
+[[context]]
+pattern = 'Scratch of the device-side'
+replacement = 'The scratch of the device-side'
+# B's inner namespace detail (hsospInternal.cuh) is not kept: the namespace of the map holds it.
+[[context]]
+pattern = '\bdetail::'
+replacement = ''
+[[context]]
+pattern = 'namespace detail \{\n'
+replacement = ''
+[[context]]
+pattern = '\} // namespace detail\n'
+replacement = ''
+
+# Whole-token renames (identifiers, and the same words in comments and strings). Types, kernels
+# (<verb>_<object>_kernel), functions, members and locals: camelCase -> snake_case (PLAN 4.4.1).
+[names]
+# types
+DeviceDelta = "device_delta"
+DeviceIncidence = "device_incidence"
+DeviceH2H = "device_h2h"
+Scratch = "scratch_arrays"
+HostHypergraph = "host_hypergraph"
+IncidenceBatch = "incidence_batch"
+LineGraphCSR = "line_graph_csr"
+HighWord = "high_word"
+IsDeleted = "is_deleted"
+IsInserted = "is_inserted"
+KeyRow = "key_row"
+# kernels
+setIndexKernel = "set_index_kernel"
+resetIndexKernel = "reset_index_kernel"
+scatterIntKernel = "scatter_int_kernel"
+countCandidatesKernel = "count_candidates_kernel"
+totalsKernel = "totals_kernel"
+emitCandidatesKernel = "emit_candidates_kernel"
+relocateRowsKernel = "relocate_rows_kernel"
+applyVertexRowsKernel = "apply_vertex_rows_kernel"
+classifyPairsKernel = "classify_pairs_kernel"
+keysToPairsKernel = "keys_to_pairs_kernel"
+writeHeRowsKernel = "write_he_rows_kernel"
+expandDeltaKeysKernel = "expand_delta_keys_kernel"
+applyRowsWarp = "apply_rows_warp_kernel"
+scatterWeightsKernel = "scatter_weights_kernel"
+# functions
+buildDeviceH2H = "build_device_h2h"
+incidenceMirrorMismatches = "incidence_mirror_mismatches"
+downloadRows = "download_rows"
+gridFor = "grid_for"
+buildCsr = "build_csr"
+applyDeltaPairs = "apply_delta_pairs"
+deriveDelta = "derive_delta"
+bitsFor = "bits_for"
+sortedOverlap = "sorted_overlap"
+rowOf = "row_of"
+heSlotFor = "he_slot_for"
+vSlotFor = "v_slot_for"
+uploadHeRows = "upload_he_rows"
+uploadVertexRows = "upload_vertex_rows"
+alignUp32 = "align_up_32"
+rowCapacityFor = "row_capacity_for"
+reserveKeys = "reserve_keys"
+reserveTemp = "reserve_temp"
+deviceBytes = "device_bytes"
+maxId = "max_id"
+lineGraph = "line_graph"
+# constants
+SENTINEL = "sentinel"
+# members (DeviceDelta)
+d_newW = "d_new_w"
+pairCapacity = "pair_capacity"
+idCapacity = "id_capacity"
+numDel = "num_del"
+numIns = "num_ins"
+numNew = "num_new"
+numDead = "num_dead"
+d_keysAlt = "d_keys_alt"
+d_rowLen = "d_row_len"
+d_rowOff = "d_row_off"
+d_numRows = "d_num_rows"
+tempBytes = "temp_bytes"
+keyCapacity = "key_capacity"
+d_sortedKeys = "d_sorted_keys"
+numSortedKeys = "num_sorted_keys"
+h_sortedKeys = "h_sorted_keys"
+hostKeyCapacity = "host_key_capacity"
+# members (DeviceIncidence)
+maxNodes = "max_nodes"
+numVertices = "num_vertices"
+d_heOff = "d_he_off"
+d_heLen = "d_he_len"
+d_heVal = "d_he_val"
+heCapacity = "he_capacity"
+heTail = "he_tail"
+heOff = "he_off"
+heCap = "he_cap"
+d_vOff = "d_v_off"
+d_vLen = "d_v_len"
+d_vVal = "d_v_val"
+vCapacity = "v_capacity"
+vTail = "v_tail"
+vOff = "v_off"
+vCap = "v_cap"
+d_touchedIdx = "d_touched_idx"
+d_postLen = "d_post_len"
+# members (DeviceH2H)
+numNodes = "num_nodes"
+capEntries = "cap_entries"
+usedEntries = "used_entries"
+d_rowStart = "d_row_start"
+d_colInd = "d_col_ind"
+d_nodeW = "d_node_w"
+d_tailCursor = "d_tail_cursor"
+d_overflowFlag = "d_overflow_flag"
+numEntries = "num_entries"
+# members (Scratch)
+incKeys = "inc_keys"
+incKeysAlt = "inc_keys_alt"
+signsAlt = "signs_alt"
+segLen = "seg_len"
+segOff = "seg_off"
+segVert = "seg_vert"
+incCap = "inc_cap"
+incCap2 = "inc_cap2"
+incCap3 = "inc_cap3"
+incCap4 = "inc_cap4"
+incCap5 = "inc_cap5"
+incCap6 = "inc_cap6"
+incCap7 = "inc_cap7"
+incCap8 = "inc_cap8"
+incCap9 = "inc_cap9"
+incCap10 = "inc_cap10"
+incCap11 = "inc_cap11"
+incCap12 = "inc_cap12"
+incCap13 = "inc_cap13"
+candAlt = "cand_alt"
+candCap = "cand_cap"
+candCap2 = "cand_cap2"
+clsCap = "cls_cap"
+selCap = "sel_cap"
+preOff = "pre_off"
+postOff = "post_off"
+heWriteOff = "he_write_off"
+tCap = "t_cap"
+tCap2 = "t_cap2"
+tCap3 = "t_cap3"
+tCap4 = "t_cap4"
+preVals = "pre_vals"
+postVals = "post_vals"
+valCap = "val_cap"
+valCap2 = "val_cap2"
+tVerts = "t_verts"
+tVertLen = "t_vert_len"
+relocVerts = "reloc_verts"
+relocOff = "reloc_off"
+tvCap = "tv_cap"
+tvCap2 = "tv_cap2"
+rCap = "r_cap"
+rCap2 = "r_cap2"
+hostTotals = "host_totals"
+hostCounts = "host_counts"
+tempCap = "temp_cap"
+# members (IncidenceBatch, HostHypergraph, LineGraphCSR)
+incKey = "inc_key"
+incSign = "inc_sign"
+touchedVertices = "touched_vertices"
+touchedVertexLen = "touched_vertex_len"
+newHe = "new_he"
+newW = "new_w"
+deadHe = "dead_he"
+skippedOps = "skipped_ops"
+heVerts = "he_verts"
+heW = "he_w"
+# locals and parameters
+entryHeadroom = "entry_headroom"
+sourceId = "source_id"
+nInc = "n_inc"
+nT = "n_t"
+nTV = "n_tv"
+nUniq = "n_uniq"
+endBit = "end_bit"
+nCand = "n_cand"
+relocV = "reloc_v"
+nR = "n_r"
+nSeg = "n_seg"
+nPairs = "n_pairs"
+writeOff = "write_off"
+rowStart = "row_start"
+rowBits = "row_bits"
+sortBytes = "sort_bytes"
+rleBytes = "rle_bytes"
+scanBytes = "scan_bytes"
+rowsIn = "rows_in"
+nRows = "n_rows"
+nKeys = "n_keys"
+nTot = "n_tot"
+nDel = "n_del"
+newCap = "new_cap"
+colInd = "col_ind"
+nodeW = "node_w"
+rowOff = "row_off"
+rowLen = "row_len"
+tailCursor = "tail_cursor"
+overflowFlag = "overflow_flag"
+touchedIdx = "touched_idx"
+postLen = "post_len"
+vLen = "v_len"
+vVal = "v_val"
+heLen = "he_len"
+heVal = "he_val"
+newOff = "new_off"
+segOffs = "seg_offs"

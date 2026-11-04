@@ -9,6 +9,7 @@
 #pragma once
 
 #include "hypergraph/escher/store_policy.hpp"
+#include "hypergraph/slack_csr/slack_layout.hpp"
 
 #include <dyng/hypergraph/hypergraph_properties.hpp>
 
@@ -25,13 +26,26 @@ namespace dyng::detail::hyper {
 void validate_capacity(const capacity_policy& c);
 
 /**
- * @brief Check the properties of a new hypergraph (storage, line graph, capacity).
+ * @brief Check the properties of a new hypergraph (storage, line graph, capacity): the matrix of
+ *        HD9 (ADR 0086). escher storage takes the line graphs none, automatic (maintained as
+ *        sorted_merge) and sorted_merge; slack_csr storage takes none, automatic (maintained as
+ *        slack_csr) and slack_csr, and needs v2h.
  * @param[in] props The properties.
- * @throws invalid_argument_error for an invalid capacity policy, or sorted_merge without v2h.
- * @throws not_supported_error    for slack_csr storage or line graph (0.4), an unsupported
+ * @throws invalid_argument_error for an invalid capacity policy, sorted_merge without v2h, or
+ *         slack_csr storage without v2h.
+ * @throws not_supported_error    for escher storage with the slack_csr line graph, slack_csr
+ *         storage with sorted_merge (each message names the alternative), an unsupported
  *         grow_factor.
  */
 void validate_properties(const hypergraph_properties& props);
+
+/**
+ * @brief Check the internal knobs of a slack_csr hypergraph.
+ * @param[in] k The knobs.
+ * @throws invalid_argument_error for an entry headroom below 1 or NaN, a negative node capacity
+ *         or candidate limit.
+ */
+void validate_knobs(const slack::knobs& k);
 
 /**
  * @brief The store policy that a capacity policy maps to (escher_gpu(), mosp_escher(extra) and

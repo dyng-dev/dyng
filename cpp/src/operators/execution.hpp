@@ -36,6 +36,8 @@
  */
 #pragma once
 
+#include "util/region_exceptions.hpp"
+
 #include <dyng/config.hpp>
 #include <dyng/core/resources.hpp>
 
@@ -275,18 +277,27 @@ class openmp_exec : public sequential_exec {
   /**
    * @brief Run `f(i)` for every i in [0, n) on the handle's threads (dynamic schedule: the
    *        elements of graph work differ in cost).
+   *
+   * An exception thrown by `f(i)` does not leave the parallel region (which would end the
+   * process, ADR 0061): every call runs through a region_exceptions carrier, which keeps the
+   * first exception caught; once one is kept, the remaining elements return at once (its stop
+   * flag), and the exception is rethrown on the calling thread after the region (ADR 0083).
+   * Which elements ran before the stop depends on the schedule.
    * @tparam function_t A callable `void(std::int64_t)` that is safe to run concurrently for
    *                    distinct i (shared words only through the atomics of this header).
    * @param[in] n Number of elements.
    * @param[in] f The work on one element.
+   * @throws The first exception a call of `f` threw (after the region).
    */
   template <typename function_t>
   void for_each(std::int64_t n, function_t f) const {
 #if DYNG_HAS_OPENMP && defined(_OPENMP)
+    region_exceptions errors;
 #pragma omp parallel for schedule(dynamic, 64) num_threads(threads_)
     for (std::int64_t i = 0; i < n; ++i) {
-      f(i);
+      errors.run([&f, i] { f(i); });
     }
+    errors.rethrow();
 #else
     sequential_exec::for_each(n, f);
 #endif

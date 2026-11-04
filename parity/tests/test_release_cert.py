@@ -343,6 +343,102 @@ def triad_protocol(bench, suite: dict, job: dict) -> dict:
     }
 
 
+def _hsosp_result(bench, suite, job: dict, config: str, ratio: float) -> dict:
+    """One configuration of a hyper_sssp record (parity/hsosp_perf.py's form) whose every row has
+    the given ratio: the gated rows of every batch at 20 ms on B (sosp_update at 5 ms: the short
+    bar), load_plus_dynamic at 5 s; the memory peaks and the graph-scope points."""
+    dataset = bench.hsosp_configs()[config][0]
+    sha = next(d["sha256"] for d in suite["datasets"] if d["name"] == dataset)
+    tol = suite["tolerance"]
+    base = {"batches": 3, "input": {"sha256": sha}, "config": config}
+    if job["kind"] == "memory":
+        points = [
+            {
+                "row": "graph_memory[build]" if k == 0 else f"graph_memory[b{k}]",
+                "mosp_escher_graph_bytes": 1000 + k,
+                "dyng_graph_bytes": int((1000 + k) * ratio),
+            }
+            for k in range(4)
+        ]
+        return base | {
+            "guard": {"runs_checked": 4, "passed": True},
+            "original": {"peak_live_bytes": 2**30, "peak_live_mib": 1024.0},
+            "port": {"peak_live_bytes": int(2**30 * ratio), "peak_live_mib": 1024.0 * ratio},
+            "graph_accounting": points,
+        }
+    if job["kind"] == "kernels":
+        reg = {"region": "kernels.all", "original_ms": 2.0, "port_ms": 2.0 * ratio, "ratio": ratio}
+        return base | {"rounds": 3, "regions": [reg]}
+    n = job["runs"]
+    regions = []
+    for row in bench.hsosp_required_rows(3):
+        kind = "end_to_end" if row == "load_plus_dynamic" else "compute"
+        original = 5000.0 if kind == "end_to_end" else 5.0 if row.startswith("sosp") else 20.0
+        gate = bench.expected_gate(tol, kind, original)
+        regions.append(
+            {
+                "region": row,
+                "gate_kind": kind,
+                "original_ms": original,
+                "port_ms": original * ratio,
+                "ratio": ratio,
+                "gate": gate,
+                "within_gate": ratio <= gate,
+                "original_runs": [original] * n,
+                "port_runs": [original * ratio] * n,
+            }
+        )
+    regions.append({"region": "escher[b1]", "gate_kind": "none", "original_ms": 1.0,
+                    "port_ms": 0.5, "ratio": 0.5, "original_runs": [1.0] * n,
+                    "port_runs": [0.5] * n})  # fmt: skip
+    return base | {
+        "rounds": n,
+        "guard": {"rounds_checked": n, "passed": True},
+        "audit": {"flagged": False, "flagged_rounds": []},
+        "monitor": {"clocks_locked_in_every_round": True},
+        "scope_differs": False,
+        "regions": regions,
+    }
+
+
+def _write_hsosp_records(bench, suite, records: Path, commit: str, ratio: float = 0.9):
+    """Records of parity/perf_ab.py hyper_sssp probe|run|memory|kernels (parity/hsosp_perf.py)."""
+    records.mkdir(parents=True, exist_ok=True)
+    jobs = bench.plan(suite, records=records, build_root=Path("/b"))
+    ref = {
+        "name": "MOSP_ESCHER",
+        "commit": suite["baselines"]["MOSP_ESCHER"]["commit"],
+        "variant": "unpatched",
+    }
+    held = {"DYNG_PERF_LOCK": "", "DYNG_PERF_LOCK_HELD": "1"}
+    for job in jobs:
+        reading = next(r for r in suite["readings"] if r["name"] == job["reading"])
+        rec = {"algorithm": "hyper_sssp", "date": "2026-10-30T00:00:00Z", "reference": ref,
+               "port": {"commit": commit, "build": {"parity_preset": True}},
+               "driver": DRIVER}  # fmt: skip
+        if job["kind"] == "probe":
+            ds = bench.HSOSP_DATASETS[reading["dataset"]]
+            sha = next(d["sha256"] for d in suite["datasets"] if d["name"] == reading["dataset"])
+            decided = "boost"  # a dataset read at base may have held boost in its probe (ADR 0021)
+            rec |= {"lock": held, "probe": {ds: {"rounds": [{}, {}, {}]}},
+                    "clocks": {ds: decided}, "datasets_sha256": {ds: sha}}  # fmt: skip
+        else:
+            proto = {"gpu": 1 if job["kind"] == "memory" else 0, "env": bench.HSOSP_ENV}
+            if job["kind"] == "memory":
+                proto |= {"lock": "shared (flock -s)", "nsys": bench.HSOSP_NSYS + " (CUDA 13.1)"}
+                rec |= {"counts": True, "gpu_samples": {"foreign": []}}
+            else:
+                proto |= {"lock": held, "layout": "one (fixed names)",
+                          "port": "dyng-compat-hsosp bench --sync-stages --digests",
+                          "original": "the UNPATCHED copy's bin/hsospBench"}  # fmt: skip
+            if job["kind"] == "run":
+                proto["clocks"] = {"control": reading["clocks"]}
+            rec["protocol"] = proto
+            rec["results"] = {c: _hsosp_result(bench, suite, job, c, ratio) for c in job["configs"]}
+        Path(job["record"]).write_text(json.dumps(rec))
+    return jobs
+
+
 def _write_triad_records(bench, suite, records: Path, commit: str, ratio: float = 0.9):
     """Records of parity/perf_ab.py triad_count run|memory (parity/triad_perf.py's schema 2)."""
     records.mkdir(parents=True, exist_ok=True)
@@ -385,6 +481,7 @@ def _full_results(cert, bench, tmp_path: Path, commit: str) -> Path:
         suite = bench.load_suite(path)
         write = {
             "cycle_count": _write_cc_records,
+            "hyper_sssp": _write_hsosp_records,
             "triad_count": _write_triad_records,
         }.get(suite["algorithm"], _write_sssp_records)
         records = tmp_path / f"rec-{suite['suite']}"
@@ -650,12 +747,40 @@ def _replays(cert, results: Path, commit: str) -> None:
             }
             (results / f"parity-{name}-device-{preset}.json").write_text(json.dumps(record))
         # The hypergraph container's replays of the set's batch records (M8b, from 0.3).
-        for feature, backends in cert.HYPERGRAPH_ID_REPLAYS.get(name, {}).items():
-            mode = "both" if feature == "ids" else feature
+        for feature, backends in cert.hypergraph_id_requirements(name).items():
+            mode = "both" if feature == "ids" else cert.HYPERGRAPH_ID_MODES[feature][0]
             for backend in backends:
                 _hypergraph_id_record(results, name, spec, commit, backend, mode)
     # ESCHER-GPU's triad goldens (M9a, from 0.3): every backend of the coverage table, both modes.
     _triad_replays(cert, results, commit)
+    # M10 label_propagation
+    # M11 slack_csr / hyper_sssp
+    _hsosp_replays(cert, results, commit)
+
+
+HSOSP_SET = "hyper_sssp_mosp_escher"
+
+
+def _hsosp_replays(cert, results: Path, commit: str, skip: tuple = ()) -> None:
+    """Passed records of `compare.py hyper_sssp --certificate` for every backend and parity mode
+    of the set's [modes] table (M11a, ADR 0081), but the configs in `skip`."""
+    import tomllib
+
+    spec = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"][HSOSP_SET]
+    for config, cases in cert.hyper_sssp_required_cases(spec).items():
+        if config in skip:
+            continue
+        record = {
+            "set": HSOSP_SET,
+            "kind": "hyper_sssp",
+            "port": {"commit": commit},
+            "goldens": {"manifest_sha256": spec["manifest_sha256"]},
+            "configs": [config],
+            "matrix": {case: {config: "equal"} for case in sorted(cases)},
+            "passed": True,
+        }
+        name = config.replace(":", "-").replace("/", "-")
+        (results / f"parity-{HSOSP_SET}-{name}.json").write_text(json.dumps(record))
 
 
 TRIAD_SET = "triad_count_escher_gpu"
@@ -989,6 +1114,12 @@ def test_mutation_points_match_the_code_once() -> None:
         if path.is_file():
             hooks += path.read_text()
     hooks += (REPO / "cpp/include/dyng/experimental/detail/local_patterns_engine.hpp").read_text()
+    # hyper_sssp's sites (M11a criterion 16): its engines and the slack_csr store (the allocator and
+    # the line graph's are read above).
+    for directory in ("cpp/src/algorithms/hyper_sssp", "cpp/src/hypergraph/slack_csr"):
+        for path in sorted((REPO / directory).rglob("*")):
+            if path.is_file():
+                hooks += path.read_text()
     assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "triad_count"} == {
         "triad_wrong_bin_sign",
         "triad_skip_frontier_filter_b",
@@ -1045,6 +1176,50 @@ def test_mutation_defines_reach_both_compilers() -> None:
         "-DCMAKE_CXX_FLAGS=-DA -DB",
         "-DCMAKE_CUDA_FLAGS=-DA -DB",
     ]
+
+
+def test_hyper_sssp_mutations_and_their_twins() -> None:
+    """M11a criterion 16: MOSP_ESCHER's sites in the CUDA code and in their host twins, each twin
+    run on the executables of its own configuration, and one build per code change."""
+    mutate = load("parity/mutate.py")
+    rows = [m for m in mutate.MUTATIONS if m["suite"] == "hyper_sssp"]
+    assert [m["name"] for m in rows] == [
+        "hsosp_pull_adds_neighbour_weight",
+        "hsosp_pull_adds_neighbour_weight_sequential",
+        "hsosp_non_tight_parent",
+        "hsosp_non_tight_parent_sequential",
+        "hsosp_csr_skips_last_deletion",
+        "hsosp_csr_skips_last_deletion_host",
+        "hsosp_allocator_unfill_drops_last",
+        "hypergraph_h2v_not_deduplicated_hsosp",
+        "hsosp_pair_count_adds_deletions",
+        "hsosp_pair_count_adds_deletions_host",
+        "hsosp_delta_no_post_pass",
+        "hsosp_delta_no_post_pass_host",
+    ]
+    # #5 and #4's CBST counterpart are re-runs of M8a's mutations in the cbst suite.
+    assert {"cbst_graph_own_ids", "cbst_unfill_drops_last"} <= {
+        m["name"] for m in mutate.MUTATIONS if m["suite"] == "cbst"
+    }
+    assert mutate.SUITES["hyper_sssp"]["runner"] == "gtest"
+    host = mutate.suite_targets("hyper_sssp", "sequential")
+    cuda = mutate.suite_targets("hyper_sssp", "cuda")
+    assert host and cuda and not set(host) & set(cuda)
+    assert all("cuda" in t for t in cuda) and not any("cuda" in t for t in host)
+    assert sorted(mutate.suite_targets("hyper_sssp")) == sorted(host + cuda)
+    # the other suites have one target list for every configuration
+    assert mutate.suite_targets("triad_count", "cuda") == mutate.suite_targets("triad_count")
+    # twins share a build (one code key), and their replays differ by configuration
+    by_key: dict = {}
+    for m in rows:
+        by_key.setdefault(mutate.code_key(m), []).append(m)
+    for twins in by_key.values():
+        assert len({mutate.replay_key(m) for m in twins}) == len(twins)
+    assert len(by_key) == 7
+    # the CTests of the same sites (cpp/tests/CMakeLists.txt) name every define
+    ctests = (REPO / "cpp/tests/CMakeLists.txt").read_text()
+    for m in rows:
+        assert m["defines"][0] in ctests, m["name"]
 
 
 def test_mutation_failures_read_both_matrix_layouts() -> None:
@@ -2681,3 +2856,297 @@ def test_the_label_follows_the_tree(cert, tmp_path: Path) -> None:
     older = f"{series[0]}.{series[1] - 1}.9" if series and series[1] > 0 else "9.9.9"
     with pytest.raises(SystemExit, match="follows its tree's release series"):
         cert.main(["write", "--results", str(results), "--version", older, "--allow-dirty"])
+
+
+def test_a_04_certificate_needs_the_hyper_sssp_replays(cert, certified) -> None:
+    """From 0.4 on a certificate needs the hyper_sssp replays of every backend and parity mode of
+    the set's [modes] table, every case (M11a criterion 21); a 0.1-0.3 certificate lists the set
+    without a verdict."""
+    results, write, problems = certified
+    assert write("0.4.0") == 0, problems()
+    doc = json.loads((results / "parity.json").read_text())
+    entry = next(g for g in doc["golden_suites"] if g["set"] == HSOSP_SET)
+    assert entry["passed"] is True
+    assert set(entry["required_coverage"]) == {
+        f"{b}:hyper_sssp/{m}"
+        for b in ("cuda", "sequential")
+        for m in ("by_id", "by_id_public", "by_key")
+    } | {"cuda:hyper_sssp/store"}
+    assert entry["required_coverage"]["cuda:hyper_sssp/by_id"] == 25
+    assert entry["required_coverage"]["cuda:hyper_sssp/store"] == 25
+    # One config missing: the certificate fails, naming it.
+    for f in results.glob(f"parity-{HSOSP_SET}-cuda-hyper_sssp-by_key.json"):
+        f.unlink()
+    assert write("0.4.0") == 1
+    assert "cuda:hyper_sssp/by_key" in problems()
+    # One case missing from a config's matrix.
+    path = next(results.glob(f"parity-{HSOSP_SET}-sequential-hyper_sssp-by_id.json"))
+    record = json.loads(path.read_text())
+    del record["matrix"]["paper/dblp_vertex_50000"]
+    path.write_text(json.dumps(record))
+    assert write("0.4.0") == 1 and "paper/dblp_vertex_50000" in problems()
+    # A 0.3 certificate does not need them: without any replay the set has no verdict.
+    for f in results.glob(f"parity-{HSOSP_SET}-*.json"):
+        f.unlink()
+    assert write("0.3.0") == 0, problems()
+    doc = json.loads((results / "parity.json").read_text())
+    entry = next(g for g in doc["golden_suites"] if g["set"] == HSOSP_SET)
+    assert entry["passed"] is None and "0.4" in entry["required"]
+
+
+def test_a_04_certificate_needs_the_slack_csr_store_check(cert, certified) -> None:
+    """M11a criterion 21: the slack_csr store check on cuda (compare.py hyper_sssp --part delta
+    --certificate: every case) is part of the set's verdict from 0.4."""
+    results, write, problems = certified
+    path = results / f"parity-{HSOSP_SET}-cuda-hyper_sssp-store.json"
+    full = path.read_text()
+    path.unlink()
+    assert write("0.4.0") == 1 and "cuda:hyper_sssp/store" in problems()
+    record = json.loads(full)
+    record["matrix"]["paper/geology_vertex_200000"]["cuda:hyper_sssp/store"] = "DIFFERENT"
+    record["passed"] = False
+    path.write_text(json.dumps(record))
+    assert write("0.4.0") == 1
+    path.write_text(full)
+    assert write("0.4.0") == 0, problems()
+
+
+def test_the_04_suite_ia3_hsosp_is_required_and_rechecked(cert, certified) -> None:
+    """M11a criterion 21: REQUIRED_SUITES['ia3_hsosp'] from (0, 4): a 0.4 certificate without its
+    summary fails, a 0.3 one does not need it; a gated row removed from the summary, a summary
+    row whose record lost it, or a record's guard failing fails the 0.4 certificate."""
+    assert cert.REQUIRED_SUITES["ia3_hsosp"] == {"algorithm": "hyper_sssp", "since": (0, 4)}
+    assert "ia3_hsosp" in cert.required_suites("0.4.0")
+    assert "ia3_hsosp" not in cert.required_suites("0.3.0")
+    results, write, problems = certified
+    assert write("0.4.0") == 0, problems()
+    path = results / "ia3_hsosp.json"
+    full = path.read_text()
+    path.unlink()
+    assert write("0.4.0") == 1 and "the summary ia3_hsosp.json" in problems()
+    assert write("0.3.0") == 0, problems()
+    # A per-batch row and a memory row removed from the summary (the counts adjusted).
+    for case, region in [
+        ("geology_vertex_25000", "sosp_update[b3]"),
+        ("dblp_vertex_50000", "graph_memory[b2]"),
+        ("geology_hyperedge_50000", "device_memory"),
+    ]:
+        cut = json.loads(full)
+        n = 0
+        for r in cut["readings"]:
+            keep = [g for g in r["regions"] if not (g["case"] == case and g["region"] == region)]
+            n += len(r["regions"]) - len(keep)
+            r["regions"] = keep
+        assert n == 1, (case, region)
+        cut["verdict"]["gated_regions"] -= 1
+        cut["verdict"]["within_gate"] -= 1
+        path.write_text(json.dumps(cut))
+        assert write("0.4.0") == 1, (case, region)
+        assert f"no gated row {region} of {case}" in problems()
+    path.write_text(full)
+    assert write("0.4.0") == 0, problems()
+    # The record of a timed configuration with its guard failed in a round.
+    summary = json.loads(full)
+    rec = next(
+        r["record"] for r in summary["readings"] if r.get("dataset") == "dblp_hyperedge_100000"
+    )
+    rec_full = (results / rec).read_text()
+    doc = json.loads(rec_full)
+    doc["results"]["dblp_hyperedge_100000"]["guard"]["passed"] = False
+    (results / rec).write_text(json.dumps(doc))
+    assert write("0.4.0") == 1 and "per-round guard" in problems()
+    (results / rec).write_text(rec_full)
+    assert write("0.4.0") == 0, problems()
+
+
+def test_a_dry_04_certify_of_hyper_sssp(cert, bench, tmp_path: Path, fixed_driver) -> None:
+    """M11a criterion 21: a dry 0.4 certify restricted to hyper_sssp, outside benchmarks/results,
+    passes with the suite's summary and the set's replays, and fails when one gate row or one
+    replay is removed."""
+    commit = head()
+    results = tmp_path / "results"
+    results.mkdir()
+    _hsosp_replays(cert, results, commit)
+    suite = bench.load_suite(REPO / "benchmarks/paper/ia3_hsosp.yaml")
+    records = tmp_path / "rec-ia3_hsosp"
+    jobs = _write_hsosp_records(bench, suite, records, commit)
+    summary = bench.summarize(suite, jobs, out=results, version="t", records=records, inputs=None)
+    assert summary["verdict"]["passed"], summary["verdict"]
+    # 16 configurations x (5 rows x 3 batches + load_plus_dynamic) + 3 x (1 peak + 4 points)
+    assert summary["verdict"]["gated_regions"] == 16 * 16 + 3 * 5
+
+    def write() -> int:
+        argv = ["write", "--results", str(results), "--version", "0.4.0", "--allow-dirty"]
+        return cert.main([*argv, "--dry-run", "hyper_sssp"])
+
+    def doc() -> dict:
+        return json.loads((results / "parity.json").read_text())
+
+    assert write() == 0, doc()["verdict"]
+    d = doc()
+    assert [g["set"] for g in d["golden_suites"]] == [HSOSP_SET]
+    assert {s["suite"] for s in d["performance"]} == {"ia3_hsosp"}
+    assert "suite ipdps26_escher (triad_count)" in d["dry_run"]["outside"]
+    # A gated row removed from a record (its summary row then has no source): fails.
+    name = next(
+        r["record"] for r in summary["readings"] if r.get("dataset") == "dblp_vertex_200000"
+    )
+    full = (results / name).read_text()
+    rec = json.loads(full)
+    res = rec["results"]["dblp_vertex_200000"]
+    res["regions"] = [g for g in res["regions"] if g["region"] != "dynamic[b2]"]
+    (results / name).write_text(json.dumps(rec))
+    assert write() == 1 and any("dynamic[b2]" in p for p in doc()["verdict"]["problems"])
+    (results / name).write_text(full)
+    assert write() == 0, doc()["verdict"]
+    # A replay removed: fails.
+    (results / f"parity-{HSOSP_SET}-sequential-hyper_sssp-by_key.json").unlink()
+    assert write() == 1 and any(
+        "sequential:hyper_sssp/by_key" in p for p in doc()["verdict"]["problems"]
+    )
+
+
+def test_the_hsosp_suite_records_are_checked(bench, tmp_path: Path) -> None:
+    """parity/bench_suite.py's hyper_sssp rules (ADR 0093): a gated reading at clocks its probe did
+    not decide, a flagged audit, scope differs (HD7), a foreign GPU process during the memory
+    reading, or a memory point above the bar each fail the summary."""
+    suite = bench.load_suite(REPO / "benchmarks/paper/ia3_hsosp.yaml")
+    # Both datasets are read at base (ADR 0093); the rule for a reading at boost (the clocks its
+    # probe decided) is checked on a copy of the suite whose Geology reading is at boost.
+    for reading in suite["readings"]:
+        if reading["name"] == "cuda-geology":
+            reading["clocks"] = "boost"
+    records = tmp_path / "rec"
+    jobs = _write_hsosp_records(bench, suite, records, head())
+
+    def summary() -> dict:
+        return bench.summarize(suite, jobs, out=tmp_path / "out", version="t", records=records,
+                               inputs=None)["verdict"]  # fmt: skip
+
+    assert summary()["passed"]
+    probe = records / "ia3_hsosp-probe-geology.json"
+    run = records / "ia3_hsosp-cuda-geology-geology_vertex_100000.json"
+    memory = records / "ia3_hsosp-cuda-memory.json"
+    for path, edit, text in [
+        (probe, lambda d: d["clocks"].update(geology="base"), "the probe probe-geology decided"),
+        (run, lambda d: d["results"]["geology_vertex_100000"]["audit"].update(flagged=True),
+         "contamination audit"),
+        (run, lambda d: d["results"]["geology_vertex_100000"].update(scope_differs=True),
+         "scope differs"),
+        (run, lambda d: d["protocol"].update(lock={}), "exclusive-lock window"),
+        (memory, lambda d: d.update(counts=False), "foreign process"),
+        (memory, lambda d: d["results"]["dblp_vertex_50000"]["graph_accounting"][2].update(
+            dyng_graph_bytes=2000), "graph_memory[b2]"),
+    ]:  # fmt: skip
+        full = path.read_text()
+        doc = json.loads(full)
+        edit(doc)
+        path.write_text(json.dumps(doc))
+        v = summary()
+        assert not v["passed"], text
+        assert any(text in x for x in v["problems"] + v["exceeded"]), (text, v)
+        path.write_text(full)
+    assert summary()["passed"]
+
+
+def test_hypergraph_id_replays_have_their_series(cert) -> None:
+    """M11a criterion 21: a per-entry (and per-feature) since in HYPERGRAPH_ID_REPLAYS: the 0.3
+    requirements unchanged, MOSP_ESCHER's whole sessions on slack_csr storage and the vertex-kind
+    DBLP set from 0.4."""
+    req = cert.hypergraph_id_requirements
+    every = ["sequential", "openmp", "cuda"]
+    assert req("cbst_trace_mosp_escher_test", "0.3.0") == {"ids": every}
+    assert req("cbst_trace_mosp_escher_test", "0.4.0") == {"ids": every, "whole_sessions": every}
+    assert req("cbst_trace_mosp_escher_dblp50k_vertex", "0.3.0") == {}
+    assert req("cbst_trace_mosp_escher_dblp50k_vertex", "0.4.0") == {"whole_sessions": every}
+    assert req("cbst_trace_escher_gpu_test", "0.4.0") == {"ids": every, "line_graph": ["cuda"]}
+    assert cert.HYPERGRAPH_ID_MODES["whole_sessions"] == ("slack_csr",)
+    ids = load("parity/hypergraph_ids.py")
+
+    class Args:
+        storage, line_graph, legacy_generator, hg, mode = "slack_csr", False, False, None, "both"
+
+    assert ids.feature_of(Args) == "slack_csr"
+
+
+def test_equivalence_covers_the_hsosp_and_escher_drivers(cert) -> None:
+    """M11a criterion 21: EQUIVALENCE_TARGETS and EQUIVALENCE_FILES gain dyng-compat-hsosp and
+    dyng-compat-escher, one entry per line below M11's anchor."""
+    for tool in ("dyng-compat-hsosp", "dyng-compat-escher"):
+        assert tool in cert.EQUIVALENCE_TARGETS
+        assert f"tools/compat/{tool}" in cert.EQUIVALENCE_FILES
+    source = (REPO / "parity" / "certify.py").read_text()
+    for name in ("EQUIVALENCE_TARGETS", "EQUIVALENCE_FILES"):
+        start = source.index(f"{name} = [")
+        block = source[start : source.index("]", start)]
+        assert block.index("# M11 slack_csr / hyper_sssp") < block.index("dyng-compat-hsosp")
+        assert block.index("# M10 label_propagation") < block.index("# M11 slack_csr")
+
+
+def _reading(suite: dict, name: str) -> dict:
+    return next(r for r in suite["readings"] if r["name"] == name)
+
+
+@pytest.mark.parametrize(
+    ("edit", "message"),
+    [
+        (lambda s: s["datasets"][1].update(sha256="0" * 64), "golden set's"),
+        (lambda s: _reading(s, "cuda-dblp").update(runs=11), "21 alternating rounds"),
+        (lambda s: _reading(s, "cuda-dblp").update(probe="probe-geology"), "probe must name"),
+        (lambda s: _reading(s, "cuda-geology")["configs"].pop(), "cover"),
+        (lambda s: _reading(s, "cuda-memory")["configs"].pop(), "HD6's"),
+        (lambda s: _reading(s, "cuda-memory").update(gpu=0), "GPU 1"),
+        (lambda s: _reading(s, "probe-dblp").update(runs=5), "3 rounds at boost"),
+        (lambda s: _reading(s, "cuda-kernels").update(gated=True), "recorded"),
+        (lambda s: _reading(s, "cuda-default-clocks")["configs"].append("dblp_x"), "not a paper"),
+        (lambda s: s["batches"][0].update(generator="legacy"), "replayed from the golden set"),
+        (lambda s: s["metrics"].pop("dynamic[b2]"), "is not a metric"),
+    ],
+)
+def test_the_hsosp_suite_validates_and_its_edits_fail(bench, edit, message) -> None:
+    suite = bench.load_suite(REPO / "benchmarks/paper/ia3_hsosp.yaml")
+    assert bench.validate(suite) == []
+    edit(suite)
+    errors = bench.validate(suite)
+    assert any(message in e for e in errors), errors
+
+
+def test_the_hsosp_plan_splits_the_timed_readings_per_configuration(bench) -> None:
+    suite = bench.load_suite(REPO / "benchmarks/paper/ia3_hsosp.yaml")
+    jobs = bench.plan(suite, records=Path("/r"), build_root=Path("/b"))
+    runs = [j for j in jobs if j["kind"] == "run" and j["gated"]]
+    assert len(runs) == 16 and all(len(j["configs"]) == 1 for j in runs)
+    assert all("--rounds" in j["argv"] and j["argv"][j["argv"].index("--rounds") + 1] == "21"
+               for j in runs)  # fmt: skip
+    memory = [j for j in jobs if j["kind"] == "memory"]
+    assert all(j["argv"][j["argv"].index("--gpu") + 1] == "1" for j in memory)
+    assert {j["reading"] for j in jobs if j["kind"] == "probe"} == {"probe-dblp", "probe-geology"}
+    assert all("--probe-only" in j["argv"] for j in jobs if j["kind"] == "probe")
+
+
+def test_gpu_local_steps_of_04_hold_the_slack_csr_steps(cert) -> None:
+    """M11a criterion 17: M11's commented sub-list of the one (0, 4) key of GPU_LOCAL_STEPS lists
+    the slack_csr and hyper_sssp steps, gpu_local_steps('0.4.0') holds them (and the 0.3 ones), a
+    0.3 certificate does not need them, and ci/gpu_local.sh records them."""
+    m11 = [
+        "slack_csr sanitizers (all four tools; a forced-overflow session)",
+        "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
+        "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)",
+        "hyper_sssp replays (cuda, make test; three modes, update == compute)",
+    ]
+    steps = cert.gpu_local_steps("0.4.0")
+    assert set(m11) <= set(steps)
+    assert set(cert.GPU_LOCAL_STEPS[(0, 3)]) <= set(steps)
+    assert not set(m11) & set(cert.gpu_local_steps("0.3.0"))
+    script = (REPO / "ci" / "gpu_local.sh").read_text()
+    for step in m11:
+        assert f'record "{step}" passed' in script, step
+    source = (REPO / "parity" / "certify.py").read_text()
+    # Exactly one (0, 4) key in the source of the GPU_LOCAL_STEPS literal: a dict keeps only the
+    # last of two equal keys, so the loaded dict cannot show a second one (M11a review).
+    table = source[source.index("GPU_LOCAL_STEPS = {") :]
+    table = table[: table.index("\n}\n")]
+    assert table.count("    (0, 4): [") == 1
+    start = source.index("    (0, 4): [")
+    block = source[start : source.index("    ],", start)]
+    assert block.index("# M11 slack_csr / hyper_sssp") < block.index(m11[0])

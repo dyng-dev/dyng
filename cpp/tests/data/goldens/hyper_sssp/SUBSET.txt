@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The committed subset of the golden set hyper_sssp_mosp_escher (M11a, HD18: at most
+# 100 KB), written by parity/hsosp_goldens.py subset from its case
+# test/03-test_hsosp_matches_dijkstra: the first sessions of MOSP_ESCHER@4b86159's
+# tests/unit/test_hsosp_matches_dijkstra.cu, up to the first one with a vertex-kind
+# batch and a forced fallback (workBudget 0). Read by dyng_hsosp_dump_tests in hosted
+# CI.
+test_hsosp_matches_dijkstra.hsd  sessions [1]  sha256 e12a12279a3fee536017f9033723db790a04489522f399e4c2a3aa295c03d994

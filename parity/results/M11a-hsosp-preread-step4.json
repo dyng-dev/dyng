@@ -1,0 +1,4276 @@
+{
+ "schema": 1,
+ "algorithm": "hyper_sssp",
+ "what": "M11a step 4 pre-read: 5 alternating rounds, base clocks, every row of the region map (records only, not gated)",
+ "date": "2026-10-30T06:47:08Z",
+ "date_end": "2026-10-30T06:49:03Z",
+ "protocol": {
+  "rounds": 5,
+  "order": "A/B alternation (B first in every round)",
+  "gpu": 0,
+  "clocks": {
+   "control": "base",
+   "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+   "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+   "before": {
+    "pstate": "P8",
+    "sm_mhz": 210,
+    "memory_mhz": 405
+   },
+   "locked": {
+    "pstate": "P2",
+    "sm_mhz": 1170,
+    "memory_mhz": 7601
+   },
+   "check": "every busy GPU sample of every accepted round at the locked clocks",
+   "after_reset": {
+    "pstate": "P3",
+    "sm_mhz": 960,
+    "memory_mhz": 5001
+   }
+  },
+  "lock": {
+   "DYNG_PERF_LOCK": "",
+   "DYNG_PERF_LOCK_HELD": "1"
+  },
+  "layout": "one (--out <work>/hsosp-ab.csv, --timing <work>/hsosp-ab.json)",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify none",
+  "port": "dyng-compat-hsosp bench --sync-stages --digests (the golden's batches; --threads = the machine's hardware threads, as B's OpenMP default)",
+  "statistic": "median",
+  "contamination_monitor": "rejected rounds repeated (perf_ab.MachineMonitor)",
+  "guard": "every round: B's h2h_pairs, overflow_rebuilds, seeds and mismatch_static and the port's pairs digest, pair count, CSR rebuilds and (the full update) its distances' and parents' digests and mismatch_static of every batch against the golden; a failure stops the reading. The fallback decisions of both sides against the golden's: a differing round is repeated (at most doubling the rounds), more than a third of differing rounds records 'scope differs' (HD7)",
+  "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above 1.05 fixed (criterion 12)"
+ },
+ "reference": {
+  "repo": "MOSP_ESCHER",
+  "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+  "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
+ },
+ "port": {
+  "commit": "511ae3cf02c70ab4abb843c46c7b2b905c6bd8f0+dirty",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-hsosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "dblp_hyperedge_50000": {
+   "config": "dblp_hyperedge_50000",
+   "dataset": "dblp",
+   "kind": "hyperedge",
+   "batch": 50000,
+   "rounds": 5,
+   "attempts": 5,
+   "decisions_differ": [],
+   "scope_differs": false,
+   "rows": [
+    {
+     "row": "maintain[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 74.6059,
+     "port_ms": 45.157,
+     "ratio": 0.6052738456341924,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      73.83189999999999,
+      74.2612,
+      77.1749,
+      74.6059,
+      74.86789999999999
+     ],
+     "port_rounds": [
+      45.698,
+      45.007,
+      45.251,
+      45.146,
+      45.157
+     ]
+    },
+    {
+     "row": "maintain[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 61.6918,
+     "port_ms": 38.963,
+     "ratio": 0.6315750229365977,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      61.365899999999996,
+      61.3746,
+      61.6918,
+      63.9045,
+      62.6295
+     ],
+     "port_rounds": [
+      39.226,
+      38.895,
+      38.904,
+      39.264,
+      38.963
+     ]
+    },
+    {
+     "row": "maintain[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 59.9379,
+     "port_ms": 39.107,
+     "ratio": 0.6524586280133271,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      59.84,
+      59.58409999999999,
+      59.9379,
+      60.6491,
+      60.5263
+     ],
+     "port_rounds": [
+      39.275,
+      39.064,
+      39.107,
+      39.227,
+      38.831
+     ]
+    },
+    {
+     "row": "sosp_update[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 10.494,
+     "port_ms": 10.648,
+     "ratio": 1.0146750524109014,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      10.5395,
+      10.4854,
+      10.4714,
+      10.494,
+      10.5112
+     ],
+     "port_rounds": [
+      10.648,
+      10.668,
+      10.646,
+      10.636,
+      10.667
+     ]
+    },
+    {
+     "row": "sosp_update[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 5.37411,
+     "port_ms": 5.462,
+     "ratio": 1.0163543358807319,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      5.36906,
+      5.38379,
+      5.37411,
+      5.38521,
+      5.37223
+     ],
+     "port_rounds": [
+      5.462,
+      5.45,
+      5.468,
+      5.468,
+      5.45
+     ]
+    },
+    {
+     "row": "sosp_update[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 4.81611,
+     "port_ms": 4.913,
+     "ratio": 1.0201178959782895,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      4.79774,
+      4.81528,
+      4.84402,
+      4.81611,
+      4.8173
+     ],
+     "port_rounds": [
+      4.9270000000000005,
+      4.906000000000001,
+      4.913,
+      4.916,
+      4.903
+     ]
+    },
+    {
+     "row": "static[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 86.8412,
+     "port_ms": 86.912,
+     "ratio": 1.0008152812259619,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      86.5417,
+      86.7485,
+      87.1464,
+      88.0622,
+      86.8412
+     ],
+     "port_rounds": [
+      87.108,
+      86.8,
+      87.384,
+      86.136,
+      86.912
+     ]
+    },
+    {
+     "row": "static[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 86.7858,
+     "port_ms": 87.431,
+     "ratio": 1.0074343959495677,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      86.2941,
+      86.9376,
+      86.7858,
+      86.3055,
+      87.6247
+     ],
+     "port_rounds": [
+      87.667,
+      87.752,
+      87.311,
+      87.431,
+      86.337
+     ]
+    },
+    {
+     "row": "static[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 87.5417,
+     "port_ms": 87.391,
+     "ratio": 0.9982785346868978,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      87.5662,
+      87.5417,
+      87.2789,
+      87.0563,
+      88.0087
+     ],
+     "port_rounds": [
+      86.93,
+      87.463,
+      87.391,
+      88.078,
+      86.676
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 85.0999,
+     "port_ms": 58.271,
+     "ratio": 0.6847364097960161,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      84.3714,
+      84.7466,
+      87.6463,
+      85.0999,
+      85.3791
+     ],
+     "port_rounds": [
+      58.751,
+      58.173,
+      58.35,
+      58.235,
+      58.271
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 67.06591,
+     "port_ms": 46.919,
+     "ratio": 0.6995953681982395,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      66.73496,
+      66.75839,
+      67.06591,
+      69.28971,
+      68.00173
+     ],
+     "port_rounds": [
+      47.175,
+      46.799,
+      46.897,
+      47.22,
+      46.919
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 64.78192,
+     "port_ms": 46.507,
+     "ratio": 0.7179009205037454,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      64.63774000000001,
+      64.39938,
+      64.78192,
+      65.46521,
+      65.3436
+     ],
+     "port_rounds": [
+      46.74,
+      46.5,
+      46.507,
+      46.578,
+      46.172
+     ]
+    },
+    {
+     "row": "dynamic[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 226.478,
+     "port_ms": 58.271,
+     "ratio": 0.25729209901182454,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      224.999,
+      226.514,
+      230.096,
+      226.478,
+      221.925
+     ],
+     "port_rounds": [
+      58.751,
+      58.173,
+      58.35,
+      58.235,
+      58.271
+     ]
+    },
+    {
+     "row": "dynamic[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 166.55,
+     "port_ms": 46.919,
+     "ratio": 0.2817111978384869,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      162.727,
+      163.924,
+      166.689,
+      170.394,
+      166.55
+     ],
+     "port_rounds": [
+      47.175,
+      46.799,
+      46.897,
+      47.22,
+      46.919
+     ]
+    },
+    {
+     "row": "dynamic[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 165.736,
+     "port_ms": 46.507,
+     "ratio": 0.2806089202104552,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      165.071,
+      163.752,
+      169.351,
+      165.736,
+      173.112
+     ],
+     "port_rounds": [
+      46.74,
+      46.5,
+      46.507,
+      46.578,
+      46.172
+     ]
+    },
+    {
+     "row": "load_plus_dynamic",
+     "gate": "end_to_end",
+     "original": [
+      "e2e:load",
+      "e2e:dynamic"
+     ],
+     "port": [
+      "load_ms",
+      "dynamic_ms"
+     ],
+     "original_ms": 6367.0,
+     "port_ms": 4585.632,
+     "ratio": 0.7202186272970001,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      6328.0,
+      6335.0,
+      6374.0,
+      6367.0,
+      6389.0
+     ],
+     "port_rounds": [
+      4605.6449999999995,
+      4585.632,
+      4864.445,
+      4560.8,
+      4545.867
+     ]
+    },
+    {
+     "row": "escher[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 141.378,
+     "port_ms": 8.715,
+     "ratio": 0.06164325425455163,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      140.628,
+      141.767,
+      142.45,
+      141.378,
+      136.546
+     ],
+     "port_rounds": [
+      8.869,
+      8.505,
+      8.715,
+      8.598,
+      8.753
+     ]
+    },
+    {
+     "row": "escher[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 98.5477,
+     "port_ms": 4.969,
+     "ratio": 0.05042228281329752,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      95.992,
+      97.1652,
+      99.6231,
+      101.104,
+      98.5477
+     ],
+     "port_rounds": [
+      4.974,
+      4.855,
+      4.979,
+      4.862,
+      4.969
+     ]
+    },
+    {
+     "row": "escher[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 100.433,
+     "port_ms": 4.921,
+     "ratio": 0.048997839355590295,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      100.433,
+      99.3524,
+      104.569,
+      100.271,
+      107.768
+     ],
+     "port_rounds": [
+      4.922,
+      4.895,
+      4.938,
+      4.894,
+      4.921
+     ]
+    },
+    {
+     "row": "delta[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 60.1143,
+     "port_ms": 16.197,
+     "ratio": 0.2694367230426038,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      59.3122,
+      59.715,
+      62.6502,
+      60.1143,
+      60.3099
+     ],
+     "port_rounds": [
+      16.360999999999997,
+      16.28,
+      16.197,
+      16.134999999999998,
+      16.191
+     ]
+    },
+    {
+     "row": "delta[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 47.2565,
+     "port_ms": 16.729,
+     "ratio": 0.35400421106091223,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      46.9101,
+      46.9188,
+      47.2565,
+      49.4966,
+      48.226
+     ],
+     "port_rounds": [
+      16.883,
+      16.729,
+      16.564,
+      17.080999999999996,
+      16.683
+     ]
+    },
+    {
+     "row": "delta[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 45.7744,
+     "port_ms": 16.984,
+     "ratio": 0.3710370862316055,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      45.6602,
+      45.4207,
+      45.7744,
+      46.4867,
+      46.3445
+     ],
+     "port_rounds": [
+      17.179000000000002,
+      16.984,
+      16.981,
+      17.174,
+      16.759999999999998
+     ]
+    },
+    {
+     "row": "csr_apply[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 14.5247,
+     "port_ms": 17.091,
+     "ratio": 1.176685232741468,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      14.5197,
+      14.5462,
+      14.5247,
+      14.4916,
+      14.558
+     ],
+     "port_rounds": [
+      17.174,
+      17.023,
+      17.091,
+      17.234,
+      16.994
+     ]
+    },
+    {
+     "row": "csr_apply[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 14.4353,
+     "port_ms": 14.987,
+     "ratio": 1.0382188108317805,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      14.4558,
+      14.4558,
+      14.4353,
+      14.4079,
+      14.4035
+     ],
+     "port_rounds": [
+      15.004,
+      14.959,
+      15.007,
+      14.956,
+      14.987
+     ]
+    },
+    {
+     "row": "csr_apply[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 14.1635,
+     "port_ms": 14.796,
+     "ratio": 1.044657040985632,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      14.1798,
+      14.1634,
+      14.1635,
+      14.1624,
+      14.1818
+     ],
+     "port_rounds": [
+      14.792,
+      14.796,
+      14.827,
+      14.805,
+      14.796
+     ]
+    },
+    {
+     "row": "update.identify_affected[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 1.052,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.051,
+      1.059,
+      1.051,
+      1.055,
+      1.052
+     ]
+    },
+    {
+     "row": "update.identify_affected[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 1.053,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.053,
+      1.05,
+      1.055,
+      1.056,
+      1.043
+     ]
+    },
+    {
+     "row": "update.identify_affected[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 1.05,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.069,
+      1.048,
+      1.062,
+      1.05,
+      1.047
+     ]
+    },
+    {
+     "row": "update.seed[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 2.128,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      2.127,
+      2.129,
+      2.128,
+      2.128,
+      2.115
+     ]
+    },
+    {
+     "row": "update.seed[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 1.287,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.286,
+      1.279,
+      1.287,
+      1.289,
+      1.288
+     ]
+    },
+    {
+     "row": "update.seed[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 1.228,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.223,
+      1.228,
+      1.218,
+      1.23,
+      1.235
+     ]
+    },
+    {
+     "row": "update.loop[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 7.39,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      7.39,
+      7.401,
+      7.388,
+      7.374,
+      7.421
+     ]
+    },
+    {
+     "row": "update.loop[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 3.043,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      3.044,
+      3.042,
+      3.048,
+      3.043,
+      3.04
+     ]
+    },
+    {
+     "row": "update.loop[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 2.553,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      2.555,
+      2.551,
+      2.553,
+      2.555,
+      2.542
+     ]
+    },
+    {
+     "row": "update.recompute[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.recompute[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.recompute[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.finalize[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.078,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.079,
+      0.078,
+      0.078,
+      0.078,
+      0.078
+     ]
+    },
+    {
+     "row": "update.finalize[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.078,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.078,
+      0.078,
+      0.077,
+      0.079,
+      0.078
+     ]
+    },
+    {
+     "row": "update.finalize[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.079,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.079,
+      0.078,
+      0.079,
+      0.08,
+      0.078
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original": [
+      "e2e:load"
+     ],
+     "port": [
+      "load_ms"
+     ],
+     "original_ms": 5804.0,
+     "port_ms": 4434.16,
+     "ratio": 0.7639834596829772,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      5775.0,
+      5781.0,
+      5808.0,
+      5804.0,
+      5827.0
+     ],
+     "port_rounds": [
+      4452.98,
+      4434.16,
+      4712.691,
+      4408.767,
+      4394.505
+     ]
+    },
+    {
+     "row": "static_sum",
+     "gate": "none",
+     "original": [
+      "e2e:static"
+     ],
+     "port": [
+      "static_sum_ms"
+     ],
+     "original_ms": 261.0,
+     "port_ms": 261.705,
+     "ratio": 1.0027011494252873,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      260.0,
+      261.0,
+      261.0,
+      261.0,
+      262.0
+     ],
+     "port_rounds": [
+      261.705,
+      262.014,
+      262.085,
+      261.645,
+      259.926
+     ]
+    },
+    {
+     "row": "wall",
+     "gate": "none",
+     "original": [
+      "e2e:wall"
+     ],
+     "port": [
+      "total_ms"
+     ],
+     "original_ms": 6725.0,
+     "port_ms": 8000.285,
+     "ratio": 1.1896334572490705,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      6678.0,
+      6703.0,
+      6725.0,
+      6733.0,
+      6754.0
+     ],
+     "port_rounds": [
+      8000.285,
+      7944.644,
+      8228.485,
+      7939.433,
+      8042.198
+     ]
+    },
+    {
+     "row": "process",
+     "gate": "none",
+     "original": [
+      "process wall time"
+     ],
+     "port": [
+      "process wall time"
+     ],
+     "original_ms": 7163.150787353516,
+     "port_ms": 8531.53109550476,
+     "ratio": 1.191030504420919,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      7192.927360534668,
+      7133.015871047974,
+      7158.825874328613,
+      7163.150787353516,
+      7186.553955078125
+     ],
+     "port_rounds": [
+      8531.53109550476,
+      8464.606523513794,
+      8748.97027015686,
+      8457.34453201294,
+      8556.29825592041
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 7.192927360534668,
+       "program_cpu_s": 34.434126000000006,
+       "foreign_cpu_cores": 1.1142809594148666,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 13
+       },
+       "gpu": {
+        "samples": 143,
+        "busy_samples": 35,
+        "pstates_busy": {
+         "P2": 35
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 8.53153109550476,
+       "program_cpu_s": 17.354789999999994,
+       "foreign_cpu_cores": 1.0514533558310064,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 170,
+        "busy_samples": 33,
+        "pstates_busy": {
+         "P2": 33
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 7.133015871047974,
+       "program_cpu_s": 34.245673000000004,
+       "foreign_cpu_cores": 1.0773499094573282,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 60
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 142,
+        "busy_samples": 51,
+        "pstates_busy": {
+         "P2": 51
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 8.464606523513794,
+       "program_cpu_s": 17.277865000000006,
+       "foreign_cpu_cores": 1.0689506919914076,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 169,
+        "busy_samples": 58,
+        "pstates_busy": {
+         "P2": 58
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 7.158825874328613,
+       "program_cpu_s": 34.33354799999999,
+       "foreign_cpu_cores": 1.088715543429406,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 45
+       },
+       "gpu": {
+        "samples": 142,
+        "busy_samples": 36,
+        "pstates_busy": {
+         "P2": 36
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 8.74897027015686,
+       "program_cpu_s": 17.629774999999995,
+       "foreign_cpu_cores": 1.2195166598732545,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 175,
+        "busy_samples": 53,
+        "pstates_busy": {
+         "P2": 53
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 7.163150787353516,
+       "program_cpu_s": 34.576166,
+       "foreign_cpu_cores": 1.119564593705416,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 20
+       },
+       "gpu": {
+        "samples": 142,
+        "busy_samples": 46,
+        "pstates_busy": {
+         "P2": 46
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 8.45734453201294,
+       "program_cpu_s": 17.29417699999999,
+       "foreign_cpu_cores": 1.1733716137232013,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 14
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 168,
+        "busy_samples": 42,
+        "pstates_busy": {
+         "P2": 42
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 7.186553955078125,
+       "program_cpu_s": 34.36474900000002,
+       "foreign_cpu_cores": 1.0678846977955285,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 11
+       },
+       "gpu": {
+        "samples": 143,
+        "busy_samples": 51,
+        "pstates_busy": {
+         "P2": 51
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 8.55629825592041,
+       "program_cpu_s": 17.32791199999997,
+       "foreign_cpu_cores": 1.1369554574299219,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 7
+       },
+       "gpu": {
+        "samples": 171,
+        "busy_samples": 58,
+        "pstates_busy": {
+         "P2": 58
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.2195166598732545,
+    "original_pstates_busy": {
+     "P2": 219
+    },
+    "original_sm_mhz_busy_median": 1170.0,
+    "port_pstates_busy": {
+     "P2": 244
+    },
+    "port_sm_mhz_busy_median": 1170,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "samples": 32,
+     "load_average_max": 5.6142578125,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 31,
+     "load_average_max": 4.89306640625,
+     "procs_blocked_max": 1
+    },
+    {
+     "samples": 32,
+     "load_average_max": 8.4755859375,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 31,
+     "load_average_max": 7.47998046875,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 32,
+     "load_average_max": 6.265625,
+     "procs_blocked_max": 0
+    }
+   ],
+   "audit": {
+    "rule": {
+     "load_average": 16.0,
+     "procs_blocked": 4,
+     "why": "B's quiet maximum 7.03 is at most 8.0: ADR 0056's thresholds kept (HD4)"
+    },
+    "flagged_rounds": [],
+    "flagged": false
+   },
+   "guard": {
+    "rounds_checked": 5,
+    "passed": true
+   },
+   "original_csv": [
+    [
+     {
+      "t_delta_ms": 59.3122,
+      "t_static_ms": 86.5417,
+      "t_escher_ms": 140.628,
+      "t_sosp_update_ms": 10.5395,
+      "t_dynamic_total_ms": 224.999,
+      "t_csr_apply_ms": 14.5197
+     },
+     {
+      "t_delta_ms": 46.9101,
+      "t_static_ms": 86.2941,
+      "t_escher_ms": 95.992,
+      "t_sosp_update_ms": 5.36906,
+      "t_dynamic_total_ms": 162.727,
+      "t_csr_apply_ms": 14.4558
+     },
+     {
+      "t_delta_ms": 45.6602,
+      "t_static_ms": 87.5662,
+      "t_escher_ms": 100.433,
+      "t_sosp_update_ms": 4.79774,
+      "t_dynamic_total_ms": 165.071,
+      "t_csr_apply_ms": 14.1798
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 59.715,
+      "t_static_ms": 86.7485,
+      "t_escher_ms": 141.767,
+      "t_sosp_update_ms": 10.4854,
+      "t_dynamic_total_ms": 226.514,
+      "t_csr_apply_ms": 14.5462
+     },
+     {
+      "t_delta_ms": 46.9188,
+      "t_static_ms": 86.9376,
+      "t_escher_ms": 97.1652,
+      "t_sosp_update_ms": 5.38379,
+      "t_dynamic_total_ms": 163.924,
+      "t_csr_apply_ms": 14.4558
+     },
+     {
+      "t_delta_ms": 45.4207,
+      "t_static_ms": 87.5417,
+      "t_escher_ms": 99.3524,
+      "t_sosp_update_ms": 4.81528,
+      "t_dynamic_total_ms": 163.752,
+      "t_csr_apply_ms": 14.1634
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 62.6502,
+      "t_static_ms": 87.1464,
+      "t_escher_ms": 142.45,
+      "t_sosp_update_ms": 10.4714,
+      "t_dynamic_total_ms": 230.096,
+      "t_csr_apply_ms": 14.5247
+     },
+     {
+      "t_delta_ms": 47.2565,
+      "t_static_ms": 86.7858,
+      "t_escher_ms": 99.6231,
+      "t_sosp_update_ms": 5.37411,
+      "t_dynamic_total_ms": 166.689,
+      "t_csr_apply_ms": 14.4353
+     },
+     {
+      "t_delta_ms": 45.7744,
+      "t_static_ms": 87.2789,
+      "t_escher_ms": 104.569,
+      "t_sosp_update_ms": 4.84402,
+      "t_dynamic_total_ms": 169.351,
+      "t_csr_apply_ms": 14.1635
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 60.1143,
+      "t_static_ms": 88.0622,
+      "t_escher_ms": 141.378,
+      "t_sosp_update_ms": 10.494,
+      "t_dynamic_total_ms": 226.478,
+      "t_csr_apply_ms": 14.4916
+     },
+     {
+      "t_delta_ms": 49.4966,
+      "t_static_ms": 86.3055,
+      "t_escher_ms": 101.104,
+      "t_sosp_update_ms": 5.38521,
+      "t_dynamic_total_ms": 170.394,
+      "t_csr_apply_ms": 14.4079
+     },
+     {
+      "t_delta_ms": 46.4867,
+      "t_static_ms": 87.0563,
+      "t_escher_ms": 100.271,
+      "t_sosp_update_ms": 4.81611,
+      "t_dynamic_total_ms": 165.736,
+      "t_csr_apply_ms": 14.1624
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 60.3099,
+      "t_static_ms": 86.8412,
+      "t_escher_ms": 136.546,
+      "t_sosp_update_ms": 10.5112,
+      "t_dynamic_total_ms": 221.925,
+      "t_csr_apply_ms": 14.558
+     },
+     {
+      "t_delta_ms": 48.226,
+      "t_static_ms": 87.6247,
+      "t_escher_ms": 98.5477,
+      "t_sosp_update_ms": 5.37223,
+      "t_dynamic_total_ms": 166.55,
+      "t_csr_apply_ms": 14.4035
+     },
+     {
+      "t_delta_ms": 46.3445,
+      "t_static_ms": 88.0087,
+      "t_escher_ms": 107.768,
+      "t_sosp_update_ms": 4.8173,
+      "t_dynamic_total_ms": 173.112,
+      "t_csr_apply_ms": 14.1818
+     }
+    ]
+   ],
+   "original_e2e": [
+    {
+     "load": 5775.0,
+     "dynamic": 553.0,
+     "static": 260.0,
+     "wall": 6678.0,
+     "batches": 3
+    },
+    {
+     "load": 5781.0,
+     "dynamic": 554.0,
+     "static": 261.0,
+     "wall": 6703.0,
+     "batches": 3
+    },
+    {
+     "load": 5808.0,
+     "dynamic": 566.0,
+     "static": 261.0,
+     "wall": 6725.0,
+     "batches": 3
+    },
+    {
+     "load": 5804.0,
+     "dynamic": 563.0,
+     "static": 261.0,
+     "wall": 6733.0,
+     "batches": 3
+    },
+    {
+     "load": 5827.0,
+     "dynamic": 562.0,
+     "static": 262.0,
+     "wall": 6754.0,
+     "batches": 3
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 4452.98,
+     "hypergraph.build@0": 4351.782,
+     "hypergraph.upload@0": 1401.129,
+     "hyper_sssp.enact_fused@0": 84.532,
+     "hyper_sssp.compute@0": 84.537,
+     "update_ms@1": 58.751,
+     "static_ms@1": 87.108,
+     "hyper_sssp.normalize@1": 2.27,
+     "hypergraph.apply.incidence@1": 8.600999999999999,
+     "hypergraph.apply.ids@1": 8.869,
+     "hypergraph.apply.translate@1": 7.76,
+     "hypergraph.apply.line_graph@1": 17.174,
+     "hypergraph.apply@1": 45.698,
+     "hyper_sssp.commit@1": 45.702,
+     "hyper_sssp.identify_affected@1": 1.051,
+     "hyper_sssp.seed@1": 2.127,
+     "hyper_sssp.loop@1": 7.39,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.079,
+     "hyper_sssp.enact_fused@1": 97.76100000000001,
+     "hyper_sssp.update@1": 58.744,
+     "hyper_sssp.compute@1": 87.104,
+     "update_ms@2": 47.175,
+     "static_ms@2": 87.667,
+     "hyper_sssp.normalize@2": 2.395,
+     "hypergraph.apply.incidence@2": 8.498,
+     "hypergraph.apply.ids@2": 4.974,
+     "hypergraph.apply.translate@2": 8.385,
+     "hypergraph.apply.line_graph@2": 15.004,
+     "hypergraph.apply@2": 39.226,
+     "hyper_sssp.commit@2": 39.229,
+     "hyper_sssp.identify_affected@2": 1.053,
+     "hyper_sssp.seed@2": 1.286,
+     "hyper_sssp.loop@2": 3.044,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.078,
+     "hyper_sssp.enact_fused@2": 93.13000000000001,
+     "hyper_sssp.update@2": 47.17,
+     "hyper_sssp.compute@2": 87.664,
+     "update_ms@3": 46.74,
+     "static_ms@3": 86.93,
+     "hyper_sssp.normalize@3": 2.444,
+     "hypergraph.apply.incidence@3": 8.594,
+     "hypergraph.apply.ids@3": 4.922,
+     "hypergraph.apply.translate@3": 8.585,
+     "hypergraph.apply.line_graph@3": 14.792,
+     "hypergraph.apply@3": 39.275,
+     "hyper_sssp.commit@3": 39.281,
+     "hyper_sssp.identify_affected@3": 1.069,
+     "hyper_sssp.seed@3": 1.223,
+     "hyper_sssp.loop@3": 2.555,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.079,
+     "hyper_sssp.enact_fused@3": 91.859,
+     "hyper_sssp.update@3": 46.735,
+     "hyper_sssp.compute@3": 86.927,
+     "total_ms@0": 8000.285,
+     "dynamic_ms@0": 152.665,
+     "static_sum_ms@0": 261.705
+    },
+    {
+     "load_ms@0": 4434.16,
+     "hypergraph.build@0": 4347.646000000001,
+     "hypergraph.upload@0": 1398.224,
+     "hyper_sssp.enact_fused@0": 85.522,
+     "hyper_sssp.compute@0": 85.527,
+     "update_ms@1": 58.173,
+     "static_ms@1": 86.8,
+     "hyper_sssp.normalize@1": 2.383,
+     "hypergraph.apply.incidence@1": 8.584999999999999,
+     "hypergraph.apply.ids@1": 8.505,
+     "hypergraph.apply.translate@1": 7.695,
+     "hypergraph.apply.line_graph@1": 17.023,
+     "hypergraph.apply@1": 45.007,
+     "hyper_sssp.commit@1": 45.011,
+     "hyper_sssp.identify_affected@1": 1.059,
+     "hyper_sssp.seed@1": 2.129,
+     "hyper_sssp.loop@1": 7.401,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.078,
+     "hyper_sssp.enact_fused@1": 97.473,
+     "hyper_sssp.update@1": 58.165,
+     "hyper_sssp.compute@1": 86.796,
+     "update_ms@2": 46.799,
+     "static_ms@2": 87.752,
+     "hyper_sssp.normalize@2": 2.367,
+     "hypergraph.apply.incidence@2": 8.411,
+     "hypergraph.apply.ids@2": 4.855,
+     "hypergraph.apply.translate@2": 8.318,
+     "hypergraph.apply.line_graph@2": 14.959,
+     "hypergraph.apply@2": 38.895,
+     "hyper_sssp.commit@2": 38.897,
+     "hyper_sssp.identify_affected@2": 1.05,
+     "hyper_sssp.seed@2": 1.279,
+     "hyper_sssp.loop@2": 3.042,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.078,
+     "hyper_sssp.enact_fused@2": 93.203,
+     "hyper_sssp.update@2": 46.795,
+     "hyper_sssp.compute@2": 87.748,
+     "update_ms@3": 46.5,
+     "static_ms@3": 87.463,
+     "hyper_sssp.normalize@3": 2.428,
+     "hypergraph.apply.incidence@3": 8.514,
+     "hypergraph.apply.ids@3": 4.895,
+     "hypergraph.apply.translate@3": 8.47,
+     "hypergraph.apply.line_graph@3": 14.796,
+     "hypergraph.apply@3": 39.064,
+     "hyper_sssp.commit@3": 39.067,
+     "hyper_sssp.identify_affected@3": 1.048,
+     "hyper_sssp.seed@3": 1.228,
+     "hyper_sssp.loop@3": 2.551,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.078,
+     "hyper_sssp.enact_fused@3": 92.369,
+     "hyper_sssp.update@3": 46.48,
+     "hyper_sssp.compute@3": 87.459,
+     "total_ms@0": 7944.644,
+     "dynamic_ms@0": 151.472,
+     "static_sum_ms@0": 262.014
+    },
+    {
+     "load_ms@0": 4712.691,
+     "hypergraph.build@0": 4633.082,
+     "hypergraph.upload@0": 1626.598,
+     "hyper_sssp.enact_fused@0": 86.41,
+     "hyper_sssp.compute@0": 86.415,
+     "update_ms@1": 58.35,
+     "static_ms@1": 87.384,
+     "hyper_sssp.normalize@1": 2.338,
+     "hypergraph.apply.incidence@1": 8.517,
+     "hypergraph.apply.ids@1": 8.715,
+     "hypergraph.apply.translate@1": 7.68,
+     "hypergraph.apply.line_graph@1": 17.091,
+     "hypergraph.apply@1": 45.251,
+     "hyper_sssp.commit@1": 45.256,
+     "hyper_sssp.identify_affected@1": 1.051,
+     "hyper_sssp.seed@1": 2.128,
+     "hyper_sssp.loop@1": 7.388,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.078,
+     "hyper_sssp.enact_fused@1": 98.03399999999999,
+     "hyper_sssp.update@1": 58.343,
+     "hyper_sssp.compute@1": 87.379,
+     "update_ms@2": 46.897,
+     "static_ms@2": 87.311,
+     "hyper_sssp.normalize@2": 2.438,
+     "hypergraph.apply.incidence@2": 8.276,
+     "hypergraph.apply.ids@2": 4.979,
+     "hypergraph.apply.translate@2": 8.288,
+     "hypergraph.apply.line_graph@2": 15.007,
+     "hypergraph.apply@2": 38.904,
+     "hyper_sssp.commit@2": 38.907,
+     "hyper_sssp.identify_affected@2": 1.055,
+     "hyper_sssp.seed@2": 1.287,
+     "hyper_sssp.loop@2": 3.048,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.077,
+     "hyper_sssp.enact_fused@2": 92.78099999999999,
+     "hyper_sssp.update@2": 46.893,
+     "hyper_sssp.compute@2": 87.308,
+     "update_ms@3": 46.507,
+     "static_ms@3": 87.391,
+     "hyper_sssp.normalize@3": 2.386,
+     "hypergraph.apply.incidence@3": 8.513,
+     "hypergraph.apply.ids@3": 4.938,
+     "hypergraph.apply.translate@3": 8.468,
+     "hypergraph.apply.line_graph@3": 14.827,
+     "hypergraph.apply@3": 39.107,
+     "hyper_sssp.commit@3": 39.109,
+     "hyper_sssp.identify_affected@3": 1.062,
+     "hyper_sssp.seed@3": 1.218,
+     "hyper_sssp.loop@3": 2.553,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.079,
+     "hyper_sssp.enact_fused@3": 92.304,
+     "hyper_sssp.update@3": 46.487,
+     "hyper_sssp.compute@3": 87.388,
+     "total_ms@0": 8228.485,
+     "dynamic_ms@0": 151.754,
+     "static_sum_ms@0": 262.085
+    },
+    {
+     "load_ms@0": 4408.767,
+     "hypergraph.build@0": 4346.568,
+     "hypergraph.upload@0": 1389.677,
+     "hyper_sssp.enact_fused@0": 85.684,
+     "hyper_sssp.compute@0": 85.689,
+     "update_ms@1": 58.235,
+     "static_ms@1": 86.136,
+     "hyper_sssp.normalize@1": 2.338,
+     "hypergraph.apply.incidence@1": 8.508,
+     "hypergraph.apply.ids@1": 8.598,
+     "hypergraph.apply.translate@1": 7.627,
+     "hypergraph.apply.line_graph@1": 17.234,
+     "hypergraph.apply@1": 45.146,
+     "hyper_sssp.commit@1": 45.151,
+     "hyper_sssp.identify_affected@1": 1.055,
+     "hyper_sssp.seed@1": 2.128,
+     "hyper_sssp.loop@1": 7.374,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.078,
+     "hyper_sssp.enact_fused@1": 96.777,
+     "hyper_sssp.update@1": 58.228,
+     "hyper_sssp.compute@1": 86.132,
+     "update_ms@2": 47.22,
+     "static_ms@2": 87.431,
+     "hyper_sssp.normalize@2": 2.4,
+     "hypergraph.apply.incidence@2": 8.816999999999998,
+     "hypergraph.apply.ids@2": 4.862,
+     "hypergraph.apply.translate@2": 8.264,
+     "hypergraph.apply.line_graph@2": 14.956,
+     "hypergraph.apply@2": 39.264,
+     "hyper_sssp.commit@2": 39.266,
+     "hyper_sssp.identify_affected@2": 1.056,
+     "hyper_sssp.seed@2": 1.289,
+     "hyper_sssp.loop@2": 3.043,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.079,
+     "hyper_sssp.enact_fused@2": 92.897,
+     "hyper_sssp.update@2": 47.215,
+     "hyper_sssp.compute@2": 87.427,
+     "update_ms@3": 46.578,
+     "static_ms@3": 88.078,
+     "hyper_sssp.normalize@3": 2.347,
+     "hypergraph.apply.incidence@3": 8.731,
+     "hypergraph.apply.ids@3": 4.894,
+     "hypergraph.apply.translate@3": 8.443,
+     "hypergraph.apply.line_graph@3": 14.805,
+     "hypergraph.apply@3": 39.227,
+     "hyper_sssp.commit@3": 39.23,
+     "hyper_sssp.identify_affected@3": 1.05,
+     "hyper_sssp.seed@3": 1.23,
+     "hyper_sssp.loop@3": 2.555,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.08,
+     "hyper_sssp.enact_fused@3": 92.978,
+     "hyper_sssp.update@3": 46.573,
+     "hyper_sssp.compute@3": 88.074,
+     "total_ms@0": 7939.433,
+     "dynamic_ms@0": 152.033,
+     "static_sum_ms@0": 261.645
+    },
+    {
+     "load_ms@0": 4394.505,
+     "hypergraph.build@0": 4312.83,
+     "hypergraph.upload@0": 1391.268,
+     "hyper_sssp.enact_fused@0": 86.334,
+     "hyper_sssp.compute@0": 86.338,
+     "update_ms@1": 58.271,
+     "static_ms@1": 86.912,
+     "hyper_sssp.normalize@1": 2.334,
+     "hypergraph.apply.incidence@1": 8.523,
+     "hypergraph.apply.ids@1": 8.753,
+     "hypergraph.apply.translate@1": 7.668,
+     "hypergraph.apply.line_graph@1": 16.994,
+     "hypergraph.apply@1": 45.157,
+     "hyper_sssp.commit@1": 45.162,
+     "hyper_sssp.identify_affected@1": 1.052,
+     "hyper_sssp.seed@1": 2.115,
+     "hyper_sssp.loop@1": 7.421,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.078,
+     "hyper_sssp.enact_fused@1": 97.584,
+     "hyper_sssp.update@1": 58.264,
+     "hyper_sssp.compute@1": 86.908,
+     "update_ms@2": 46.919,
+     "static_ms@2": 86.337,
+     "hyper_sssp.normalize@2": 2.418,
+     "hypergraph.apply.incidence@2": 8.380999999999998,
+     "hypergraph.apply.ids@2": 4.969,
+     "hypergraph.apply.translate@2": 8.302,
+     "hypergraph.apply.line_graph@2": 14.987,
+     "hypergraph.apply@2": 38.963,
+     "hyper_sssp.commit@2": 38.965,
+     "hyper_sssp.identify_affected@2": 1.043,
+     "hyper_sssp.seed@2": 1.288,
+     "hyper_sssp.loop@2": 3.04,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.078,
+     "hyper_sssp.enact_fused@2": 91.788,
+     "hyper_sssp.update@2": 46.914,
+     "hyper_sssp.compute@2": 86.334,
+     "update_ms@3": 46.172,
+     "static_ms@3": 86.676,
+     "hyper_sssp.normalize@3": 2.352,
+     "hypergraph.apply.incidence@3": 8.331,
+     "hypergraph.apply.ids@3": 4.921,
+     "hypergraph.apply.translate@3": 8.429,
+     "hypergraph.apply.line_graph@3": 14.796,
+     "hypergraph.apply@3": 38.831,
+     "hyper_sssp.commit@3": 38.834,
+     "hyper_sssp.identify_affected@3": 1.047,
+     "hyper_sssp.seed@3": 1.235,
+     "hyper_sssp.loop@3": 2.542,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.078,
+     "hyper_sssp.enact_fused@3": 91.57900000000001,
+     "hyper_sssp.update@3": 46.168,
+     "hyper_sssp.compute@3": 86.673,
+     "total_ms@0": 8042.198,
+     "dynamic_ms@0": 151.362,
+     "static_sum_ms@0": 259.926
+    }
+   ]
+  },
+  "geology_vertex_50000": {
+   "config": "geology_vertex_50000",
+   "dataset": "geology",
+   "kind": "vertex",
+   "batch": 50000,
+   "rounds": 5,
+   "attempts": 5,
+   "decisions_differ": [],
+   "scope_differs": false,
+   "rows": [
+    {
+     "row": "maintain[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 24.40345,
+     "port_ms": 11.14,
+     "ratio": 0.4564928319561374,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      24.40345,
+      24.11634,
+      24.137059999999998,
+      24.60117,
+      24.428240000000002
+     ],
+     "port_rounds": [
+      11.331,
+      11.111,
+      11.14,
+      11.196,
+      11.138
+     ]
+    },
+    {
+     "row": "maintain[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 22.94288,
+     "port_ms": 10.866,
+     "ratio": 0.4736109851945353,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      29.81147,
+      22.42066,
+      22.49757,
+      23.150219999999997,
+      22.94288
+     ],
+     "port_rounds": [
+      11.138,
+      10.827,
+      10.915,
+      10.817,
+      10.866
+     ]
+    },
+    {
+     "row": "maintain[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply"
+     ],
+     "original_ms": 21.95709,
+     "port_ms": 11.122,
+     "ratio": 0.5065334249666053,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      25.755190000000002,
+      21.65961,
+      22.91684,
+      21.95709,
+      21.787339999999997
+     ],
+     "port_rounds": [
+      11.122,
+      11.034,
+      11.157,
+      11.023,
+      11.134
+     ]
+    },
+    {
+     "row": "sosp_update[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 2.0696,
+     "port_ms": 2.059,
+     "ratio": 0.994878237340549,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      2.12403,
+      2.08208,
+      2.0696,
+      2.05731,
+      2.05464
+     ],
+     "port_rounds": [
+      2.054,
+      2.064,
+      2.059,
+      2.055,
+      2.061
+     ]
+    },
+    {
+     "row": "sosp_update[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 2.79892,
+     "port_ms": 2.773,
+     "ratio": 0.9907392851528448,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      2.84118,
+      2.79892,
+      2.78293,
+      2.80033,
+      2.78703
+     ],
+     "port_rounds": [
+      2.793,
+      2.794,
+      2.769,
+      2.773,
+      2.7600000000000002
+     ]
+    },
+    {
+     "row": "sosp_update[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "hyper_sssp.identify_affected",
+      "hyper_sssp.seed",
+      "hyper_sssp.loop",
+      "hyper_sssp.recompute",
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": 2.89586,
+     "port_ms": 2.881,
+     "ratio": 0.994868536462398,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      2.9089,
+      2.88001,
+      2.89586,
+      2.89056,
+      2.90625
+     ],
+     "port_rounds": [
+      2.894,
+      2.881,
+      2.894,
+      2.876,
+      2.8689999999999998
+     ]
+    },
+    {
+     "row": "static[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 30.0904,
+     "port_ms": 29.766,
+     "ratio": 0.9892191529524367,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      29.8751,
+      30.4087,
+      30.0904,
+      30.1427,
+      30.0809
+     ],
+     "port_rounds": [
+      30.029,
+      29.412,
+      30.288,
+      29.638,
+      29.766
+     ]
+    },
+    {
+     "row": "static[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 30.2736,
+     "port_ms": 29.662,
+     "ratio": 0.9797975794091222,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      30.1535,
+      30.3774,
+      30.2736,
+      30.3044,
+      29.9701
+     ],
+     "port_rounds": [
+      29.662,
+      30.585,
+      29.89,
+      29.293,
+      29.563
+     ]
+    },
+    {
+     "row": "static[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_static_ms"
+     ],
+     "port": [
+      "static_ms"
+     ],
+     "original_ms": 29.9032,
+     "port_ms": 29.587,
+     "ratio": 0.9894258808421842,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      29.4896,
+      29.9684,
+      29.4478,
+      29.9032,
+      30.0073
+     ],
+     "port_rounds": [
+      30.454,
+      29.395,
+      29.469,
+      30.072,
+      29.587
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 26.48288,
+     "port_ms": 18.162,
+     "ratio": 0.6858015442429222,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      26.52748,
+      26.198420000000002,
+      26.20666,
+      26.65848,
+      26.48288
+     ],
+     "port_rounds": [
+      18.564,
+      18.045,
+      18.162,
+      18.171,
+      17.979
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 25.72991,
+     "port_ms": 17.891,
+     "ratio": 0.6953386156422622,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      32.65265,
+      25.21958,
+      25.2805,
+      25.950549999999996,
+      25.72991
+     ],
+     "port_rounds": [
+      18.548,
+      17.889,
+      17.977,
+      17.838,
+      17.891
+     ]
+    },
+    {
+     "row": "dynamic_comparable[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_delta_ms",
+      "csv:t_csr_apply_ms",
+      "csv:t_sosp_update_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 24.84765,
+     "port_ms": 18.271,
+     "ratio": 0.7353210464571096,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      28.66409,
+      24.53962,
+      25.8127,
+      24.84765,
+      24.693589999999997
+     ],
+     "port_rounds": [
+      18.393,
+      18.235,
+      18.349,
+      18.175,
+      18.271
+     ]
+    },
+    {
+     "row": "dynamic[b1]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 68.6062,
+     "port_ms": 18.162,
+     "ratio": 0.26472826071113104,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      69.1598,
+      67.0247,
+      67.7862,
+      68.6062,
+      70.711
+     ],
+     "port_rounds": [
+      18.564,
+      18.045,
+      18.162,
+      18.171,
+      17.979
+     ]
+    },
+    {
+     "row": "dynamic[b2]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 70.1606,
+     "port_ms": 17.891,
+     "ratio": 0.25500066989164855,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      84.9132,
+      69.6332,
+      68.6356,
+      70.1606,
+      74.5624
+     ],
+     "port_rounds": [
+      18.548,
+      17.889,
+      17.977,
+      17.838,
+      17.891
+     ]
+    },
+    {
+     "row": "dynamic[b3]",
+     "gate": "compute",
+     "original": [
+      "csv:t_dynamic_total_ms"
+     ],
+     "port": [
+      "update_ms"
+     ],
+     "original_ms": 79.4441,
+     "port_ms": 18.271,
+     "ratio": 0.22998561252503333,
+     "bar": 1.05,
+     "within": true,
+     "original_rounds": [
+      81.8821,
+      75.6542,
+      78.3613,
+      79.9603,
+      79.4441
+     ],
+     "port_rounds": [
+      18.393,
+      18.235,
+      18.349,
+      18.175,
+      18.271
+     ]
+    },
+    {
+     "row": "load_plus_dynamic",
+     "gate": "end_to_end",
+     "original": [
+      "e2e:load",
+      "e2e:dynamic"
+     ],
+     "port": [
+      "load_ms",
+      "dynamic_ms"
+     ],
+     "original_ms": 2480.0,
+     "port_ms": 2079.644,
+     "ratio": 0.838566129032258,
+     "bar": 1.1,
+     "within": true,
+     "original_rounds": [
+      2512.0,
+      2471.0,
+      2484.0,
+      2477.0,
+      2480.0
+     ],
+     "port_rounds": [
+      2073.791,
+      2069.449,
+      2079.644,
+      2089.906,
+      2151.716
+     ]
+    },
+    {
+     "row": "escher[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 41.9477,
+     "port_ms": 0.003,
+     "ratio": 7.15176279033177e-05,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      42.6323,
+      40.8262,
+      41.5795,
+      41.9477,
+      44.2281
+     ],
+     "port_rounds": [
+      0.003,
+      0.003,
+      0.003,
+      0.003,
+      0.003
+     ]
+    },
+    {
+     "row": "escher[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 44.4136,
+     "port_ms": 0.001,
+     "ratio": 2.2515625844335967e-05,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      52.2605,
+      44.4136,
+      43.3552,
+      44.21,
+      48.8325
+     ],
+     "port_rounds": [
+      0.001,
+      0.002,
+      0.001,
+      0.001,
+      0.002
+     ]
+    },
+    {
+     "row": "escher[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_escher_ms"
+     ],
+     "port": [
+      "hypergraph.apply.ids"
+     ],
+     "original_ms": 53.218,
+     "port_ms": 0.001,
+     "ratio": 1.8790634747641775e-05,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      53.218,
+      51.1146,
+      52.5486,
+      55.1127,
+      54.7505
+     ],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "delta[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 21.3684,
+     "port_ms": 8.234,
+     "ratio": 0.38533535501020194,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      21.3874,
+      21.0989,
+      21.1204,
+      21.5471,
+      21.3684
+     ],
+     "port_rounds": [
+      8.428,
+      8.198,
+      8.217,
+      8.289,
+      8.234
+     ]
+    },
+    {
+     "row": "delta[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 20.3781,
+     "port_ms": 8.18,
+     "ratio": 0.4014113190140396,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      27.2268,
+      19.8455,
+      19.9207,
+      20.5904,
+      20.3781
+     ],
+     "port_rounds": [
+      8.461,
+      8.136,
+      8.247,
+      8.149000000000001,
+      8.18
+     ]
+    },
+    {
+     "row": "delta[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_delta_ms"
+     ],
+     "port": [
+      "hypergraph.apply.normalize",
+      "hypergraph.apply.incidence",
+      "hypergraph.apply.translate"
+     ],
+     "original_ms": 19.5139,
+     "port_ms": 8.568999999999999,
+     "ratio": 0.43912288163821683,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      23.3104,
+      19.2224,
+      20.4615,
+      19.5139,
+      19.3422
+     ],
+     "port_rounds": [
+      8.568999999999999,
+      8.482000000000001,
+      8.609,
+      8.482,
+      8.581
+     ]
+    },
+    {
+     "row": "csr_apply[b1]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 3.01744,
+     "port_ms": 2.881,
+     "ratio": 0.9547828622938649,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      3.01605,
+      3.01744,
+      3.01666,
+      3.05407,
+      3.05984
+     ],
+     "port_rounds": [
+      2.878,
+      2.889,
+      2.897,
+      2.881,
+      2.879
+     ]
+    },
+    {
+     "row": "csr_apply[b2]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 2.57516,
+     "port_ms": 2.657,
+     "ratio": 1.0317805495580858,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      2.58467,
+      2.57516,
+      2.57687,
+      2.55982,
+      2.56478
+     ],
+     "port_rounds": [
+      2.657,
+      2.671,
+      2.649,
+      2.647,
+      2.666
+     ]
+    },
+    {
+     "row": "csr_apply[b3]",
+     "gate": "none",
+     "original": [
+      "csv:t_csr_apply_ms"
+     ],
+     "port": [
+      "hypergraph.apply.line_graph"
+     ],
+     "original_ms": 2.44479,
+     "port_ms": 2.534,
+     "ratio": 1.0364898416632922,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      2.44479,
+      2.43721,
+      2.45534,
+      2.44319,
+      2.44514
+     ],
+     "port_rounds": [
+      2.534,
+      2.535,
+      2.53,
+      2.523,
+      2.534
+     ]
+    },
+    {
+     "row": "update.identify_affected[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 0.479,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.483,
+      0.479,
+      0.468,
+      0.476,
+      0.481
+     ]
+    },
+    {
+     "row": "update.identify_affected[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 0.477,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.48,
+      0.485,
+      0.475,
+      0.477,
+      0.468
+     ]
+    },
+    {
+     "row": "update.identify_affected[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.identify_affected"
+     ],
+     "original_ms": null,
+     "port_ms": 0.483,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.486,
+      0.485,
+      0.483,
+      0.479,
+      0.481
+     ]
+    },
+    {
+     "row": "update.seed[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 0.36,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.36,
+      0.358,
+      0.364,
+      0.358,
+      0.364
+     ]
+    },
+    {
+     "row": "update.seed[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 0.534,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.542,
+      0.534,
+      0.529,
+      0.538,
+      0.526
+     ]
+    },
+    {
+     "row": "update.seed[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.seed"
+     ],
+     "original_ms": null,
+     "port_ms": 0.48,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.481,
+      0.478,
+      0.48,
+      0.485,
+      0.476
+     ]
+    },
+    {
+     "row": "update.loop[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 1.179,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.169,
+      1.185,
+      1.185,
+      1.179,
+      1.174
+     ]
+    },
+    {
+     "row": "update.loop[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 1.725,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.729,
+      1.733,
+      1.723,
+      1.716,
+      1.725
+     ]
+    },
+    {
+     "row": "update.loop[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.loop"
+     ],
+     "original_ms": null,
+     "port_ms": 1.876,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      1.885,
+      1.876,
+      1.889,
+      1.87,
+      1.871
+     ]
+    },
+    {
+     "row": "update.recompute[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.recompute[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.recompute[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.recompute"
+     ],
+     "original_ms": null,
+     "port_ms": 0.001,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+     ]
+    },
+    {
+     "row": "update.finalize[b1]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.041,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.041,
+      0.041,
+      0.041,
+      0.041,
+      0.041
+     ]
+    },
+    {
+     "row": "update.finalize[b2]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.041,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.041,
+      0.041,
+      0.041,
+      0.041,
+      0.04
+     ]
+    },
+    {
+     "row": "update.finalize[b3]",
+     "gate": "none",
+     "original": [],
+     "port": [
+      "hyper_sssp.finalize"
+     ],
+     "original_ms": null,
+     "port_ms": 0.041,
+     "ratio": null,
+     "bar": null,
+     "within": null,
+     "original_rounds": [],
+     "port_rounds": [
+      0.041,
+      0.041,
+      0.041,
+      0.041,
+      0.04
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original": [
+      "e2e:load"
+     ],
+     "port": [
+      "load_ms"
+     ],
+     "original_ms": 2259.0,
+     "port_ms": 2025.156,
+     "ratio": 0.8964833997343957,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      2276.0,
+      2259.0,
+      2269.0,
+      2258.0,
+      2255.0
+     ],
+     "port_rounds": [
+      2018.285,
+      2015.279,
+      2025.156,
+      2035.723,
+      2097.575
+     ]
+    },
+    {
+     "row": "static_sum",
+     "gate": "none",
+     "original": [
+      "e2e:static"
+     ],
+     "port": [
+      "static_sum_ms"
+     ],
+     "original_ms": 90.0,
+     "port_ms": 89.391,
+     "ratio": 0.9932333333333334,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      90.0,
+      91.0,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "port_rounds": [
+      90.145,
+      89.391,
+      89.647,
+      89.003,
+      88.916
+     ]
+    },
+    {
+     "row": "wall",
+     "gate": "none",
+     "original": [
+      "e2e:wall"
+     ],
+     "port": [
+      "total_ms"
+     ],
+     "original_ms": 2643.0,
+     "port_ms": 3059.702,
+     "ratio": 1.1576625047294742,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      2692.0,
+      2632.0,
+      2643.0,
+      2648.0,
+      2640.0
+     ],
+     "port_rounds": [
+      3058.129,
+      3049.216,
+      3059.702,
+      3070.289,
+      3132.082
+     ]
+    },
+    {
+     "row": "process",
+     "gate": "none",
+     "original": [
+      "process wall time"
+     ],
+     "port": [
+      "process wall time"
+     ],
+     "original_ms": 2868.706703186035,
+     "port_ms": 3385.406255722046,
+     "ratio": 1.1801158521929604,
+     "bar": null,
+     "within": null,
+     "original_rounds": [
+      2908.55073928833,
+      2855.3597927093506,
+      2868.706703186035,
+      2873.286008834839,
+      2862.577438354492
+     ],
+     "port_rounds": [
+      3385.406255722046,
+      3378.8208961486816,
+      3384.7930431365967,
+      3392.143487930298,
+      3453.2151222229004
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 2.90855073928833,
+       "program_cpu_s": 16.741063999999994,
+       "foreign_cpu_cores": 0.968376093047039,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 53
+       },
+       "gpu": {
+        "samples": 58,
+        "busy_samples": 16,
+        "pstates_busy": {
+         "P2": 16
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 3.385406255722046,
+       "program_cpu_s": 7.191944000000035,
+       "foreign_cpu_cores": 1.0377667357256595,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 19
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 67,
+        "busy_samples": 23,
+        "pstates_busy": {
+         "P2": 23
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.8553597927093506,
+       "program_cpu_s": 16.40924000000001,
+       "foreign_cpu_cores": 0.9488639599527255,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 3.3788208961486816,
+       "program_cpu_s": 7.195074999999974,
+       "foreign_cpu_cores": 1.0352940000990773,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 14
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 67,
+        "busy_samples": 26,
+        "pstates_busy": {
+         "P2": 26
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.868706703186035,
+       "program_cpu_s": 16.101383,
+       "foreign_cpu_cores": 1.000198102616573,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 20,
+        "pstates_busy": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 3.3847930431365967,
+       "program_cpu_s": 7.184139000000016,
+       "foreign_cpu_cores": 1.0937300897360922,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 68,
+        "busy_samples": 28,
+        "pstates_busy": {
+         "P2": 28
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.873286008834839,
+       "program_cpu_s": 16.42533100000003,
+       "foreign_cpu_cores": 1.0971887209280793,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 27,
+        "pstates_busy": {
+         "P2": 27
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 3.392143487930298,
+       "program_cpu_s": 7.226208999999983,
+       "foreign_cpu_cores": 1.0168927151556937,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 10
+       },
+       "gpu": {
+        "samples": 68,
+        "busy_samples": 28,
+        "pstates_busy": {
+         "P2": 28
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.862577438354492,
+       "program_cpu_s": 16.703194999999994,
+       "foreign_cpu_cores": 1.0782401762945493,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 28,
+        "pstates_busy": {
+         "P2": 28
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 3.4532151222229004,
+       "program_cpu_s": 7.387188999999978,
+       "foreign_cpu_cores": 1.1861276680791903,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 18
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 69,
+        "busy_samples": 34,
+        "pstates_busy": {
+         "P2": 34
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.1861276680791903,
+    "original_pstates_busy": {
+     "P2": 104
+    },
+    "original_sm_mhz_busy_median": 1170.0,
+    "port_pstates_busy": {
+     "P2": 139
+    },
+    "port_sm_mhz_busy_median": 1170.0,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "samples": 13,
+     "load_average_max": 5.05419921875,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 13,
+     "load_average_max": 4.8095703125,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 12,
+     "load_average_max": 4.58447265625,
+     "procs_blocked_max": 1
+    },
+    {
+     "samples": 13,
+     "load_average_max": 4.37744140625,
+     "procs_blocked_max": 0
+    },
+    {
+     "samples": 13,
+     "load_average_max": 4.09130859375,
+     "procs_blocked_max": 0
+    }
+   ],
+   "audit": {
+    "rule": {
+     "load_average": 16.0,
+     "procs_blocked": 4,
+     "why": "B's quiet maximum 7.03 is at most 8.0: ADR 0056's thresholds kept (HD4)"
+    },
+    "flagged_rounds": [],
+    "flagged": false
+   },
+   "guard": {
+    "rounds_checked": 5,
+    "passed": true
+   },
+   "original_csv": [
+    [
+     {
+      "t_delta_ms": 21.3874,
+      "t_static_ms": 29.8751,
+      "t_escher_ms": 42.6323,
+      "t_sosp_update_ms": 2.12403,
+      "t_dynamic_total_ms": 69.1598,
+      "t_csr_apply_ms": 3.01605
+     },
+     {
+      "t_delta_ms": 27.2268,
+      "t_static_ms": 30.1535,
+      "t_escher_ms": 52.2605,
+      "t_sosp_update_ms": 2.84118,
+      "t_dynamic_total_ms": 84.9132,
+      "t_csr_apply_ms": 2.58467
+     },
+     {
+      "t_delta_ms": 23.3104,
+      "t_static_ms": 29.4896,
+      "t_escher_ms": 53.218,
+      "t_sosp_update_ms": 2.9089,
+      "t_dynamic_total_ms": 81.8821,
+      "t_csr_apply_ms": 2.44479
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 21.0989,
+      "t_static_ms": 30.4087,
+      "t_escher_ms": 40.8262,
+      "t_sosp_update_ms": 2.08208,
+      "t_dynamic_total_ms": 67.0247,
+      "t_csr_apply_ms": 3.01744
+     },
+     {
+      "t_delta_ms": 19.8455,
+      "t_static_ms": 30.3774,
+      "t_escher_ms": 44.4136,
+      "t_sosp_update_ms": 2.79892,
+      "t_dynamic_total_ms": 69.6332,
+      "t_csr_apply_ms": 2.57516
+     },
+     {
+      "t_delta_ms": 19.2224,
+      "t_static_ms": 29.9684,
+      "t_escher_ms": 51.1146,
+      "t_sosp_update_ms": 2.88001,
+      "t_dynamic_total_ms": 75.6542,
+      "t_csr_apply_ms": 2.43721
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 21.1204,
+      "t_static_ms": 30.0904,
+      "t_escher_ms": 41.5795,
+      "t_sosp_update_ms": 2.0696,
+      "t_dynamic_total_ms": 67.7862,
+      "t_csr_apply_ms": 3.01666
+     },
+     {
+      "t_delta_ms": 19.9207,
+      "t_static_ms": 30.2736,
+      "t_escher_ms": 43.3552,
+      "t_sosp_update_ms": 2.78293,
+      "t_dynamic_total_ms": 68.6356,
+      "t_csr_apply_ms": 2.57687
+     },
+     {
+      "t_delta_ms": 20.4615,
+      "t_static_ms": 29.4478,
+      "t_escher_ms": 52.5486,
+      "t_sosp_update_ms": 2.89586,
+      "t_dynamic_total_ms": 78.3613,
+      "t_csr_apply_ms": 2.45534
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 21.5471,
+      "t_static_ms": 30.1427,
+      "t_escher_ms": 41.9477,
+      "t_sosp_update_ms": 2.05731,
+      "t_dynamic_total_ms": 68.6062,
+      "t_csr_apply_ms": 3.05407
+     },
+     {
+      "t_delta_ms": 20.5904,
+      "t_static_ms": 30.3044,
+      "t_escher_ms": 44.21,
+      "t_sosp_update_ms": 2.80033,
+      "t_dynamic_total_ms": 70.1606,
+      "t_csr_apply_ms": 2.55982
+     },
+     {
+      "t_delta_ms": 19.5139,
+      "t_static_ms": 29.9032,
+      "t_escher_ms": 55.1127,
+      "t_sosp_update_ms": 2.89056,
+      "t_dynamic_total_ms": 79.9603,
+      "t_csr_apply_ms": 2.44319
+     }
+    ],
+    [
+     {
+      "t_delta_ms": 21.3684,
+      "t_static_ms": 30.0809,
+      "t_escher_ms": 44.2281,
+      "t_sosp_update_ms": 2.05464,
+      "t_dynamic_total_ms": 70.711,
+      "t_csr_apply_ms": 3.05984
+     },
+     {
+      "t_delta_ms": 20.3781,
+      "t_static_ms": 29.9701,
+      "t_escher_ms": 48.8325,
+      "t_sosp_update_ms": 2.78703,
+      "t_dynamic_total_ms": 74.5624,
+      "t_csr_apply_ms": 2.56478
+     },
+     {
+      "t_delta_ms": 19.3422,
+      "t_static_ms": 30.0073,
+      "t_escher_ms": 54.7505,
+      "t_sosp_update_ms": 2.90625,
+      "t_dynamic_total_ms": 79.4441,
+      "t_csr_apply_ms": 2.44514
+     }
+    ]
+   ],
+   "original_e2e": [
+    {
+     "load": 2276.0,
+     "dynamic": 236.0,
+     "static": 90.0,
+     "wall": 2692.0,
+     "batches": 3
+    },
+    {
+     "load": 2259.0,
+     "dynamic": 212.0,
+     "static": 91.0,
+     "wall": 2632.0,
+     "batches": 3
+    },
+    {
+     "load": 2269.0,
+     "dynamic": 215.0,
+     "static": 90.0,
+     "wall": 2643.0,
+     "batches": 3
+    },
+    {
+     "load": 2258.0,
+     "dynamic": 219.0,
+     "static": 90.0,
+     "wall": 2648.0,
+     "batches": 3
+    },
+    {
+     "load": 2255.0,
+     "dynamic": 225.0,
+     "static": 90.0,
+     "wall": 2640.0,
+     "batches": 3
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 2018.285,
+     "hypergraph.build@0": 1935.9630000000002,
+     "hypergraph.upload@0": 346.987,
+     "hyper_sssp.enact_fused@0": 30.417,
+     "hyper_sssp.compute@0": 30.421,
+     "update_ms@1": 18.564,
+     "static_ms@1": 30.029,
+     "hyper_sssp.normalize@1": 5.117,
+     "hypergraph.apply.incidence@1": 4.722,
+     "hypergraph.apply.ids@1": 0.003,
+     "hypergraph.apply.translate@1": 3.706,
+     "hypergraph.apply.line_graph@1": 2.878,
+     "hypergraph.apply@1": 11.331,
+     "hyper_sssp.commit@1": 11.335,
+     "hyper_sssp.identify_affected@1": 0.483,
+     "hyper_sssp.seed@1": 0.36,
+     "hyper_sssp.loop@1": 1.169,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.041,
+     "hyper_sssp.enact_fused@1": 32.088,
+     "hyper_sssp.update@1": 18.557,
+     "hyper_sssp.compute@1": 30.026,
+     "update_ms@2": 18.548,
+     "static_ms@2": 29.662,
+     "hyper_sssp.normalize@2": 4.584,
+     "hypergraph.apply.incidence@2": 5.173000000000001,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 3.288,
+     "hypergraph.apply.line_graph@2": 2.657,
+     "hypergraph.apply@2": 11.138,
+     "hyper_sssp.commit@2": 11.141,
+     "hyper_sssp.identify_affected@2": 0.48,
+     "hyper_sssp.seed@2": 0.542,
+     "hyper_sssp.loop@2": 1.729,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.041,
+     "hyper_sssp.enact_fused@2": 32.457,
+     "hyper_sssp.update@2": 18.545,
+     "hyper_sssp.compute@2": 29.659,
+     "update_ms@3": 18.393,
+     "static_ms@3": 30.454,
+     "hyper_sssp.normalize@3": 4.347,
+     "hypergraph.apply.incidence@3": 5.295,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 3.274,
+     "hypergraph.apply.line_graph@3": 2.534,
+     "hypergraph.apply@3": 11.122,
+     "hyper_sssp.commit@3": 11.124,
+     "hyper_sssp.identify_affected@3": 0.486,
+     "hyper_sssp.seed@3": 0.481,
+     "hyper_sssp.loop@3": 1.885,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.041,
+     "hyper_sssp.enact_fused@3": 33.351,
+     "hyper_sssp.update@3": 18.39,
+     "hyper_sssp.compute@3": 30.452,
+     "total_ms@0": 3058.129,
+     "dynamic_ms@0": 55.506,
+     "static_sum_ms@0": 90.145
+    },
+    {
+     "load_ms@0": 2015.279,
+     "hypergraph.build@0": 1938.665,
+     "hypergraph.upload@0": 348.704,
+     "hyper_sssp.enact_fused@0": 30.736,
+     "hyper_sssp.compute@0": 30.741,
+     "update_ms@1": 18.045,
+     "static_ms@1": 29.412,
+     "hyper_sssp.normalize@1": 4.806,
+     "hypergraph.apply.incidence@1": 4.486000000000001,
+     "hypergraph.apply.ids@1": 0.003,
+     "hypergraph.apply.translate@1": 3.712,
+     "hypergraph.apply.line_graph@1": 2.889,
+     "hypergraph.apply@1": 11.111,
+     "hyper_sssp.commit@1": 11.116,
+     "hyper_sssp.identify_affected@1": 0.479,
+     "hyper_sssp.seed@1": 0.358,
+     "hyper_sssp.loop@1": 1.185,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.041,
+     "hyper_sssp.enact_fused@1": 31.481,
+     "hyper_sssp.update@1": 18.038,
+     "hyper_sssp.compute@1": 29.408,
+     "update_ms@2": 17.889,
+     "static_ms@2": 30.585,
+     "hyper_sssp.normalize@2": 4.237,
+     "hypergraph.apply.incidence@2": 4.86,
+     "hypergraph.apply.ids@2": 0.002,
+     "hypergraph.apply.translate@2": 3.276,
+     "hypergraph.apply.line_graph@2": 2.671,
+     "hypergraph.apply@2": 10.827,
+     "hyper_sssp.commit@2": 10.829,
+     "hyper_sssp.identify_affected@2": 0.485,
+     "hyper_sssp.seed@2": 0.534,
+     "hyper_sssp.loop@2": 1.733,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.041,
+     "hyper_sssp.enact_fused@2": 33.38,
+     "hyper_sssp.update@2": 17.885,
+     "hyper_sssp.compute@2": 30.582,
+     "update_ms@3": 18.235,
+     "static_ms@3": 29.395,
+     "hyper_sssp.normalize@3": 4.29,
+     "hypergraph.apply.incidence@3": 5.1690000000000005,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 3.313,
+     "hypergraph.apply.line_graph@3": 2.535,
+     "hypergraph.apply@3": 11.034,
+     "hyper_sssp.commit@3": 11.036,
+     "hyper_sssp.identify_affected@3": 0.485,
+     "hyper_sssp.seed@3": 0.478,
+     "hyper_sssp.loop@3": 1.876,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.041,
+     "hyper_sssp.enact_fused@3": 32.278999999999996,
+     "hyper_sssp.update@3": 18.232,
+     "hyper_sssp.compute@3": 29.393,
+     "total_ms@0": 3049.216,
+     "dynamic_ms@0": 54.17,
+     "static_sum_ms@0": 89.391
+    },
+    {
+     "load_ms@0": 2025.156,
+     "hypergraph.build@0": 1949.199,
+     "hypergraph.upload@0": 351.823,
+     "hyper_sssp.enact_fused@0": 30.558,
+     "hyper_sssp.compute@0": 30.563,
+     "update_ms@1": 18.162,
+     "static_ms@1": 30.288,
+     "hyper_sssp.normalize@1": 4.9,
+     "hypergraph.apply.incidence@1": 4.507000000000001,
+     "hypergraph.apply.ids@1": 0.003,
+     "hypergraph.apply.translate@1": 3.71,
+     "hypergraph.apply.line_graph@1": 2.897,
+     "hypergraph.apply@1": 11.14,
+     "hyper_sssp.commit@1": 11.144,
+     "hyper_sssp.identify_affected@1": 0.468,
+     "hyper_sssp.seed@1": 0.364,
+     "hyper_sssp.loop@1": 1.185,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.041,
+     "hyper_sssp.enact_fused@1": 32.353,
+     "hyper_sssp.update@1": 18.155,
+     "hyper_sssp.compute@1": 30.284,
+     "update_ms@2": 17.977,
+     "static_ms@2": 29.89,
+     "hyper_sssp.normalize@2": 4.259,
+     "hypergraph.apply.incidence@2": 4.949000000000001,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 3.298,
+     "hypergraph.apply.line_graph@2": 2.649,
+     "hypergraph.apply@2": 10.915,
+     "hyper_sssp.commit@2": 10.917,
+     "hyper_sssp.identify_affected@2": 0.475,
+     "hyper_sssp.seed@2": 0.529,
+     "hyper_sssp.loop@2": 1.723,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.041,
+     "hyper_sssp.enact_fused@2": 32.662,
+     "hyper_sssp.update@2": 17.974,
+     "hyper_sssp.compute@2": 29.887,
+     "update_ms@3": 18.349,
+     "static_ms@3": 29.469,
+     "hyper_sssp.normalize@3": 4.267,
+     "hypergraph.apply.incidence@3": 5.307,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 3.302,
+     "hypergraph.apply.line_graph@3": 2.53,
+     "hypergraph.apply@3": 11.157,
+     "hyper_sssp.commit@3": 11.159,
+     "hyper_sssp.identify_affected@3": 0.483,
+     "hyper_sssp.seed@3": 0.48,
+     "hyper_sssp.loop@3": 1.889,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.041,
+     "hyper_sssp.enact_fused@3": 32.366,
+     "hyper_sssp.update@3": 18.346,
+     "hyper_sssp.compute@3": 29.466,
+     "total_ms@0": 3059.702,
+     "dynamic_ms@0": 54.488,
+     "static_sum_ms@0": 89.647
+    },
+    {
+     "load_ms@0": 2035.723,
+     "hypergraph.build@0": 1963.79,
+     "hypergraph.upload@0": 353.029,
+     "hyper_sssp.enact_fused@0": 30.45,
+     "hyper_sssp.compute@0": 30.455,
+     "update_ms@1": 18.171,
+     "static_ms@1": 29.638,
+     "hyper_sssp.normalize@1": 4.857,
+     "hypergraph.apply.incidence@1": 4.527,
+     "hypergraph.apply.ids@1": 0.003,
+     "hypergraph.apply.translate@1": 3.762,
+     "hypergraph.apply.line_graph@1": 2.881,
+     "hypergraph.apply@1": 11.196,
+     "hyper_sssp.commit@1": 11.2,
+     "hyper_sssp.identify_affected@1": 0.476,
+     "hyper_sssp.seed@1": 0.358,
+     "hyper_sssp.loop@1": 1.179,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.041,
+     "hyper_sssp.enact_fused@1": 31.698999999999998,
+     "hyper_sssp.update@1": 18.164,
+     "hyper_sssp.compute@1": 29.635,
+     "update_ms@2": 17.838,
+     "static_ms@2": 29.293,
+     "hyper_sssp.normalize@2": 4.216,
+     "hypergraph.apply.incidence@2": 4.859000000000001,
+     "hypergraph.apply.ids@2": 0.001,
+     "hypergraph.apply.translate@2": 3.29,
+     "hypergraph.apply.line_graph@2": 2.647,
+     "hypergraph.apply@2": 10.817,
+     "hyper_sssp.commit@2": 10.819,
+     "hyper_sssp.identify_affected@2": 0.477,
+     "hyper_sssp.seed@2": 0.538,
+     "hyper_sssp.loop@2": 1.716,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.041,
+     "hyper_sssp.enact_fused@2": 32.068,
+     "hyper_sssp.update@2": 17.834,
+     "hyper_sssp.compute@2": 29.29,
+     "update_ms@3": 18.175,
+     "static_ms@3": 30.072,
+     "hyper_sssp.normalize@3": 4.244,
+     "hypergraph.apply.incidence@3": 5.19,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 3.292,
+     "hypergraph.apply.line_graph@3": 2.523,
+     "hypergraph.apply@3": 11.023,
+     "hyper_sssp.commit@3": 11.025,
+     "hyper_sssp.identify_affected@3": 0.479,
+     "hyper_sssp.seed@3": 0.485,
+     "hyper_sssp.loop@3": 1.87,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.041,
+     "hyper_sssp.enact_fused@3": 32.95,
+     "hyper_sssp.update@3": 18.171,
+     "hyper_sssp.compute@3": 30.069,
+     "total_ms@0": 3070.289,
+     "dynamic_ms@0": 54.183,
+     "static_sum_ms@0": 89.003
+    },
+    {
+     "load_ms@0": 2097.575,
+     "hypergraph.build@0": 2068.643,
+     "hypergraph.upload@0": 383.113,
+     "hyper_sssp.enact_fused@0": 29.807,
+     "hyper_sssp.compute@0": 29.811,
+     "update_ms@1": 17.979,
+     "static_ms@1": 29.766,
+     "hyper_sssp.normalize@1": 4.717,
+     "hypergraph.apply.incidence@1": 4.509,
+     "hypergraph.apply.ids@1": 0.003,
+     "hypergraph.apply.translate@1": 3.725,
+     "hypergraph.apply.line_graph@1": 2.879,
+     "hypergraph.apply@1": 11.138,
+     "hyper_sssp.commit@1": 11.142,
+     "hyper_sssp.identify_affected@1": 0.481,
+     "hyper_sssp.seed@1": 0.364,
+     "hyper_sssp.loop@1": 1.174,
+     "hyper_sssp.recompute@1": 0.001,
+     "hyper_sssp.finalize@1": 0.041,
+     "hyper_sssp.enact_fused@1": 31.831000000000003,
+     "hyper_sssp.update@1": 17.972,
+     "hyper_sssp.compute@1": 29.762,
+     "update_ms@2": 17.891,
+     "static_ms@2": 29.563,
+     "hyper_sssp.normalize@2": 4.232,
+     "hypergraph.apply.incidence@2": 4.9030000000000005,
+     "hypergraph.apply.ids@2": 0.002,
+     "hypergraph.apply.translate@2": 3.277,
+     "hypergraph.apply.line_graph@2": 2.666,
+     "hypergraph.apply@2": 10.866,
+     "hyper_sssp.commit@2": 10.868,
+     "hyper_sssp.identify_affected@2": 0.468,
+     "hyper_sssp.seed@2": 0.526,
+     "hyper_sssp.loop@2": 1.725,
+     "hyper_sssp.recompute@2": 0.001,
+     "hyper_sssp.finalize@2": 0.04,
+     "hyper_sssp.enact_fused@2": 32.325,
+     "hyper_sssp.update@2": 17.887,
+     "hyper_sssp.compute@2": 29.56,
+     "update_ms@3": 18.271,
+     "static_ms@3": 29.587,
+     "hyper_sssp.normalize@3": 4.235,
+     "hypergraph.apply.incidence@3": 5.313,
+     "hypergraph.apply.ids@3": 0.001,
+     "hypergraph.apply.translate@3": 3.268,
+     "hypergraph.apply.line_graph@3": 2.534,
+     "hypergraph.apply@3": 11.134,
+     "hyper_sssp.commit@3": 11.136,
+     "hyper_sssp.identify_affected@3": 0.481,
+     "hyper_sssp.seed@3": 0.476,
+     "hyper_sssp.loop@3": 1.871,
+     "hyper_sssp.recompute@3": 0.001,
+     "hyper_sssp.finalize@3": 0.04,
+     "hyper_sssp.enact_fused@3": 32.458999999999996,
+     "hyper_sssp.update@3": 18.267,
+     "hyper_sssp.compute@3": 29.585,
+     "total_ms@0": 3132.082,
+     "dynamic_ms@0": 54.141,
+     "static_sum_ms@0": 88.916
+    }
+   ]
+  }
+ }
+}

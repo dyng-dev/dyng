@@ -102,6 +102,28 @@
 #              (parity/compare.py triad_count --counter algorithm through a racecheck wrapper of
 #              dyng_triad_replay; skipped without the triad goldens); the step is "partial" when
 #              the coauth batch or the replays were skipped
+#   slack      slack_csr storage on the CUDA store (M11a step 3, ADR 0089): compute-sanitizer
+#              memcheck, racecheck, synccheck and initcheck on the store's tests
+#              (dyng_hypergraph_cuda_tests, the Slack* suites: the property matrix, the edits, the
+#              overflow paths and the over-limit inputs) and on one session of MOSP_ESCHER's make
+#              test with forced overflows (dyng_hsosp_replay --backend cuda on the golden T case
+#              02-test_h2h_delta: headroom 1.0 on every third configuration, the CSR rebuilds and
+#              the mirror re-uploads; skipped without the goldens), then the container-level
+#              replay of every make-test session on cuda by id (parity/compare.py hyper_sssp
+#              --part delta --backend cuda --cases t: ids, skips, pairs, the pair count,
+#              candidates, csrRebuilt, mirrorReuploads and the device layout per batch; its
+#              record in $DYNG_GPU_RESULTS, default build/<preset>/hsosp-records); "partial"
+#              when the goldens are missing
+#   hyper_sssp hyper_sssp on cuda (M11a step 4, ADRs 0091-0092): compute-sanitizer memcheck,
+#              racecheck, synccheck and initcheck on its CUDA hand cases (dyng_hyper_sssp_cuda_tests:
+#              both modes, the budget's recompute and error, the 2^28 weights, clones) and the
+#              result replay of the committed subset (dyng_hsosp_results_cuda_tests: a forced
+#              fallback, the three parity modes), and on the make-test case 07-hsospBench_smoke
+#              (dyng_hsosp_replay --algorithm by_id --check-compute: 26 forced fallbacks; skipped
+#              without the goldens); then the result replays of every make-test session on cuda in
+#              the three modes with update == compute (parity/compare.py hyper_sssp --part results
+#              --cases t --check-compute; records in $DYNG_GPU_RESULTS); "partial" when the
+#              goldens are missing
 #
 # A step is recorded passed, FAILED, skipped (DYNG_GPU_SKIP="<step> ...", or its inputs missing)
 # or partial; a release certificate needs the steps of its series passed (parity/certify.py,
@@ -161,8 +183,17 @@ results=()
 
 step() { printf '\n==> %s\n' "$*"; }
 skipped() { [[ "${skip}" == *" $1 "* ]]; }
-# Heavy commands: shared lock (never during an exclusive timing run), niced.
+# Heavy commands: shared lock (never during an exclusive timing run), niced. With
+# DYNG_LOCKLOG_MILESTONE set (M10a, M11a, ...), each first waits while another agent's GPU1-QUIET
+# window of the shared calendar ($DYNG_SCRATCH/tools/locklog.py quiet-ok) is open.
 heavy() {
+  local calendar="${DYNG_SCRATCH:-}/tools/locklog.py"
+  if [ -n "${DYNG_LOCKLOG_MILESTONE:-}" ] && [ -f "${calendar}" ]; then
+    while ! python3 "${calendar}" quiet-ok "${DYNG_LOCKLOG_MILESTONE}" >/dev/null; do
+      echo "waiting: a GPU1-QUIET window is open (locklog.py quiet-ok)"
+      sleep 60
+    done
+  fi
   if [ -n "${lock}" ]; then
     flock -s "${lock}" nice -n 10 "$@"
   else
@@ -582,6 +613,126 @@ fi
 # M10 label_propagation
 
 # M11 slack_csr / hyper_sssp
+if ! skipped slack; then
+  step "slack_csr storage on cuda: sanitizers and the make-test replays (GPU ${gpu})"
+  sl_ok=1
+  sl_partial=0
+  sl_tests="${build_dir}/cpp/tests/dyng_hypergraph_cuda_tests"
+  sl_replay="${build_dir}/cpp/tests/dyng_hsosp_replay"
+  sl_goldens="${DYNG_SCRATCH}/goldens/hyper_sssp/mosp_escher"
+  sl_records="${DYNG_GPU_RESULTS:-${build_dir}/hsosp-records}"
+  if [ -z "${sanitizer}" ] || [ ! -x "${sl_tests}" ]; then
+    echo "compute-sanitizer or ${sl_tests} missing"
+    sl_ok=0
+  else
+    for tool in memcheck racecheck synccheck initcheck; do
+      extra=()
+      [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
+      [ "${tool}" = memcheck ] && extra=(--leak-check full)
+      if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+        --error-exitcode 1 "${sl_tests}" --gtest_brief=1 --gtest_filter='*Slack*/cuda'; then
+        echo "compute-sanitizer --tool ${tool} ${sl_tests} (Slack*): FAILED"
+        sl_ok=0
+      fi
+    done
+    if [ -f "${sl_goldens}/MANIFEST.sha256" ] && [ -x "${sl_replay}" ]; then
+      for tool in memcheck racecheck synccheck initcheck; do
+        if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" \
+          --error-exitcode 1 "${sl_replay}" --backend cuda --no-oracle \
+          "${sl_goldens}/test/02-test_h2h_delta/dump.hsd.zst" >/dev/null; then
+          echo "compute-sanitizer --tool ${tool} (the forced-overflow session): FAILED"
+          sl_ok=0
+        fi
+      done
+    else
+      echo "the H-SOSP goldens or ${sl_replay} missing: the forced-overflow session is skipped"
+      sl_partial=1
+    fi
+  fi
+  if [ "${sl_ok}" = 1 ] && [ "${sl_partial}" = 1 ]; then
+    record "slack_csr sanitizers (all four tools; a forced-overflow session)" partial
+  elif [ "${sl_ok}" = 1 ]; then
+    record "slack_csr sanitizers (all four tools; a forced-overflow session)" passed
+  else
+    record "slack_csr sanitizers (all four tools; a forced-overflow session)" FAILED
+  fi
+  if [ ! -f "${sl_goldens}/MANIFEST.sha256" ] || [ ! -x "${sl_replay}" ]; then
+    echo "the H-SOSP goldens or ${sl_replay} missing; skipped"
+    record "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)" skipped
+  elif mkdir -p "${sl_records}" && heavy python3 parity/compare.py hyper_sssp --part delta \
+    --backend cuda --gpu "${gpu}" --cases t --exe "${sl_replay}" \
+    --record "${sl_records}"; then
+    record "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)" passed
+  else
+    record "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)" FAILED
+  fi
+fi
+if ! skipped hyper_sssp; then
+  step "hyper_sssp on cuda: sanitizers and the result replays of make test (GPU ${gpu})"
+  hs_ok=1
+  hs_partial=0
+  hs_tests="${build_dir}/cpp/tests/algorithms/hyper_sssp/dyng_hyper_sssp_cuda_tests"
+  hs_results="${build_dir}/cpp/tests/dyng_hsosp_results_cuda_tests"
+  hs_replay="${build_dir}/cpp/tests/dyng_hsosp_replay"
+  hs_goldens="${DYNG_SCRATCH}/goldens/hyper_sssp/mosp_escher"
+  hs_records="${DYNG_GPU_RESULTS:-${build_dir}/hsosp-records}"
+  if [ -z "${sanitizer}" ] || [ ! -x "${hs_tests}" ] || [ ! -x "${hs_results}" ]; then
+    echo "compute-sanitizer, ${hs_tests} or ${hs_results} missing"
+    hs_ok=0
+  else
+    for tool in memcheck racecheck synccheck initcheck; do
+      extra=()
+      [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
+      [ "${tool}" = memcheck ] && extra=(--leak-check full)
+      for exe in "${hs_tests}" "${hs_results}"; do
+        if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+          --error-exitcode 1 "${exe}" --gtest_brief=1; then
+          echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
+          hs_ok=0
+        fi
+      done
+    done
+    if [ -f "${hs_goldens}/MANIFEST.sha256" ] && [ -x "${hs_replay}" ]; then
+      for tool in memcheck racecheck synccheck initcheck; do
+        if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" \
+          --error-exitcode 1 "${hs_replay}" --algorithm by_id --check-compute --backend cuda \
+          "${hs_goldens}/test/07-hsospBench_smoke/dump.hsd.zst" >/dev/null; then
+          echo "compute-sanitizer --tool ${tool} (the forced-fallback sessions): FAILED"
+          hs_ok=0
+        fi
+      done
+    else
+      echo "the H-SOSP goldens or ${hs_replay} missing: the forced-fallback sessions are skipped"
+      hs_partial=1
+    fi
+  fi
+  if [ "${hs_ok}" = 1 ] && [ "${hs_partial}" = 1 ]; then
+    record "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)" partial
+  elif [ "${hs_ok}" = 1 ]; then
+    record "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)" passed
+  else
+    record "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)" FAILED
+  fi
+  if [ ! -f "${hs_goldens}/MANIFEST.sha256" ] || [ ! -x "${hs_replay}" ]; then
+    echo "the H-SOSP goldens or ${hs_replay} missing; skipped"
+    record "hyper_sssp replays (cuda, make test; three modes, update == compute)" skipped
+  else
+    hs_replays_ok=1
+    mkdir -p "${hs_records}"
+    for mode in by_id by_id_public by_key; do
+      if ! heavy python3 parity/compare.py hyper_sssp --part results --mode "${mode}" \
+        --backend cuda --gpu "${gpu}" --cases t --check-compute --skip-verify \
+        --exe "${hs_replay}" --record "${hs_records}"; then
+        hs_replays_ok=0
+      fi
+    done
+    if [ "${hs_replays_ok}" = 1 ]; then
+      record "hyper_sssp replays (cuda, make test; three modes, update == compute)" passed
+    else
+      record "hyper_sssp replays (cuda, make test; three modes, update == compute)" FAILED
+    fi
+  fi
+fi
 
 if ! skipped plugin; then
   step "the CUDA plugin wheel from Python (GPU ${gpu})"

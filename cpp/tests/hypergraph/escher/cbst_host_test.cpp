@@ -4,10 +4,11 @@
  * @file cbst_host_test.cpp
  * @brief Host parts of the CBST store (M8a steps 3-5, ADR 0038, 0039): the payload policies
  *        (ESCHER-GPU's payloadCapacity and ensurePayloadCapacity) and flatten_rows (its
- *        flatten2DVector), on every build.
+ *        flatten2DVector; a test helper since 0.4, support/escher_flatten.hpp, ADR 0084), on
+ *        every build.
  */
-#include "hypergraph/escher/flatten.hpp"
 #include "hypergraph/escher/store_policy.hpp"
+#include "support/escher_flatten.hpp"
 
 #include <dyng/core/error.hpp>
 
@@ -18,6 +19,8 @@
 
 namespace dyng::detail::escher {
 namespace {
+
+using dyng::test::flatten_rows;
 
 TEST(CbstStorePolicy, EscherGpuInitialCapacity) {
   const store_policy p = store_policy::escher_gpu();

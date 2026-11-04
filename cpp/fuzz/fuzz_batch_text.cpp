@@ -97,6 +97,15 @@ void run_hyperedges(const dyng::fuzz::fuzz_input& in, const std::string& path) {
       DYNG_FUZZ_CHECK(v >= 0 && (opt.num_vertices < 0 || v < opt.num_vertices));
     }
     for (const std::int64_t id : b.delete_hyperedges()) DYNG_FUZZ_CHECK(id >= 0);
+    // The incidence edits (0.4): one vertex per id, both in range.
+    DYNG_FUZZ_CHECK(b.delete_incidence_hyperedge().size() == b.delete_incidence_vertex().size());
+    DYNG_FUZZ_CHECK(b.insert_incidence_hyperedge().size() == b.insert_incidence_vertex().size());
+    for (const std::int64_t id : b.delete_incidence_hyperedge()) DYNG_FUZZ_CHECK(id >= 0);
+    for (const std::int64_t id : b.insert_incidence_hyperedge()) DYNG_FUZZ_CHECK(id >= 0);
+    for (const std::int32_t v : b.delete_incidence_vertex())
+      DYNG_FUZZ_CHECK(v >= 0 && (opt.num_vertices < 0 || v < opt.num_vertices));
+    for (const std::int32_t v : b.insert_incidence_vertex())
+      DYNG_FUZZ_CHECK(v >= 0 && (opt.num_vertices < 0 || v < opt.num_vertices));
     DYNG_FUZZ_CHECK(dyng::is_unweighted_v<weight_t> ? b.insert_weights().empty()
                                                     : b.insert_weights().size() == n);
     views.push_back(b.view());
@@ -113,6 +122,12 @@ void run_hyperedges(const dyng::fuzz::fuzz_input& in, const std::string& path) {
       DYNG_FUZZ_CHECK(back[i].insert_offsets() == batches[i].insert_offsets());
       DYNG_FUZZ_CHECK(back[i].insert_members() == batches[i].insert_members());
       DYNG_FUZZ_CHECK(back[i].insert_weights() == batches[i].insert_weights());
+      DYNG_FUZZ_CHECK(back[i].delete_incidence_hyperedge() ==
+                          batches[i].delete_incidence_hyperedge() &&
+                      back[i].delete_incidence_vertex() == batches[i].delete_incidence_vertex());
+      DYNG_FUZZ_CHECK(back[i].insert_incidence_hyperedge() ==
+                          batches[i].insert_incidence_hyperedge() &&
+                      back[i].insert_incidence_vertex() == batches[i].insert_incidence_vertex());
     }
   });
 }

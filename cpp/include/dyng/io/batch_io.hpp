@@ -49,10 +49,10 @@ struct batch_file_options {
  * keep file order (which of the two applies first is the graph's batch semantics, not the
  * file's). A file holds the batches of one container kind: the first line may name it
  * (`%dgt 1 graph`); a hypergraph file (`%dgt 1 hypergraph`, or a hyperedge operation `+h` /
- * `-h`) is an io_error here (read it with read_hyperedge_batches()). The vertex operations
- * `+v u [label]` and `-v u` (label_propagation) and the incidence edits `+i`, `-i` are reserved
- * for 0.4 and rejected with an io_error. Every token must be a whole decimal integer; weights
- * must fit `weight_t`.
+ * `-h`, or an incidence edit `+i` / `-i`) is an io_error here (read it with
+ * read_hyperedge_batches()). The vertex operations `+v u [label]` and `-v u` (label_propagation)
+ * are reserved for a later release and rejected with an io_error. Every token must be a whole
+ * decimal integer; weights must fit `weight_t`.
  *
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Weight type (integral, or dyng::unweighted).
@@ -106,8 +106,10 @@ struct hyperedge_batch_file_options {
  * (a token of its own: `+h 0 1 ; 5`, or attached: `+h 0 1;5`); `-h id` deletes the hyperedge
  * with the id `id` (>= 0; dead or out-of-range ids are kept and skipped by apply()). A file holds
  * the batches of one container kind: graph operations (`+e`, `-e`) or a `%dgt 1 graph` line are
- * an io_error here. The incidence edits `+i h v` and `-i h v` are reserved for 0.4 and rejected
- * with an io_error.
+ * an io_error here. The incidence edits (0.4) `-i h v` (remove vertex v from the hyperedge with
+ * id h) and `+i h v` (add it), h >= 0 and v a vertex id, are kept in file order (removals and
+ * additions each); hypergraph::apply() applies them on slack_csr storage, after the deletions and
+ * before the insertions, and skips (and counts) those that cannot apply.
  *
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Hyperedge weight type (dyng::unweighted, or integral).
@@ -127,8 +129,9 @@ template <typename vertex_t, typename weight_t>
  * @brief Write hypergraph batches as a `.dgt` batch text file (read back by
  *        read_hyperedge_batches()).
  *
- * Writes `%dgt 1 hypergraph`, then for batch i the line `%batch i`, its deletions (`-h id`) and
- * its insertions (`+h v1 .. vk`, with ` ; w` for a weighted type), each in batch order.
+ * Writes `%dgt 1 hypergraph`, then for batch i the line `%batch i`, its deletions (`-h id`), its
+ * incidence removals (`-i h v`), its incidence additions (`+i h v`) and its insertions
+ * (`+h v1 .. vk`, with ` ; w` for a weighted type), each in batch order.
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Hyperedge weight type (dyng::unweighted, or integral).
  * @param[in] path    The file (parent directories are created).
@@ -137,8 +140,8 @@ template <typename vertex_t, typename weight_t>
  * @throws invalid_argument_error if a batch is malformed or would not read back: offsets that do
  *                                not start at 0 or end at the member count, an empty insertion, a
  *                                negative member or deletion id, a weight below 1 or a missing
- *                                one, an array outside host-accessible memory.
- * @throws not_supported_error    if a batch has incidence edits (planned for 0.4).
+ *                                one, incidence arrays of unequal lengths or with a negative id
+ *                                or vertex, an array outside host-accessible memory.
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
@@ -180,9 +183,23 @@ struct batch_file_flags {
   /// id_reuse::insert_first (the expected ids hold under that order; without the flag,
   /// id_reuse::erase_first).
   static constexpr std::uint64_t insert_first = 4U;
-  /// Every flag this library knows.
-  static constexpr std::uint64_t known = deleted_members | expected_ids | insert_first;
+  /// Hypergraph files (0.4): every record also carries the batch's incidence removals and
+  /// additions (a 0.3 reader rejects the file). The whole-file writers set it only when a batch
+  /// has an edit.
+  static constexpr std::uint64_t incidence_edits = 8U;
+  /// The flags this library knows in a graph file (none; bit 4 is reserved for vertex_records
+  /// of label_propagation in 0.4).
+  static constexpr std::uint64_t known_graph = 0U;
+  /// The flags this library knows in a hypergraph file: deleted_members | expected_ids |
+  /// insert_first | incidence_edits (bits 0-3).
+  static constexpr std::uint64_t known_hypergraph = 15U;
+  /// Every flag this library knows (of either kind).
+  static constexpr std::uint64_t known = known_graph | known_hypergraph;
 };
+static_assert(batch_file_flags::known_hypergraph ==
+                  (batch_file_flags::deleted_members | batch_file_flags::expected_ids |
+                   batch_file_flags::insert_first | batch_file_flags::incidence_edits),
+              "known_hypergraph is the union of the hypergraph flags");
 
 /**
  * @brief The header of a `.dgb` file: what its batch records hold.
@@ -295,9 +312,9 @@ class batch_writer {
    * @param[in] batch       The batch (host memory; the rules of write_hyperedge_batches()).
    * @param[in] annotations What the header's flags require (deleted member sets, expected ids).
    * @throws invalid_argument_error if the file is not a hypergraph file of these types, the batch
-   *                                is malformed, or the annotations do not match the flags or the
-   *                                batch.
-   * @throws not_supported_error    if the batch has incidence edits (planned for 0.4).
+   *                                is malformed, the annotations do not match the flags or the
+   *                                batch, or the batch has incidence edits and the file was opened
+   *                                without batch_file_flags::incidence_edits.
    * @throws io_error               if the file cannot be written.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    */
@@ -436,7 +453,8 @@ class batch_reader {
   [[nodiscard]] edge_batch_view<vertex_t, weight_t> edge_batch() const;
 
   /**
-   * @brief The current batch of a hypergraph file.
+   * @brief The current batch of a hypergraph file (with its incidence edits when the file has
+   *        batch_file_flags::incidence_edits).
    * @tparam vertex_t Vertex id type (the header's vertex type).
    * @tparam weight_t Hyperedge weight type (the header's weight type).
    * @return The view, valid until the next call of next().
@@ -495,14 +513,14 @@ template <typename vertex_t, typename weight_t>
     const std::string& path, const batch_reader_options& options = {});
 
 /**
- * @brief Write hypergraph batches as a `.dgb` file (batch_writer over every batch, no flags).
+ * @brief Write hypergraph batches as a `.dgb` file (batch_writer over every batch; the flag
+ *        batch_file_flags::incidence_edits when a batch has incidence edits, no flag otherwise).
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Hyperedge weight type (dyng::unweighted, or integral).
  * @param[in] path    The file (parent directories are created).
  * @param[in] batches The batches (host memory).
  * @throws io_error               if the file cannot be written.
  * @throws invalid_argument_error if a batch is malformed (the rules of write_hyperedge_batches()).
- * @throws not_supported_error    if a batch has incidence edits (planned for 0.4).
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */

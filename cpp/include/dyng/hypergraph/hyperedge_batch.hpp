@@ -26,9 +26,15 @@ namespace dyng {
  *
  * Four kinds of operations: deletions of whole hyperedges (by id), insertions of whole
  * hyperedges (a CSR of member lists, one weight each for a weighted hypergraph), and the
- * incidence edits (a vertex removed from or added to a live hyperedge; planned for 0.4:
- * hypergraph::apply() raises not_supported_error when they are not empty). A "replace" is a
- * deletion plus an insertion. The order in which deletions and insertions reach the store is a
+ * incidence edits (a vertex removed from or added to a live hyperedge; 0.4: on
+ * hypergraph_storage::slack_csr only, hypergraph::apply() raises not_supported_error for them on
+ * escher storage). A "replace" is a deletion plus an insertion. The operations are applied in a
+ * fixed phase order, whatever the order of the arrays: hyperedge deletions, incidence removals,
+ * incidence additions, hyperedge insertions; an edit is checked against the hypergraph before
+ * the batch, in batch order, and skipped (counted in hyper_apply_summary::skipped_ops) if its
+ * hyperedge is dead, out of range or deleted by the batch (an id the batch inserts is one of
+ * these), its vertex is out of range, a removal names a non-member or the last member, or an
+ * addition names a member. The order in which deletions and insertions reach the store is a
  * property of the hypergraph (hypergraph_properties::reuse).
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Weight type (unweighted: no weights).
@@ -42,9 +48,9 @@ struct hyperedge_batch_view {
                                                      ///< [insert_offsets[i], insert_offsets[i+1])
   array_view<const weight_t> insert_weights;         ///< one weight per inserted hyperedge
   array_view<const std::int64_t> delete_incidence_hyperedge;  ///< (h, v) removals: h (0.4)
-  array_view<const vertex_t> delete_incidence_vertex;         ///< (h, v) removals: v (0.4)
+  array_view<const vertex_t> delete_incidence_vertex;         ///< (h, v) removals: v (0.4; as many)
   array_view<const std::int64_t> insert_incidence_hyperedge;  ///< (h, v) additions: h (0.4)
-  array_view<const vertex_t> insert_incidence_vertex;         ///< (h, v) additions: v (0.4)
+  array_view<const vertex_t> insert_incidence_vertex;  ///< (h, v) additions: v (0.4; as many)
 
   /**
    * @brief Number of hyperedge insertions.
@@ -147,8 +153,9 @@ class hyperedge_batch {
   }
 
   /**
-   * @brief Add the removal of vertex `v` from the live hyperedge `h` (planned for 0.4: apply()
-   *        raises not_supported_error for a batch that has one).
+   * @brief Add the removal of vertex `v` from the live hyperedge `h` (0.4: slack_csr storage;
+   *        on escher storage apply() raises not_supported_error for a batch that has one; a
+   *        removal that cannot apply is skipped and counted, see hyperedge_batch_view).
    * @param[in] h The hyperedge id.
    * @param[in] v The vertex.
    * @throws out_of_memory_error if the arrays cannot grow.
@@ -160,8 +167,9 @@ class hyperedge_batch {
   }
 
   /**
-   * @brief Add vertex `v` to the live hyperedge `h` (planned for 0.4: apply() raises
-   *        not_supported_error for a batch that has one).
+   * @brief Add vertex `v` to the live hyperedge `h` (0.4: slack_csr storage; on escher storage
+   *        apply() raises not_supported_error for a batch that has one; an addition that cannot
+   *        apply is skipped and counted, see hyperedge_batch_view).
    * @param[in] h The hyperedge id.
    * @param[in] v The vertex.
    * @throws out_of_memory_error if the arrays cannot grow.
@@ -268,7 +276,7 @@ class hyperedge_batch {
   }
 
   /**
-   * @brief The hyperedges of the incidence removals (planned for 0.4).
+   * @brief The hyperedges of the incidence removals (0.4).
    * @return One per removal, in the order they were added.
    */
   [[nodiscard]] const std::vector<std::int64_t>& delete_incidence_hyperedge() const noexcept {
@@ -276,7 +284,7 @@ class hyperedge_batch {
   }
 
   /**
-   * @brief The vertices of the incidence removals (planned for 0.4).
+   * @brief The vertices of the incidence removals (0.4).
    * @return One per removal, in the order they were added.
    */
   [[nodiscard]] const std::vector<vertex_t>& delete_incidence_vertex() const noexcept {
@@ -284,7 +292,7 @@ class hyperedge_batch {
   }
 
   /**
-   * @brief The hyperedges of the incidence additions (planned for 0.4).
+   * @brief The hyperedges of the incidence additions (0.4).
    * @return One per addition, in the order they were added.
    */
   [[nodiscard]] const std::vector<std::int64_t>& insert_incidence_hyperedge() const noexcept {
@@ -292,7 +300,7 @@ class hyperedge_batch {
   }
 
   /**
-   * @brief The vertices of the incidence additions (planned for 0.4).
+   * @brief The vertices of the incidence additions (0.4).
    * @return One per addition, in the order they were added.
    */
   [[nodiscard]] const std::vector<vertex_t>& insert_incidence_vertex() const noexcept {

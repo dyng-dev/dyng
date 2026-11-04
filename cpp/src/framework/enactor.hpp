@@ -18,7 +18,8 @@
  *     after_commit(ctx, new_view, applied, stats):
  *         resume -> Tier B: enact_fused
  *                   Tier A: identify_affected -> seed
- *                           -> { FP: loop until is_converged (stage loop, cap + on_limit)
+ *                           -> { FP: loop until is_converged (stage loop, cap + on_limit,
+ *                                    the problem's own budget: over_budget -> recompute)
  *                              | AG: count(+) on G_{t+1}, stage count_plus }
  *                           -> finalize
  *         -> device error check -> budget check of both halves (DYNG_DEBUG_BUDGETS)
@@ -37,7 +38,8 @@
  * Stages are named "<algo>.<hook>" (problem_t::name); a hook the problem does not implement is
  * neither called nor staged. The enactor sets the common update_stats it decides: engine_used
  * (fused when enact_fused ran, operators otherwise; finalize may refine it), converged (false only
- * under on_limit::report) and fallback_used (on_limit::fallback_recompute). The problem fills the
+ * under on_limit::report) and fallback_used (on_limit::fallback_recompute, or the problem's own
+ * budget spent: over_budget). The problem fills the
  * rest (affected, iterations, frontier_visits and its own counters) in finalize or enact_fused.
  */
 #pragma once
@@ -207,13 +209,27 @@ convergence convergence_of(problem_t& p, context& ctx) {
 enum class loop_end {
   converged,  ///< is_converged returned true
   capped,     ///< the cap was reached under on_limit::report
-  recompute,  ///< the cap was reached under on_limit::fallback_recompute
+  recompute,  ///< the cap was reached under on_limit::fallback_recompute, or the problem's own
+              ///< budget (over_budget) was spent
 };
 
-/// Step 2 of a fixed point: call loop until is_converged, under the convergence policy's cap.
+/// Whether the problem's own budget is spent (over_budget; false without one).
+template <typename problem_t>
+bool budget_spent(problem_t& p, context& ctx) {
+  if constexpr (hook_detail::has_over_budget<problem_t>::value) {
+    return p.over_budget(ctx);
+  } else {
+    (void)p;
+    (void)ctx;
+    return false;
+  }
+}
+
+/// Step 2 of a fixed point: call loop until is_converged, under the convergence policy's cap;
+/// with `ask_budget` (update()), the problem's own budget is asked after every loop call.
 template <typename problem_t, typename view_t, typename frontier_t>
 loop_end run_loop(problem_t& p, context& ctx, view_t g, frontier_t& in, frontier_t& out,
-                  const convergence& policy, const std::string& function) {
+                  const convergence& policy, const std::string& function, bool ask_budget = false) {
   frontier_t* current = &in;
   frontier_t* next = &out;
   for (int iteration = 0; !p.is_converged(ctx, *current, iteration); ++iteration) {
@@ -233,6 +249,9 @@ loop_end run_loop(problem_t& p, context& ctx, view_t g, frontier_t& in, frontier
     }
     p.loop(ctx, g, *current, *next);
     std::swap(current, next);
+    if (ask_budget && budget_spent(p, ctx)) {
+      return loop_end::recompute;
+    }
   }
   return loop_end::converged;
 }
@@ -396,8 +415,9 @@ class update_enactor {
       enactor_detail::loop_end end = enactor_detail::loop_end::converged;
       {
         scoped_stage stage(res, names.loop);
-        end = enactor_detail::run_loop(
-            p_, ctx, g, in_, out_, enactor_detail::convergence_of(p_, ctx), names.update_function);
+        end =
+            enactor_detail::run_loop(p_, ctx, g, in_, out_, enactor_detail::convergence_of(p_, ctx),
+                                     names.update_function, /*ask_budget=*/true);
       }
       if (end == enactor_detail::loop_end::capped) {
         stats.converged = false;

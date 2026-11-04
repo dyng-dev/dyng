@@ -152,12 +152,18 @@ std::string header_problem(const batch_file_header& h) {
     return "K = " + std::to_string(h.num_weights) +
            " for hypergraph batches (one weight per weighted hyperedge)";
   }
-  if ((h.flags & ~batch_file_flags::known) != 0) {
-    return "unknown flags " + std::to_string(h.flags & ~batch_file_flags::known) +
-           " (written by a newer dynG?)";
-  }
-  if (h.kind == container_kind::graph && h.flags != 0) {
+  // The flags of each kind (graph files have none in this release).
+  if (h.kind == container_kind::graph && (h.flags & ~batch_file_flags::known_graph) != 0) {
+    if ((h.flags & ~batch_file_flags::known) != 0) {
+      return "unknown flags " + std::to_string(h.flags & ~batch_file_flags::known) +
+             " (written by a newer dynG?)";
+    }
     return "flags " + std::to_string(h.flags) + " in a file of graph batches";
+  }
+  if (h.kind == container_kind::hypergraph &&
+      (h.flags & ~batch_file_flags::known_hypergraph) != 0) {
+    return "unknown flags " + std::to_string(h.flags & ~batch_file_flags::known_hypergraph) +
+           " (written by a newer dynG?)";
   }
   return {};
 }
@@ -183,10 +189,11 @@ struct array_slot {
 
 /// The arrays of a record, in payload order (graph: delete_src, delete_dst, insert_src,
 /// insert_dst, weights; hypergraph: delete ids, insert offsets, members, weights, deleted
-/// offsets, deleted members, expected ids).
+/// offsets, deleted members, expected ids, removal ids, removal vertices, addition ids, addition
+/// vertices).
 struct record_layout {
   std::int64_t batch_id = -1;
-  std::array<array_slot, 7> slots{};
+  std::array<array_slot, 11> slots{};
 };
 
 enum graph_slot : std::size_t { g_del_src, g_del_dst, g_ins_src, g_ins_dst, g_weights };
@@ -197,8 +204,17 @@ enum hyper_slot : std::size_t {
   h_weights,
   h_del_offsets,
   h_del_members,
-  h_expected
+  h_expected,
+  h_rem_ids,
+  h_rem_vertices,
+  h_add_ids,
+  h_add_vertices
 };
+
+/// The count block of a hypergraph record: 5 counts, 7 with the incidence edits (0.4).
+std::size_t hyper_counts_bytes(std::uint64_t flags) noexcept {
+  return (flags & batch_file_flags::incidence_edits) != 0 ? 56 : 40;
+}
 
 }  // namespace
 
@@ -219,8 +235,9 @@ batch_file_header edge_batch_file_header(int num_weights) {
 
 template <typename vertex_t, typename weight_t>
 batch_file_header hyperedge_batch_file_header(std::uint64_t flags) {
-  DYNG_EXPECTS((flags & ~batch_file_flags::known) == 0,
-               "hyperedge_batch_file_header: unknown flags ", flags & ~batch_file_flags::known);
+  DYNG_EXPECTS((flags & ~batch_file_flags::known_hypergraph) == 0,
+               "hyperedge_batch_file_header: unknown flags ",
+               flags & ~batch_file_flags::known_hypergraph);
   batch_file_header h;
   h.kind = container_kind::hypergraph;
   h.vertex_type = dtype_of<vertex_t>();
@@ -371,13 +388,14 @@ void batch_writer::write(const hyperedge_batch_view<vertex_t, weight_t>& batch,
                " batches with ", to_string(h.vertex_type), " vertices and ",
                to_string(h.weight_type), " weights, not this batch's types");
   const auto index = static_cast<std::size_t>(impl_->count);
-  if (!batch.delete_incidence_hyperedge.empty() || !batch.delete_incidence_vertex.empty() ||
-      !batch.insert_incidence_hyperedge.empty() || !batch.insert_incidence_vertex.empty()) {
-    throw not_supported_error(detail::concat_message(
-        "dyng: batch_writer::write: batch ", index,
-        " has incidence edits, which the .dgb files of this release do not hold (planned for "
-        "0.4)"));
-  }
+  const bool with_edits = (h.flags & batch_file_flags::incidence_edits) != 0;
+  const bool has_edits =
+      !batch.delete_incidence_hyperedge.empty() || !batch.delete_incidence_vertex.empty() ||
+      !batch.insert_incidence_hyperedge.empty() || !batch.insert_incidence_vertex.empty();
+  // The flags are fixed when the file is opened (HD10): an edit needs the flag.
+  DYNG_EXPECTS(with_edits || !has_edits, "batch_writer::write: batch ", index,
+               " has incidence edits, but the file ", impl_->path,
+               " was opened without the flag batch_file_flags::incidence_edits");
   detail::check_hyperedge_batch_arrays(batch, "batch_writer::write", index);
   const std::size_t nd = batch.num_deletions();
   const std::size_t ni = batch.num_insertions();
@@ -423,9 +441,13 @@ void batch_writer::write(const hyperedge_batch_view<vertex_t, weight_t>& batch,
   }
   const std::size_t vb = dtype_bytes(h.vertex_type);
   const std::size_t wb = dtype_bytes(h.weight_type);
-  std::size_t total = 40 + 8 * nd + 8 * (ni + 1) + pad8(nm * vb) + pad8(ni * wb);
+  const std::size_t nr = batch.delete_incidence_hyperedge.size();
+  const std::size_t na = batch.insert_incidence_hyperedge.size();
+  const std::size_t counts = hyper_counts_bytes(h.flags);
+  std::size_t total = counts + 8 * nd + 8 * (ni + 1) + pad8(nm * vb) + pad8(ni * wb);
   if (with_deleted) total += 8 * (nd + 1) + pad8(ndm * vb);
   if (with_expected) total += 8 * ni;
+  if (with_edits) total += 8 * nr + pad8(nr * vb) + 8 * na + pad8(na * vb);
   impl_->payload.assign(total, 0);
   unsigned char* p = impl_->payload.data();
   put_u64(p, static_cast<std::uint64_t>(impl_->count));
@@ -433,7 +455,11 @@ void batch_writer::write(const hyperedge_batch_view<vertex_t, weight_t>& batch,
   put_u64(p + 16, ni);
   put_u64(p + 24, nm);
   put_u64(p + 32, ndm);
-  std::size_t off = 40;
+  if (with_edits) {
+    put_u64(p + 40, nr);
+    put_u64(p + 48, na);
+  }
+  std::size_t off = counts;
   impl_->put_array(off, batch.delete_hyperedges.data(), nd, batch_dtype::int64);
   if (ni > 0) {
     impl_->put_array(off, batch.insert_offsets.data(), ni + 1, batch_dtype::int64);
@@ -450,6 +476,12 @@ void batch_writer::write(const hyperedge_batch_view<vertex_t, weight_t>& batch,
   }
   if (with_expected) {
     impl_->put_array(off, annotations.expected_ids.data(), ni, batch_dtype::int64);
+  }
+  if (with_edits) {
+    impl_->put_array(off, batch.delete_incidence_hyperedge.data(), nr, batch_dtype::int64);
+    impl_->put_array(off, batch.delete_incidence_vertex.data(), nr, h.vertex_type);
+    impl_->put_array(off, batch.insert_incidence_hyperedge.data(), na, batch_dtype::int64);
+    impl_->put_array(off, batch.insert_incidence_vertex.data(), na, h.vertex_type);
   }
   impl_->emit();
 }
@@ -627,7 +659,8 @@ struct batch_reader::impl {
       fail_record(at, "the record's length " + std::to_string(length) +
                           " exceeds the rest of the file (" + std::to_string(rest) + " bytes)");
     }
-    const std::uint64_t fixed = header.kind == container_kind::graph ? 24 : 40;
+    const std::uint64_t fixed =
+        header.kind == container_kind::graph ? 24 : hyper_counts_bytes(header.flags);
     if (length < fixed || length % 8 != 0) {
       fail_record(at, "the record's length " + std::to_string(length) +
                           " is not a multiple of 8 of at least " + std::to_string(fixed));
@@ -669,7 +702,7 @@ struct batch_reader::impl {
       fail_record(at, "batch id " + std::to_string(id) + " out of range");
     }
     l.batch_id = static_cast<std::int64_t>(id);
-    std::size_t off = header.kind == container_kind::graph ? 24 : 40;
+    std::size_t off = header.kind == container_kind::graph ? 24 : hyper_counts_bytes(header.flags);
     // Place an array of `count` values of width `width`: count is checked against the bytes
     // left before anything is multiplied.
     const auto place = [&](std::size_t slot, std::uint64_t count, batch_dtype t, const char* what) {
@@ -734,6 +767,15 @@ struct batch_reader::impl {
       place(h_del_members, ndm, vt, "deleted members");
     }
     if (with_expected) place(h_expected, ni, batch_dtype::int64, "expected ids");
+    const bool with_edits = (header.flags & batch_file_flags::incidence_edits) != 0;
+    if (with_edits) {
+      const std::uint64_t nr = get_u64(p + 40);
+      const std::uint64_t na = get_u64(p + 48);
+      place(h_rem_ids, nr, batch_dtype::int64, "incidence removals");
+      place(h_rem_vertices, nr, vt, "incidence removals");
+      place(h_add_ids, na, batch_dtype::int64, "incidence additions");
+      place(h_add_vertices, na, vt, "incidence additions");
+    }
     if (off != length) {
       fail_record(at,
                   "the record has " + std::to_string(length - off) + " bytes beyond its arrays");
@@ -791,6 +833,12 @@ struct batch_reader::impl {
       check_vertices(h_del_members);
     }
     if (with_expected) check_non_negative(h_expected, "expected id");
+    if (with_edits) {
+      check_non_negative(h_rem_ids, "hyperedge id of an incidence removal");
+      check_vertices(h_rem_vertices);
+      check_non_negative(h_add_ids, "hyperedge id of an incidence addition");
+      check_vertices(h_add_vertices);
+    }
     return l;
   }
 
@@ -896,6 +944,12 @@ hyperedge_batch_view<vertex_t, weight_t> batch_reader::hyperedge_batch() const {
   if constexpr (!is_unweighted_v<weight_t>) {
     v.insert_weights = impl_->view<weight_t>(h_weights);
   }
+  if ((impl_->header.flags & batch_file_flags::incidence_edits) != 0) {
+    v.delete_incidence_hyperedge = impl_->view<std::int64_t>(h_rem_ids);
+    v.delete_incidence_vertex = impl_->view<vertex_t>(h_rem_vertices);
+    v.insert_incidence_hyperedge = impl_->view<std::int64_t>(h_add_ids);
+    v.insert_incidence_vertex = impl_->view<vertex_t>(h_add_vertices);
+  }
   return v;
 }
 
@@ -979,7 +1033,15 @@ template <typename vertex_t, typename weight_t>
 void write_binary_hyperedge_batches(
     const std::string& path,
     const std::vector<hyperedge_batch_view<vertex_t, weight_t>>& batches) try {
-  batch_writer out(path, hyperedge_batch_file_header<vertex_t, weight_t>());
+  // The flag only when a batch needs it: a file without edits is the file 0.3 wrote (HD10).
+  std::uint64_t flags = 0;
+  for (const auto& b : batches) {
+    if (!b.delete_incidence_hyperedge.empty() || !b.delete_incidence_vertex.empty() ||
+        !b.insert_incidence_hyperedge.empty() || !b.insert_incidence_vertex.empty()) {
+      flags = batch_file_flags::incidence_edits;
+    }
+  }
+  batch_writer out(path, hyperedge_batch_file_header<vertex_t, weight_t>(flags));
   for (const auto& b : batches) out.write(b);
   out.close();
 }
@@ -1013,6 +1075,10 @@ std::vector<hyperedge_batch<vertex_t, weight_t>> read_binary_hyperedge_batches(
       if constexpr (!is_unweighted_v<weight_t>) w = v.insert_weights[i];
       b.insert_hyperedge(v.insert_members.subview(first, last - first), w);
     }
+    for (std::size_t j = 0; j < v.delete_incidence_hyperedge.size(); ++j)
+      b.delete_incidence(v.delete_incidence_hyperedge[j], v.delete_incidence_vertex[j]);
+    for (std::size_t j = 0; j < v.insert_incidence_hyperedge.size(); ++j)
+      b.insert_incidence(v.insert_incidence_hyperedge[j], v.insert_incidence_vertex[j]);
     out.push_back(std::move(b));
   }
   return out;

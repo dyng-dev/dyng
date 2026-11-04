@@ -388,8 +388,9 @@ namespace dyng::triad_count {
  *         stathyper_type3) and `h` has 2,147,483,647 vertices (the largest vertex id the counting
  *         merge supports is 2^31 - 3), `h` belongs to another backend than `res`, or `h` was
  *         poisoned by a failed apply().
- * @throws not_supported_error    if the backend of `res` is not available for triad_count, or
- *         options::cuda_engine is engine::operators on cuda.
+ * @throws not_supported_error    if the backend of `res` is not available for triad_count,
+ *         options::cuda_engine is engine::operators on cuda, or `h` has
+ *         hypergraph_storage::slack_csr (0.4: triad_count reads the escher storage only).
  * @throws capacity_error         if a count exceeds 2^64 - 1 (on every backend).
  * @throws internal_error         if the device engine meets a triad it cannot classify (a library
  *         bug).
@@ -436,8 +437,9 @@ template <typename vertex_t, typename weight_t>
  * @throws invalid_argument_error if a batch member or weight is invalid, `h` belongs to another
  *         backend than `res`, or `h` was poisoned (nothing is changed).
  * @throws not_supported_error    if the backend of `res` is not available for triad_count,
- *         options::cuda_engine is engine::operators on cuda, or the batch has incidence edits
- *         (nothing is changed).
+ *         options::cuda_engine is engine::operators on cuda, the batch has incidence edits (they
+ *         need slack_csr storage), or `h` has hypergraph_storage::slack_csr (0.4: triad_count
+ *         reads the escher storage only; nothing is changed).
  * @throws internal_error         if a bin would become negative, or the device engine meets a
  *         triad it cannot classify (a library bug; then the hypergraph was updated and `r` is left
  *         unusable).

@@ -1,0 +1,2900 @@
+{
+ "schema": 1,
+ "algorithm": "hyper_sssp",
+ "what": "the H-SOSP engine's kernels of both sides at locked clocks (Nsight Compute --clock-control base), the load's launches skipped; recorded, not gated (ADR 0018 rule 1)",
+ "date": "2026-11-03T23:47:19Z",
+ "date_end": "2026-11-03T23:51:48Z",
+ "protocol": {
+  "rounds": 3,
+  "order": "A/B alternation (B first in every round)",
+  "gpu": 0,
+  "lock": {
+   "DYNG_PERF_LOCK": "",
+   "DYNG_PERF_LOCK_HELD": "1"
+  },
+  "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+  "ncu": "--clock-control base --cache-control none --kernel-name-base function --kernel-name regex:<the engine's kernels> --metrics gpu__time_duration.sum,dram__bytes.sum,launch__registers_per_thread,launch__grid_size,launch__block_size; the launches before the first update's pack_state (the load) skipped",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "statistic": "median",
+  "kernels": {
+   "fill_ll": [
+    "\\d+fill_ll_kernel",
+    "\\d+fillLLKernel"
+   ],
+   "fill_int": [
+    "\\d+fill_int_kernel",
+    "\\d+fillIntKernel"
+   ],
+   "pull_distances_warp": [
+    "\\d+pull_distances_warp_kernel",
+    "\\d+pullDistancesWarp"
+   ],
+   "collect_candidates_warp": [
+    "\\d+collect_candidates_warp_kernel",
+    "\\d+collectCandidatesWarp"
+   ],
+   "pack_state": [
+    "\\d+pack_state_kernel",
+    "\\d+packStateKernel"
+   ],
+   "unpack_state": [
+    "\\d+unpack_state_kernel",
+    "\\d+unpackStateKernel"
+   ],
+   "mark_deleted_tree_edges": [
+    "\\d+mark_deleted_tree_edges_kernel",
+    "\\d+markDeletedTreeEdgesKernel"
+   ],
+   "mark_ids": [
+    "\\d+mark_ids_kernel",
+    "\\d+markIdsKernel"
+   ],
+   "init_jump": [
+    "\\d+init_jump_kernel",
+    "\\d+initJumpKernel"
+   ],
+   "jump": [
+    "\\d+jump_kernel",
+    "\\d+jumpKernel"
+   ],
+   "invalidate": [
+    "\\d+invalidate_kernel",
+    "\\d+invalidateKernel"
+   ],
+   "pull_invalidated": [
+    "\\d+pull_invalidated_kernel",
+    "\\d+pullInvalidatedKernel"
+   ],
+   "relax_inserted": [
+    "\\d+relax_inserted_kernel",
+    "\\d+relaxInsertedKernel"
+   ],
+   "push": [
+    "\\d+push_kernel",
+    "\\d+pushKernel"
+   ],
+   "mark_lost_source": [
+    "\\d+mark_lost_source_kernel",
+    null
+   ],
+   "relax_base": [
+    "\\d+relax_base_kernel",
+    null
+   ],
+   "seed_base": [
+    "\\d+seed_base_kernel",
+    null
+   ],
+   "zero_degree": [
+    null,
+    "\\d+zeroDegreeKernel"
+   ],
+   "count_mismatches": [
+    null,
+    "\\d+countMismatchesKernel"
+   ]
+  }
+ },
+ "reference": {
+  "name": "MOSP_ESCHER",
+  "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+  "variant": "unpatched",
+  "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
+ },
+ "port": {
+  "commit": "df6e99b2c04968372a35b5479c07bb852d69ff26",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-hsosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "dblp_hyperedge_50000": {
+   "config": "dblp_hyperedge_50000",
+   "dataset": "dblp",
+   "batches": 3,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/coauth.hg",
+    "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+   },
+   "rounds": 3,
+   "regions": [
+    {
+     "region": "kernels.all",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 279.314816,
+     "port_ms": 282.75184,
+     "ratio": 1.0123051975875137,
+     "original_runs": [
+      278.725888,
+      279.664896,
+      279.314816
+     ],
+     "port_runs": [
+      281.871328,
+      282.75184,
+      282.941088
+     ],
+     "original_launches": [
+      191,
+      197,
+      189
+     ],
+     "port_launches": [
+      188,
+      192,
+      184
+     ]
+    },
+    {
+     "region": "kernels.all[b1]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 96.507104,
+     "port_ms": 97.87664,
+     "ratio": 1.0141910382058505,
+     "original_runs": [
+      95.856512,
+      96.507104,
+      96.991616
+     ],
+     "port_runs": [
+      97.369376,
+      98.030976,
+      97.87664
+     ],
+     "original_launches": [
+      67,
+      71,
+      69
+     ],
+     "port_launches": [
+      67,
+      71,
+      65
+     ]
+    },
+    {
+     "region": "kernels.all[b2]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 91.139552,
+     "port_ms": 92.156768,
+     "ratio": 1.0111610818539025,
+     "original_runs": [
+      91.429216,
+      91.139552,
+      90.892032
+     ],
+     "port_runs": [
+      92.156768,
+      91.894976,
+      92.323456
+     ],
+     "original_launches": [
+      66,
+      64,
+      60
+     ],
+     "port_launches": [
+      62,
+      62,
+      58
+     ]
+    },
+    {
+     "region": "kernels.all[b3]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 91.44016,
+     "port_ms": 92.740992,
+     "ratio": 1.014226046848562,
+     "original_runs": [
+      91.44016,
+      92.01824,
+      91.431168
+     ],
+     "port_runs": [
+      92.345184,
+      92.825888,
+      92.740992
+     ],
+     "original_launches": [
+      58,
+      62,
+      60
+     ],
+     "port_launches": [
+      59,
+      59,
+      61
+     ]
+    },
+    {
+     "region": "kernels.fill_ll",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.090688,
+     "port_ms": 0.090048,
+     "ratio": 0.9929428369795342,
+     "original_runs": [
+      0.090688,
+      0.090688,
+      0.089824
+     ],
+     "port_runs": [
+      0.095296,
+      0.090048,
+      0.089344
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.fill_int",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.058496,
+     "port_ms": 0.054912,
+     "ratio": 0.9387308533916849,
+     "original_runs": [
+      0.061568,
+      0.058496,
+      0.057664
+     ],
+     "port_runs": [
+      0.047776,
+      0.066304,
+      0.054912
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_distances_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 209.684096,
+     "port_ms": 212.716768,
+     "ratio": 1.014463052076205,
+     "original_runs": [
+      209.049312,
+      209.89696,
+      209.684096
+     ],
+     "port_runs": [
+      211.918816,
+      212.716768,
+      212.827424
+     ],
+     "original_launches": [
+      49,
+      52,
+      48
+     ],
+     "port_launches": [
+      50,
+      52,
+      48
+     ]
+    },
+    {
+     "region": "kernels.collect_candidates_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 49.555296,
+     "port_ms": 49.726592,
+     "ratio": 1.0034566638447684,
+     "original_runs": [
+      49.555296,
+      49.61824,
+      49.501184
+     ],
+     "port_runs": [
+      49.698528,
+      49.726592,
+      49.837824
+     ],
+     "original_launches": [
+      49,
+      52,
+      48
+     ],
+     "port_launches": [
+      50,
+      52,
+      48
+     ]
+    },
+    {
+     "region": "kernels.pack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.221344,
+     "port_ms": 0.221504,
+     "ratio": 1.000722856729796,
+     "original_runs": [
+      0.22144,
+      0.221344,
+      0.220672
+     ],
+     "port_runs": [
+      0.221504,
+      0.222272,
+      0.22064
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.unpack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.216512,
+     "port_ms": 0.216256,
+     "ratio": 0.998817617499261,
+     "original_runs": [
+      0.216832,
+      0.215456,
+      0.216512
+     ],
+     "port_runs": [
+      0.216256,
+      0.216192,
+      0.216608
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.mark_deleted_tree_edges",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.362784,
+     "port_ms": 0.3584,
+     "ratio": 0.9879156743406545,
+     "original_runs": [
+      0.362784,
+      0.363936,
+      0.3624
+     ],
+     "port_runs": [
+      0.358336,
+      0.3584,
+      0.358944
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.mark_ids",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.016256,
+     "port_ms": 0.01616,
+     "ratio": 0.9940944881889765,
+     "original_runs": [
+      0.016224,
+      0.016256,
+      0.016256
+     ],
+     "port_runs": [
+      0.016128,
+      0.01616,
+      0.01616
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.init_jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.133984,
+     "port_ms": 0.133536,
+     "ratio": 0.9966563171721996,
+     "original_runs": [
+      0.133984,
+      0.136128,
+      0.133856
+     ],
+     "port_runs": [
+      0.133184,
+      0.13424,
+      0.133536
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 1.882528,
+     "port_ms": 1.889664,
+     "ratio": 1.0037906474697853,
+     "original_runs": [
+      1.881056,
+      1.887904,
+      1.882528
+     ],
+     "port_runs": [
+      1.891328,
+      1.889664,
+      1.889664
+     ],
+     "original_launches": [
+      15,
+      15,
+      15
+     ],
+     "port_launches": [
+      15,
+      15,
+      15
+     ]
+    },
+    {
+     "region": "kernels.invalidate",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.224832,
+     "port_ms": 0.2248,
+     "ratio": 0.9998576715058355,
+     "original_runs": [
+      0.224448,
+      0.224832,
+      0.22496
+     ],
+     "port_runs": [
+      0.2248,
+      0.225088,
+      0.224352
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_invalidated",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 3.652,
+     "port_ms": 3.85072,
+     "ratio": 1.0544140197152245,
+     "original_runs": [
+      3.64656,
+      3.652,
+      3.652224
+     ],
+     "port_runs": [
+      3.848896,
+      3.856736,
+      3.85072
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.relax_inserted",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.739296,
+     "port_ms": 0.75312,
+     "ratio": 1.0186988702765876,
+     "original_runs": [
+      0.745024,
+      0.739296,
+      0.73904
+     ],
+     "port_runs": [
+      0.74976,
+      0.75312,
+      0.756512
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.push",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 12.341504,
+     "port_ms": 12.464448,
+     "ratio": 1.0099618328527868,
+     "original_runs": [
+      12.32912,
+      12.350816,
+      12.341504
+     ],
+     "port_runs": [
+      12.45072,
+      12.480256,
+      12.464448
+     ],
+     "original_launches": [
+      43,
+      43,
+      43
+     ],
+     "port_launches": [
+      43,
+      43,
+      43
+     ]
+    },
+    {
+     "region": "kernels.zero_degree",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.010848,
+     "port_ms": 0.0,
+     "ratio": 0.0,
+     "original_runs": [
+      0.010848,
+      0.010848,
+      0.010656
+     ],
+     "port_runs": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "original_launches": [
+      2,
+      2,
+      2
+     ],
+     "port_launches": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "region": "kernels.count_mismatches",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.18144,
+     "port_ms": 0.0,
+     "ratio": 0.0,
+     "original_runs": [
+      0.180704,
+      0.181696,
+      0.18144
+     ],
+     "port_runs": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "launch": {
+    "original": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9873.0,
+      "launch__block_size": 256.0
+     },
+     "mark_ids": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 196.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 34.0,
+      "launch__grid_size": 31615.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 9319.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 29122.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 107.0,
+      "launch__block_size": 256.0
+     },
+     "count_mismatches": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "zero_degree": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 98.0,
+      "launch__block_size": 256.0
+     }
+    },
+    "port": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9873.0,
+      "launch__block_size": 256.0
+     },
+     "mark_ids": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 196.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 36.0,
+      "launch__grid_size": 31615.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 9319.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 29119.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9734.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 107.0,
+      "launch__block_size": 256.0
+     }
+    }
+   }
+  },
+  "dblp_vertex_50000": {
+   "config": "dblp_vertex_50000",
+   "dataset": "dblp",
+   "batches": 3,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/coauth.hg",
+    "sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+   },
+   "rounds": 3,
+   "regions": [
+    {
+     "region": "kernels.all",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 267.467264,
+     "port_ms": 268.4608,
+     "ratio": 1.0037146078557113,
+     "original_runs": [
+      267.467264,
+      267.555008,
+      266.590304
+     ],
+     "port_runs": [
+      268.114528,
+      268.4608,
+      269.729472
+     ],
+     "original_launches": [
+      180,
+      186,
+      182
+     ],
+     "port_launches": [
+      177,
+      181,
+      183
+     ]
+    },
+    {
+     "region": "kernels.all[b1]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 88.292352,
+     "port_ms": 88.503296,
+     "ratio": 1.0023891537060878,
+     "original_runs": [
+      88.644,
+      88.292352,
+      88.128672
+     ],
+     "port_runs": [
+      88.487584,
+      88.503296,
+      90.62192
+     ],
+     "original_launches": [
+      60,
+      62,
+      58
+     ],
+     "port_launches": [
+      59,
+      63,
+      63
+     ]
+    },
+    {
+     "region": "kernels.all[b2]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 90.279392,
+     "port_ms": 90.445728,
+     "ratio": 1.001842458132638,
+     "original_runs": [
+      90.279392,
+      90.666048,
+      89.82528
+     ],
+     "port_runs": [
+      90.445728,
+      90.735488,
+      90.207328
+     ],
+     "original_launches": [
+      62,
+      64,
+      62
+     ],
+     "port_launches": [
+      61,
+      61,
+      59
+     ]
+    },
+    {
+     "region": "kernels.all[b3]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 88.596608,
+     "port_ms": 89.181216,
+     "ratio": 1.006598537045572,
+     "original_runs": [
+      88.543872,
+      88.596608,
+      88.636352
+     ],
+     "port_runs": [
+      89.181216,
+      89.222016,
+      88.900224
+     ],
+     "original_launches": [
+      58,
+      60,
+      62
+     ],
+     "port_launches": [
+      57,
+      57,
+      61
+     ]
+    },
+    {
+     "region": "kernels.fill_ll",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.088672,
+     "port_ms": 0.088544,
+     "ratio": 0.9985564778058462,
+     "original_runs": [
+      0.088608,
+      0.089248,
+      0.088672
+     ],
+     "port_runs": [
+      0.088064,
+      0.088544,
+      0.088992
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.fill_int",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.055776,
+     "port_ms": 0.051168,
+     "ratio": 0.9173838209982789,
+     "original_runs": [
+      0.06256,
+      0.054144,
+      0.055776
+     ],
+     "port_runs": [
+      0.051264,
+      0.047552,
+      0.051168
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_distances_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 206.479424,
+     "port_ms": 207.445632,
+     "ratio": 1.004679439632687,
+     "original_runs": [
+      206.479424,
+      206.555744,
+      205.632928
+     ],
+     "port_runs": [
+      207.15232,
+      207.445632,
+      208.618176
+     ],
+     "original_launches": [
+      47,
+      50,
+      48
+     ],
+     "port_launches": [
+      47,
+      49,
+      50
+     ]
+    },
+    {
+     "region": "kernels.collect_candidates_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 48.734784,
+     "port_ms": 48.75712,
+     "ratio": 1.0004583174104147,
+     "original_runs": [
+      48.734784,
+      48.763968,
+      48.710752
+     ],
+     "port_runs": [
+      48.719968,
+      48.75712,
+      48.8768
+     ],
+     "original_launches": [
+      47,
+      50,
+      48
+     ],
+     "port_launches": [
+      47,
+      49,
+      50
+     ]
+    },
+    {
+     "region": "kernels.pack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.219904,
+     "port_ms": 0.2184,
+     "ratio": 0.9931606519208382,
+     "original_runs": [
+      0.219072,
+      0.220544,
+      0.219904
+     ],
+     "port_runs": [
+      0.2184,
+      0.219488,
+      0.217568
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.unpack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.214048,
+     "port_ms": 0.214144,
+     "ratio": 1.0004484975332637,
+     "original_runs": [
+      0.214048,
+      0.21344,
+      0.214304
+     ],
+     "port_runs": [
+      0.213312,
+      0.219168,
+      0.214144
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.mark_deleted_tree_edges",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.145408,
+     "port_ms": 0.145408,
+     "ratio": 1.0,
+     "original_runs": [
+      0.145408,
+      0.146144,
+      0.145248
+     ],
+     "port_runs": [
+      0.144832,
+      0.145408,
+      0.145696
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.init_jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.125088,
+     "port_ms": 0.12512,
+     "ratio": 1.0002558199027884,
+     "original_runs": [
+      0.124576,
+      0.125088,
+      0.125536
+     ],
+     "port_runs": [
+      0.124608,
+      0.125184,
+      0.12512
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 1.876928,
+     "port_ms": 1.884672,
+     "ratio": 1.0041258908173356,
+     "original_runs": [
+      1.876928,
+      1.8816,
+      1.874688
+     ],
+     "port_runs": [
+      1.884672,
+      1.887456,
+      1.883424
+     ],
+     "original_launches": [
+      15,
+      15,
+      15
+     ],
+     "port_launches": [
+      15,
+      15,
+      15
+     ]
+    },
+    {
+     "region": "kernels.invalidate",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.174624,
+     "port_ms": 0.174176,
+     "ratio": 0.997434487813817,
+     "original_runs": [
+      0.17488,
+      0.174624,
+      0.17456
+     ],
+     "port_runs": [
+      0.174208,
+      0.174176,
+      0.174144
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_invalidated",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 1.977152,
+     "port_ms": 2.082656,
+     "ratio": 1.053361602952125,
+     "original_runs": [
+      1.977152,
+      1.976768,
+      1.978368
+     ],
+     "port_runs": [
+      2.082688,
+      2.082656,
+      2.074784
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.relax_inserted",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.282432,
+     "port_ms": 0.287744,
+     "ratio": 1.0188080670745523,
+     "original_runs": [
+      0.279904,
+      0.28336,
+      0.282432
+     ],
+     "port_runs": [
+      0.287744,
+      0.288928,
+      0.285504
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.push",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 6.906816,
+     "port_ms": 6.973952,
+     "ratio": 1.0097202531528275,
+     "original_runs": [
+      6.9104,
+      6.890368,
+      6.906816
+     ],
+     "port_runs": [
+      6.972448,
+      6.979488,
+      6.973952
+     ],
+     "original_launches": [
+      41,
+      41,
+      41
+     ],
+     "port_launches": [
+      41,
+      41,
+      41
+     ]
+    },
+    {
+     "region": "kernels.count_mismatches",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.179968,
+     "port_ms": 0.0,
+     "ratio": 0.0,
+     "original_runs": [
+      0.17952,
+      0.179968,
+      0.18032
+     ],
+     "port_runs": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "launch": {
+    "original": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 2886.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 34.0,
+      "launch__grid_size": 7859.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1926.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 8303.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 106.0,
+      "launch__block_size": 256.0
+     },
+     "count_mismatches": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     }
+    },
+    "port": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 2886.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 36.0,
+      "launch__grid_size": 7859.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1926.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 8300.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 9636.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 106.0,
+      "launch__block_size": 256.0
+     }
+    }
+   }
+  },
+  "geology_hyperedge_50000": {
+   "config": "geology_hyperedge_50000",
+   "dataset": "geology",
+   "batches": 3,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/geology.hg",
+    "sha256": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+   },
+   "rounds": 3,
+   "regions": [
+    {
+     "region": "kernels.all",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 97.821888,
+     "port_ms": 97.84624,
+     "ratio": 1.0002489422408203,
+     "original_runs": [
+      97.790016,
+      97.821888,
+      98.517792
+     ],
+     "port_runs": [
+      97.84624,
+      98.094304,
+      97.555072
+     ],
+     "original_launches": [
+      238,
+      238,
+      238
+     ],
+     "port_launches": [
+      233,
+      233,
+      231
+     ]
+    },
+    {
+     "region": "kernels.all[b1]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 33.230176,
+     "port_ms": 33.269792,
+     "ratio": 1.0011921694305803,
+     "original_runs": [
+      32.973184,
+      33.676544,
+      33.230176
+     ],
+     "port_runs": [
+      33.273632,
+      33.269792,
+      33.01696
+     ],
+     "original_launches": [
+      83,
+      83,
+      83
+     ],
+     "port_launches": [
+      81,
+      81,
+      77
+     ]
+    },
+    {
+     "region": "kernels.all[b2]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 32.541568,
+     "port_ms": 32.201184,
+     "ratio": 0.9895400246232757,
+     "original_runs": [
+      32.81408,
+      32.073152,
+      32.541568
+     ],
+     "port_runs": [
+      32.008128,
+      32.414752,
+      32.201184
+     ],
+     "original_launches": [
+      76,
+      76,
+      76
+     ],
+     "port_launches": [
+      74,
+      74,
+      74
+     ]
+    },
+    {
+     "region": "kernels.all[b3]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 32.072192,
+     "port_ms": 32.40976,
+     "ratio": 1.0105252550246642,
+     "original_runs": [
+      32.002752,
+      32.072192,
+      32.746048
+     ],
+     "port_runs": [
+      32.56448,
+      32.40976,
+      32.336928
+     ],
+     "original_launches": [
+      79,
+      79,
+      79
+     ],
+     "port_launches": [
+      78,
+      78,
+      80
+     ]
+    },
+    {
+     "region": "kernels.fill_ll",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.053248,
+     "port_ms": 0.05136,
+     "ratio": 0.9645432692307694,
+     "original_runs": [
+      0.047072,
+      0.053248,
+      0.060096
+     ],
+     "port_runs": [
+      0.04688,
+      0.05136,
+      0.0568
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.fill_int",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.027072,
+     "port_ms": 0.038848,
+     "ratio": 1.434988179669031,
+     "original_runs": [
+      0.027072,
+      0.0392,
+      0.026368
+     ],
+     "port_runs": [
+      0.026176,
+      0.049792,
+      0.038848
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_distances_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 70.32752,
+     "port_ms": 70.468544,
+     "ratio": 1.0020052463104057,
+     "original_runs": [
+      70.32752,
+      70.327328,
+      70.974144
+     ],
+     "port_runs": [
+      70.468544,
+      70.707648,
+      70.26256
+     ],
+     "original_launches": [
+      69,
+      69,
+      69
+     ],
+     "port_launches": [
+      69,
+      69,
+      68
+     ]
+    },
+    {
+     "region": "kernels.collect_candidates_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 16.570784,
+     "port_ms": 16.516768,
+     "ratio": 0.9967402870015082,
+     "original_runs": [
+      16.542528,
+      16.570784,
+      16.630592
+     ],
+     "port_runs": [
+      16.530464,
+      16.516768,
+      16.440224
+     ],
+     "original_launches": [
+      69,
+      69,
+      69
+     ],
+     "port_launches": [
+      69,
+      69,
+      68
+     ]
+    },
+    {
+     "region": "kernels.pack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.111136,
+     "port_ms": 0.111264,
+     "ratio": 1.0011517420097897,
+     "original_runs": [
+      0.111136,
+      0.111168,
+      0.110816
+     ],
+     "port_runs": [
+      0.111168,
+      0.11136,
+      0.111264
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.unpack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.107008,
+     "port_ms": 0.106976,
+     "ratio": 0.999700956937799,
+     "original_runs": [
+      0.106816,
+      0.113184,
+      0.107008
+     ],
+     "port_runs": [
+      0.106976,
+      0.111712,
+      0.106592
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.mark_deleted_tree_edges",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.186592,
+     "port_ms": 0.185856,
+     "ratio": 0.996055565083176,
+     "original_runs": [
+      0.186336,
+      0.186592,
+      0.187328
+     ],
+     "port_runs": [
+      0.186208,
+      0.185856,
+      0.185824
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.mark_ids",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.01584,
+     "port_ms": 0.015616,
+     "ratio": 0.9858585858585859,
+     "original_runs": [
+      0.01584,
+      0.015776,
+      0.01584
+     ],
+     "port_runs": [
+      0.015648,
+      0.015616,
+      0.015616
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.init_jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.064544,
+     "port_ms": 0.063936,
+     "ratio": 0.9905800694100149,
+     "original_runs": [
+      0.064544,
+      0.064192,
+      0.064576
+     ],
+     "port_runs": [
+      0.063904,
+      0.064352,
+      0.063936
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.845536,
+     "port_ms": 0.833216,
+     "ratio": 0.9854293607841653,
+     "original_runs": [
+      0.8432,
+      0.845536,
+      0.846432
+     ],
+     "port_runs": [
+      0.833216,
+      0.834304,
+      0.83232
+     ],
+     "original_launches": [
+      15,
+      15,
+      15
+     ],
+     "port_launches": [
+      15,
+      15,
+      15
+     ]
+    },
+    {
+     "region": "kernels.invalidate",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.129312,
+     "port_ms": 0.129184,
+     "ratio": 0.9990101460034644,
+     "original_runs": [
+      0.129536,
+      0.129312,
+      0.129184
+     ],
+     "port_runs": [
+      0.129184,
+      0.129344,
+      0.128928
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_invalidated",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 2.126432,
+     "port_ms": 2.153792,
+     "ratio": 1.0128666235271104,
+     "original_runs": [
+      2.134752,
+      2.12192,
+      2.126432
+     ],
+     "port_runs": [
+      2.154528,
+      2.153792,
+      2.145344
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.relax_inserted",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.392,
+     "port_ms": 0.392832,
+     "ratio": 1.002122448979592,
+     "original_runs": [
+      0.391776,
+      0.392,
+      0.393728
+     ],
+     "port_runs": [
+      0.392832,
+      0.392384,
+      0.392992
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.push",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 6.744416,
+     "port_ms": 6.773824,
+     "ratio": 1.0043603478788972,
+     "original_runs": [
+      6.75408,
+      6.744416,
+      6.7368
+     ],
+     "port_runs": [
+      6.780512,
+      6.770016,
+      6.773824
+     ],
+     "original_launches": [
+      50,
+      50,
+      50
+     ],
+     "port_launches": [
+      50,
+      50,
+      50
+     ]
+    },
+    {
+     "region": "kernels.zero_degree",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.00976,
+     "port_ms": 0.0,
+     "ratio": 0.0,
+     "original_runs": [
+      0.01008,
+      0.00976,
+      0.009408
+     ],
+     "port_runs": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "original_launches": [
+      2,
+      2,
+      2
+     ],
+     "port_launches": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "region": "kernels.count_mismatches",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.097728,
+     "port_ms": 0.0,
+     "ratio": 0.0,
+     "original_runs": [
+      0.097728,
+      0.097472,
+      0.09904
+     ],
+     "port_runs": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "launch": {
+    "original": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 6082.0,
+      "launch__block_size": 256.0
+     },
+     "mark_ids": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 196.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 34.0,
+      "launch__grid_size": 16598.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 5821.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 13411.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 90.0,
+      "launch__block_size": 256.0
+     },
+     "count_mismatches": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "zero_degree": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 98.0,
+      "launch__block_size": 256.0
+     }
+    },
+    "port": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 6082.0,
+      "launch__block_size": 256.0
+     },
+     "mark_ids": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 196.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 36.0,
+      "launch__grid_size": 16598.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 5821.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 13412.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4801.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 90.0,
+      "launch__block_size": 256.0
+     }
+    }
+   }
+  },
+  "geology_vertex_50000": {
+   "config": "geology_vertex_50000",
+   "dataset": "geology",
+   "batches": 3,
+   "input": {
+    "file": "$DYNG_SCRATCH/datasets/hyper/geology.hg",
+    "sha256": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+   },
+   "rounds": 3,
+   "regions": [
+    {
+     "region": "kernels.all",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 96.19392,
+     "port_ms": 97.736512,
+     "ratio": 1.01603627339441,
+     "original_runs": [
+      95.82816,
+      96.19392,
+      96.798592
+     ],
+     "port_runs": [
+      98.10976,
+      97.736512,
+      97.507712
+     ],
+     "original_launches": [
+      245,
+      249,
+      243
+     ],
+     "port_launches": [
+      246,
+      236,
+      244
+     ]
+    },
+    {
+     "region": "kernels.all[b1]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 31.58912,
+     "port_ms": 31.772896,
+     "ratio": 1.0058176992584789,
+     "original_runs": [
+      31.315328,
+      31.58912,
+      31.78688
+     ],
+     "port_runs": [
+      32.617344,
+      31.772896,
+      31.708672
+     ],
+     "original_launches": [
+      87,
+      85,
+      85
+     ],
+     "port_launches": [
+      84,
+      76,
+      82
+     ]
+    },
+    {
+     "region": "kernels.all[b2]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 32.480768,
+     "port_ms": 32.87984,
+     "ratio": 1.0122864089913146,
+     "original_runs": [
+      32.389408,
+      32.559456,
+      32.480768
+     ],
+     "port_runs": [
+      32.975584,
+      32.844896,
+      32.87984
+     ],
+     "original_launches": [
+      78,
+      80,
+      78
+     ],
+     "port_launches": [
+      79,
+      81,
+      77
+     ]
+    },
+    {
+     "region": "kernels.all[b3]",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 32.123424,
+     "port_ms": 32.9192,
+     "ratio": 1.0247724526501283,
+     "original_runs": [
+      32.123424,
+      32.045344,
+      32.530944
+     ],
+     "port_runs": [
+      32.516832,
+      33.11872,
+      32.9192
+     ],
+     "original_launches": [
+      80,
+      84,
+      80
+     ],
+     "port_launches": [
+      83,
+      79,
+      85
+     ]
+    },
+    {
+     "region": "kernels.fill_ll",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.05216,
+     "port_ms": 0.053024,
+     "ratio": 1.0165644171779142,
+     "original_runs": [
+      0.05216,
+      0.051328,
+      0.057984
+     ],
+     "port_runs": [
+      0.053024,
+      0.0544,
+      0.051552
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.fill_int",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.026336,
+     "port_ms": 0.02624,
+     "ratio": 0.9963547995139733,
+     "original_runs": [
+      0.025856,
+      0.026336,
+      0.051104
+     ],
+     "port_runs": [
+      0.026784,
+      0.02624,
+      0.025952
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_distances_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 72.278784,
+     "port_ms": 73.839136,
+     "ratio": 1.0215879669475347,
+     "original_runs": [
+      71.993792,
+      72.278784,
+      72.930592
+     ],
+     "port_runs": [
+      74.248608,
+      73.839136,
+      73.58128
+     ],
+     "original_launches": [
+      73,
+      75,
+      72
+     ],
+     "port_launches": [
+      75,
+      70,
+      74
+     ]
+    },
+    {
+     "region": "kernels.collect_candidates_warp",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 16.855616,
+     "port_ms": 16.909664,
+     "ratio": 1.00320652772346,
+     "original_runs": [
+      16.837696,
+      16.911904,
+      16.855616
+     ],
+     "port_runs": [
+      16.873216,
+      16.909664,
+      16.95632
+     ],
+     "original_launches": [
+      73,
+      75,
+      72
+     ],
+     "port_launches": [
+      75,
+      70,
+      74
+     ]
+    },
+    {
+     "region": "kernels.pack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.109504,
+     "port_ms": 0.108448,
+     "ratio": 0.9903565166569258,
+     "original_runs": [
+      0.117504,
+      0.109504,
+      0.109376
+     ],
+     "port_runs": [
+      0.108448,
+      0.10832,
+      0.108992
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.unpack_state",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.105344,
+     "port_ms": 0.105504,
+     "ratio": 1.0015188335358445,
+     "original_runs": [
+      0.105344,
+      0.104704,
+      0.10544
+     ],
+     "port_runs": [
+      0.105536,
+      0.104896,
+      0.105504
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.mark_deleted_tree_edges",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.080352,
+     "port_ms": 0.080576,
+     "ratio": 1.0027877339705296,
+     "original_runs": [
+      0.080288,
+      0.080352,
+      0.085536
+     ],
+     "port_runs": [
+      0.086944,
+      0.080576,
+      0.080128
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.init_jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.0592,
+     "port_ms": 0.059584,
+     "ratio": 1.0064864864864864,
+     "original_runs": [
+      0.059296,
+      0.059072,
+      0.0592
+     ],
+     "port_runs": [
+      0.060064,
+      0.058272,
+      0.059584
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.jump",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.839584,
+     "port_ms": 0.842848,
+     "ratio": 1.0038876395929412,
+     "original_runs": [
+      0.841408,
+      0.839584,
+      0.836256
+     ],
+     "port_runs": [
+      0.844544,
+      0.842848,
+      0.842688
+     ],
+     "original_launches": [
+      15,
+      15,
+      15
+     ],
+     "port_launches": [
+      15,
+      15,
+      15
+     ]
+    },
+    {
+     "region": "kernels.invalidate",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.10672,
+     "port_ms": 0.107168,
+     "ratio": 1.0041979010494753,
+     "original_runs": [
+      0.10672,
+      0.106784,
+      0.106592
+     ],
+     "port_runs": [
+      0.106848,
+      0.107168,
+      0.107168
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.pull_invalidated",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 1.172608,
+     "port_ms": 1.225984,
+     "ratio": 1.0455190481388494,
+     "original_runs": [
+      1.172608,
+      1.173728,
+      1.164832
+     ],
+     "port_runs": [
+      1.225984,
+      1.231008,
+      1.21984
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.relax_inserted",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.176768,
+     "port_ms": 0.180192,
+     "ratio": 1.0193700217233888,
+     "original_runs": [
+      0.176768,
+      0.176576,
+      0.177216
+     ],
+     "port_runs": [
+      0.180416,
+      0.178912,
+      0.180192
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "region": "kernels.push",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 4.162912,
+     "port_ms": 4.189344,
+     "ratio": 1.0063494015727452,
+     "original_runs": [
+      4.162912,
+      4.178848,
+      4.162848
+     ],
+     "port_runs": [
+      4.189344,
+      4.195072,
+      4.188512
+     ],
+     "original_launches": [
+      54,
+      54,
+      54
+     ],
+     "port_launches": [
+      54,
+      54,
+      54
+     ]
+    },
+    {
+     "region": "kernels.count_mismatches",
+     "gate_kind": "none",
+     "reading": "kernel time, clocks locked to base (ncu)",
+     "original_ms": 0.096,
+     "port_ms": 0.0,
+     "ratio": 0.0,
+     "original_runs": [
+      0.095808,
+      0.096416,
+      0.096
+     ],
+     "port_runs": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "original_launches": [
+      3,
+      3,
+      3
+     ],
+     "port_launches": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "launch": {
+    "original": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 1780.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 34.0,
+      "launch__grid_size": 5769.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1341.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 6092.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 89.0,
+      "launch__block_size": 256.0
+     },
+     "count_mismatches": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     }
+    },
+    "port": {
+     "pack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "mark_deleted_tree_edges": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 1780.0,
+      "launch__block_size": 256.0
+     },
+     "init_jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "jump": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "invalidate": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "pull_invalidated": {
+      "launch__registers_per_thread": 36.0,
+      "launch__grid_size": 5769.0,
+      "launch__block_size": 256.0
+     },
+     "relax_inserted": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1341.0,
+      "launch__block_size": 256.0
+     },
+     "push": {
+      "launch__registers_per_thread": 30.0,
+      "launch__grid_size": 6091.0,
+      "launch__block_size": 256.0
+     },
+     "unpack_state": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "fill_ll": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "fill_int": {
+      "launch__registers_per_thread": 16.0,
+      "launch__grid_size": 4703.0,
+      "launch__block_size": 256.0
+     },
+     "collect_candidates_warp": {
+      "launch__registers_per_thread": 20.0,
+      "launch__grid_size": 1.0,
+      "launch__block_size": 256.0
+     },
+     "pull_distances_warp": {
+      "launch__registers_per_thread": 31.0,
+      "launch__grid_size": 89.0,
+      "launch__block_size": 256.0
+     }
+    }
+   }
+  }
+ }
+}

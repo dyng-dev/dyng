@@ -1,0 +1,32 @@
+{
+ "what": "M11a step 2, HD10: the readers of dynG 0.3.0 (tag v0.3.0, git archive, Release, cpu-only) on files written by 0.4 (the library's writers at this step's commit) and from the specification (cpp/fuzz/make_dgb_seeds.py)",
+ "reader": "v0.3.0 cpp/src/io/batch_binary.cpp:155 (flags & ~known) and batch_text.cpp (reserved incidence operations)",
+ "files": {
+  "hyper_weighted_03.dgb": {
+   "sha256": "e8165460661e8d31e5901a2860ef73bbb49e84095775d098ef135f5616d6513b",
+   "v0.3.0": "READ"
+  },
+  "incidence_edits.dgt": {
+   "sha256": "54374d8bda6a32630fd4e2cfd76688c05cbf4bbe229e97c571e64997adc446a1",
+   "v0.3.0": "io_error: dyng: files/incidence_edits.dgt:4:1: the incidence operation '-i' is reserved for the incidence edits of hypergraph batches (0.4); this release reads hyperedge operations ('+h', '-h') only"
+  },
+  "spec_incidence_edits.dgb": {
+   "sha256": "2df580959de6dfacd5220d15aed2d9d17db8d68cc494e8b984d607d9e81b1309",
+   "v0.3.0": "io_error: dyng: files/spec_incidence_edits.dgb: invalid header: unknown flags 8 (written by a newer dynG?)"
+  },
+  "written_edits.dgb": {
+   "sha256": "b6cc3a3bf255b12984b9d10a9c01bb93b43f57f9dd9fae70728e86b4af03e72d",
+   "v0.3.0": "io_error: dyng: files/written_edits.dgb: invalid header: unknown flags 8 (written by a newer dynG?)"
+  },
+  "written_edits.dgt": {
+   "sha256": "5116d09dcf72e3818f6c614bf762b1f46ac18ab2c76367262af882c75a84413c",
+   "v0.3.0": "io_error: dyng: files/written_edits.dgt:4:1: the incidence operation '-i' is reserved for the incidence edits of hypergraph batches (0.4); this release reads hyperedge operations ('+h', '-h') only"
+  },
+  "written_plain.dgb": {
+   "sha256": "dd6ced84e03649e80518c9b082f5d7384f11ccbdd890e32f33b1ec456ddd5b91",
+   "v0.3.0": "READ"
+  }
+ },
+ "expected": "every file with incidence edits refused with an io_error; every file without them read",
+ "passed": true
+}

@@ -379,8 +379,12 @@ TEST_F(HyperedgeBatchText, RejectsMalformedFiles) {
       {"+e 0 1\n", false, 1},              // graph operations in a hypergraph file
       {"+h 0\n-e 0 1\n", false, 2},        // the kinds do not mix
       {"%dgt 1 graph\n", false, 1},        // a graph file
-      {"+i 0 1\n", false, 1},              // incidence edits: 0.4
-      {"-i 0 1\n", false, 1},              // incidence edits: 0.4
+      {"+i 0\n", false, 1},                // incomplete incidence edit
+      {"-i 0 1 2\n", false, 1},            // extra token
+      {"+i -1 0\n", false, 1},             // negative id
+      {"-i 0 9\n", false, 1},              // vertex out of range (n = 4)
+      {"+i 0 x\n", false, 1},              // not an integer
+      {"+i 0 1 ; 2\n", false, 1},          // no weight on an edit
       {"+h\n", false, 1},                  // no member
       {"+h ; 3\n", true, 1},               // no member
       {"+h 0 9\n", false, 1},              // member out of range (n = 4)
@@ -395,7 +399,7 @@ TEST_F(HyperedgeBatchText, RejectsMalformedFiles) {
       {"+h 0 1 ; 3 4\n", true, 1},         // extra after the weight
       {"%batch 0\n%batch 0\n", false, 2},  // ids not increasing
       {"+h 0\n%batch 1\n", false, 2},      // operations before the first %batch
-      {"+v 1\n", false, 1},                // vertex operations: 0.4
+      {"+v 1\n", false, 1},                // vertex operations: a later release
   };
   for (const bad_case& c : cases) {
     SCOPED_TRACE(c.text);
@@ -408,8 +412,10 @@ TEST_F(HyperedgeBatchText, RejectsMalformedFiles) {
     });
     EXPECT_EQ(e.line(), c.line);
   }
-  const auto e = expect_io_error([&] { (void)read_batches("+i 0 1\n"); });
-  EXPECT_NE(std::string(e.what()).find("0.4"), std::string::npos) << e.what();
+  // An incidence edit is a hypergraph operation: the edge reader names the hypergraph reader.
+  const auto e = expect_io_error(
+      [&] { (void)dyng::io::read_batches<std::int32_t, std::int32_t>(file("+i 0 1\n")); });
+  EXPECT_NE(std::string(e.what()).find("read_hyperedge_batches"), std::string::npos) << e.what();
   // A member outside the hypergraph's vertex set says that the count is fixed (R030 review).
   const auto outside = expect_io_error([&] { (void)read_batches("+h 0 99\n", 4); });
   EXPECT_NE(std::string(outside.what())
@@ -446,12 +452,35 @@ TEST_F(HyperedgeBatchText, RoundTripsThroughTheWriter) {
   EXPECT_EQ(back[0].insert_weights(), a.insert_weights());
   EXPECT_EQ(back[1].delete_hyperedges(), b.delete_hyperedges());
   EXPECT_TRUE(back[2].empty());
-  // What the writer refuses (the file would not read back, or it cannot hold it).
+  // The incidence edits (0.4): written after the deletions, removals then additions, and read
+  // back in file order whatever the order of the lines.
   dyng::hyperedge_batch<std::int32_t, std::int32_t> inc;
+  inc.insert_hyperedge({2}, 3);
   inc.insert_incidence(0, 1);
+  inc.delete_incidence(4, 2);
+  inc.delete_incidence(1, 0);
+  inc.delete_hyperedge(7);
   using wvec = std::vector<dyng::hyperedge_batch_view<std::int32_t, std::int32_t>>;
-  EXPECT_THROW(dyng::io::write_hyperedge_batches(path, wvec{inc.view()}),
-               dyng::not_supported_error);
+  dyng::io::write_hyperedge_batches(path, wvec{inc.view()});
+  EXPECT_EQ(read_text(path),
+            "%dgt 1 hypergraph\n%batch 0\n-h 7\n-i 4 2\n-i 1 0\n+i 0 1\n+h 2 ; 3\n");
+  const std::string shuffled = tmp_.path("shuffled.dgt");
+  dyng::test::write_text(shuffled, "+i 0 1\n+h 2;3\n-i 4 2\n-h 7\n-i 1 0\n");
+  for (const std::string& p : {path, shuffled}) {
+    const auto r = dyng::io::read_hyperedge_batches<std::int32_t, std::int32_t>(p);
+    ASSERT_EQ(r.size(), 1u);
+    EXPECT_EQ(r[0].delete_incidence_hyperedge(), (std::vector<std::int64_t>{4, 1}));
+    EXPECT_EQ(r[0].delete_incidence_vertex(), (std::vector<std::int32_t>{2, 0}));
+    EXPECT_EQ(r[0].insert_incidence_hyperedge(), (std::vector<std::int64_t>{0}));
+    EXPECT_EQ(r[0].insert_incidence_vertex(), (std::vector<std::int32_t>{1}));
+    EXPECT_EQ(r[0].delete_hyperedges(), (std::vector<std::int64_t>{7}));
+    EXPECT_EQ(r[0].insert_members(), (std::vector<std::int32_t>{2}));
+  }
+  // What the writer refuses (the file would not read back).
+  dyng::hyperedge_batch<std::int32_t, std::int32_t> neg_edit;
+  neg_edit.delete_incidence(-1, 1);
+  EXPECT_THROW(dyng::io::write_hyperedge_batches(path, wvec{neg_edit.view()}),
+               dyng::invalid_argument_error);
   dyng::hyperedge_batch<std::int32_t, std::int32_t> neg;
   neg.delete_hyperedge(-1);
   EXPECT_THROW(dyng::io::write_hyperedge_batches(path, wvec{neg.view()}),

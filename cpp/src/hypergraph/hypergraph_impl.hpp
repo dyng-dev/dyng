@@ -12,6 +12,9 @@
  */
 #pragma once
 
+#include "hypergraph/radix_sort.hpp"
+#include "hypergraph/slack_csr/slack_layout.hpp"
+#include "hypergraph/slack_csr/slack_rows.hpp"
 #include "hypergraph/store.hpp"
 
 #include <dyng/core/backend.hpp>
@@ -62,7 +65,36 @@ struct hyper_applied {
   std::int64_t ignored_deletions = 0;            ///< skipped deletions
   std::int64_t dropped_members = 0;              ///< dropped repeated members
   bool has_incidence_delta = false;              ///< whether incidence_delta was filled
-  hyper_incidence_delta incidence_delta;         ///< the M11 hook
+  /// The (vertex, id, sign) of every incidence the batch changed: under slack_csr storage always
+  /// (the deleted and inserted hyperedges' members and the incidence edits; ADR 0085), under
+  /// escher only when the caller asks (hypergraph_access::apply's record_incidence_delta).
+  hyper_incidence_delta incidence_delta;
+
+  // ---- slack_csr storage (0.4, ADR 0085 and 0086): what hyper_sssp reads, filled by every batch
+  // of a slack_csr hypergraph (has_slack_record), empty under escher.
+  bool has_slack_record = false;         ///< whether the fields below are filled
+  std::vector<std::int64_t> edited_ids;  ///< ids whose members incidence edits changed, sorted
+  hyper::member_rows touched_pre_rows;   ///< row i: touched_hyperedges[i] on G_t (empty if
+                                         ///< it was not live)
+  hyper::member_rows touched_post_rows;  ///< row i: touched_hyperedges[i] on G_{t+1}
+  std::vector<std::int32_t> touched_vertex_lengths;  ///< the hyperedges of touched_vertices[i]
+                                                     ///< on G_{t+1}
+  /// The pair delta of the line graph (empty while it is not maintained: none, or automatic
+  /// before its first read; has_line_graph_delta says which). On the CUDA store the pairs stay on
+  /// the device (pairs_on_device; hyper_sssp's engine reads them there, slack_access::last_delta())
+  /// and are copied here on request by hypergraph_access::pairs() (mutable: a cache of the
+  /// committed record; ADR 0089).
+  mutable hyper::line_graph_delta pairs;
+  bool has_line_graph_delta = false;         ///< whether `pairs` is the batch's delta
+  bool pairs_on_device = false;              ///< the pairs are on the device (the CUDA store)
+  mutable bool pairs_downloaded = false;     ///< `pairs` holds them (pairs_on_device)
+  std::vector<std::int64_t> new_ids;         ///< inserted ids at or above G_t's id bound
+  std::vector<std::int64_t> recreated_ids;   ///< inserted ids below G_t's id bound (dead on G_t,
+                                             ///< or deleted and reused by the batch)
+  std::vector<std::int64_t> dead_ids;        ///< deleted ids that the batch did not reuse
+  std::int64_t inserted_incidences = 0;      ///< incidence additions applied
+  std::int64_t deleted_incidences = 0;       ///< incidence removals applied
+  std::int64_t skipped_incidence_edits = 0;  ///< incidence edits skipped
 };
 
 /**
@@ -83,6 +115,24 @@ struct hyper_staged_batch {
   std::int64_t requested_deletions = 0;   ///< hyperedge deletions as requested
   std::uint64_t version = 0;              ///< the hypergraph version it was validated against
   std::int64_t id_bound = 0;              ///< hyperedge_id_bound() of G_t
+
+  // ---- Incidence edits (slack_csr storage, 0.4; ADR 0085): MOSP_ESCHER's skip rules evaluated
+  // in batch order against G_t, the removals after the hyperedge deletions, the additions after
+  // the removals.
+  std::vector<std::int64_t> removal_ids;           ///< applied removals: the hyperedge, batch order
+  std::vector<std::int32_t> removal_vertices;      ///< applied removals: the vertex
+  std::vector<std::int64_t> addition_ids;          ///< applied additions: the hyperedge
+  std::vector<std::int32_t> addition_vertices;     ///< applied additions: the vertex
+  std::int64_t skipped_incidence_edits = 0;        ///< edits skipped (counted in skipped_ops)
+  std::int64_t requested_incidence_removals = 0;   ///< removals as requested
+  std::int64_t requested_incidence_additions = 0;  ///< additions as requested
+  std::vector<std::int64_t> edited_ids;            ///< ids with an applied edit, increasing
+  hyper::member_rows edited_pre_rows;              ///< row i: edited_ids[i] on G_t
+  hyper::member_rows edited_post_rows;             ///< row i: edited_ids[i] after the edits
+  /// The applied removals grouped by hyperedge (ids increasing, a row's vertices in batch order:
+  /// MOSP_ESCHER's flushGrouped of its H2V unfill), built once in Step 0.
+  hyper::grouped_members removal_groups;
+  hyper::grouped_members addition_groups;  ///< the same for the applied additions (its H2V fill)
 };
 
 namespace hyper {
@@ -130,8 +180,15 @@ class touched_marks {
   void take_sorted(std::vector<value_t>& out) {
     out.clear();
     if (list_.size() * 32 < n_) {
-      out.assign(list_.begin(), list_.end());
-      std::sort(out.begin(), out.end());
+      // A radix sort of the marked values (M11a step 3: std::sort was a visible part of a 50K
+      // batch's host cost; the same values, sorted).
+      words_.resize(list_.size());
+      for (std::size_t i = 0; i < list_.size(); ++i)
+        words_[i] = static_cast<std::uint64_t>(list_[i]) << 32;
+      radix_sort_by_key(words_, static_cast<std::uint64_t>(n_), scratch_);
+      out.resize(list_.size());
+      for (std::size_t i = 0; i < words_.size(); ++i)
+        out[i] = static_cast<value_t>(words_[i] >> 32);
     } else {
       out.reserve(list_.size());
       for (std::size_t i = 0; i < n_; ++i)
@@ -144,6 +201,7 @@ class touched_marks {
  private:
   std::vector<std::uint8_t> flags_;
   std::vector<value_t> list_;
+  std::vector<std::uint64_t> words_, scratch_;
   std::size_t n_ = 0;
 };
 
@@ -169,12 +227,62 @@ class hypergraph_impl {
   hyper_applied applied;                           ///< the last applied batch
   hyper::touched_marks<std::int64_t> touched_ids;  ///< scratch of the applied record (not cloned)
   hyper::touched_marks<std::int32_t> touched_vertices;  ///< the same for the vertices
+  /// The radix-sort buffers of a slack_csr batch (Step 0's grouping of the incidence edits, the
+  /// record's sorted ids; scratch, not cloned).
+  std::vector<std::uint64_t> sort_words, sort_scratch;
+  hyper::slack::knobs knobs;  ///< the internal knobs of slack_csr storage (ADR 0086)
+  /// The lifetime token of this state object: a result that reads its hypergraph after the call
+  /// that produced it (hyper_sssp's distance_to()) keeps a weak reference and refuses an expired
+  /// one (every hypergraph_impl is built new; nothing copies one).
+  std::shared_ptr<const int> lifetime = std::make_shared<const int>(0);
 };
 
 /**
  * @brief Internal access to a hypergraph's state (for the algorithms and the tests).
  */
 struct hypergraph_access {
+  /**
+   * @brief hypergraph::from_hyperedges with the internal knobs of slack_csr storage (the parity
+   *        harness sets MOSP_ESCHER's capacities; ADR 0086).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in] res        Execution resources.
+   * @param[in] hyperedges The hyperedges.
+   * @param[in] props      The properties.
+   * @param[in] knobs      The knobs (validate_knobs()).
+   * @return The hypergraph.
+   */
+  template <typename vertex_t, typename weight_t>
+  static hypergraph<vertex_t, weight_t> build(const resources& res,
+                                              hyperedge_list_view<vertex_t, weight_t> hyperedges,
+                                              const hypergraph_properties& props,
+                                              const hyper::slack::knobs& knobs);
+
+  /**
+   * @brief The slack_csr state of a hypergraph: the slack-row accessor, the counters, the knobs
+   *        (slack_rows.hpp).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in] h The hypergraph.
+   * @return The state, or nullptr under escher storage.
+   */
+  template <typename vertex_t, typename weight_t>
+  static const hyper::slack_access* slack(const hypergraph<vertex_t, weight_t>& h) {
+    return h.impl().store->slack();
+  }
+
+  /**
+   * @brief The mutable slack_csr state (the harness's per-call entry headroom).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in,out] h The hypergraph.
+   * @return The state, or nullptr under escher storage.
+   */
+  template <typename vertex_t, typename weight_t>
+  static hyper::slack_access* slack(hypergraph<vertex_t, weight_t>& h) {
+    return h.impl().store->slack();
+  }
+
   /**
    * @brief The state of a hypergraph.
    * @tparam vertex_t Vertex id type.
@@ -224,6 +332,28 @@ struct hypergraph_access {
   template <typename vertex_t, typename weight_t>
   static const hyper_applied& applied(const hypergraph<vertex_t, weight_t>& h) {
     return h.impl().applied;
+  }
+
+  /**
+   * @brief The pair delta of the last batch on the host (slack_csr storage): the applied
+   *        record's, copied from the device once on the CUDA store (ADR 0089).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in] h The hypergraph.
+   * @return The pairs (deleted first; empty when the batch had no pair delta).
+   */
+  template <typename vertex_t, typename weight_t>
+  static const hyper::line_graph_delta& pairs(const hypergraph<vertex_t, weight_t>& h) {
+    const hyper_applied& a = h.impl().applied;
+    if (a.pairs_on_device && !a.pairs_downloaded) {
+      const std::int64_t candidates = a.pairs.candidates;
+      const std::int64_t net = a.pairs.net_changes;
+      h.impl().store->download_line_graph_delta(a.pairs);
+      a.pairs.candidates = candidates;
+      a.pairs.net_changes = net;
+      a.pairs_downloaded = true;
+    }
+    return a.pairs;
   }
 
   /**

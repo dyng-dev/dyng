@@ -66,6 +66,7 @@ struct line_graph_view {
   array_view<const std::int64_t> col_ind;   ///< the neighbour ids of every row, sorted
   array_view<const std::int64_t> out;       ///< per row: the first neighbour above the row's id
   array_view<const std::int32_t> overlaps;  ///< shared vertices per entry; empty under escher
+                                            ///< and slack_csr storage (0.4)
   array_view<const weight_t> weights;       ///< weights by id (host memory); empty if unweighted
   std::uint64_t version = 0;                ///< the hypergraph version this view describes
 
@@ -102,7 +103,9 @@ struct storage_path_counters {
  *
  * `device_bytes` is the scope of ESCHER-GPU's `DynamicHypergraph::deviceBytes()`: the stores of
  * the incidence relations and of the line graph with their operation buffers, and the row views
- * the container keeps; the views built on request (h2v(), v2h()) are counted in `view_bytes`.
+ * the container keeps (slack_csr storage: the incidence mirror, the slack line graph, the node
+ * weights and the delta buffers); the views built on request (h2v(), v2h(), h2h()) are counted in
+ * `view_bytes`.
  * The counters are those of the last completed operation (reading them does not synchronize).
  * @ingroup hypergraph
  */
@@ -114,9 +117,11 @@ struct storage_stats {
   std::int64_t payload_used = 0;      ///< h2v payload entries in use (the bump pointer)
   std::int64_t growths = 0;           ///< payload growths (all trees)
   std::int64_t compactions = 0;       ///< payload compactions (all trees)
-  storage_path_counters fill;         ///< appends of values to rows (v2h)
+  storage_path_counters fill;         ///< appends of values to rows (escher: v2h; slack_csr:
+                                      ///< h2v's incidence additions)
   storage_path_counters reuse;        ///< inserted rows that reused a deleted slot (h2v)
-  storage_path_counters unfill;       ///< removals of values from rows (v2h)
+  storage_path_counters unfill;       ///< removals of values from rows (escher: v2h; slack_csr:
+                                      ///< h2v's incidence removals)
 };
 
 }  // namespace dyng

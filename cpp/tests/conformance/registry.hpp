@@ -23,6 +23,8 @@ struct mosp;
 struct dynamic_bfs;
 /// The tag of triangle_delta.
 struct triangle_delta;
+/// The tag of hyper_sssp.
+struct hyper_sssp;
 /// The tag of triad_count.
 struct triad_count;
 }  // namespace dyng::conformance::tags
@@ -42,6 +44,9 @@ struct triad_count;
 #if defined(DYNG_ALGORITHM_TRIANGLE_DELTA)
 #include "algorithms/triangle_delta/triangle_delta_traits.hpp"
 #endif
+#if defined(DYNG_ALGORITHM_HYPER_SSSP)
+#include "algorithms/hyper_sssp/hyper_sssp_traits.hpp"
+#endif
 #if defined(DYNG_ALGORITHM_TRIAD_COUNT)
 #include "algorithms/triad_count/triad_count_traits.hpp"
 #endif
@@ -56,11 +61,12 @@ using list_2 = append_t<list_1, tags::cycle_count>;
 using list_3 = append_t<list_2, tags::mosp>;
 using list_4 = append_t<list_3, tags::dynamic_bfs>;
 using list_5 = append_t<list_4, tags::triangle_delta>;
-using list_6 = append_t<list_5, tags::triad_count>;
+using list_6 = append_t<list_5, tags::hyper_sssp>;
+using list_7 = append_t<list_6, tags::triad_count>;
 }  // namespace registry_detail
 
 /// Every algorithm with a manifest, in the order of cpp/src/algorithms/CMakeLists.txt; the kit
 /// keeps those whose test_traits this build defines (registered_algorithms, conformance.hpp).
-using manifest_algorithms = registry_detail::list_6;
+using manifest_algorithms = registry_detail::list_7;
 
 }  // namespace dyng::conformance

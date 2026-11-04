@@ -85,9 +85,37 @@ TEST(HypergraphIds, CommittedTracesGiveTheOriginalsIds) {
       }
       if (r.repo == "MOSP_ESCHER") {
         EXPECT_EQ(r.skipped_compared, r.batches);
-        EXPECT_GT(r.vertex_batches, 0);  // the vertex-kind batches stop their sessions (M11)
+        EXPECT_GT(r.vertex_batches, 0);  // the vertex-kind batches stop their sessions (escher)
       }
     }
+  }
+}
+
+// M11a step 2 (ADRs 0085, 0086): MOSP_ESCHER's committed extract on slack_csr storage, its
+// sessions replayed whole with their incidence edits (the host model's fills and unfills in
+// lockstep), the dead ids and the pair delta's directed keys compared; escher storage still
+// stops the sessions at their first vertex-kind batch.
+TEST(HypergraphIds, MospEscherSessionsReplayWholeOnSlackCsr) {
+  const fs::path path = batches() / "mosp_escher_014-test_h2h_delta.cbt";
+  for (const dyng::resources& res : backends()) {
+    SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())) + " (" +
+                 std::to_string(res.num_threads()) + " threads)");
+    dyng::test::cbst_compare::trace_source source(path.string(),
+                                                  fs::temp_directory_path().string());
+    ids::options opt;
+    opt.storage = "slack_csr";
+    opt.line_graph = true;
+    const ids::report r = ids::replay(source.reader(), res, opt, path.string());
+    EXPECT_TRUE(r.ok()) << r.to_json();
+    EXPECT_EQ(r.stopped_sessions, 0);
+    EXPECT_GT(r.vertex_batches, 0);
+    EXPECT_EQ(r.vertex_batches_replayed, r.vertex_batches);
+    EXPECT_GT(r.removals + r.additions, 0);
+    EXPECT_EQ(r.dead_compared, r.batches - r.original_exceptions);
+    EXPECT_GT(r.key_batches, 0);
+    EXPECT_EQ(r.line_graph_oracle_states, r.sessions + r.batches - r.original_exceptions);
+    const ids::report e = run(path, res);
+    EXPECT_GT(e.stopped_sessions, 0);  // escher storage: unchanged (0.3)
   }
 }
 

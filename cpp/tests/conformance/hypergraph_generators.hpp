@@ -20,11 +20,15 @@
  * delete-all, re-insert (delete hyperedges and insert their member sets again), a batch larger
  * than the hypergraph, ids at the index limits (members 0 and n - 1, the largest live id,
  * INT64_MIN / INT64_MAX deletions) and skewed cardinality (a hyperedge of min(n, 1,100) members,
- * >= 1,024 on the medium shapes). The models and the batches come from the library's public
+ * >= 1,024 on the medium shapes); and the incidence edits of slack_csr storage (0.4, M11a step 2):
+ * removals, additions, both mixed with hyperedge operations, emptying attempts, edits of ids the
+ * batch deletes or inserts, repeats and out-of-range vertices and ids, whose skip rules the model
+ * evaluates as the container does (MOSP_ESCHER's). The models and the batches come from the library's public
  * generators (generators/hypergraphs.hpp: uniform_hypergraph(), random_hyperedge_batch(), M8b
  * step 4), seeded from the kit's engine; the kit derives what the commit must report from the
  * model. The id_reuse orders and the capacity presets are the property
- * presets: {erase_first, insert_first} x {escher_gpu(), mosp_escher(), the default}.
+ * presets: {erase_first, insert_first} x {escher_gpu(), mosp_escher(), the default} under escher
+ * storage, and {insert_first, erase_first} x {mosp_escher(), the default} under slack_csr.
  */
 #pragma once
 
@@ -72,7 +76,20 @@ enum class hyper_mix : std::uint8_t {
   larger,       ///< more insertions than the hypergraph has hyperedges
   limits,       ///< ids at the index limits
   skewed,       ///< a hyperedge of min(n, 1100) members (>= 1,024 on the medium shapes)
+  // The incidence edits (slack_csr storage, 0.4; the escher presets refuse them, C7):
+  incidence_removals,      ///< a member removed from each of some live hyperedges
+  incidence_additions,     ///< a vertex added to each of some live hyperedges
+  incidence_mixed,         ///< deletions, removals, additions and insertions in one batch
+  incidence_emptying,      ///< every member of two hyperedges removed (the last ones skipped)
+  incidence_same_batch,    ///< edits of ids the batch deletes, or may insert (skipped)
+  incidence_repeats,       ///< the same removal and addition twice, an addition of a member
+  incidence_out_of_range,  ///< edits of out-of-range vertices and ids (skipped)
 };
+
+/// Whether a mix has incidence edits (it applies to slack_csr storage only).
+inline bool is_incidence_mix(hyper_mix mix) noexcept {
+  return mix >= hyper_mix::incidence_removals;
+}
 
 /// The mix's name (for traces).
 inline std::string_view to_string(hyper_mix mix) noexcept {
@@ -101,15 +118,45 @@ inline std::string_view to_string(hyper_mix mix) noexcept {
       return "limits";
     case hyper_mix::skewed:
       return "skewed";
+    case hyper_mix::incidence_removals:
+      return "incidence_removals";
+    case hyper_mix::incidence_additions:
+      return "incidence_additions";
+    case hyper_mix::incidence_mixed:
+      return "incidence_mixed";
+    case hyper_mix::incidence_emptying:
+      return "incidence_emptying";
+    case hyper_mix::incidence_same_batch:
+      return "incidence_same_batch";
+    case hyper_mix::incidence_repeats:
+      return "incidence_repeats";
+    case hyper_mix::incidence_out_of_range:
+      return "incidence_out_of_range";
   }
   return "?";
 }
 
 /// Every hyperedge mix, in the order C2 runs them.
 inline std::vector<hyper_mix> all_hyper_mixes() {
-  return {hyper_mix::insert_only, hyper_mix::delete_only, hyper_mix::mixed,  hyper_mix::reuse,
-          hyper_mix::duplicates,  hyper_mix::dead_ids,    hyper_mix::empty,  hyper_mix::delete_all,
-          hyper_mix::reinsert,    hyper_mix::larger,      hyper_mix::limits, hyper_mix::skewed};
+  return {hyper_mix::insert_only,
+          hyper_mix::delete_only,
+          hyper_mix::mixed,
+          hyper_mix::reuse,
+          hyper_mix::duplicates,
+          hyper_mix::dead_ids,
+          hyper_mix::empty,
+          hyper_mix::delete_all,
+          hyper_mix::reinsert,
+          hyper_mix::larger,
+          hyper_mix::limits,
+          hyper_mix::skewed,
+          hyper_mix::incidence_removals,
+          hyper_mix::incidence_additions,
+          hyper_mix::incidence_mixed,
+          hyper_mix::incidence_emptying,
+          hyper_mix::incidence_same_batch,
+          hyper_mix::incidence_repeats,
+          hyper_mix::incidence_out_of_range};
 }
 
 /// The library generator's mix of a kit mix (the same names and promises).
@@ -140,6 +187,20 @@ inline generators::hyperedge_batch_mix generator_mix(hyper_mix mix) noexcept {
       return g::limits;
     case hyper_mix::skewed:
       return g::skewed;
+    case hyper_mix::incidence_removals:
+      return g::incidence_removals;
+    case hyper_mix::incidence_additions:
+      return g::incidence_additions;
+    case hyper_mix::incidence_mixed:
+      return g::incidence_mixed;
+    case hyper_mix::incidence_emptying:
+      return g::incidence_emptying;
+    case hyper_mix::incidence_same_batch:
+      return g::incidence_same_batch;
+    case hyper_mix::incidence_repeats:
+      return g::incidence_repeats;
+    case hyper_mix::incidence_out_of_range:
+      return g::incidence_out_of_range;
   }
   return g::empty;
 }
@@ -247,12 +308,15 @@ struct generated_hyper_batch {
   using weight_type = typename hypergraph_t::weight_type;    ///< weights
   using row = typename hypergraph_model<hypergraph_t>::row;  ///< a hyperedge
   hyperedge_batch<vertex_type, weight_type> batch;           ///< the batch
-  std::vector<row> inserted;          ///< the inserted hyperedges, normalized, batch order
-  std::vector<std::int64_t> deleted;  ///< the live ids deleted (distinct, batch order)
-  std::vector<row> deleted_rows;      ///< their hyperedges
-  std::int64_t expected_ignored = 0;  ///< deletions the commit must skip
-  std::int64_t expected_dropped = 0;  ///< repeated members the commit must drop
-  bool invertible = true;             ///< C5 may undo it (always, from the summary)
+  std::vector<row> inserted;                ///< the inserted hyperedges, normalized, batch order
+  std::vector<std::int64_t> deleted;        ///< the live ids deleted (distinct, batch order)
+  std::vector<row> deleted_rows;            ///< their hyperedges
+  std::int64_t expected_ignored = 0;        ///< deletions the commit must skip
+  std::int64_t expected_dropped = 0;        ///< repeated members the commit must drop
+  std::int64_t expected_removals = 0;       ///< incidence removals the commit must apply
+  std::int64_t expected_additions = 0;      ///< incidence additions the commit must apply
+  std::int64_t expected_skipped_edits = 0;  ///< incidence edits the commit must skip
+  bool invertible = true;  ///< C5 may undo it (from the summary; not a batch with edits)
 };
 
 namespace hyper_generators_detail {
@@ -347,6 +411,45 @@ generated_hyper_batch<hypergraph_t> random_hyper_batch(hypergraph_model<hypergra
       ++out.expected_ignored;
     }
   }
+  // The incidence edits (slack_csr storage): MOSP_ESCHER's rules in batch order on the model
+  // after its deletions (an edit of a dead, deleted or out-of-range id, of an out-of-range vertex,
+  // the removal of a non-member or of a hyperedge's last member, the addition of a member: all
+  // skipped), the removals before the additions.
+  const auto edit = [&](std::int64_t id, vertex_type v, bool add) {
+    const auto it = m.live.find(id);
+    if (it == m.live.end() || v < 0 || static_cast<std::int64_t>(v) >= m.num_vertices) {
+      ++out.expected_skipped_edits;
+      return;
+    }
+    auto& members = it->second.members;
+    const auto at = std::lower_bound(members.begin(), members.end(), v);
+    const bool member = at != members.end() && *at == v;
+    if (add ? member : (!member || members.size() == 1)) {
+      ++out.expected_skipped_edits;
+      return;
+    }
+    if (add) {
+      members.insert(at, v);
+      ++out.expected_additions;
+    } else {
+      members.erase(at);
+      ++out.expected_removals;
+    }
+  };
+  for (std::size_t i = 0; i < generated.delete_incidence_hyperedge().size(); ++i) {
+    out.batch.delete_incidence(generated.delete_incidence_hyperedge()[i],
+                               generated.delete_incidence_vertex()[i]);
+    edit(generated.delete_incidence_hyperedge()[i], generated.delete_incidence_vertex()[i], false);
+  }
+  for (std::size_t i = 0; i < generated.insert_incidence_hyperedge().size(); ++i) {
+    out.batch.insert_incidence(generated.insert_incidence_hyperedge()[i],
+                               generated.insert_incidence_vertex()[i]);
+    edit(generated.insert_incidence_hyperedge()[i], generated.insert_incidence_vertex()[i], true);
+  }
+  if (!generated.delete_incidence_hyperedge().empty() ||
+      !generated.insert_incidence_hyperedge().empty()) {
+    out.invertible = false;
+  }
   for (std::size_t i = 0; i < generated.num_insertions(); ++i) {
     const auto first = generated.insert_members().begin() + generated.insert_offsets()[i];
     const auto last = generated.insert_members().begin() + generated.insert_offsets()[i + 1];
@@ -399,11 +502,18 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
                                       : "_w" + std::to_string(8 * sizeof(weight_t)));
   }
 
-  /// The presets: {erase_first, insert_first} x {escher_gpu(), mosp_escher(), the default}, each
-  /// with require(), and the traits' extras.
+  /// The presets: {erase_first, insert_first} x {escher_gpu(), mosp_escher(), the default} under
+  /// escher storage, {erase_first, insert_first} x {mosp_escher(), the default} under slack_csr
+  /// storage (0.4; the slack_csr line graph; every backend, the CUDA store of M11a step 3), each
+  /// with require() and kept when the traits accept it (accepts(): an algorithm that reads one
+  /// storage only), and the traits' extras.
   template <typename traits_t>
   static std::vector<kit_preset<hypergraph_properties>> presets() {
     std::vector<kit_preset<hypergraph_properties>> out;
+    const auto add = [&](hypergraph_properties p, std::string name) {
+      traits_t::require(p);
+      if (kit_detail::accepts<traits_t>(p)) out.push_back({std::move(name), p});
+    };
     for (const id_reuse reuse : {id_reuse::erase_first, id_reuse::insert_first}) {
       for (int c = 0; c < 3; ++c) {
         hypergraph_properties p;
@@ -411,19 +521,27 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
         p.capacity = c == 0   ? capacity_policy::escher_gpu()
                      : c == 1 ? capacity_policy::mosp_escher()
                               : capacity_policy{};
-        traits_t::require(p);
-        out.push_back({std::string(to_string(reuse)) + ", " +
-                           (c == 0   ? "escher_gpu()"
-                            : c == 1 ? "mosp_escher()"
-                                     : "default"),
-                       p});
+        add(p, std::string(to_string(reuse)) + ", " +
+                   (c == 0   ? "escher_gpu()"
+                    : c == 1 ? "mosp_escher()"
+                             : "default"));
+      }
+    }
+    for (const id_reuse reuse : {id_reuse::insert_first, id_reuse::erase_first}) {
+      for (int c = 0; c < 2; ++c) {
+        hypergraph_properties p;
+        p.storage = hypergraph_storage::slack_csr;
+        p.line_graph = line_graph_policy::slack_csr;
+        p.reuse = reuse;
+        p.capacity = c == 0 ? capacity_policy::mosp_escher() : capacity_policy{};
+        add(p, "slack_csr, " + std::string(to_string(reuse)) + ", " +
+                   (c == 0 ? "mosp_escher()" : "default"));
       }
     }
     if constexpr (kit_detail::has_extra_properties<traits_t>::value) {
       int i = 0;
       for (hypergraph_properties p : traits_t::extra_properties()) {
-        traits_t::require(p);
-        out.push_back({"extra properties " + std::to_string(i++), p});
+        add(p, "extra properties " + std::to_string(i++));
       }
     }
     return out;
@@ -437,23 +555,27 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
       case kit_check::c9:
         return all_hyper_mixes();
       case kit_check::c3:
-        return {hyper_mix::mixed,  hyper_mix::reuse,  hyper_mix::duplicates, hyper_mix::dead_ids,
-                hyper_mix::larger, hyper_mix::limits, hyper_mix::delete_all, hyper_mix::skewed};
+        return {hyper_mix::mixed,           hyper_mix::reuse,
+                hyper_mix::duplicates,      hyper_mix::dead_ids,
+                hyper_mix::larger,          hyper_mix::limits,
+                hyper_mix::delete_all,      hyper_mix::skewed,
+                hyper_mix::incidence_mixed, hyper_mix::incidence_emptying};
       case kit_check::c5:
         return {hyper_mix::insert_only, hyper_mix::delete_only, hyper_mix::mixed,
                 hyper_mix::reuse,       hyper_mix::duplicates,  hyper_mix::delete_all,
                 hyper_mix::reinsert,    hyper_mix::larger};
       case kit_check::c6:
-        return {hyper_mix::mixed, hyper_mix::reuse, hyper_mix::larger};
+        return {hyper_mix::mixed, hyper_mix::reuse, hyper_mix::larger, hyper_mix::incidence_mixed};
       case kit_check::c8:
-        return {hyper_mix::mixed, hyper_mix::reuse};
+        return {hyper_mix::mixed, hyper_mix::reuse, hyper_mix::incidence_mixed};
     }
     return {};
   }
 
-  /// Every mix applies to every preset.
-  static bool mix_applies(hyper_mix /*mix*/, const hypergraph_properties& /*props*/) {
-    return true;
+  /// Every hyperedge mix applies to every preset, the incidence mixes to slack_csr storage only
+  /// (escher storage refuses them: C7).
+  static bool mix_applies(hyper_mix mix, const hypergraph_properties& props) {
+    return !is_incidence_mix(mix) || props.storage == hypergraph_storage::slack_csr;
   }
 
   /// A random model of a size class.
@@ -548,13 +670,29 @@ struct container_traits<hypergraph<vertex_t, weight_t>> {
   static std::vector<kit_preset<hypergraph_properties>> composition_presets() {
     std::vector<kit_preset<hypergraph_properties>> out;
     for (const id_reuse reuse : {id_reuse::erase_first, id_reuse::insert_first}) {
-      hypergraph_properties p;
-      p.reuse = reuse;
-      p.capacity = reuse == id_reuse::erase_first ? capacity_policy::escher_gpu()
-                                                  : capacity_policy::mosp_escher();
-      traits_t::require(p);
-      partner_t::require(p);
-      out.push_back({std::string(to_string(reuse)), p});
+      // escher storage, else slack_csr storage with its line graph (0.4: an algorithm that reads
+      // one storage only, accepts()); none when the two accept no common storage (triad_count
+      // and hyper_sssp: HD9), so C10 skips that pair.
+      for (const hypergraph_storage storage :
+           {hypergraph_storage::escher, hypergraph_storage::slack_csr}) {
+        hypergraph_properties p;
+        p.reuse = reuse;
+        p.capacity = reuse == id_reuse::erase_first && storage == hypergraph_storage::escher
+                         ? capacity_policy::escher_gpu()
+                         : capacity_policy::mosp_escher();
+        if (storage == hypergraph_storage::slack_csr) {
+          p.storage = storage;
+          p.line_graph = line_graph_policy::slack_csr;
+        }
+        traits_t::require(p);
+        partner_t::require(p);
+        if (kit_detail::accepts<traits_t>(p) && kit_detail::accepts<partner_t>(p)) {
+          out.push_back({std::string(to_string(reuse)) +
+                             (storage == hypergraph_storage::slack_csr ? ", slack_csr" : ""),
+                         p});
+          break;
+        }
+      }
     }
     return out;
   }

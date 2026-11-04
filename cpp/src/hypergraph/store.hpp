@@ -11,7 +11,8 @@
  * Ids and vertices are 0-based here: the CBST keys, the +1 shift and the sentinels stay inside
  * the ESCHER store. The container validates a batch, then calls the phases of the store in the
  * order of its id_reuse rule; a store operation that throws leaves the store undefined (the
- * container is poisoned).
+ * container is poisoned). The slack_csr stores (0.4, ADR 0086) also take incidence edits (H2V
+ * removals and appends) and keep their line graph from the batch's pair delta (incidence_delta).
  */
 #pragma once
 
@@ -22,6 +23,7 @@
 #include <dyng/hypergraph/hypergraph_properties.hpp>
 #include <dyng/hypergraph/hypergraph_view.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -69,6 +71,63 @@ struct grouped_incidences {
 void group_by_vertex(const member_rows& rows, const std::vector<std::int64_t>& ids,
                      grouped_incidences& out);
 
+/// (hyperedge id, vertex) incidences grouped by hyperedge: group g is the id `ids[g]` with the
+/// vertices `members[prefix[g - 1] .. prefix[g])` (prefix inclusive). Ids are increasing; inside a
+/// group the vertices keep the order of the batch (MOSP_ESCHER's flushGrouped of its h2vUnfill
+/// and h2vFill lists: a stable sort by row key, hypergraph/src/DynamicHypergraph.cpp@4b86159:63-75).
+struct grouped_members {
+  std::vector<std::int64_t> ids;      ///< one per group, increasing
+  std::vector<std::int32_t> members;  ///< the vertices of every group
+  std::vector<std::int32_t> prefix;   ///< inclusive end of every group in `members`
+
+  /// @brief Whether there is no incidence. @return ids.empty().
+  [[nodiscard]] bool empty() const noexcept {
+    return ids.empty();
+  }
+};
+
+/// Groups (id, vertex) pairs by id, the vertices of an id in the given order.
+/// @param[in]  ids      The id of every pair.
+/// @param[in]  vertices The vertex of every pair.
+/// @param[out] out      The groups.
+void group_by_hyperedge(const std::vector<std::int64_t>& ids,
+                        const std::vector<std::int32_t>& vertices, grouped_members& out);
+
+/// The line-graph change of one batch (the pair delta of the applied record; slack_csr storage):
+/// sorted (a < b) pairs of ids, computed by incidence_delta (line_graph/incidence_delta.hpp).
+struct line_graph_delta {
+  std::vector<std::int64_t> deleted_a, deleted_b;    ///< pairs before and not after, a < b, sorted
+  std::vector<std::int64_t> inserted_a, inserted_b;  ///< pairs after and not before, sorted
+  std::int64_t candidates = 0;   ///< candidate entries of both passes (MOSP_ESCHER's count)
+  std::int64_t net_changes = 0;  ///< incidences whose net sign is not 0
+
+  /// @brief Empty, keeping the capacity.
+  void clear() noexcept {
+    deleted_a.clear();
+    deleted_b.clear();
+    inserted_a.clear();
+    inserted_b.clear();
+    candidates = 0;
+    net_changes = 0;
+  }
+};
+
+/// What a device store's pair delta reads of a batch besides its incidence changes (MOSP_ESCHER's
+/// IncidenceBatch: the touched rows before and after, the touched vertices' lengths after, the
+/// dead ids and the new weights; slack_csr storage, ADR 0089). The pointers are the applied
+/// record's fields; the host stores read their own state instead.
+struct touched_rows {
+  const std::vector<std::int64_t>* ids = nullptr;             ///< the touched ids, sorted, unique
+  const member_rows* pre = nullptr;                           ///< row i: ids[i] before the batch
+  const member_rows* post = nullptr;                          ///< row i: ids[i] after the batch
+  const std::vector<std::int32_t>* vertices = nullptr;        ///< the touched vertices, sorted
+  const std::vector<std::int32_t>* vertex_lengths = nullptr;  ///< their hyperedges after it
+  const std::vector<std::int64_t>* dead_ids = nullptr;     ///< deleted ids the batch did not reuse
+  const std::vector<std::int64_t>* new_weights = nullptr;  ///< the weight of every inserted id
+};
+
+class slack_access;
+
 /// The best-fit id state of a store's H2V tree, independent of the backend (ADR 0041, section
 /// 5): enough to rebuild a store on any backend that gives the same ids to later batches.
 struct allocator_state {
@@ -82,6 +141,13 @@ struct allocator_state {
   std::int64_t capacity = 0;                ///< payload capacity
   std::int64_t growths = 0;                 ///< payload growths so far
   std::int64_t compactions = 0;             ///< payload compactions so far
+  /// The rows whose tail segment is an overflow segment of a fill (incidence additions of
+  /// slack_csr storage, 0.4): their keys, increasing, and the values of that segment (CSR:
+  /// tail_offsets has one entry more than tail_keys). Empty for every row of a hyperedge-only
+  /// history (0.3).
+  std::vector<std::int32_t> tail_keys;
+  std::vector<std::int64_t> tail_offsets{0};  ///< offsets into tail_values
+  std::vector<std::int32_t> tail_values;      ///< the values of the tail segments
 };
 
 /// The state of a store on the host (snapshot()): its allocator state, the live rows and the
@@ -224,6 +290,89 @@ class incidence_store {
   /// @param[out] row_ptr Offsets. @param[out] col_ind Ids.
   virtual void v2h_view(array_view<const std::int64_t>& row_ptr,
                         array_view<const std::int64_t>& col_ind) const = 0;
+
+  // ---- slack_csr storage (0.4, ADR 0086): incidence edits and the slack line graph. The escher
+  // stores keep the defaults (they never receive these calls: the container refuses incidence
+  // edits under escher storage before the store changes).
+
+  /// @brief Whether the store takes incidence edits and keeps its line graph from the pair delta.
+  /// @return false (the escher stores).
+  [[nodiscard]] virtual bool supports_incidence_edits() const noexcept {
+    return false;
+  }
+  /**
+   * @brief The incidence edits of live rows: MOSP_ESCHER's H2V unfill of `removals`, then its H2V
+   *        fill of `additions` (the allocator's model, in that order), and the edited rows set to
+   *        their members after the batch.
+   * @param[in] removals  The removed members of every id (each a member, never the last one).
+   * @param[in] additions The added members of every id (none a member).
+   * @param[in] ids       The edited ids (increasing).
+   * @param[in] post      Row i: the members of ids[i] after the edits (sorted).
+   */
+  virtual void h2v_edit(const grouped_members& removals, const grouped_members& additions,
+                        const std::vector<std::int64_t>& ids, const member_rows& post);
+  /**
+   * @brief The v2h edits of a batch, grouped by vertex (MOSP_ESCHER's HostHypergraph: per
+   *        incidence a swap-remove of the first occurrence, or a push_back, in the batch's order;
+   *        the slack_csr stores keep their v2h rows unsorted), and the touched vertices' lengths
+   *        after them.
+   * @param[in]  by_vertex   The incidences as (vertex << 32 | i), sorted by vertex, stable.
+   * @param[in]  group_start The first word of every vertex, then by_vertex.size().
+   * @param[in]  ids         The hyperedge of incidence i.
+   * @param[in]  signs       Its sign: -1 removed, +1 added.
+   * @param[out] lengths     The hyperedges of every vertex after the edits (one per group).
+   */
+  virtual void v2h_apply(const std::vector<std::uint64_t>& by_vertex,
+                         const std::vector<std::size_t>& group_start, const std::int64_t* ids,
+                         const std::int8_t* signs, std::vector<std::int32_t>& lengths);
+  /// @brief Before the first phase of a batch: keep what the pair delta reads of the state before
+  /// it (the hyperedges of `vertices`, the rows of `ids`). Nothing when the line graph is not
+  /// maintained. @param[in] vertices The vertices the batch touches (increasing). @param[in] ids
+  /// The live ids the batch deletes or edits (increasing).
+  virtual void begin_line_graph_delta(const std::vector<std::int32_t>& vertices,
+                                      const std::vector<std::int64_t>& ids);
+  /// @brief After the incidence phases: the pair delta of the batch (incidence_delta), from its
+  /// (vertex, id, sign) changes. Empty when the line graph is not maintained. A device store
+  /// keeps the pairs on the device (pairs_on_device()); download_line_graph_delta() copies them.
+  /// @param[in] vertices The vertex of every change. @param[in] ids The id of every change.
+  /// @param[in] signs -1 or +1. @param[in] inserted_ids The ids the batch inserted.
+  /// @param[in] touched The touched rows (what a device store ships to the device).
+  /// @param[out] out The delta (its counts only, on a device store).
+  virtual void line_graph_delta_of(const std::vector<std::int32_t>& vertices,
+                                   const std::vector<std::int64_t>& ids,
+                                   const std::vector<std::int8_t>& signs,
+                                   const std::vector<std::int64_t>& inserted_ids,
+                                   const touched_rows& touched, line_graph_delta& out);
+  /// @brief Whether the last batch's pairs stay on the device (they are copied to the host on
+  /// request). @return false (the host stores give them to the applied record).
+  [[nodiscard]] virtual bool pairs_on_device() const noexcept {
+    return false;
+  }
+  /// @brief Copy the last batch's pair delta from the device (deleted pairs first, increasing).
+  /// Nothing on the host stores. @param[out] out The pairs.
+  virtual void download_line_graph_delta(line_graph_delta& out) const {
+    (void)out;
+  }
+  /// @brief The line-graph phase of slack_csr storage: the pair delta applied (any rebuild) and
+  /// the weights of the new ids. @param[in] delta The pairs. @param[in] new_ids The inserted ids.
+  /// @param[in] new_weights Their weights.
+  virtual void finish_line_graph(const line_graph_delta& delta,
+                                 const std::vector<std::int64_t>& new_ids,
+                                 const std::vector<std::int64_t>& new_weights);
+  /// @brief The weights by id that the slack line graph keeps (construction, a copy to another
+  /// backend). Nothing on the escher stores. @param[in] by_id The weight of every id.
+  virtual void set_node_weights(const std::vector<std::int64_t>& by_id) {
+    (void)by_id;
+  }
+  /// @brief The slack_csr state (the slack-row accessor, the counters, the knobs).
+  /// @return nullptr for the escher stores.
+  [[nodiscard]] virtual slack_access* slack() noexcept {
+    return nullptr;
+  }
+  /// @brief The slack_csr state, read only. @return nullptr for the escher stores.
+  [[nodiscard]] virtual const slack_access* slack() const noexcept {
+    return nullptr;
+  }
 };
 
 }  // namespace dyng::detail::hyper

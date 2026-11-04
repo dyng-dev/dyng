@@ -1,0 +1,404 @@
+{
+ "record": "Kernel launches and synchronizations of hyper_sssp's bench against MOSP_ESCHER's hsospBench (nsys, the development GPU, not a timed reading)",
+ "tool": "parity/hsosp_perf.py launches",
+ "commit": "511ae3cf02c70ab4abb843c46c7b2b905c6bd8f0",
+ "nsys": "NVIDIA Nsight Systems version 2025.5.2.266-255236693005v0",
+ "gpu": 1,
+ "date": "2026-10-30T05:21:19Z",
+ "scope": "the whole process of each side (load, initial solve, 3 batches with their static recomputes); B's other kernels are its device CBST, the port's its slack_csr store",
+ "commands": {
+  "original": "nsys profile -t cuda hsospBench --hg <hg> --kind <kind> --batch <size> --batches 3 --del 50 --verify none --out <csv> (ref/MOSP_ESCHER@4b86159/unpatched)",
+  "port": "nsys profile -t cuda dyng-compat-hsosp bench <the same flags> --golden <case dump> --digests --threads <cores> (build/parity-cuda/tools/compat/dyng-compat-hsosp)"
+ },
+ "configs": {
+  "dblp_hyperedge_50000": {
+   "original": {
+    "kernels": {
+     "DeviceCompactInitKernel": 22,
+     "DeviceRadixSortExclusiveSumKernel": 19,
+     "DeviceRadixSortHistogramKernel": 19,
+     "DeviceRadixSortOnesweepKernel": 106,
+     "DeviceReduceByKeyKernel": 9,
+     "DeviceReduceKernel": 5,
+     "DeviceReduceSingleTileKernel": 5,
+     "DeviceScanInitKernel": 23,
+     "DeviceScanKernel": 23,
+     "DeviceSelectSweepKernel": 13,
+     "allocateSpace": 6,
+     "applyDeletes": 6,
+     "applyReuse": 5,
+     "applyReuse_warp": 3,
+     "applyRowsWarp": 3,
+     "applyVertexRowsKernel": 3,
+     "buildEmptyBinaryTree": 7,
+     "classifyPairsKernel": 3,
+     "collectCandidatesWarp": 68,
+     "computeAssigned": 5,
+     "computeBInPlace": 5,
+     "computeItemSizes": 5,
+     "computeNextMultipleOf4": 6,
+     "countCandidatesKernel": 3,
+     "countMismatchesKernel": 3,
+     "emitCandidatesKernel": 6,
+     "expandDeltaKeysKernel": 3,
+     "extractKeysFromPositions": 5,
+     "extractSlotCapacities": 5,
+     "fillIntKernel": 6,
+     "fillLLKernel": 6,
+     "fixupOverflowMetadata": 6,
+     "initJumpKernel": 3,
+     "insertNode_thread": 6,
+     "insertNode_warp": 3,
+     "invalidateKernel": 3,
+     "jumpKernel": 15,
+     "keysToPairsKernel": 6,
+     "locateDeleteTargets": 6,
+     "locateReusableSlots": 5,
+     "lowerBoundKernel": 5,
+     "markDeletedTreeEdgesKernel": 3,
+     "markIdsKernel": 3,
+     "packStateKernel": 3,
+     "pairMatches": 5,
+     "placeNodeRecords": 4,
+     "pullDistancesWarp": 68,
+     "pullInvalidatedKernel": 3,
+     "pushKernel": 43,
+     "rankOrderNodes": 4,
+     "recordKeysAndStarts": 4,
+     "reduceAvailLevel": 264,
+     "relaxInsertedKernel": 3,
+     "resetIndexKernel": 3,
+     "scatterIntKernel": 3,
+     "scatterWeightsKernel": 3,
+     "setIndexKernel": 3,
+     "setInitialOccupancy": 3,
+     "static_kernel": 10,
+     "storeItemsIntoNodes": 3,
+     "totalsKernel": 3,
+     "unfill_thread": 6,
+     "unfill_warp": 3,
+     "unpackStateKernel": 3,
+     "updatePartialSolution": 6,
+     "writeHeRowsKernel": 3,
+     "zeroDegreeKernel": 3
+    },
+    "api": {
+     "cudaDeviceSynchronize": 27,
+     "cudaLaunchKernel": 926,
+     "cudaMemcpy": 337,
+     "cudaMemcpyAsync": 90,
+     "cudaMemset": 248,
+     "cudaMemsetAsync": 150,
+     "cudaStreamSynchronize": 49
+    }
+   },
+   "port": {
+    "kernels": {
+     "DeviceCompactInitKernel": 18,
+     "DeviceRadixSortExclusiveSumKernel": 9,
+     "DeviceRadixSortHistogramKernel": 9,
+     "DeviceRadixSortOnesweepKernel": 66,
+     "DeviceReduceByKeyKernel": 9,
+     "DeviceScanInitKernel": 12,
+     "DeviceScanKernel": 12,
+     "DeviceSelectSweepKernel": 9,
+     "apply_rows_warp_kernel": 3,
+     "apply_vertex_rows_kernel": 3,
+     "classify_pairs_kernel": 3,
+     "collect_candidates_warp_kernel": 68,
+     "count_candidates_kernel": 3,
+     "emit_candidates_kernel": 6,
+     "expand_delta_keys_kernel": 3,
+     "fill_int_kernel": 6,
+     "fill_ll_kernel": 6,
+     "init_jump_kernel": 3,
+     "invalidate_kernel": 3,
+     "jump_kernel": 15,
+     "keys_to_pairs_kernel": 6,
+     "mark_deleted_tree_edges_kernel": 3,
+     "mark_ids_kernel": 3,
+     "pack_state_kernel": 3,
+     "pull_distances_warp_kernel": 68,
+     "pull_invalidated_kernel": 3,
+     "push_kernel": 43,
+     "relax_inserted_kernel": 3,
+     "reset_index_kernel": 3,
+     "scatter_int_kernel": 3,
+     "scatter_weights_kernel": 3,
+     "set_index_kernel": 3,
+     "totals_kernel": 3,
+     "unpack_state_kernel": 3,
+     "write_he_rows_kernel": 3,
+     "zero_dead_degrees_kernel": 3
+    },
+    "api": {
+     "cudaEventSynchronize": 1,
+     "cudaLaunchKernel": 422,
+     "cudaMemcpyAsync": 305,
+     "cudaMemsetAsync": 309,
+     "cudaStreamSynchronize": 264
+    }
+   },
+   "hsosp_kernels": {
+    "fill_ll": {
+     "port": 6,
+     "original": 6
+    },
+    "fill_int": {
+     "port": 6,
+     "original": 6
+    },
+    "pull_distances_warp": {
+     "port": 68,
+     "original": 68
+    },
+    "collect_candidates_warp": {
+     "port": 68,
+     "original": 68
+    },
+    "pack_state": {
+     "port": 3,
+     "original": 3
+    },
+    "unpack_state": {
+     "port": 3,
+     "original": 3
+    },
+    "mark_deleted_tree_edges": {
+     "port": 3,
+     "original": 3
+    },
+    "mark_ids": {
+     "port": 3,
+     "original": 3
+    },
+    "init_jump": {
+     "port": 3,
+     "original": 3
+    },
+    "jump": {
+     "port": 15,
+     "original": 15
+    },
+    "invalidate": {
+     "port": 3,
+     "original": 3
+    },
+    "pull_invalidated": {
+     "port": 3,
+     "original": 3
+    },
+    "relax_inserted": {
+     "port": 3,
+     "original": 3
+    },
+    "push": {
+     "port": 43,
+     "original": 43
+    },
+    "mark_lost_source": {
+     "port": 0,
+     "original": null
+    },
+    "relax_base": {
+     "port": 0,
+     "original": null
+    },
+    "seed_base": {
+     "port": 0,
+     "original": null
+    },
+    "zero_degree": {
+     "port": null,
+     "original": 3
+    },
+    "count_mismatches": {
+     "port": null,
+     "original": 3
+    }
+   }
+  },
+  "geology_vertex_50000": {
+   "original": {
+    "kernels": {
+     "DeviceCompactInitKernel": 18,
+     "DeviceRadixSortExclusiveSumKernel": 9,
+     "DeviceRadixSortHistogramKernel": 9,
+     "DeviceRadixSortOnesweepKernel": 66,
+     "DeviceReduceByKeyKernel": 9,
+     "DeviceScanInitKernel": 21,
+     "DeviceScanKernel": 21,
+     "DeviceSelectSweepKernel": 9,
+     "allocateSpace": 9,
+     "applyRowsWarp": 3,
+     "applyVertexRowsKernel": 3,
+     "buildEmptyBinaryTree": 3,
+     "classifyPairsKernel": 3,
+     "collectCandidatesWarp": 92,
+     "computeNextMultipleOf4": 9,
+     "countCandidatesKernel": 3,
+     "countMismatchesKernel": 3,
+     "emitCandidatesKernel": 6,
+     "expandDeltaKeysKernel": 3,
+     "fillIntKernel": 6,
+     "fillLLKernel": 6,
+     "fixupOverflowMetadata": 9,
+     "initJumpKernel": 3,
+     "insertNode_thread": 9,
+     "insertNode_warp": 3,
+     "invalidateKernel": 3,
+     "jumpKernel": 15,
+     "keysToPairsKernel": 6,
+     "markDeletedTreeEdgesKernel": 3,
+     "packStateKernel": 3,
+     "pullDistancesWarp": 92,
+     "pullInvalidatedKernel": 3,
+     "pushKernel": 54,
+     "relaxInsertedKernel": 3,
+     "resetIndexKernel": 3,
+     "scatterIntKernel": 3,
+     "setIndexKernel": 3,
+     "setInitialOccupancy": 3,
+     "storeItemsIntoNodes": 3,
+     "totalsKernel": 3,
+     "unfill_thread": 9,
+     "unfill_warp": 3,
+     "unpackStateKernel": 3,
+     "updatePartialSolution": 9,
+     "writeHeRowsKernel": 3
+    },
+    "api": {
+     "cudaDeviceSynchronize": 27,
+     "cudaLaunchKernel": 562,
+     "cudaMemcpy": 364,
+     "cudaMemcpyAsync": 72,
+     "cudaMemset": 295,
+     "cudaMemsetAsync": 93,
+     "cudaStreamSynchronize": 9
+    }
+   },
+   "port": {
+    "kernels": {
+     "DeviceCompactInitKernel": 18,
+     "DeviceRadixSortExclusiveSumKernel": 9,
+     "DeviceRadixSortHistogramKernel": 9,
+     "DeviceRadixSortOnesweepKernel": 66,
+     "DeviceReduceByKeyKernel": 9,
+     "DeviceScanInitKernel": 12,
+     "DeviceScanKernel": 12,
+     "DeviceSelectSweepKernel": 9,
+     "apply_rows_warp_kernel": 3,
+     "apply_vertex_rows_kernel": 3,
+     "classify_pairs_kernel": 3,
+     "collect_candidates_warp_kernel": 95,
+     "count_candidates_kernel": 3,
+     "emit_candidates_kernel": 6,
+     "expand_delta_keys_kernel": 3,
+     "fill_int_kernel": 6,
+     "fill_ll_kernel": 6,
+     "init_jump_kernel": 3,
+     "invalidate_kernel": 3,
+     "jump_kernel": 15,
+     "keys_to_pairs_kernel": 6,
+     "mark_deleted_tree_edges_kernel": 3,
+     "pack_state_kernel": 3,
+     "pull_distances_warp_kernel": 95,
+     "pull_invalidated_kernel": 3,
+     "push_kernel": 54,
+     "relax_inserted_kernel": 3,
+     "reset_index_kernel": 3,
+     "scatter_int_kernel": 3,
+     "set_index_kernel": 3,
+     "totals_kernel": 3,
+     "unpack_state_kernel": 3,
+     "write_he_rows_kernel": 3
+    },
+    "api": {
+     "cudaEventSynchronize": 1,
+     "cudaLaunchKernel": 478,
+     "cudaMemcpyAsync": 361,
+     "cudaMemsetAsync": 374,
+     "cudaStreamSynchronize": 329
+    }
+   },
+   "hsosp_kernels": {
+    "fill_ll": {
+     "port": 6,
+     "original": 6
+    },
+    "fill_int": {
+     "port": 6,
+     "original": 6
+    },
+    "pull_distances_warp": {
+     "port": 95,
+     "original": 92
+    },
+    "collect_candidates_warp": {
+     "port": 95,
+     "original": 92
+    },
+    "pack_state": {
+     "port": 3,
+     "original": 3
+    },
+    "unpack_state": {
+     "port": 3,
+     "original": 3
+    },
+    "mark_deleted_tree_edges": {
+     "port": 3,
+     "original": 3
+    },
+    "mark_ids": {
+     "port": 0,
+     "original": 0
+    },
+    "init_jump": {
+     "port": 3,
+     "original": 3
+    },
+    "jump": {
+     "port": 15,
+     "original": 15
+    },
+    "invalidate": {
+     "port": 3,
+     "original": 3
+    },
+    "pull_invalidated": {
+     "port": 3,
+     "original": 3
+    },
+    "relax_inserted": {
+     "port": 3,
+     "original": 3
+    },
+    "push": {
+     "port": 54,
+     "original": 54
+    },
+    "mark_lost_source": {
+     "port": 0,
+     "original": null
+    },
+    "relax_base": {
+     "port": 0,
+     "original": null
+    },
+    "seed_base": {
+     "port": 0,
+     "original": null
+    },
+    "zero_degree": {
+     "port": null,
+     "original": 0
+    },
+    "count_mismatches": {
+     "port": null,
+     "original": 3
+    }
+   }
+  }
+ }
+}

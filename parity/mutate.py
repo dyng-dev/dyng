@@ -47,6 +47,17 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                unfill that drops its last value (DYNG_MUTATION_CBST_UNFILL_DROPS_LAST) must make
                the CUDA suite fail too; also the CTests `triad_count.mutation.<name>` (label cpu)
                and `triad_count.mutation.cuda.<name>` (label gpu) of every build
+  hyper_sssp   hyper_sssp and the slack_csr container (M11a, criterion 16; ADR 0093): the
+               GoogleTest suites of hyper_sssp (the hand cases, the result replays of the
+               committed MOSP_ESCHER@4b86159 subset by id, its kit) and of the container under
+               slack_csr storage (the slack store and line-graph tests, the overflow paths, the
+               id replays of the committed traces); the hooks DYNG_MUTATION_HSOSP_* are the
+               sites of MOSP_ESCHER's recorded bugs (#1-#4, #7, #8) in the CUDA code and in their
+               host twins. A mutation's configuration picks the executables: `cuda` runs the CUDA
+               ones (the cuda backend only), `sequential` the host ones (sequential and openmp),
+               so each twin is detected by its own engine. Also the CTests
+               `hyper_sssp.mutation.<name>`, `hypergraph.mutation.hsosp_<name>` (label cpu) and
+               their `.cuda.` twins (label gpu) of every build
   kit          the conformance kit's hypergraph axis (M8b, criterion 11; ADR 0043): the kit C0-C12
                over the test-only aggregate-delta fake test_hyper_pairs on every backend
                (dyng_hypergraph_kit_tests, dyng_hypergraph_kit_cuda_tests); its planted bug (the
@@ -62,8 +73,10 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
 
 The control (no mutation) must pass on every (suite, configuration) the chosen mutations use;
 every mutation must fail (at least one case differs). Builds and replays take the shared perf
-lock and run niced; CUDA replays run on GPU $DYNG_TEST_GPU (default 1). The scratch copies are
-deleted unless --keep. Exit 0 only if the control passes and every mutation is detected.
+lock and run niced; CUDA replays run on GPU $DYNG_TEST_GPU (default 1), each after the shared
+calendar's `locklog.py quiet-ok $DYNG_LOCKLOG_MILESTONE` when that variable is set. The scratch
+copies are deleted unless --keep. Exit 0 only if the control passes and every mutation is
+detected.
 
 The CTests `ctest -L mutation` (cpp/tests/CMakeLists.txt, option DYNG_MUTATION_TESTS) check the
 cycle_count mutations against the unit and randomized suites as well, on every build; the runs
@@ -125,6 +138,40 @@ SUITES = {
         "compare": [],
     },
     # M11 slack_csr / hyper_sssp
+    # hyper_sssp and the slack_csr container (M11a criterion 16; ADR 0093): the suites of each
+    # configuration, so that a site's CUDA code and its host twin are each detected on their own.
+    "hyper_sssp": {
+        "targets": [
+            "dyng_hyper_sssp_tests",
+            "dyng_hsosp_results_tests",
+            "dyng_hyper_sssp_conformance_tests",
+            "dyng_hypergraph_tests",
+            "dyng_hypergraph_ids_tests",
+            "dyng_hyper_sssp_cuda_tests",
+            "dyng_hsosp_results_cuda_tests",
+            "dyng_hyper_sssp_conformance_cuda_tests",
+            "dyng_hypergraph_cuda_tests",
+            "dyng_hypergraph_ids_cuda_tests",
+        ],
+        "config_targets": {
+            "sequential": [
+                "dyng_hyper_sssp_tests",
+                "dyng_hsosp_results_tests",
+                "dyng_hyper_sssp_conformance_tests",
+                "dyng_hypergraph_tests",
+                "dyng_hypergraph_ids_tests",
+            ],
+            "cuda": [
+                "dyng_hyper_sssp_cuda_tests",
+                "dyng_hsosp_results_cuda_tests",
+                "dyng_hyper_sssp_conformance_cuda_tests",
+                "dyng_hypergraph_cuda_tests",
+                "dyng_hypergraph_ids_cuda_tests",
+            ],
+        },
+        "runner": "gtest",
+        "compare": [],
+    },
     # The conformance kit's hypergraph axis (M8b, criterion 11): the kit over the test-only fake on
     # every backend.
     "kit": {
@@ -135,9 +182,12 @@ SUITES = {
 }
 
 
-def suite_targets(suite: str) -> list[str]:
-    """The build targets of a suite: its compatibility driver, or its GoogleTest executables."""
+def suite_targets(suite: str, config: str | None = None) -> list[str]:
+    """The build targets of a suite: its compatibility driver, or its GoogleTest executables (with
+    a configuration, those of that configuration when the suite lists them per configuration)."""
     spec = SUITES[suite]
+    if config is not None and config in spec.get("config_targets", {}):
+        return list(spec["config_targets"][config])
     return list(spec["targets"]) if "targets" in spec else [spec["target"]]
 
 
@@ -381,6 +431,97 @@ MUTATIONS = [
         "config": "cuda",
     },
     # M11 slack_csr / hyper_sssp
+    # hyper_sssp (M11a criterion 16; PLAN 8.4; ADR 0093): MOSP_ESCHER@4b86159's recorded bugs put
+    # back at their sites, each in the CUDA code (config cuda: the CUDA executables, the cuda
+    # backend only) and in its host twin (config sequential: the host executables); #4 is the
+    # allocator's host model, which the CUDA store shares; #5 and #6 are the re-runs of M8a's and
+    # M8b's mutations (cbst_graph_own_ids in the cbst suite, the h2v payload here).
+    {
+        "name": "hsosp_pull_adds_neighbour_weight",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #1: the pull adds the neighbour's weight (CUDA engine)",
+        "defines": ["DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT"],
+        "config": "cuda",
+    },
+    {
+        "name": "hsosp_pull_adds_neighbour_weight_sequential",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #1: the pull adds the neighbour's weight (the sequential twin)",
+        "defines": ["DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT"],
+        "config": "sequential",
+    },
+    {
+        "name": "hsosp_non_tight_parent",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #2: a non-tight parent (CUDA engine)",
+        "defines": ["DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT"],
+        "config": "cuda",
+    },
+    {
+        "name": "hsosp_non_tight_parent_sequential",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #2: a non-tight parent (the sequential twin)",
+        "defines": ["DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT"],
+        "config": "sequential",
+    },
+    {
+        "name": "hsosp_csr_skips_last_deletion",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #3: the slack CSR apply skips the last deletion of each row (CUDA store)",
+        "defines": ["DYNG_MUTATION_HSOSP_CSR_SKIPS_LAST_DELETION"],
+        "config": "cuda",
+    },
+    {
+        "name": "hsosp_csr_skips_last_deletion_host",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #3: the slack CSR apply skips the last deletion of each row "
+        "(the host-store twin)",
+        "defines": ["DYNG_MUTATION_HSOSP_CSR_SKIPS_LAST_DELETION"],
+        "config": "sequential",
+    },
+    {
+        "name": "hsosp_allocator_unfill_drops_last",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #4: the allocator's H2V unfill drops the last value (MOSP_ESCHER #4)",
+        "defines": ["DYNG_MUTATION_HSOSP_ALLOCATOR_UNFILL_DROPS_LAST"],
+        "config": "sequential",  # the host model the CUDA store shares
+    },
+    {
+        "name": "hypergraph_h2v_not_deduplicated_hsosp",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #6: hypergraph_h2v_not_deduplicated (MOSP_ESCHER #6) against this suite",
+        "defines": ["DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED"],
+        "config": "sequential",
+    },
+    {
+        "name": "hsosp_pair_count_adds_deletions",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #7: the maintained pair count adds the deletions (CUDA store)",
+        "defines": ["DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS"],
+        "config": "cuda",
+    },
+    {
+        "name": "hsosp_pair_count_adds_deletions_host",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #7: the maintained pair count adds the deletions (the host store)",
+        "defines": ["DYNG_MUTATION_HSOSP_PAIR_COUNT_ADDS_DELETIONS"],
+        "config": "sequential",
+    },
+    {
+        "name": "hsosp_delta_no_post_pass",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #8: the pair delta drops its post-batch candidate pass "
+        "(MOSP_ESCHER CHANGES.md:493-494; the device delta)",
+        "defines": ["DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS"],
+        "config": "cuda",
+    },
+    {
+        "name": "hsosp_delta_no_post_pass_host",
+        "suite": "hyper_sssp",
+        "plan": "M11a 16 #8: the pair delta drops its post-batch candidate pass (the host delta)",
+        "defines": ["DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS"],
+        "config": "sequential",
+    },
     # triad_reference (M9a criterion 4): the oracle's planted mutation, two classes of its
     # representative list swapped (cpp/src/testing/triad_reference.cpp); its tests must fail (the
     # CTest testing.mutation.triad_reference_class_map of every build checks the same).
@@ -392,6 +533,23 @@ MUTATIONS = [
         "config": "sequential",  # a label: the oracle is host code
     },
 ]
+
+
+def wait_gpu_quiet() -> None:
+    """Before a GPU job: with DYNG_LOCKLOG_MILESTONE set (M10a, M11a, ...) and the shared
+    calendar's tool at $DYNG_SCRATCH/tools/locklog.py, wait while another agent's GPU1-QUIET
+    window is open (`locklog.py quiet-ok <milestone>` exits 1), checking every minute."""
+    import time
+
+    milestone = os.environ.get("DYNG_LOCKLOG_MILESTONE")
+    tool = SCRATCH / "tools" / "locklog.py"
+    if not milestone or not tool.is_file():
+        return
+    while subprocess.run(
+        [sys.executable, str(tool), "quiet-ok", milestone], capture_output=True
+    ).returncode:
+        print("[mutate] waiting: a GPU1-QUIET window is open (locklog.py quiet-ok)", flush=True)
+        time.sleep(60)
 
 
 def heavy(argv: list[str]) -> list[str]:
@@ -475,8 +633,9 @@ def run_gtests(suite: str, exes: dict, config: str, out: Path, log: Path) -> dic
     env = dict(os.environ)
     env.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("DYNG_TEST_GPU", "1"))
     failed, complete, rc_all, per_exe = 0, True, 0, {}
-    for target in suite_targets(suite):
+    for target in suite_targets(suite, config):
         exe = exes[target]
+        wait_gpu_quiet()
         proc = subprocess.run(
             heavy([str(exe), "--gtest_brief=1"]), capture_output=True, text=True, env=env
         )
@@ -507,6 +666,7 @@ def replay(suite: str, exe: Path, config: str, out: Path, log: Path) -> dict:
     env.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("DYNG_TEST_GPU", "1"))
     argv = [sys.executable, str(REPO / "parity" / "compare.py"), *SUITES[suite]["compare"]]
     argv += ["--exe", str(exe), "--configs", config, "--json", str(out)]
+    wait_gpu_quiet()
     rc = sh(heavy(argv), log, env=env)
     if not out.is_file():
         return {"rc": rc, "passed": False, "failed_cases": None}
@@ -522,7 +682,19 @@ def replay(suite: str, exe: Path, config: str, out: Path, log: Path) -> dict:
 def replay_key(mutation: dict) -> tuple:
     """Mutations with the same key are replayed the same way (the control replays each once)."""
     suite = SUITES[mutation["suite"]]
-    return (tuple(suite_targets(mutation["suite"])), tuple(suite["compare"]), mutation["config"])
+    targets = suite_targets(mutation["suite"], mutation["config"])
+    return (tuple(targets), tuple(suite["compare"]), mutation["config"])
+
+
+def code_key(mutation: dict) -> tuple:
+    """Mutations with the same key change the code the same way (a twin of another configuration,
+    or a re-run against another suite): one copy and one build serve them all."""
+    return (
+        mutation.get("file"),
+        mutation.get("old"),
+        mutation.get("new"),
+        tuple(mutation.get("defines", [])),
+    )
 
 
 def run(args: argparse.Namespace) -> int:
@@ -560,17 +732,31 @@ def run(args: argparse.Namespace) -> int:
         "config": ",".join(sorted({m["config"] for m in chosen})),
     }
     results = []
+    # One copy and one build per code change: the entries sharing it (twins of one hook on other
+    # configurations, a hook re-run against another suite) reuse it; it is deleted after its last.
+    groups: dict[tuple, list[dict]] = {}
+    for m in chosen:
+        groups.setdefault(code_key(m), []).append(m)
+    built: dict[tuple, tuple] = {}
     for entry in [control, *chosen]:
         is_control = entry["name"] == "control"
-        copy = work / entry["name"]
-        if copy.exists():
-            shutil.rmtree(copy)
-        shutil.copytree(src, copy, symlinks=True)
-        apply(copy, entry)
         replays = list(control_replays.values()) if is_control else [entry]
-        targets = sorted({t for r in replays for t in suite_targets(r["suite"])})
-        print(f"[mutate] {entry['name']}: build {' '.join(targets)}", flush=True)
-        exes = build(copy, targets, entry.get("defines", []), log)
+        key = None if is_control else code_key(entry)
+        if key in built:
+            copy, exes = built[key]
+            print(f"[mutate] {entry['name']}: the build of {copy.name}", flush=True)
+        else:
+            copy = work / entry["name"]
+            if copy.exists():
+                shutil.rmtree(copy)
+            shutil.copytree(src, copy, symlinks=True)
+            apply(copy, entry)
+            serves = replays if is_control else groups[key]
+            targets = sorted({t for r in serves for t in suite_targets(r["suite"], r["config"])})
+            print(f"[mutate] {entry['name']}: build {' '.join(targets)}", flush=True)
+            exes = build(copy, targets, entry.get("defines", []), log)
+            if not is_control:
+                built[key] = (copy, exes)
         if exes is None:
             result: dict = {"build": "FAILED", "detected": False, "verdict": "BUILD FAILED"}
         else:
@@ -598,7 +784,8 @@ def run(args: argparse.Namespace) -> int:
                 result["verdict"] = "detected" if result["detected"] else "NOT DETECTED"
         results.append({k: v for k, v in entry.items() if k not in ("old", "new")} | result)
         print(f"[mutate] {entry['name']}: {result['verdict']}", flush=True)
-        if not args.keep:
+        last = is_control or groups[key][-1] is entry
+        if last and not args.keep:
             shutil.rmtree(copy, ignore_errors=True)
     if not args.keep:
         shutil.rmtree(src, ignore_errors=True)
@@ -616,6 +803,9 @@ def run(args: argparse.Namespace) -> int:
             "parity/goldens.toml",
             "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the "
             "lockstep and graph-on-CBST tests (no golden corpus)",
+            "hyper_sssp": "hyper_sssp's and the slack_csr container's tests: the committed "
+            "subset of hyper_sssp_mosp_escher (cpp/tests/data/goldens/hyper_sssp) by id, the "
+            "oracle dyng::testing::hyper_sssp_reference / line_graph_delta, the CBST traces",
             "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/"
             "{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
             "triad_count": "triad_count's tests against the independent oracle "
