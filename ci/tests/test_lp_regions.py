@@ -119,10 +119,15 @@ def test_unknown_keys_report_keys_and_gates_are_refused(tmp_path: Path):
         perf.load_regions("escher_gpu", other, ("update", "full_count", "end_to_end"))
 
 
+# The maps of B0 (b2b1524): label_propagation's is M10a's own, and hyper_sssp's arrived with M11a's
+# merge (its own tests check it), so neither is an earlier map.
+NOT_AT_B0 = ("label_propagation", "hyper_sssp")
+
+
 def earlier_maps() -> dict:
     out: dict = {}
     for alg, keys in suite.MAP_KEYS.items():
-        if alg == "label_propagation":
+        if alg in NOT_AT_B0:
             continue
         for be in keys:
             rm = suite.region_map(alg, be)
