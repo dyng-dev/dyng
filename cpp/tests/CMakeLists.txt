@@ -594,6 +594,17 @@ dyng_add_test(
 )
 target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+# Host allocation failures inside the OpenMP engine's regions are out_of_memory_error with
+# sssp.hpp's guarantee (M11b, ADR 0094; the D13 class): its own operator new, so its own
+# executable.
+dyng_add_test(
+  NAME dyng_sssp_openmp_allocation_failure_tests
+  SOURCES algorithms/sssp/sssp_openmp_allocation_failure_test.cpp
+  LABELS cpu sssp
+)
+target_include_directories(
+  dyng_sssp_openmp_allocation_failure_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src"
+)
 endif()
 
 # cycle_count (CycleEnumeration-GPU@0a976ad): API, the original's suites, randomized differential
