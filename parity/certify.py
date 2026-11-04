@@ -292,6 +292,9 @@ LABEL_PROPAGATION_REPLAYS = {
     "label_propagation_oracle": ["sequential", "cuda"],
 }
 LABEL_PROPAGATION_PARITY_CUDA = ("label_propagation_damped", "label_propagation_hub")
+# The cases a set without a coverage table needs on each of its backends (M10a review): its
+# [sets.<name>.cases] table, the in_place thresholds' cases, or these (the hub golden has none).
+LABEL_PROPAGATION_FIXED_CASES = {"label_propagation_hub": ["hub"]}
 LABEL_PROPAGATION_CALIBRATED = ("label_propagation_inplace", "label_propagation_oracle")
 # The features of a hypergraph-id config that count as an id replay.
 HYPERGRAPH_ID_MODES = {"ids": ("by_id", "both"), "line_graph": ("line_graph",)}
@@ -994,12 +997,21 @@ def label_propagation_replays(name: str, spec: dict, entry: dict, problems: list
             "label_propagation <kind> --json, then compare.py label_propagation certificate)"
         )
         ok = False
-    for backend, cases in sorted((spec.get("coverage") or {}).items()):
+    coverage = spec.get("coverage") or {
+        backend: label_propagation_cases(name, spec) for backend in wanted
+    }
+    for backend, cases in sorted(coverage.items()):
+        if not cases:
+            problems.append(f"golden set {name}: goldens.toml lists no case for {backend}")
+            ok = False
+            continue
         absent = sorted(set(cases) - have.get(backend, set()))
         if absent:
             problems.append(
-                f"golden set {name}: {len(absent)} of the {len(cases)} cases its coverage table "
-                f"gives {backend} have no passed replay (first: {absent[0]})"
+                f"golden set {name}: {len(absent)} of the {len(cases)} cases "
+                f"{'its coverage table gives' if spec.get('coverage') else 'of the set need'} "
+                f"{backend} have no passed replay (first: {absent[0]}; a replay of a subset "
+                "certifies nothing of the rest)"
             )
             ok = False
     if name in LABEL_PROPAGATION_CALIBRATED:
@@ -1007,6 +1019,19 @@ def label_propagation_replays(name: str, spec: dict, entry: dict, problems: list
         problems += frozen_tolerance_problems(name, spec, entry)
         ok = ok and len(problems) == before
     entry["passed"] = ok
+
+
+def label_propagation_cases(name: str, spec: dict) -> list[str]:
+    """The cases of a label_propagation set that every backend of LABEL_PROPAGATION_REPLAYS must
+    replay when the set has no coverage table (M10a review: the whole set, never a subset): the
+    in_place thresholds' cases (the calibrated cases; the set's delta 1e-6 runs feed the class
+    margin, not a replay), else the set's [sets.<name>.cases] table, else
+    LABEL_PROPAGATION_FIXED_CASES."""
+    if name == "label_propagation_inplace":
+        return sorted(spec.get("thresholds") or {})
+    if spec.get("cases"):
+        return sorted(spec["cases"])
+    return list(LABEL_PROPAGATION_FIXED_CASES.get(name, []))
 
 
 def frozen_tolerance_problems(name: str, spec: dict, entry: dict) -> list[str]:
@@ -1431,6 +1456,37 @@ def recheck_triad_readings(
                     problems.append(f"{where}: the summary has no gated row {row} of {key}")
 
 
+def recheck_lp_readings(
+    doc: dict, name: str, results: Path, suite: dict, problems: list[str]
+) -> None:
+    """label_propagation's readings checked against their compacted records with bench_suite's
+    record rules (check_lp_record: the command and case, a parity-cuda port, the rounds against
+    AD3's, the medians recomputed from the samples with one sample per round, the guard, the
+    reading's clock lock; the memory readings counted, with nvidia-smi before, during and after,
+    no foreign process and the side's own process seen), the recheck_triad_readings precedent
+    (M10a review: the rules ran only when bench_suite built the summary, so a stale or
+    hand-assembled summary passed)."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import bench_suite
+
+    jobs = {
+        (j["reading"], j["dataset"]): j
+        for j in bench_suite.plan(
+            suite, records=Path("records"), build_root=Path("build"), release_only=True
+        )
+    }
+    readings = {r["name"]: r for r in suite.get("readings", [])}
+    for summary in doc.get("readings", []):
+        job = jobs.get((summary.get("reading"), summary.get("dataset")))
+        reading = readings.get(summary.get("reading"))
+        rec = summary.get("record")
+        if job is None or reading is None or not rec or not (results / rec).is_file():
+            continue  # suite_coverage reports a reading without its record or plan
+        record = json.loads((results / rec).read_text())
+        where = f"{name}: {summary['reading']} ({rec})"
+        bench_suite.check_lp_record(job, reading, record, where, problems)
+
+
 def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> dict[int, dict]:
     """Recomputes every gated row of a summary instead of trusting its flags: the medians must be
     those of the compacted record next to it, the ratio port / original, the gate the suite
@@ -1506,6 +1562,8 @@ def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> d
             out[id(region)] = {"ratio": ratio, "gate": gate, "within_gate": within}
     if doc.get("algorithm") == "triad_count" and rel and (REPO / rel).is_file():
         recheck_triad_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
+    if doc.get("algorithm") == "label_propagation" and rel and (REPO / rel).is_file():
+        recheck_lp_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
     verdict = doc.get("verdict") or {}
     if verdict.get("gated_regions") != gated or verdict.get("within_gate") != gated - exceeded:
         problems.append(

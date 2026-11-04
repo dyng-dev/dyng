@@ -398,6 +398,8 @@ def _write_lp_records(
                     "original_median_ms": 100.0,
                     "port_median_ms": 100.0 * ratio,
                     "ratio": ratio,
+                    "original": {"samples": [100.0] * job["runs"]},
+                    "port": {"samples": [100.0 * ratio] * job["runs"]},
                     **({"bar": {"update[sum]": 1.05, "end_to_end": 1.10}[name]}
                        if name in ("update[sum]", "end_to_end") else {}),
                 }
@@ -416,15 +418,28 @@ def _write_lp_records(
             }
         elif job["kind"] == "memory":
             peak = 100 * 2**20
+            own = {"pid": 1, "name": "x", "used_memory": "1 MiB", "own": True}
+            gpu = {
+                "foreign": [],
+                "own_seen_in_samples": 1,
+                "own_seen_during": 1,
+                "all": [
+                    {"when": "before", "processes": []},
+                    {"when": "during", "processes": [own]},
+                    {"when": "after", "processes": []},
+                ],
+            }
             result = {
                 "case": case,
                 "schedule": schedule,
                 "argv": argv,
                 "counted": True,
-                "original": {"peak_live_bytes": peak, "peak_live_mib": 100.0},
-                "port": {"peak_live_bytes": round(peak * ratio), "peak_live_mib": 100.0 * ratio},
+                "original": {"peak_live_bytes": peak, "peak_live_mib": 100.0,
+                             "counted": True, "gpu_processes": gpu},
+                "port": {"peak_live_bytes": round(peak * ratio), "peak_live_mib": 100.0 * ratio,
+                         "counted": True, "gpu_processes": gpu},
                 "ratio": round(peak * ratio) / peak,
-            }
+            }  # fmt: skip
         else:
             result = {"case": case, "schedule": schedule, "argv": argv, "kernels": {}}
         rec = {
@@ -444,6 +459,23 @@ def _write_lp_records(
         }
         Path(job["record"]).write_text(json.dumps(rec))
     return jobs
+
+
+def oracle_case(case: str, backend: str, margin: float, factor: float = 2000.0) -> dict:
+    """One case of an oracle-port record as parity/label_propagation_port.py writes it: the
+    tolerance it applied per batch (bound, class limit), its delta and its class rule."""
+    delta = 1e-6 if "_d1e-6_" in case else 1e-4
+    return {
+        "case": case,
+        "backend": backend,
+        "within": True,
+        "delta": delta,
+        "class_rule_applied": delta == 1e-6,
+        "class_margin_k": 3,
+        "batches": [
+            {"batch": b, "bound": factor * delta, "class_limit": 3 * margin} for b in range(2)
+        ],
+    }
 
 
 def _lp_replays(cert, results: Path, commit: str, skip: tuple = ()) -> None:
@@ -485,8 +517,7 @@ def _lp_replays(cert, results: Path, commit: str, skip: tuple = ()) -> None:
                 doc = {"cases": [{"case": c, "runs": [{"arrays_equal": True}],
                                   "same_stream_for_every_run": True} for c in cases]}  # fmt: skip
             elif kind == "oracle":
-                doc = {"m": margin, "cases": [{"case": c, "backend": backend, "within": True}
-                                              for c in cases]}  # fmt: skip
+                doc = {"m": margin, "cases": [oracle_case(c, backend, margin) for c in cases]}
             elif kind in ("irlp", "damped"):
                 doc = {"backend": backend, "cases": [{"case": c, "equal": True} for c in cases]}
             else:
@@ -3102,6 +3133,157 @@ def test_the_lp_certificate_fails_on_a_changed_tolerance_or_preset(
     assert write() == 1 and any(
         "no passed replay on cuda" in p for p in doc()["verdict"]["problems"]
     )
+
+
+def test_the_lp_certificate_needs_every_case_of_every_set(
+    cert, bench, tmp_path: Path, fixed_driver
+) -> None:
+    """M10a review: a replay of a subset of a set's cases certifies nothing of the rest: a
+    one-case damped, in_place or IrLP record (or the hub's case missing) fails the 0.4.0
+    certificate."""
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    assert write() == 0, doc()["verdict"]
+    for name in (
+        "parity-label_propagation_damped-cuda-fused.json",
+        "parity-label_propagation_inplace-cuda.json",
+        "parity-label_propagation_irlp-cuda.json",
+        "parity-label_propagation_trace-sequential.json",
+        "parity-label_propagation_generator-sequential.json",
+        "parity-label_propagation_hub-cuda-fused.json",
+    ):
+        path = results / name
+        full = path.read_text()
+        rec = json.loads(full)
+        keep = rec["cases"][:1] if len(rec["cases"]) > 1 else []
+        rec["cases"] = keep
+        rec["matrix"] = {c: v for c, v in rec["matrix"].items() if c in keep}
+        if not keep:
+            rec["matrix"] = {"other": {rec["configs"][0]: "equal"}}
+            rec["cases"] = ["other"]
+        path.write_text(json.dumps(rec))
+        assert write() == 1, name
+        assert any("have no passed replay" in p for p in doc()["verdict"]["problems"]), name
+        path.write_text(full)
+    assert write() == 0, doc()["verdict"]
+
+
+def test_the_lp_certificate_rechecks_the_gate_records(
+    cert, bench, tmp_path: Path, fixed_driver
+) -> None:
+    """M10a review: certify.py checks every label_propagation record of the summary with
+    bench_suite's record rules (check_lp_record), not only its medians: a memory record not
+    counted, with a foreign process or with no sample during the reading that saw its process,
+    and a run record whose guard failed, which is incomplete, has the wrong clock control, fewer
+    rounds than AD3's or samples that are not its medians' all fail the 0.4.0 certificate."""
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    assert write() == 0, doc()["verdict"]
+    summary = json.loads((results / "ics26_dynlp.json").read_text())
+
+    def record_of(reading: str, dataset: str) -> Path:
+        r = next(
+            x for x in summary["readings"] if x["reading"] == reading and x["dataset"] == dataset
+        )
+        return results / r["record"]
+
+    def side(r: dict) -> dict:
+        return r["results"]["50k/damped"]["original"]
+
+    def run_of(r: dict) -> dict:
+        return r["results"]["500k/damped"]
+
+    mem = record_of("memory-damped", "50k")
+    run = record_of("damped-500k", "500k")
+    for path, edit, text in [
+        (mem, lambda r: r["results"]["50k/damped"].update(counted=False), "not counted"),
+        (mem, lambda r: side(r)["gpu_processes"]["foreign"].append({"pid": 9}), "foreign"),
+        (mem, lambda r: side(r)["gpu_processes"].update(own_seen_during=0), "saw its own"),
+        (
+            mem,
+            lambda r: side(r)["gpu_processes"].update(
+                all=[x for x in side(r)["gpu_processes"]["all"] if x["when"] != "during"]
+            ),
+            "no nvidia-smi sample during",
+        ),
+        (run, lambda r: run_of(r)["guard"].update(passed=False), "the guard did not pass"),
+        (run, lambda r: run_of(r).update(complete=False), "rounds, the reading's"),
+        (run, lambda r: run_of(r)["clocks"].update(control="none"), "clocks 'none'"),
+        (run, lambda r: run_of(r).update(rounds=20), "rounds, the reading's 21"),
+        (
+            run,
+            lambda r: run_of(r)["regions"]["update[sum]"]["port"].update(
+                samples=[90.0] * 21
+            ),
+            "is not its samples'",
+        ),
+        (
+            run,
+            lambda r: run_of(r)["regions"]["update[sum]"]["original"].update(
+                samples=[100.0] * 5
+            ),
+            "5 original samples for 21 rounds",
+        ),
+    ]:
+        full = path.read_text()
+        rec = json.loads(full)
+        edit(rec)
+        path.write_text(json.dumps(rec))
+        assert write() == 1, text
+        assert any(text in p for p in doc()["verdict"]["problems"]), (text, doc()["verdict"])
+        path.write_text(full)
+    assert write() == 0, doc()["verdict"]
+
+
+def test_the_lp_oracle_tolerance_is_the_one_the_replay_applied(cert) -> None:
+    """M10a review: the oracle's certificate record carries the tolerance the replay applied
+    (its per-batch bound / delta, its class limit / m, its class rule at delta 1e-6), so a
+    replay that applied 4000 delta, another k or no class rule at delta 1e-6 fails the frozen
+    tolerance check."""
+    lpc = load("parity/label_propagation_cert.py")
+    margin = json.loads((REPO / "parity/results/M10a-class-margin.json").read_text())["m"]
+    port = {"commit": "c", "build": {}, "parity_cuda": False}
+    cases = ["5k5_d1e-6_s42", "500k_d1e-4_s42"]
+
+    def tol(edit=None, factor: float = 2000.0) -> dict:
+        doc = {"m": margin, "port": port, "cases": [oracle_case(c, "cuda", margin, factor)
+                                                    for c in cases]}  # fmt: skip
+        if edit:
+            edit(doc)
+        return lpc.certificate_record("oracle", doc)["tolerance"]
+
+    good = {"bound_factor": 2000.0, "class_margin_m": margin, "class_margin_k": 3}
+    assert tol() == good
+    assert tol(factor=4000.0)["bound_factor"] == 4000.0
+    assert tol(lambda d: d["cases"][0].update(class_rule_applied=False)) != good
+    assert tol(lambda d: d["cases"][1].update(class_rule_applied=True)) != good
+    assert tol(lambda d: d["cases"][0]["batches"][0].update(class_limit=4 * margin)) != good
+    assert tol(lambda d: d["cases"][0].update(batches=[])) == good  # the other case's batches
+    assert tol(lambda d: [c.update(batches=[]) for c in d["cases"]])["bound_factor"] == []
+
+
+def test_an_oracle_replay_at_4000_delta_fails_the_certificate(
+    cert, bench, tmp_path: Path, fixed_driver
+) -> None:
+    """The dry run with an oracle replay record (rebuilt by label_propagation_cert.py from a
+    replay that applied 4000 delta) fails on the frozen tolerance (M10a review)."""
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    assert write() == 0, doc()["verdict"]
+    lpc = load("parity/label_propagation_cert.py")
+    margin = json.loads((REPO / "parity/results/M10a-class-margin.json").read_text())["m"]
+    path = results / "parity-label_propagation_oracle-cuda.json"
+    full = path.read_text()
+    old = json.loads(full)
+    replay = {
+        "m": margin,
+        "port": {"commit": old["port"]["commit"], "build": {}, "parity_cuda": True},
+        "cases": [oracle_case(c, "cuda", margin, factor=4000.0) for c in old["cases"]],
+    }
+    rec = lpc.certificate_record("oracle", replay)
+    rec["build"] = old["build"]
+    path.write_text(json.dumps(rec))
+    assert write() == 1
+    assert any("applied" in p and "4000" in p for p in doc()["verdict"]["problems"])
+    path.write_text(full)
+    assert write() == 0, doc()["verdict"]
 
 
 def test_the_lp_release_gate_follows_its_state(

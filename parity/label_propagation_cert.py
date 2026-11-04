@@ -131,8 +131,41 @@ def tolerance_of(kind: str, doc: dict) -> dict | None:
             if "thresholds" in c and "envelope" in c
         }
     if kind == "oracle":
-        return {"bound_factor": 2000, "class_margin_m": doc.get("m"), "class_margin_k": 3}
+        return oracle_tolerance(doc)
     return None
+
+
+def oracle_tolerance(doc: dict) -> dict:
+    """The tolerance an oracle replay applied, read from the record (M10a review: never this
+    module's constants): the bound factor of every batch (its bound / the case's delta), the k of
+    the class rule (its class limit / m, and the case's class_margin_k), m, and whether the class
+    rule was applied exactly at delta 1e-6 (the author's decision of 2026-10-30). A mixed or
+    missing value is kept as the sorted list of what was found, which never equals the frozen
+    tolerance, so the certificate fails on it."""
+    m = doc.get("m")
+    factors: set = set()
+    ks: set = set()
+    rule = []
+    for c in doc.get("cases", []):
+        delta = c.get("delta")
+        ks.add(c.get("class_margin_k"))
+        for b in c.get("batches", []):
+            factors.add(round(b["bound"] / delta, 6) if delta and "bound" in b else None)
+            if m and "class_limit" in b:
+                ks.add(round(b["class_limit"] / m, 6))
+            else:
+                ks.add(None)
+        applied = c.get("class_rule_applied")
+        if applied is not (delta is not None and abs(delta - 1e-6) < 1e-12):
+            rule.append(c.get("case"))
+
+    def one(values: set):
+        return next(iter(values)) if len(values) == 1 else sorted(values, key=str)
+
+    tol = {"bound_factor": one(factors), "class_margin_m": m, "class_margin_k": one(ks)}
+    if rule:
+        tol["class_rule_not_as_frozen"] = sorted(map(str, rule))
+    return tol
 
 
 def certificate_record(kind: str, doc: dict) -> dict:

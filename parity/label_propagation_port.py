@@ -271,6 +271,12 @@ def cmd_trace(args: argparse.Namespace) -> int:
 # --- oracle-port ----------------------------------------------------------------------------------
 
 
+# AD7's frozen tolerance as this replay applies it (parity/label_propagation_cert.py reads it back
+# from the record: what the replay applied, never a constant of the certificate's own).
+ORACLE_BOUND_FACTOR = 2000.0  # mean |F - F*| <= 2000 delta
+ORACLE_CLASS_K = 3  # no class flip where |F* - 0.5| > 3m (at delta 1e-6)
+
+
 def class_margin() -> float:
     doc = json.loads(MARGIN_RECORD.read_text())
     return float(doc["m"])
@@ -343,14 +349,16 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
         # flips beyond 3m are reported: the original's own 50k delta 1e-4 labels flip beyond 3m
         # in batches 2-7 (ADR 0078).
         class_rule = c.delta == "1e-6"
+        delta = float(g.DELTAS[c.delta])
         for source, b in sources:
-            limit = 2000.0 * float(g.DELTAS[c.delta])
+            limit = ORACLE_BOUND_FACTOR * delta
+            class_limit = ORACLE_CLASS_K * margin
             good_b = (
                 b["converged"]
                 and b["mean"] <= limit
-                and (not class_rule or b["largest_flip_distance"] <= 3 * margin)
+                and (not class_rule or b["largest_flip_distance"] <= class_limit)
             )
-            if b["largest_flip_distance"] > 3 * margin:
+            if b["largest_flip_distance"] > class_limit:
                 flips_beyond.append(f"{source} {b['batch']}")
             batches.append(
                 {
@@ -358,6 +366,7 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
                     "batch": b["batch"],
                     "mean": b["mean"],
                     "bound": limit,
+                    "class_limit": class_limit,
                     "margin": (limit / b["mean"]) if b["mean"] > 0 else None,
                     "max": b["max"],
                     "flips": b["flips"],
@@ -375,8 +384,10 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
                 "exit_status": p.returncode,
                 "check_lines": lines,
                 "batches": batches,
+                "delta": delta,
                 "flips_beyond_3m": flips_beyond,
                 "class_rule_applied": class_rule,
+                "class_margin_k": ORACLE_CLASS_K,
                 "irlp_results_csv": results_csv,
                 "within": good,
             }

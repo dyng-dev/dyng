@@ -1545,14 +1545,18 @@ def lp_parity_build(build: dict) -> bool:
     )
 
 
-def lp_read_record(suite: dict, job: dict, reading: dict, record: dict, tol: dict,
-                   problems: list[str], started, where: str, base: dict) -> dict:  # fmt: skip
-    """One label_propagation reading (M10a, ADR 0078): its record's results "<case>/<schedule>"
-    checked against the reading (the command, the schedule, the case, the rounds, the lock, the
-    guard, a parity-cuda port) and turned into summary rows: run: update[sum] and end_to_end
-    gated on a gated (damped) reading, every other row reported; memory: device_memory, both
-    sides counted; kernels: no row (reported in its record)."""
-    path = Path(job["record"])
+def check_lp_record(job: dict, reading: dict, record: dict, where: str,
+                    problems: list[str]) -> bool:  # fmt: skip
+    """The record rules of one label_propagation reading (M10a, ADR 0078), checked when
+    bench_suite builds the summary and again by certify.py when it reads the summary's records
+    (M10a review: a stale or hand-assembled summary must not pass): the command, the one result
+    "<case>/<schedule>", a parity-cuda port; run: complete, at least the reading's rounds, each
+    row's medians those of its samples with one sample per round, the guard passed, the reading's
+    clock lock; memory: both sides counted, nvidia-smi sampled before, during and after the
+    reading with no foreign process and the side's own process seen during it (a sampler that saw
+    nothing would see no foreign process either; criterion 18). Returns whether the record is
+    complete (every rule held)."""
+    before = len(problems)
     schedule = LP_SCHEDULES[reading["schedule"]]
     want_key = f"{job['dataset']}/{schedule}"
     results = record.get("results") or {}
@@ -1565,14 +1569,10 @@ def lp_read_record(suite: dict, job: dict, reading: dict, record: dict, tol: dic
     build = (record.get("port") or {}).get("build") or {}
     if not lp_parity_build(build):
         problems.append(f"{where}: the port was not a parity-cuda build ({build})")
-    gate_of = {name: reg["gate"] for name, reg in region_map("label_propagation", "cuda").items()}
-    regions, complete, contaminated = [], True, {}
     for key, res in results.items():
         if job["kind"] == "run":
-            if res.get("complete") is not True or (
-                job.get("runs") and res.get("rounds", 0) < job["runs"]
-            ):
-                complete = False
+            rounds = res.get("rounds", 0)
+            if res.get("complete") is not True or (job.get("runs") and rounds < job["runs"]):
                 problems.append(
                     f"{where}: {key}: {res.get('rounds')} rounds, the reading's {job.get('runs')}"
                 )
@@ -1583,6 +1583,62 @@ def lp_read_record(suite: dict, job: dict, reading: dict, record: dict, tol: dic
                 problems.append(
                     f"{where}: {key}: clocks {control!r}, the reading's {reading['clocks']!r}"
                 )
+            for name, reg in (res.get("regions") or {}).items():
+                for side in ("original", "port"):
+                    samples = (reg.get(side) or {}).get("samples")
+                    if not isinstance(samples, list) or len(samples) != rounds:
+                        n = len(samples) if isinstance(samples, list) else samples
+                        problems.append(
+                            f"{where}: {key} {name}: {n} {side} samples for {rounds} rounds"
+                        )
+                        continue
+                    med = statistics.median(samples)
+                    got = reg.get(f"{side}_median_ms")
+                    if got is None or abs(got - med) > 1e-9 * max(1.0, abs(med)):
+                        problems.append(
+                            f"{where}: {key} {name}: the {side} median {got} is not its "
+                            f"samples' {med}"
+                        )
+        elif job["kind"] == "memory":
+            if not res.get("counted"):
+                problems.append(f"{where}: {key}: not counted (a foreign process on the GPU)")
+            for side in ("original", "port"):
+                rec = res.get(side) or {}
+                gp = rec.get("gpu_processes") or {}
+                whens = {s.get("when") for s in gp.get("all") or []}
+                if rec.get("counted") is False:
+                    problems.append(f"{where}: {key}: the {side} side is not counted")
+                if gp.get("foreign"):
+                    problems.append(
+                        f"{where}: {key}: a foreign process on the GPU during the {side} reading"
+                    )
+                if not {"before", "during", "after"} <= whens:
+                    problems.append(
+                        f"{where}: {key}: the {side} reading has no nvidia-smi sample "
+                        f"{', '.join(sorted({'before', 'during', 'after'} - whens))} it"
+                    )
+                if not gp.get("own_seen_during"):
+                    problems.append(
+                        f"{where}: {key}: no nvidia-smi sample during the {side} reading saw its "
+                        "own process"
+                    )
+    return len(problems) == before
+
+
+def lp_read_record(suite: dict, job: dict, reading: dict, record: dict, tol: dict,
+                   problems: list[str], started, where: str, base: dict) -> dict:  # fmt: skip
+    """One label_propagation reading (M10a, ADR 0078): its record's results "<case>/<schedule>"
+    checked against the reading (the command, the schedule, the case, the rounds, the lock, the
+    guard, a parity-cuda port) and turned into summary rows: run: update[sum] and end_to_end
+    gated on a gated (damped) reading, every other row reported; memory: device_memory, both
+    sides counted; kernels: no row (reported in its record)."""
+    path = Path(job["record"])
+    results = record.get("results") or {}
+    complete = check_lp_record(job, reading, record, where, problems)
+    gate_of = {name: reg["gate"] for name, reg in region_map("label_propagation", "cuda").items()}
+    regions, contaminated = [], {}
+    for key, res in results.items():
+        if job["kind"] == "run":
             if res.get("rejected"):
                 contaminated[key] = len(res["rejected"])  # repeated, never kept
             for name, reg in (res.get("regions") or {}).items():
@@ -1608,9 +1664,6 @@ def lp_read_record(suite: dict, job: dict, reading: dict, record: dict, tol: dic
                     row["noisy"] = False
                 regions.append(row)
         elif job["kind"] == "memory":
-            if not res.get("counted"):
-                complete = False
-                problems.append(f"{where}: {key}: not counted (a foreign process on the GPU)")
             original = peak_mib(res.get("original"))
             port_mib = peak_mib(res.get("port"))
             ratio = port_mib / original if original and port_mib is not None else None
