@@ -3,20 +3,20 @@
  "set": "label_propagation_trace",
  "kind": "label_propagation_trace",
  "what": "parity/compare.py label_propagation: the deterministic stages of label_propagation (statuses, rows, G', components, W0 / W1, the initial labels, V_aff) against O's trace golden, every batch",
- "date": "2026-10-30T16:31:32Z",
+ "date": "2026-11-04T00:38:07Z",
  "reference": {
   "name": "LabelPropagation-CUDA",
   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
  },
  "port": {
-  "commit": "306330690a0edac5a61296db1fb4453c29657580"
+  "commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b"
  },
- "executable": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+ "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
  "build": {
   "CMAKE_BUILD_TYPE": "Release",
   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
   "DYNG_CUDA_ARCHITECTURES": "86",
-  "build": "/home/sskg8/Projects/dyng-work/wt-m10/build/parity-cuda",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
   "preset": "parity-cuda"
  },
  "goldens": {

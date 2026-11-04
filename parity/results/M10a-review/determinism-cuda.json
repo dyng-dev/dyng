@@ -1,0 +1,56 @@
+{
+ "backend": "cuda",
+ "cases": [
+  {
+   "case": "5k5_d1e-6_s42",
+   "digests": [
+    "7fad573506feb344b898ecce87d16007dca483afe81eb4e46829994d69d68120",
+    "7fad573506feb344b898ecce87d16007dca483afe81eb4e46829994d69d68120"
+   ],
+   "identical": true,
+   "required": true
+  },
+  {
+   "case": "5k5_d1e-6_s42_inplace",
+   "digests": [
+    "cbda6b5b9b0276b7b31e4c2a7c2dae307cd0cae70f662eca76d4dbaebfa7c3d3",
+    "b3c1c5f7b363469265c642edb5654582e71699128e0683fed16300da9db4e37d"
+   ],
+   "identical": false,
+   "required": false
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "digests": [
+    "a48ef782c206ab0e3ee40611d9a98f22c934290d98c7f90b34ac4e239a81c121",
+    "a48ef782c206ab0e3ee40611d9a98f22c934290d98c7f90b34ac4e239a81c121"
+   ],
+   "identical": true,
+   "required": true
+  },
+  {
+   "case": "50k_d1e-6_s42_inplace",
+   "digests": [
+    "0df808248c7858d0b800f636177eac8445b6c94be6b72a7e882a5a4f19c7a986",
+    "4cd4fdc4374b7c9d08977dc87e0987d6493ddbcdfcf6c116d375f87a6cb28eaf"
+   ],
+   "identical": false,
+   "required": false
+  }
+ ],
+ "date": "2026-11-04T01:21:07Z",
+ "equal": true,
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda"
+  },
+  "commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+  "parity_cuda": true
+ },
+ "schema": 1,
+ "what": "run-to-run label bits (criterion 11)"
+}

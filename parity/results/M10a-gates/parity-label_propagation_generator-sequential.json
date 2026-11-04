@@ -3,18 +3,18 @@
  "set": "label_propagation_generator",
  "kind": "label_propagation_generator",
  "what": "parity/compare.py label_propagation: generators::legacy::dynlp_vertex_arrival_stream against the golden set (the arrays and O's text files byte for byte, 5m / 5m1 / 50m by SHA-256)",
- "date": "2026-10-30T18:44:24Z",
+ "date": "2026-11-04T01:27:55Z",
  "reference": {
   "name": "LabelPropagation-CUDA",
   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
  },
  "port": {
-  "commit": "4acb0b5ffd19c767eff2dbf1ce7ab5098dbef78c"
+  "commit": "107dfef16370bed900beaf28efea1b6bfd4373c3"
  },
- "executable": "build/parity/cpp/tests/dyng_lp_replay",
+ "executable": "$DYNG_SCRATCH/wt-m10/build/parity/cpp/tests/dyng_lp_replay",
  "build": {
   "CMAKE_BUILD_TYPE": "Release",
-  "build": "/home/sskg8/Projects/dyng-work/wt-m10/build/parity",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity",
   "preset": "other"
  },
  "goldens": {
