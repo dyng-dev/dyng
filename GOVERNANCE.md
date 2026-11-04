@@ -232,7 +232,7 @@ Decisions the lead maintainer still has to take; each moves to the approvals log
 | Decision | Default until then |
 |---|---|
 | Whether a co-author wrote code of the originals outside git (docs/developer/provenance.md) | co-authors credited as research collaborators only |
-| D11 (M9, new): the pool footprint between batches (the stream-ordered pool keeps what the H2H merge reached: 1.63-1.80x ESCHER-GPU's held bytes between batches on every M9a reading; reported and flagged above 1.05 under D1, not gated) | reported only; whether a later release trims the pool between updates (a library change outside M9's scope) is the author's |
+| D11 (M9, new): the pool footprint between batches (the stream-ordered pool keeps what the H2H merge reached: 1.63-1.80x ESCHER-GPU's held bytes between batches on every M9a reading; reported and flagged above 1.05 under D1, not gated). **M10a adds label_propagation** (the M10a review: its footprint was recorded but not reported): the D1 footprint (allocations plus the pool's reserve) of the damped readings is **5.3x LabelPropagation-CUDA's at 50k (32.0 against 6.0 MiB) and 1.06x at 500k (64.0 against 60.3 MiB)**, flagged above 1.05; 1.009x at 5m and 1.027x at 5m1; the live peaks, which AD2 gates, are 1.002-1.012x (`parity/results/M10a.md` section 13.4); the excess is the pool's reserve granularity of 32 MiB, not more allocations | reported only; whether a later release trims the pool between updates (a library change outside M9's and M10a's scope) is the author's |
 
 ### M10 (AD): `label_propagation` (0.4)
 
