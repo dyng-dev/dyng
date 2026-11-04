@@ -58,12 +58,32 @@ import label_propagation_goldens as g  # noqa: E402
 STEP = "m10a-host-container-sequential-driver"
 # The deterministic fields of each stage of a batch (O's recorder's names; ADR 0065).
 TRACE_FIELDS = {
-    "apply_vertex_changes": ["num_inserted", "inserted", "status", "gt_class"],
-    "append_edges": ["row_end", "slot_col_ind", "slot_values", "error_flags"],
-    "sparsify": ["tau", "num_sub_edges", "sub_edges_sorted"],
-    "connected_components": ["num_components", "component_of_inserted"],
+    "apply_vertex_changes": ["num_deleted", "num_inserted", "inserted", "status", "gt_class"],
+    "append_edges": [
+        "capacity",
+        "num_new_edges",
+        "row_end",
+        "slot_col_ind",
+        "slot_values",
+        "error_flags",
+    ],
+    "sparsify": ["tau", "batch_stamp", "num_new_edges", "num_sub_edges", "sub_edges_sorted"],
+    "connected_components": ["num_inserted", "num_components", "component_of_inserted"],
     "label_init": ["num_components", "w0", "w1", "initial_labels_of_inserted"],
-    "propagation_begin": ["frontier_size", "initial_frontier"],
+    "propagation_begin": [
+        "num_nodes",
+        "delta",
+        "max_iterations",
+        "update_rule",
+        "frontier_size",
+        "initial_frontier",
+    ],
+}
+# The fields only the golden records (the batch's inputs, which the generator replay covers byte
+# for byte): every other field a stage of the golden records is compared by the fused engine's
+# replay (compare_traces(..., every_field=True); criterion 12: every trace field).
+GOLDEN_ONLY_FIELDS = {
+    "apply_vertex_changes": {"deleted", "gt_ids", "gt_labels", "num_gt"},
 }
 C_CASES = [
     g.Case(s, delta="1e-6", schedule=r) for s in ("5k5", "50k") for r in ("damped", "inplace")
@@ -112,8 +132,12 @@ def run_compat(exe: Path, argv: list[str], env: dict) -> subprocess.CompletedPro
     return p
 
 
-def compare_traces(ours: dlt.Trace, golden: dlt.Trace) -> tuple[int, list[dict]]:
-    """Every deterministic field of every batch (TRACE_FIELDS; b0's row offsets too)."""
+def compare_traces(
+    ours: dlt.Trace, golden: dlt.Trace, every_field: bool = False
+) -> tuple[int, list[dict]]:
+    """Every deterministic field of every batch (TRACE_FIELDS; b0's row offsets too); with
+    `every_field`, every field of every stage the golden records but GOLDEN_ONLY_FIELDS (the
+    fused engine: the labels, the counts and the tags too), a field the port lacks a mismatch."""
     # The batch loop only: the port's compute() on the empty graph records an irlp_snapshot
     # outside it (batch -1).
     mine = {b: r for b, r in ours.batches().items() if b >= 0}
@@ -124,7 +148,15 @@ def compare_traces(ours: dlt.Trace, golden: dlt.Trace) -> tuple[int, list[dict]]
             {"field": "batches", "detail": f"port {sorted(mine)} vs golden {sorted(theirs)}"}
         )
     for b in sorted(theirs):
-        for tag, names in TRACE_FIELDS.items():
+        stages = (
+            {t: sorted(r.fields) for t, r in theirs[b].items()} if every_field else TRACE_FIELDS
+        )
+        if every_field:
+            for tag in sorted(set(mine.get(b, {})) - set(theirs[b])):
+                mismatches.append({"batch": b, "field": tag, "detail": "recorded by the port only"})
+        for tag, names in stages.items():
+            if every_field:
+                names = [x for x in names if x not in GOLDEN_ONLY_FIELDS.get(tag, set())]
             gold = theirs[b].get(tag)
             port = mine.get(b, {}).get(tag)
             if gold is None or port is None:
@@ -139,7 +171,8 @@ def compare_traces(ours: dlt.Trace, golden: dlt.Trace) -> tuple[int, list[dict]]
                         }
                     )
                 continue
-            fields = list(names) + (["row_ptr"] if tag == "append_edges" and b == 0 else [])
+            extra = ["row_ptr"] if tag == "append_edges" and b == 0 and not every_field else []
+            fields = list(names) + extra
             for name in fields:
                 compared += 1
                 f, h = port.fields.get(name), gold.fields.get(name)
@@ -295,8 +328,8 @@ def cmd_oracle_port(args: argparse.Namespace) -> int:
     margin = class_margin()
     results, ok = [], True
     for case in select(C_CASES + L_CASES + WEEKLY_CASES, args.cases or [c.name for c in C_CASES]):
-        # IrLP on every snapshot of C (at 50k on CUDA too); L is the update chain only.
-        validate = case in C_CASES and (case.size == "5k5" or args.backend == "cuda")
+        # IrLP on every snapshot of C (5k5 and 50k, every backend); L is the update chain only.
+        validate = case in C_CASES  # on every backend (criterion 11: "and for compute")
         c = g.Case(case.size, delta=case.delta, schedule=case.schedule, validate=validate)
         with tempfile.TemporaryDirectory(prefix="lp-oracle-", dir=runs_dir()) as t:
             tmp = Path(t)
@@ -471,20 +504,9 @@ def cmd_determinism(args: argparse.Namespace) -> int:
 
 # --- damped (AD6: the fused engine's byte parity) -------------------------------------------------
 
-# Every field the golden trace holds for a batch, including the propagation's (the labels' bits,
-# the counts, the tags): the fused engine reproduces all of them.
-FUSED_TRACE_FIELDS = {
-    **TRACE_FIELDS,
-    "connected_components": [*TRACE_FIELDS["connected_components"], "hook_rounds"],
-    "propagation_begin": [*TRACE_FIELDS["propagation_begin"], "labels", "next_tag"],
-    "propagation_end": [
-        "iterations",
-        "frontier_visits",
-        "persistent_iterations",
-        "next_tag",
-        "labels",
-    ],
-}
+# The fused engine reproduces every field the golden trace holds for a batch (compare_traces with
+# every_field: the propagation's labels, counts and tags too) but the batch inputs of
+# GOLDEN_ONLY_FIELDS.
 RESULT_COLUMNS = ("iterations", "frontier_visits", "components", "accuracy")
 
 
@@ -569,14 +591,7 @@ def cmd_damped(args: argparse.Namespace) -> int:
             run_compat(args.exe, argv, env)
             ours = dlt.read(tmp / "t" / f"{args.exe.name}.dlt")
             golden = dlt.read(decompressed(trace_root / "cases" / case.name / "trace.dlt.zst", tmp))
-            saved = dict(TRACE_FIELDS)
-            TRACE_FIELDS.clear()
-            TRACE_FIELDS.update(FUSED_TRACE_FIELDS)
-            try:
-                compared, mismatches = compare_traces(ours, golden)
-            finally:
-                TRACE_FIELDS.clear()
-                TRACE_FIELDS.update(saved)
+            compared, mismatches = compare_traces(ours, golden, every_field=True)
             checks["trace"] = not mismatches and ours.digest_mode == golden.digest_mode
             seconds = time.monotonic() - t0
         good = all(checks.values())
@@ -622,6 +637,28 @@ def cmd_damped(args: argparse.Namespace) -> int:
 # --- irlp (compute() on CUDA: IrLP's bits and iterations per snapshot) ----------------------------
 
 
+def irlp_counts(
+    batches: int, expected: dict, bits_bytes: int, n: int, rows: int
+) -> tuple[dict, bool]:
+    """One snapshot per batch on both sides, nothing extra (M10a review): the golden's snapshots
+    are 0 .. B-1, the port wrote exactly B snapshots of n float32 labels (no remainder) and B
+    results.csv rows. Returns the counts and whether they hold."""
+    counts = {
+        "batches": batches,
+        "golden_snapshots": len(expected["snapshots"]),
+        "port_snapshots": bits_bytes // (4 * n),
+        "port_remainder_bytes": bits_bytes % (4 * n),
+        "port_rows": rows,
+    }
+    ok = (
+        [s["snapshot"] for s in expected["snapshots"]] == list(range(batches))
+        and counts["port_snapshots"] == batches
+        and counts["port_remainder_bytes"] == 0
+        and counts["port_rows"] == batches
+    )
+    return counts, ok
+
+
 def cmd_irlp(args: argparse.Namespace) -> int:
     root = g.set_dir(g.scratch() / "goldens", "irlp")
     results, ok = [], True
@@ -658,16 +695,29 @@ def cmd_irlp(args: argparse.Namespace) -> int:
                 }
             )
         labels_equal = irlp_labels == g.zstd_read(gold / "irlp_labels.txt.zst")
-        good = all(x["bits_equal"] and x["iterations_equal"] for x in per) and labels_equal
+        counts, counts_equal = irlp_counts(case.batches, expected, len(bits), n, len(rows))
+        good = (
+            all(x["bits_equal"] and x["iterations_equal"] for x in per)
+            and labels_equal
+            and counts_equal
+        )
         ok = ok and good
         results.append(
-            {"case": case.name, "snapshots": per, "irlp_labels.txt": labels_equal, "equal": good}
+            {
+                "case": case.name,
+                "snapshots": per,
+                "counts": counts,
+                "counts_equal": counts_equal,
+                "irlp_labels.txt": labels_equal,
+                "equal": good,
+            }
         )
         print(
             f"{case.name}: {'identical' if good else 'DIFFERENT'} "
             f"({sum(x['bits_equal'] for x in per)}/{len(per)} snapshots' bits, "
             f"{sum(x['iterations_equal'] for x in per)} iterations, irlp_labels.txt "
-            f"{'equal' if labels_equal else 'different'})",
+            f"{'equal' if labels_equal else 'different'}, snapshot counts "
+            f"{'equal' if counts_equal else counts})",
             flush=True,
         )
     if args.json:

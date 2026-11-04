@@ -360,6 +360,8 @@ def cmd_oracle(args: argparse.Namespace) -> int:
                     and close(b["mean"], om)
                     and b["compared"] == row["o_compared"]
                     and b["excluded"] == row["o_excluded"]
+                    and b["flips"] == row["o_flips"]  # what the record claims (M10a review)
+                    and close(b["max"], row["o_max"])
                 )
             row["ok"] = good
             ok = ok and good
