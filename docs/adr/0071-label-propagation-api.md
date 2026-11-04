@@ -119,6 +119,7 @@ vertex-arrival generators (`generators::legacy::dynlp_vertex_arrival_stream`, AD
 | `batch_semantics::as_net_effect`, `apply_summary::dropped_insertions`, `edge_batch::insert_vertices()`, `insert_vertex_labels()`, `delete_vertices()`, `vertex_arrival_batch::view()`, `vertex_status::{active, deleted, inactive}` | ADR 0069 | the container |
 | `generators::vertex_arrival_options`, `vertex_arrival_batch`, `vertex_arrival_stream` | ADR 0067 | the generator's types |
 | `testing::harmonic_options`, `harmonic_result`, `label_error`, `label_error_against`, `class_agreement`, `class_agreement_with`, `lp_model_batch`, `lp_model_report` | ADR 0068 | the oracles' types |
+| `testing::lp_host_model::vertex_state::{inactive, active, deleted}` | ADR 0068 | the host model's own per-vertex state (added to this list by the M10a review; its order is not `vertex_status`'s: the two are compared by name, never by value, C8) |
 
 ## Consequences
 
