@@ -1369,6 +1369,7 @@ def memory_config(args, name, dataset, kind, size, exe, b_exe, env, work) -> dic
     csv = work / CSV_NAME
     b_cmd = [str(b_exe), *hg.p_argv(path, kind, size, str(csv))]
     p_cmd = port_argv(exe, path, kind, size, dump, work, maintain_only=False)
+    p_cmd += list(getattr(args, "port_args", None) or [])  # M11b: e.g. the shared engine
     guarded = 0
     # The plain runs (no profiler): the guards, B's CSV (graph_mb, dev_mem_mb, escher_mb) and the
     # port's graph-scope bytes.
@@ -1567,7 +1568,9 @@ def memory_main(args: argparse.Namespace) -> int:
                 },
                 "original": "the UNPATCHED copy's bin/hsospBench --hg, B's defaults, --verify "
                 "none (load, build, initial SOSP, 3 batches with their static baselines)",
-                "port": "dyng-compat-hsosp bench --sync-stages --digests (the golden's batches; "
+                "port": "dyng-compat-hsosp bench --sync-stages --digests "
+                + "".join(f"{a} " for a in (args.port_args or []))
+                + "(the golden's batches; "
                 "B's capacities; result B kept as B's stateB) and --nvtx under nsys",
                 "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
                 "guard": "every measured process (the two plain runs and the two profiled ones): "
@@ -2120,6 +2123,13 @@ def main(argv: list[str] | None = None) -> int:
     la.add_argument("--json", type=Path)
     me = sub.add_parser("memory", help="the nsys peaks and the graph-scope accounting (GPU 1)")
     me.add_argument("--configs", nargs="+", default=list(MEMORY_CONFIGS))
+    me.add_argument(
+        "--port-arg",
+        dest="port_args",
+        action="append",
+        default=[],
+        help="an extra argument of the port (repeatable; M11b: the shared engine)",
+    )
     me.add_argument(
         "--gpu", type=int, default=1, help="the development GPU, in a GPU1-QUIET window"
     )

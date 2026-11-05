@@ -422,5 +422,3 @@ def test_ab_reads_the_region_maps_update_rows() -> None:
     assert rows["sosp_update"] == regions["sosp_update"]["port"]
     assert rows["dynamic_comparable"] == regions["dynamic_comparable"]["port"]
     assert rows["static"] == regions["static"]["port"]
-    args = perf.argparse.Namespace if hasattr(perf, "argparse") else None
-    assert args is not None
