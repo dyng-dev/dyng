@@ -55,9 +55,12 @@
  *   - seeds: a single source (default; the host loop lists it), a source node at 0 (the same
  *     kernels), or per-node base offers: the pull also offers base_offer(v) (with parent -1);
  *   - a work counter (relaxations in MOSP_ESCHER's units: the row length of every pulled
- *     candidate and of every pushed reachable node), compiled out by default;
+ *     candidate the graph counts, counts_row(i), and of every pushed reachable node), compiled
+ *     out by default;
  *   - the mapping of rows to threads: one thread per row (default) or one warp per row
- *     (pull_pass_warp / push_pass_warp, for heavy-tailed rows).
+ *     (pull_pass_warp / push_pass_warp, for heavy-tailed rows);
+ *   - how a relaxation reads a neighbour's word: through L2 (default, __ldcg) or a plain load
+ *     (a stale word only offers a worse candidate; the atomicMin decides).
  * sssp's kernels below keep their names, parameters and machine code (parity/sssp_sass.py); the
  * generic bodies they call are inlined. The bodies stay in the sssp folder although a second
  * algorithm now uses them (the rule of two would move them to cpp/src/operators/): a move renames
@@ -178,6 +181,10 @@ struct graph_access<device_csr<vertex_t, edge_t, weight_t>> {
   __device__ static __forceinline__ u64 pull_weight(const graph_type& g, edge_t e, vertex_t /*v*/) {
     return static_cast<u64>(g.weights[e]);
   }
+  /// A neighbour's word as the relaxations read it (through L2, as the fused kernel reads it).
+  __device__ static __forceinline__ u64 peek(const u64* word) {
+    return load(word);
+  }
 };
 
 /// The tail of a pull: a candidate whose word improved takes it and, if its distance decreased,
@@ -214,7 +221,7 @@ __device__ __forceinline__ void push_relax(const graph_t& out,
     return;  // never shortest; would not fit the packed word
   }
   const u64 candidate = packed_format.pack(nd, u);
-  if (candidate >= load(&packed[w])) {
+  if (candidate >= access::peek(&packed[w])) {
     return;
   }
   const u64 old = atomicMin(&packed[w], candidate);
@@ -250,11 +257,13 @@ __device__ __forceinline__ void pull_pass(const vertex_t* candidates, vertex_t c
       best = min(best, access::base_offer(in, v, packed_format));
     }
     if constexpr (access::counts_work) {
-      work += static_cast<u64>(access::end(in, v) - access::begin(in, v));
+      if (access::counts_row(in, i)) {
+        work += static_cast<u64>(access::end(in, v) - access::begin(in, v));
+      }
     }
     for (edge_t e = access::begin(in, v); e < access::end(in, v); ++e) {
       const vertex_t u = access::neighbour(in, e);
-      const u64 word = load(&packed[u]);
+      const u64 word = access::peek(&packed[u]);
       if (word == packed_inf) {
         continue;
       }
@@ -295,7 +304,7 @@ __device__ __forceinline__ void pull_pass_warp(const vertex_t* candidates, verte
     const edge_t first = access::begin(in, v);
     const edge_t last = access::end(in, v);
     if constexpr (access::counts_work) {
-      if (lane == 0) {
+      if (lane == 0 && access::counts_row(in, i)) {
         work += static_cast<u64>(last - first);
       }
     }
@@ -304,7 +313,7 @@ __device__ __forceinline__ void pull_pass_warp(const vertex_t* candidates, verte
 #endif
     for (edge_t e = first + lane; e < last; e += 32) {
       const vertex_t u = access::neighbour(in, e);
-      const u64 word = load(&packed[u]);
+      const u64 word = access::peek(&packed[u]);
       if (word == packed_inf) {
         continue;
       }
