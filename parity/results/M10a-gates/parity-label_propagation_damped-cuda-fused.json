@@ -3,20 +3,20 @@
  "set": "label_propagation_damped",
  "kind": "label_propagation_damped",
  "what": "parity/compare.py label_propagation: the fused engine's damped byte parity: dynlp_labels.txt, every batch's label bits, the results.csv counts and every trace field (a parity-cuda build)",
- "date": "2026-11-04T00:38:58Z",
+ "date": "2026-11-04T20:59:28Z",
  "reference": {
   "name": "LabelPropagation-CUDA",
   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
  },
  "port": {
-  "commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b"
+  "commit": "d327950ff536cd8a264c02924dd87325bbac357f"
  },
  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
  "build": {
   "CMAKE_BUILD_TYPE": "Release",
   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
   "DYNG_CUDA_ARCHITECTURES": "86",
-  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda",
   "preset": "parity-cuda"
  },
  "goldens": {
@@ -40,7 +40,7 @@
  ],
  "matrix": {
   "500k_d1e-4_s42": {
-   "cuda-fused:lp/damped": "equal"
+   "cuda-fused:lp/damped": "DIFFERENT"
   },
   "50k_d1e-4_s1": {
    "cuda-fused:lp/damped": "equal"
@@ -73,5 +73,5 @@
  "checks": {
   "replay": "damped"
  },
- "passed": true
+ "passed": false
 }

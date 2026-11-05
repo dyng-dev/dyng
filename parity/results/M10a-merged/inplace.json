@@ -1,0 +1,527 @@
+{
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda"
+ },
+ "cases": [
+  {
+   "case": "5k5_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 141,
+    "mismatches": []
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     744.7,
+     478.5,
+     250.8,
+     170.5
+    ],
+    "iterations_lo": [
+     0,
+     609.3,
+     391.5,
+     198.9,
+     124.2
+    ],
+    "iterations_sum_hi": 1641.2,
+    "iterations_sum_lo": 1328.4
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 1484,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      677,
+      435,
+      223,
+      149
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 2,
+      "max": 0.0023009999999999975,
+      "mean": 0.0001296949304620914
+     },
+     "run": 0,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 1475,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      677,
+      435,
+      226,
+      137
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 3,
+      "max": 0.002063000000000037,
+      "mean": 0.0001410038133692238
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 1481,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      677,
+      435,
+      221,
+      148
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 3,
+      "max": 0.002171000000000034,
+      "mean": 0.000129240915208614
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 12,
+    "t_max": 0.0069990000000000885,
+    "t_mean": 0.0004279650067294746
+   },
+   "vertices_compared": 4458,
+   "within": true
+  },
+  {
+   "case": "50k_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 281,
+    "mismatches": []
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     564.3,
+     1449.8,
+     1225.4,
+     656.7,
+     959.2,
+     258.5,
+     255.2,
+     104.5,
+     78.1
+    ],
+    "iterations_lo": [
+     0,
+     461.7,
+     1112.4,
+     927,
+     518.4,
+     369.9,
+     203.4,
+     201.6,
+     83.7,
+     51.3
+    ],
+    "iterations_sum_hi": 5437.3,
+    "iterations_sum_lo": 3977.1
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 4931,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      514,
+      1304,
+      1087,
+      545,
+      864,
+      233,
+      230,
+      94,
+      60
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 92,
+      "max": 0.0018940000000000623,
+      "mean": 0.00012637946127946136
+     },
+     "run": 0,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 4934,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      513,
+      1236,
+      1114,
+      586,
+      865,
+      233,
+      230,
+      95,
+      62
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 140,
+      "max": 0.002141000000000004,
+      "mean": 0.00019134251402918082
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 4969,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      513,
+      1318,
+      1029,
+      638,
+      872,
+      214,
+      231,
+      96,
+      58
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 120,
+      "max": 0.0025219999999999687,
+      "mean": 0.0001708079236812569
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 405,
+    "t_max": 0.00689699999999982,
+    "t_mean": 0.0005503162289562289
+   },
+   "vertices_compared": 44550,
+   "within": true
+  },
+  {
+   "case": "500k_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 281,
+    "mismatches": []
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     819.5,
+     1817.2,
+     1535.6,
+     1201.2,
+     652.3,
+     391.6,
+     503.8,
+     288.2,
+     158.4
+    ],
+    "iterations_lo": [
+     0,
+     670.5,
+     1486.8,
+     1256.4,
+     947.7,
+     529.2,
+     299.7,
+     359.1,
+     229.5,
+     82.8
+    ],
+    "iterations_sum_hi": 7320.5,
+    "iterations_sum_lo": 5887.8
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 6610,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      745,
+      1652,
+      1396,
+      1053,
+      585,
+      361,
+      460,
+      263,
+      95
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 793,
+      "max": 0.40915799999999997,
+      "mean": 0.00010656711784511783
+     },
+     "run": 0,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 6652,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      745,
+      1652,
+      1396,
+      1092,
+      590,
+      336,
+      440,
+      259,
+      142
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 741,
+      "max": 0.40901699999999996,
+      "mean": 0.00010307104377104383
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 6542,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      745,
+      1652,
+      1396,
+      1053,
+      591,
+      356,
+      400,
+      256,
+      93
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 691,
+      "max": 0.409115,
+      "mean": 9.278834567901232e-05
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 2997,
+    "t_max": 1.2280980000000001,
+    "t_mean": 0.0003922800875420878
+   },
+   "vertices_compared": 445500,
+   "within": true
+  },
+  {
+   "case": "5m_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 281,
+    "mismatches": []
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     1395.9,
+     1988.8,
+     1806.2,
+     1535.6,
+     1052.7,
+     1028.5,
+     722.7,
+     383.9,
+     419.1
+    ],
+    "iterations_lo": [
+     0,
+     1134.9,
+     1461.6,
+     1333.8,
+     1128.6,
+     806.4,
+     774,
+     554.4,
+     303.3,
+     333.9
+    ],
+    "iterations_sum_hi": 10140.9,
+    "iterations_sum_lo": 7964.1
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 8978,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      1269,
+      1669,
+      1546,
+      1279,
+      915,
+      918,
+      657,
+      350,
+      375
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 6907,
+      "max": 0.435153,
+      "mean": 8.509289292929293e-05
+     },
+     "run": 0,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 8941,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      1261,
+      1622,
+      1523,
+      1349,
+      923,
+      918,
+      621,
+      345,
+      379
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 6973,
+      "max": 0.43522700000000003,
+      "mean": 8.602899910213243e-05
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 8978,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      1261,
+      1677,
+      1482,
+      1335,
+      923,
+      918,
+      657,
+      348,
+      377
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 6653,
+      "max": 0.438892,
+      "mean": 8.29814e-05
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 21525,
+    "t_max": 1.306071,
+    "t_mean": 0.0002672708942760942
+   },
+   "vertices_compared": 4455000,
+   "within": true
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-11-04T21:40:23Z",
+ "gpu": "GPU 1 (default clocks)",
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda"
+  },
+  "commit": "d327950ff536cd8a264c02924dd87325bbac357f",
+  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+  "parity_cuda": true
+ },
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "CUDA in_place against the frozen calibration (AD5 as decided on 2026-10-28 and 2026-10-29; criterion 13): every port run against every one of the N GPU-1 reference runs within T_mean, T_max and T_flips over the vertices ACTIVE and not ground truth after the last batch, the per-batch iterations and their sum inside the frozen envelope, the components exact; the deterministic stages (components, G', the initial labels, the initial frontier) against the trace golden",
+ "within": true
+}

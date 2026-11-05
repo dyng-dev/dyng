@@ -3,20 +3,20 @@
  "set": "label_propagation_oracle",
  "kind": "label_propagation_oracle",
  "what": "parity/compare.py label_propagation: the harmonic oracle (AD7): mean |F - F*| <= 2000 delta, the PCG converged, no class flip where |F* - 0.5| > 3m, on every batch of C (and L), both schedules, IrLP",
- "date": "2026-11-04T01:20:18Z",
+ "date": "2026-11-04T22:34:53Z",
  "reference": {
   "name": "LabelPropagation-CUDA",
   "commit": null
  },
  "port": {
-  "commit": "107dfef16370bed900beaf28efea1b6bfd4373c3"
+  "commit": "d327950ff536cd8a264c02924dd87325bbac357f"
  },
  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
  "build": {
   "CMAKE_BUILD_TYPE": "Release",
   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
   "DYNG_CUDA_ARCHITECTURES": "86",
-  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda",
   "preset": "parity-cuda"
  },
  "goldens": {},

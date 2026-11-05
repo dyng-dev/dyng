@@ -3,20 +3,20 @@
  "set": "label_propagation_hub",
  "kind": "label_propagation_hub",
  "what": "parity/compare.py label_propagation: propagation_test's hub graph on the fused engine: the damped calls' label bits and counts, the in_place call within O's bounds (a parity-cuda build)",
- "date": "2026-11-04T00:39:00Z",
+ "date": "2026-11-04T21:02:07Z",
  "reference": {
   "name": "LabelPropagation-CUDA",
   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
  },
  "port": {
-  "commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b"
+  "commit": "d327950ff536cd8a264c02924dd87325bbac357f"
  },
  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/cpp/tests/algorithms/label_propagation/dyng_label_propagation_cuda_tests",
  "build": {
   "CMAKE_BUILD_TYPE": "Release",
   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
   "DYNG_CUDA_ARCHITECTURES": "86",
-  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda",
   "preset": "parity-cuda"
  },
  "goldens": {
