@@ -8,7 +8,8 @@
  *        the requirements and the refusals (HD9, HD14), the weight limit (HD11), the work budget
  *        and its three outcomes (HD8; ADR 0092), stale results and clones. Compiled into the host
  *        test executable (sequential; openmp is refused) and, with DYNG_TEST_CUDA=1, into the CUDA
- *        one.
+ *        one, where every case runs on both CUDA engines: the as-is engine (engine::fused,
+ *        MOSP_ESCHER's kernels) and the shared sssp engine (engine::operators, M11b; ADR 0095).
  */
 #include "algorithms/hyper_sssp/hyper_sssp_support.hpp"
 #include "algorithms/hyper_sssp/virtual_endpoints.hpp"
@@ -39,13 +40,45 @@ namespace hv = dyng::detail::hyper_sssp_virtual;
 using rows = dyng::test::hyper::rows;
 constexpr std::int64_t inf = std::numeric_limits<std::int64_t>::max() / 4;
 
-class HyperSssp : public ::testing::TestWithParam<backend> {
+/// A backend and, on cuda, the engine of every compute() of a case.
+struct config {
+  backend b = backend::sequential;
+  dyng::engine e = dyng::engine::automatic;
+};
+
+/// The configurations of the executable: the host backends, or cuda with each engine.
+std::vector<config> configs() {
+  std::vector<config> out;
+  for (const backend b : dyng::test::suite_backends()) {
+    if (b == backend::cuda) {
+      out.push_back({b, dyng::engine::fused});
+      out.push_back({b, dyng::engine::operators});
+    } else {
+      out.push_back({b, dyng::engine::automatic});
+    }
+  }
+  return out;
+}
+
+class HyperSssp : public ::testing::TestWithParam<config> {
  protected:
   void SetUp() override {
-    if (GetParam() == backend::openmp) GTEST_SKIP() << "openmp is refused (HD14): RefusesOpenmp";
+    if (be() == backend::openmp) GTEST_SKIP() << "openmp is refused (HD14): RefusesOpenmp";
+  }
+  backend be() const {
+    return GetParam().b;
+  }
+  /// The shared engine (engine::operators on cuda).
+  bool shared() const {
+    return GetParam().b == backend::cuda && GetParam().e == dyng::engine::operators;
+  }
+  /// `o` with the case's engine.
+  hs::options opts(hs::options o = {}) const {
+    o.cuda_engine = GetParam().e;
+    return o;
   }
   resources res() const {
-    return dyng::test::hyper::resources_of(GetParam());
+    return dyng::test::hyper::resources_of(be());
   }
   /// A path 0-1-2-3 of hyperedges and a heavy shortcut 4 = {0, 9} to hyperedge 3's vertex 9 (12
   /// vertices; vertex 11 in no hyperedge).
@@ -71,7 +104,7 @@ TEST(HyperSsspBackends, RefusesOpenmp) {
 
 TEST_P(HyperSssp, ComputeEqualsTheOracleAndTheDistancesIncludeTheWeights) {
   const whgraph h = path();
-  const result_t r = hs::compute(res(), h, 0);
+  const result_t r = hs::compute(res(), h, 0, opts());
   EXPECT_TRUE(matches_oracle(res(), h, r, 0, true));
   const auto [d, p] = host_of(res(), r);
   ASSERT_EQ(d.size(), 6U);
@@ -100,7 +133,7 @@ TEST_P(HyperSssp, ComputeEqualsTheOracleAndTheDistancesIncludeTheWeights) {
 }
 
 TEST_P(HyperSssp, UpdatesEqualComputeAndTheOracle) {
-  std::mt19937_64 rng(GetParam() == backend::cuda ? 41 : 42);
+  std::mt19937_64 rng(be() == backend::cuda ? 41 : 42);
   for (int trial = 0; trial < 6; ++trial) {
     const std::int32_t n = 30 + trial * 7;
     rows init;
@@ -116,7 +149,7 @@ TEST_P(HyperSssp, UpdatesEqualComputeAndTheOracle) {
     whgraph h =
         make(res(), n, init, w,
              slack(trial % 3 == 0 ? dyng::id_reuse::insert_first : dyng::id_reuse::erase_first));
-    result_t r = hs::compute(res(), h, 0);
+    result_t r = hs::compute(res(), h, 0, opts());
     ASSERT_TRUE(matches_oracle(res(), h, r, 0, true));
     for (int t = 0; t < 8; ++t) {
       const wbatch b = random_batch(rng, h, 40, trial % 2 == 0 ? 9 : 1 << 20);
@@ -124,7 +157,7 @@ TEST_P(HyperSssp, UpdatesEqualComputeAndTheOracle) {
       EXPECT_TRUE(s.converged);
       EXPECT_EQ(s.batch.inserted_hyperedges, static_cast<std::int64_t>(b.view().num_insertions()));
       ASSERT_TRUE(matches_oracle(res(), h, r, 0, true)) << "trial " << trial << " batch " << t;
-      const result_t c = hs::compute(res(), h, 0);
+      const result_t c = hs::compute(res(), h, 0, opts());
       ASSERT_EQ(host_of(res(), r), host_of(res(), c)) << "update != compute";
     }
   }
@@ -155,8 +188,8 @@ TEST_P(HyperSssp, ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow) {
   dyng::detail::hyper_sssp_endpoints ends;
   ends.source_hyperedge = 32;
   ends.zero_weight_a = 32;
-  result_t ra = hs::compute(res(), a, 0);
-  result_t rb = hv::compute(res(), b, ends, {});
+  result_t ra = hs::compute(res(), a, 0, opts());
+  result_t rb = hv::compute(res(), b, ends, opts());
   const auto same = [&](const char* where) {
     const auto [da, pa] = host_of(res(), ra);
     const auto [db, pb] = host_of(res(), rb);
@@ -188,7 +221,7 @@ TEST_P(HyperSssp, TheRequirementsAreChecked) {
   escher.line_graph = dyng::line_graph_policy::automatic;
   const whgraph e = make(r, 4, rows{{0, 1}, {1, 2}}, {1, 1}, escher);
   try {
-    (void)hs::compute(r, e, 0);
+    (void)hs::compute(r, e, 0, opts());
     FAIL() << "escher storage was accepted";
   } catch (const dyng::not_supported_error& x) {
     EXPECT_NE(std::string(x.what()).find("slack_csr"), std::string::npos) << x.what();
@@ -197,12 +230,12 @@ TEST_P(HyperSssp, TheRequirementsAreChecked) {
   dyng::hypergraph_properties none = slack();
   none.line_graph = dyng::line_graph_policy::none;
   const whgraph h0 = make(r, 4, rows{{0, 1}, {1, 2}}, {1, 1}, none);
-  EXPECT_THROW((void)hs::compute(r, h0, 0), dyng::not_supported_error);
+  EXPECT_THROW((void)hs::compute(r, h0, 0, opts()), dyng::not_supported_error);
   // line_graph_policy::automatic builds it (and keeps it under the updates).
   dyng::hypergraph_properties automatic = slack();
   automatic.line_graph = dyng::line_graph_policy::automatic;
   whgraph ha = make(r, 4, rows{{0, 1}, {1, 2}}, {1, 1}, automatic);
-  result_t ra = hs::compute(r, ha, 0);
+  result_t ra = hs::compute(r, ha, 0, opts());
   wbatch b;
   b.insert_hyperedge({2, 3}, 5);
   (void)hs::update(r, ha, b.view(), ra);
@@ -210,25 +243,26 @@ TEST_P(HyperSssp, TheRequirementsAreChecked) {
   // The source out of range; invalid options.
   const whgraph h = path();
   EXPECT_THROW((void)hs::compute(r, h, -1), dyng::invalid_argument_error);
-  EXPECT_THROW((void)hs::compute(r, h, 12), dyng::invalid_argument_error);
+  EXPECT_THROW((void)hs::compute(r, h, 12, opts()), dyng::invalid_argument_error);
   hs::options o;
   o.work_budget = -1;
-  EXPECT_THROW((void)hs::compute(r, h, 0, o), dyng::invalid_argument_error);
+  EXPECT_THROW((void)hs::compute(r, h, 0, opts(o)), dyng::invalid_argument_error);
   o = {};
   o.work_budget = std::numeric_limits<double>::quiet_NaN();
-  EXPECT_THROW((void)hs::compute(r, h, 0, o), dyng::invalid_argument_error);
+  EXPECT_THROW((void)hs::compute(r, h, 0, opts(o)), dyng::invalid_argument_error);
   o = {};
   o.max_iterations = 0;
-  EXPECT_THROW((void)hs::compute(r, h, 0, o), dyng::invalid_argument_error);
+  EXPECT_THROW((void)hs::compute(r, h, 0, opts(o)), dyng::invalid_argument_error);
   o = {};
   o.on_budget = static_cast<hs::budget_action>(7);
-  EXPECT_THROW((void)hs::compute(r, h, 0, o), dyng::invalid_argument_error);
-  o = {};
-  o.cuda_engine = dyng::engine::operators;
-  if (GetParam() == backend::cuda) {
-    EXPECT_THROW((void)hs::compute(r, h, 0, o), dyng::not_supported_error);
-  } else {
-    EXPECT_NO_THROW((void)hs::compute(r, h, 0, o));  // ignored on the host
+  EXPECT_THROW((void)hs::compute(r, h, 0, opts(o)), dyng::invalid_argument_error);
+  // Every engine runs everywhere: on cuda fused and operators are the two engines (M11b), on the
+  // host the choice is ignored.
+  for (const dyng::engine e :
+       {dyng::engine::automatic, dyng::engine::fused, dyng::engine::operators}) {
+    o = {};
+    o.cuda_engine = e;
+    EXPECT_NO_THROW((void)hs::compute(r, h, 0, o));
   }
 }
 
@@ -236,13 +270,13 @@ TEST_P(HyperSssp, WeightsAboveTwoToThe28AreRefusedBeforeTheCommit) {
   const resources r = res();
   constexpr std::int32_t heavy = (1 << 28) + 1;
   const whgraph h1 = make(r, 4, rows{{0, 1}, {1, 2}}, {1, heavy});
-  EXPECT_THROW((void)hs::compute(r, h1, 0), dyng::invalid_argument_error);
+  EXPECT_THROW((void)hs::compute(r, h1, 0, opts()), dyng::invalid_argument_error);
   hs::options off;
   off.validate_inputs = false;
-  const result_t loose = hs::compute(r, h1, 0, off);  // still exact (the 64-bit fallback)
+  const result_t loose = hs::compute(r, h1, 0, opts(off));  // still exact (the 64-bit fallback)
   EXPECT_EQ(loose.distance_to(2), 1 + static_cast<std::int64_t>(heavy));
   whgraph h = make(r, 4, rows{{0, 1}, {1, 2}}, {1, 1 << 28});  // 2^28 is allowed
-  result_t res28 = hs::compute(r, h, 0);
+  result_t res28 = hs::compute(r, h, 0, opts());
   wbatch b;
   b.delete_hyperedge(1);
   b.insert_hyperedge({2, 3}, heavy);
@@ -264,19 +298,56 @@ TEST_P(HyperSssp, WeightsOfTwoToThe28OnLongPathsStayExact) {
     w.push_back(1 << 28);
   }
   whgraph h = make(r, 42, chain, w);
-  result_t sp = hs::compute(r, h, 0);
+  result_t sp = hs::compute(r, h, 0, opts());
   EXPECT_EQ(sp.distance_to(40), 40 * (std::int64_t{1} << 28));
   wbatch b;
   b.delete_hyperedge(20);
   b.insert_hyperedge({20, 21}, 1 << 28);
   const hs::stats s = hs::update(r, h, b.view(), sp);
   ASSERT_TRUE(matches_oracle(r, h, sp, 0, true));
-  if (GetParam() == backend::cuda) {
+  if (be() == backend::cuda && !shared()) {
     EXPECT_TRUE(s.fallback_used);
     EXPECT_EQ(s.fallback_reason, hs::fallback_reason::distance_width);
   } else {
+    // The host engine is exact as is; the shared engine's words hold n x 2^28 and the parents
+    // (sssp's packing, ADR 0095).
     EXPECT_FALSE(s.fallback_used);
   }
+}
+
+TEST_P(HyperSssp, TheSharedEngineFallsBackWhenItsWordsCannotHoldTheParents) {
+  // Without validate_inputs the packing must hold 2^31 - 1 per hyperedge: with 2^17 or more ids
+  // the bound and the parent bits pass 64 bits, so the shared engine's compute() takes the ported
+  // recompute and its update falls back (distance_width), exactly (ADR 0095). A binary tree of
+  // 140,000 two-vertex hyperedges keeps the line graph sparse and shallow.
+  if (!shared()) GTEST_SKIP() << "the shared engine's packing (engine::operators on cuda)";
+  const resources r = res();
+  constexpr std::int32_t m = 140000;
+  rows tree;
+  std::vector<std::int32_t> w;
+  for (std::int32_t v = 1; v <= m; ++v) {
+    tree.push_back({(v - 1) / 2, v});
+    w.push_back(1 + v % 7);
+  }
+  whgraph h = make(r, m + 1, tree, w);
+  hs::options o;
+  o.validate_inputs = false;
+  result_t sp = hs::compute(r, h, 0, opts(o));
+  ASSERT_TRUE(matches_oracle(r, h, sp, 0, true));
+  wbatch b;
+  b.delete_hyperedge(1);
+  b.insert_hyperedge({0, 4}, 1);
+  const hs::stats s = hs::update(r, h, b.view(), sp);
+  EXPECT_TRUE(s.fallback_used);
+  EXPECT_EQ(s.fallback_reason, hs::fallback_reason::distance_width);
+  ASSERT_TRUE(matches_oracle(r, h, sp, 0, true));
+  // With validate_inputs the bound is the largest weight (7): the words hold the parents.
+  whgraph h2 = make(r, m + 1, tree, w);
+  result_t s2 = hs::compute(r, h2, 0, opts());
+  const hs::stats t = hs::update(r, h2, b.view(), s2);
+  EXPECT_FALSE(t.fallback_used);
+  ASSERT_TRUE(matches_oracle(r, h2, s2, 0, true));
+  EXPECT_EQ(host_of(r, sp), host_of(r, s2));
 }
 
 TEST_P(HyperSssp, TheWorkBudgetRecomputesOrThrows) {
@@ -287,7 +358,7 @@ TEST_P(HyperSssp, TheWorkBudgetRecomputesOrThrows) {
     whgraph h = path();
     hs::options o;
     o.work_budget = budget;
-    result_t sp = hs::compute(r, h, 0, o);
+    result_t sp = hs::compute(r, h, 0, opts(o));
     wbatch b;
     b.delete_hyperedge(1);
     b.insert_hyperedge({1, 9}, 1);
@@ -302,7 +373,7 @@ TEST_P(HyperSssp, TheWorkBudgetRecomputesOrThrows) {
   hs::options o;
   o.work_budget = 0;
   o.on_budget = hs::budget_action::error;
-  result_t sp = hs::compute(r, h, 0, o);
+  result_t sp = hs::compute(r, h, 0, opts(o));
   wbatch b;
   b.delete_hyperedge(1);
   b.insert_hyperedge({1, 9}, 1);
@@ -316,11 +387,11 @@ TEST_P(HyperSssp, TheWorkBudgetRecomputesOrThrows) {
   it.max_iterations = 1;
   it.work_budget = std::numeric_limits<double>::infinity();  // only the iteration trigger
   it.on_budget = hs::budget_action::error;
-  result_t s2 = hs::compute(r, h2, 0, it);
+  result_t s2 = hs::compute(r, h2, 0, opts(it));
   wbatch c;
   c.delete_hyperedge(0);  // everything below the source's hyperedge 0 is invalidated
   c.insert_hyperedge({0, 1}, 1);
-  if (GetParam() == backend::cuda) {
+  if (be() == backend::cuda) {
     EXPECT_THROW((void)hs::update(r, h2, c.view(), s2), dyng::convergence_error);
   } else {
     const hs::stats s = hs::update(r, h2, c.view(), s2);
@@ -359,7 +430,7 @@ TEST_P(HyperSssp, TheWorkTriggerFiresAboveTheLimitAndNotBelow) {
   whgraph h0 = budget_case::make_path(r);
   hs::options free;
   free.work_budget = std::numeric_limits<double>::infinity();
-  result_t s0 = hs::compute(r, h0, 0, free);
+  result_t s0 = hs::compute(r, h0, 0, opts(free));
   const hs::stats base = hs::update(r, h0, budget_case::batch().view(), s0);
   ASSERT_FALSE(base.fallback_used);
   const double work = static_cast<double>(base.relaxations);
@@ -370,7 +441,7 @@ TEST_P(HyperSssp, TheWorkTriggerFiresAboveTheLimitAndNotBelow) {
     whgraph h = budget_case::make_path(r);
     hs::options o;
     o.work_budget = work / (ratio * budget_case::entries);
-    result_t sp = hs::compute(r, h, 0, o);
+    result_t sp = hs::compute(r, h, 0, opts(o));
     const hs::stats s = hs::update(r, h, budget_case::batch().view(), sp);
     EXPECT_EQ(s.fallback_used, ratio > 1.0) << "work " << work << " at " << ratio << "x the limit";
     EXPECT_EQ(s.fallback_reason,
@@ -380,12 +451,12 @@ TEST_P(HyperSssp, TheWorkTriggerFiresAboveTheLimitAndNotBelow) {
 }
 
 TEST_P(HyperSssp, TheIterationTriggerAllowsExactlyMaxIterationsPushRounds) {
-  if (GetParam() != backend::cuda) GTEST_SKIP() << "push rounds are the cuda engine's (HD8)";
+  if (be() != backend::cuda) GTEST_SKIP() << "push rounds are the cuda engines' (HD8)";
   const resources r = res();
   whgraph h0 = budget_case::make_path(r);
   hs::options free;
   free.work_budget = std::numeric_limits<double>::infinity();
-  result_t s0 = hs::compute(r, h0, 0, free);
+  result_t s0 = hs::compute(r, h0, 0, opts(free));
   const hs::stats base = hs::update(r, h0, budget_case::batch().view(), s0);
   ASSERT_FALSE(base.fallback_used);
   const std::int64_t k = base.iterations;
@@ -396,7 +467,7 @@ TEST_P(HyperSssp, TheIterationTriggerAllowsExactlyMaxIterationsPushRounds) {
     whgraph h = budget_case::make_path(r);
     hs::options o = free;
     o.max_iterations = cap;
-    result_t sp = hs::compute(r, h, 0, o);
+    result_t sp = hs::compute(r, h, 0, opts(o));
     const hs::stats s = hs::update(r, h, budget_case::batch().view(), sp);
     EXPECT_EQ(s.fallback_used, cap < k) << "k " << k << ", max_iterations " << cap;
     EXPECT_EQ(s.fallback_reason,
@@ -410,7 +481,7 @@ TEST_P(HyperSssp, AnEmptyHypergraphComputesAndUpdates) {
   // pending CUDA error for the next checked call, the store's commit), and insertions then work.
   const resources r = res();
   whgraph h = make(r, 5, rows{}, {});
-  result_t sp = hs::compute(r, h, 0);
+  result_t sp = hs::compute(r, h, 0, opts());
   EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
   EXPECT_EQ(sp.distance_to(0), 0);
   EXPECT_EQ(sp.distance_to(1), inf);
@@ -422,20 +493,20 @@ TEST_P(HyperSssp, AnEmptyHypergraphComputesAndUpdates) {
   EXPECT_NO_THROW(h.check_integrity(r));
   EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
   EXPECT_EQ(sp.distance_to(2), 7);
-  const result_t c = hs::compute(r, h, 0);
+  const result_t c = hs::compute(r, h, 0, opts());
   EXPECT_EQ(host_of(r, sp), host_of(r, c));
 }
 
 TEST_P(HyperSssp, StaleResultsAndAccessorsOfAGoneHypergraph) {
   const resources r = res();
   std::optional<whgraph> h(path());
-  result_t sp = hs::compute(r, *h, 0);
+  result_t sp = hs::compute(r, *h, 0, opts());
   wbatch b;
   b.insert_hyperedge({5, 6}, 1);
   (void)h->apply(r, b.view());
   EXPECT_THROW((void)hs::update(r, *h, wbatch{}.view(), sp), dyng::stale_result_error);
   EXPECT_THROW((void)sp.distance_to(1), dyng::stale_result_error);  // the hypergraph changed
-  result_t sq = hs::compute(r, *h, 0);
+  result_t sq = hs::compute(r, *h, 0, opts());
   EXPECT_EQ(sq.distance_to(1), 1);
   h.reset();
   EXPECT_THROW((void)sq.distance_to(1), dyng::stale_result_error);  // it no longer exists
@@ -445,7 +516,7 @@ TEST_P(HyperSssp, StaleResultsAndAccessorsOfAGoneHypergraph) {
 TEST_P(HyperSssp, ClonesKeepTheResultOnEveryBackend) {
   const resources r = res();
   whgraph h = path();
-  result_t sp = hs::compute(r, h, 0);
+  result_t sp = hs::compute(r, h, 0, opts());
   result_t host = sp.clone(resources::sequential());
   EXPECT_EQ(host.space(), dyng::memory_space::host);
   EXPECT_EQ(host_of(resources::sequential(), host), host_of(r, sp));
@@ -468,7 +539,7 @@ TEST_P(HyperSssp, AGrowthOfTheResultsStateStaysWithinTheBudget) {
   const dyng::detail::framework::strict_budgets_scope strict;
   const resources r = res();
   whgraph h = make(r, 4000, rows{{0, 1}}, {1});
-  result_t sp = hs::compute(r, h, 0);
+  result_t sp = hs::compute(r, h, 0, opts());
   wbatch grow;
   for (std::int32_t i = 1; i < 3000; ++i) grow.insert_hyperedge({i, i + 1}, 1 + i % 3);
   EXPECT_NO_THROW((void)hs::update(r, h, grow.view(), sp));
@@ -486,8 +557,8 @@ TEST_P(HyperSssp, AGrowthOfTheResultsStateStaysWithinTheBudget) {
 TEST_P(HyperSssp, TwoResultsOfDifferentSourcesInOneUpdate) {
   const resources r = res();
   whgraph h = path();
-  result_t a = hs::compute(r, h, 0);
-  result_t c = hs::compute(r, h, 9);
+  result_t a = hs::compute(r, h, 0, opts());
+  result_t c = hs::compute(r, h, 9, opts());
   wbatch b;
   b.delete_hyperedge(1);
   b.insert_incidence(5, 2);  // {10} + 2 joins hyperedges 2 and 5
@@ -497,12 +568,76 @@ TEST_P(HyperSssp, TwoResultsOfDifferentSourcesInOneUpdate) {
   EXPECT_EQ(c.distance_to(10), 3 + 4 + 1);  // 3 -> 2 -> 5
 }
 
-std::string backend_name(const ::testing::TestParamInfo<backend>& info) {
-  return std::string(dyng::to_string(info.param));
+TEST_P(HyperSssp, TheTwoCudaEnginesGiveTheSameBytes) {
+  // M11b criterion 3 (C4 by hand, both modes): engine::operators == engine::fused byte for byte
+  // after compute() and every update, the public mode and the virtual-endpoint mode, with
+  // hyperedge and incidence changes and both id-reuse rules.
+  if (!shared()) GTEST_SKIP() << "both engines run on cuda (the engine::operators case)";
+  const resources r = res();
+  hs::options fused;
+  fused.cuda_engine = dyng::engine::fused;
+  std::mt19937_64 rng(2026);
+  for (int trial = 0; trial < 4; ++trial) {
+    const std::int32_t n = 40 + 10 * trial;
+    rows init;
+    std::vector<std::int32_t> w;
+    std::uniform_int_distribution<std::int32_t> vertex(1, n - 1);
+    std::uniform_int_distribution<std::int32_t> weight(1, trial % 2 == 0 ? 9 : 1 << 20);
+    for (int i = 0; i < 60; ++i) {
+      init.push_back({vertex(rng), vertex(rng), vertex(rng)});
+      w.push_back(weight(rng));
+    }
+    init.push_back({0, 1});
+    w.push_back(1);
+    rows plus = init;
+    std::vector<std::int32_t> wp = w;
+    plus.push_back({0});  // the virtual mode's source row, id 61
+    wp.push_back(1);
+    const dyng::id_reuse reuse =
+        trial % 2 == 0 ? dyng::id_reuse::insert_first : dyng::id_reuse::erase_first;
+    whgraph a = make(r, n, init, w, slack(reuse));
+    whgraph af = make(r, n, init, w, slack(reuse));
+    whgraph v = make(r, n, plus, wp, slack(reuse));
+    whgraph vf = make(r, n, plus, wp, slack(reuse));
+    dyng::detail::hyper_sssp_endpoints ends;
+    ends.source_hyperedge = 61;
+    ends.zero_weight_a = 61;
+    result_t ra = hs::compute(r, a, 0, opts());
+    result_t rf = hs::compute(r, af, 0, fused);
+    result_t va = hv::compute(r, v, ends, opts());
+    result_t vf2 = hv::compute(r, vf, ends, fused);
+    ASSERT_EQ(host_of(r, ra), host_of(r, rf)) << "trial " << trial << ": compute()";
+    ASSERT_EQ(host_of(r, va), host_of(r, vf2)) << "trial " << trial << ": compute() (virtual)";
+    for (int t = 0; t < 8; ++t) {
+      // The same batch on the four (never touching the source row).
+      wbatch x = random_batch(rng, a, 30, trial % 2 == 0 ? 9 : 1 << 20, 3);
+      if (t % 2 == 0) x.insert_incidence(static_cast<std::int64_t>(t), 0);
+      if (t % 3 == 0) x.delete_incidence(60, 0);
+      const hs::stats sa = hs::update(r, a, x.view(), ra);
+      const hs::stats sf = hs::update(r, af, x.view(), rf);
+      const hs::stats sv = hs::update(r, v, x.view(), va);
+      const hs::stats svf = hs::update(r, vf, x.view(), vf2);
+      EXPECT_EQ(sa.engine_used, dyng::engine::operators);
+      EXPECT_EQ(sf.engine_used, dyng::engine::fused);
+      ASSERT_EQ(host_of(r, ra), host_of(r, rf)) << "trial " << trial << " batch " << t;
+      ASSERT_EQ(host_of(r, va), host_of(r, vf2)) << "trial " << trial << " batch " << t;
+      EXPECT_EQ(sa.invalidated, sf.invalidated);
+      EXPECT_EQ(sv.invalidated, svf.invalidated);
+      ASSERT_TRUE(matches_oracle(r, a, ra, 0, true));
+    }
+  }
 }
 
-INSTANTIATE_TEST_SUITE_P(Backends, HyperSssp, ::testing::ValuesIn(dyng::test::suite_backends()),
-                         backend_name);
+std::string config_name(const ::testing::TestParamInfo<config>& info) {
+  std::string name(dyng::to_string(info.param.b));
+  if (info.param.b == backend::cuda && info.param.e == dyng::engine::operators) {
+    name += "_operators";
+  }
+  return name;
+}
+
+INSTANTIATE_TEST_SUITE_P(Backends, HyperSssp, ::testing::ValuesIn(configs()), config_name);
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HyperSssp);
 
 }  // namespace

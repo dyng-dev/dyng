@@ -58,12 +58,14 @@
  * compute() bit for bit).
  *
  * **The work budget** (options::work_budget, max_iterations, on_budget; MOSP_ESCHER's
- * UpdateConfig). The CUDA engine falls back to a recompute from scratch (stats::fallback_used,
- * stats::fallback_reason) when, before a push round, its relaxations exceed work_budget times the
- * live line-graph entries, or it has run max_iterations push rounds; and always when a distance
- * does not fit the engine's 32-bit packed words, or the invalidation's pointer jumping needs more
- * than 64 rounds. The host engine counts the relaxations the same way, checked before each
- * expansion, and has no iteration, width or depth limit. The fallback gives the same result as
+ * UpdateConfig). The CUDA engines fall back to a recompute from scratch (stats::fallback_used,
+ * stats::fallback_reason) when, before a push round, their relaxations exceed work_budget times
+ * the live line-graph entries, or they have run max_iterations push rounds; and always when a
+ * distance does not fit their packed words (engine::fused: 32 bits; engine::operators: the
+ * hyperedge id bound times the largest weight next to the parent bits), or the invalidation's
+ * pointer jumping does not end (engine::fused: 64 rounds; engine::operators: ceil(log2 n) + 1).
+ * The host engine counts the relaxations the same way, checked before each expansion, and has no
+ * iteration, width or depth limit. The fallback gives the same result as
  * the update would have (it is exact); under budget_action::error an exceeded work or iteration
  * budget throws convergence_error instead, after the commit.
  *
@@ -74,11 +76,13 @@
  * vertex-to-hyperedge rows (store_v2h). Any id_reuse order and capacity policy.
  *
  * **Backends** (HD14): sequential (MOSP_ESCHER's host emulation, emulateSospRecompute and
- * emulateSospUpdate) and cuda (MOSP_ESCHER's kernels as they are: engine::fused). There is no
- * openmp backend in 0.4: openmp resources raise not_supported_error. On cuda the hypergraph must be
- * built with (or cloned for) the CUDA resources and the result's arrays are device memory (copy
- * them with to_vector()); the engine synchronizes the stream once per push round and once per
- * pointer-jumping round.
+ * emulateSospUpdate) and cuda, with two engines that return the same bytes: MOSP_ESCHER's kernels
+ * as they are (engine::fused, the default) and the shared sssp engine (engine::operators: sssp's
+ * operators over the line graph with node weights). There is no openmp backend in 0.4: openmp
+ * resources raise not_supported_error. On cuda the hypergraph must be built with (or cloned for)
+ * the CUDA resources and the result's arrays are device memory (copy them with to_vector()); the
+ * engines synchronize the stream once per push round (engine::fused also once per
+ * pointer-jumping round).
  *
  * Types: int32_t vertex ids and int32_t weights (other hypergraph types fail to compile with a
  * static_assert naming these).
@@ -147,8 +151,8 @@ struct options {
   /// invalidation depth always recompute).
   budget_action on_budget = budget_action::recompute;
   /// The CUDA engine: automatic and fused run MOSP_ESCHER's kernels (engine::fused);
-  /// engine::operators (the shared sssp engine) arrives in M11b and throws not_supported_error in
-  /// this release. Ignored by the sequential backend.
+  /// engine::operators runs the shared sssp engine (the same results). Ignored by the sequential
+  /// backend.
   engine cuda_engine = engine::automatic;
   /// Check the weights against [1, 2^28] (compute(): every live hyperedge; update(): the batch's
   /// insertions, before the commit). Without the check heavier weights still give exact results
@@ -170,7 +174,8 @@ struct options {
  *     thread schedule, so a batch within a few percent of its budget may fall back in one run and
  *     not in another, with identical results (HD7; the weaker level core/stats.hpp allows);
  *   - `converged`: always true;
- *   - `engine_used`: engine::fused on cuda, engine::operators on sequential.
+ *   - `engine_used`: the CUDA engine that ran (options::cuda_engine; automatic is fused), and
+ *     engine::operators on sequential.
  * @ingroup hyper_sssp
  */
 struct stats : update_stats {
@@ -436,8 +441,7 @@ namespace dyng::hyper_sssp {
  *         failed apply().
  * @throws not_supported_error    if the backend of `res` is openmp (hyper_sssp runs on
  *         sequential and cuda in 0.4; use dyng::resources::sequential()) or not built, `h` is
- *         not slack_csr storage with its line graph (line_graph_policy::none or sorted_merge), or
- *         options::cuda_engine is engine::operators on cuda.
+ *         not slack_csr storage with its line graph (line_graph_policy::none or sorted_merge).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
  * @sync On cuda the stream is synchronized once per round of the recompute.
