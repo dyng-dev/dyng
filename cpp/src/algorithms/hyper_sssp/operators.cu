@@ -80,6 +80,9 @@ namespace {
 
 namespace ops = sssp_operators;
 using hyper_ops::run_control;
+
+/// The near-far width that keeps every improved node near (MOSP_ESCHER's rounds).
+constexpr sssp_kernels::u64 unbounded = sssp_kernels::u64{1} << 62;
 using sssp_kernels::block_size;
 using sssp_kernels::u64;
 
@@ -123,7 +126,7 @@ void init_control(const resources& res, hyper_ops::device_scratch& s) {
   run_control* rc = device_control(s);
   ops::init_control_kernel<int><<<1, 1, 0, stream>>>(&rc->c);
   DYNG_CHECK_KERNEL(stream);
-  DYNG_CUDA_TRY(cudaMemsetAsync(&rc->work, 0, sizeof(u64), stream));
+  DYNG_CUDA_TRY(cudaMemsetAsync(&rc->work, 0, 2 * sizeof(u64), stream));  // work, weight_sum
 }
 
 /// Upload a host list to `device` (ints).
@@ -162,8 +165,15 @@ int as_count(std::int64_t count, const char* what) {
 
 hyper_sssp_cuda_operators_engine::hyper_sssp_cuda_operators_engine(
     const resources& res, hyper_sssp_state& st, const hyper_sssp_graph& g,
-    const hyper_sssp_batch* b, const hyper_sssp_budget& budget, std::int64_t max_weight)
-    : res_(res), st_(st), g_(g), b_(b), budget_(budget), n_(g.rows.num_nodes) {
+    const hyper_sssp_batch* b, const hyper_sssp_budget& budget, std::int64_t max_weight,
+    hyper_sssp_workspace* ws)
+    : res_(res),
+      st_(st),
+      g_(g),
+      b_(b),
+      budget_(budget),
+      ws_(ws != nullptr ? ws : (b != nullptr ? b->scratch : nullptr)),
+      n_(g.rows.num_nodes) {
   counters_.engine_used = engine::operators;
   counters_.host_syncs = 0;
   DYNG_EXPECTS(g_.rows.space == memory_space::device,
@@ -183,8 +193,10 @@ hyper_sssp_cuda_operators_engine::hyper_sssp_cuda_operators_engine(
   const sssp_kernels::packing packed = sssp_kernels::make_packing(n_, max_distance_);
   parent_bits_ = packed.parent_bits;
   no_parent_ = packed.no_parent;
-  const std::int64_t delta = st_.ops_knobs.delta;
-  delta_ = delta > 0 ? static_cast<u64>(delta) : (u64{1} << 62);  // unbounded: every round near
+  // The near-far width: an update's (0: unbounded, every improved node joins the next round);
+  // a static solve's compute_delta, or with 0 MOSP's defaultDelta over the line graph (reset()).
+  const std::int64_t delta = b_ == nullptr ? st_.ops_knobs.compute_delta : st_.ops_knobs.delta;
+  delta_ = delta > 0 ? static_cast<u64>(delta) : unbounded;
   int rounds = 0;
   while ((1LL << rounds) < n_) ++rounds;
   max_rounds_ = rounds + 1;
@@ -193,6 +205,13 @@ hyper_sssp_cuda_operators_engine::hyper_sssp_cuda_operators_engine(
               std::max(props.max_threads_per_multiprocessor / block_size, 1);
   (void)scratch_of(res_, st_);
   st_.dev->stream = native(res_);
+}
+
+unsigned int hyper_sssp_cuda_operators_engine::warp_grid(std::int64_t rows) const noexcept {
+  // One warp per row, every row's warp resident at once as MOSP_ESCHER launches them (the
+  // kernels are grid-stride, so any grid is correct).
+  return static_cast<unsigned int>(std::max<std::int64_t>(
+      (32 * std::max<std::int64_t>(rows, 1) + block_size - 1) / block_size, 1));
 }
 
 unsigned int hyper_sssp_cuda_operators_engine::grid(std::int64_t work) const noexcept {
@@ -284,7 +303,7 @@ void hyper_sssp_cuda_operators_engine::identify_affected() {
   ops::invalidate_kernel<int><<<grid(n_), block_size, 0, stream>>>(
       n, dev.d_inv_a, dev.d_packed, dev.d_stamp, generation, dev.d_inv_b, &rc->c);
   DYNG_CHECK_KERNEL(stream);
-  if (num_heads > 0) {
+  if (num_heads > 0 && !st_.ops_knobs.seed_pairs) {
     hyper_ops::heads_kernel<<<grid(num_heads), block_size, 0, stream>>>(
         pairs + num_del, num_ins, lists + num_lost, num_gained, heads);
     DYNG_CHECK_KERNEL(stream);
@@ -292,6 +311,10 @@ void hyper_sssp_cuda_operators_engine::identify_affected() {
         heads, static_cast<int>(num_heads), source_, dev.d_stamp, generation, dev.d_inv_b, &rc->c);
     DYNG_CHECK_KERNEL(stream);
   }
+  inserted_ = dd.pairs + 2 * static_cast<std::ptrdiff_t>(num_del);
+  gained_ = lists + num_lost;
+  num_inserted_ = num_ins;
+  num_gained_ = num_gained;
   const run_control result = read_control(res_, s, counters_);
   int rounds_run = 0;
   while (rounds_run < max_rounds_ && result.c.active[rounds_run] != 0) ++rounds_run;
@@ -308,31 +331,44 @@ void hyper_sssp_cuda_operators_engine::identify_affected() {
     return;
   }
   candidates_ = static_cast<std::int64_t>(result.c.candidates);
+  invalidated_ = static_cast<std::int64_t>(result.c.invalidated);
 }
 
 void hyper_sssp_cuda_operators_engine::seed() {
   frontier_bound_ = 0;
-  if (n_ == 0 || stopped_ || candidates_ == 0) return;
+  const std::int64_t pair_seeds = st_.ops_knobs.seed_pairs ? 2 * num_inserted_ + num_gained_ : 0;
+  if (n_ == 0 || stopped_ || candidates_ + pair_seeds == 0) return;
   const scoped_device guard(res_.device());
   const cudaStream_t stream = native(res_);
   hsosp::device_state& dev = *st_.dev;
   hyper_ops::device_scratch& s = *st_.ops;
   run_control* rc = device_control(s);
   const sssp_kernels::packing packed{parent_bits_, no_parent_};
-  const hyper_ops::line_graph_view view = view_of(g_, st_, rc);
+  hyper_ops::line_graph_view view = view_of(g_, st_, rc);
+  view.counted = static_cast<int>(invalidated_);  // MOSP_ESCHER counts the invalidated pulls
   const int generation = next_generation();
   const int count = static_cast<int>(candidates_);
-  if (st_.ops_knobs.warp_rows) {
-    hyper_ops::pull_warp_kernel<<<grid(32 * candidates_), block_size, 0, stream>>>(
-        dev.d_inv_b, count, view, dev.d_packed, packed, max_distance_, dev.d_stamp, generation,
-        dev.d_jump_b, &rc->c);
-  } else {
-    hyper_ops::pull_thread_kernel<<<grid(candidates_), block_size, 0, stream>>>(
-        dev.d_inv_b, count, view, dev.d_packed, packed, max_distance_, dev.d_stamp, generation,
-        dev.d_jump_b, &rc->c);
+  if (count > 0) {
+    if (st_.ops_knobs.warp_rows) {
+      hyper_ops::pull_warp_kernel<<<warp_grid(candidates_), block_size, 0, stream>>>(
+          dev.d_inv_b, count, view, dev.d_packed, packed, max_distance_, dev.d_stamp, generation,
+          dev.d_jump_b, &rc->c);
+    } else {
+      hyper_ops::pull_thread_kernel<<<grid(candidates_), block_size, 0, stream>>>(
+          dev.d_inv_b, count, view, dev.d_packed, packed, max_distance_, dev.d_stamp, generation,
+          dev.d_jump_b, &rc->c);
+    }
+    DYNG_CHECK_KERNEL(stream);
   }
-  DYNG_CHECK_KERNEL(stream);
-  frontier_bound_ = candidates_;  // the frontier is a subset of the candidates
+  if (pair_seeds > 0) {
+    hyper_ops::pair_seed_kernel<<<grid(pair_seeds), block_size, 0, stream>>>(
+        reinterpret_cast<const int2*>(inserted_), static_cast<int>(num_inserted_), gained_,
+        static_cast<int>(num_gained_), view, dev.d_packed, packed, max_distance_, source_,
+        dev.d_stamp, generation, dev.d_jump_b, &rc->c);
+    DYNG_CHECK_KERNEL(stream);
+  }
+  // The frontier: the candidates (and the pair seeds) whose distance decreased.
+  frontier_bound_ = std::min<std::int64_t>(candidates_ + pair_seeds, n_);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -350,15 +386,25 @@ void hyper_sssp_cuda_operators_engine::reset() {
   const sssp_kernels::packing packed{parent_bits_, no_parent_};
   const int n = static_cast<int>(n_);
   // The public mode's base: the live hyperedges of the source vertex (the flags' host copy).
-  std::vector<int> base;
+  // An update's fallback lists its base in the pooled workspace (no allocation once reserved,
+  // I9); compute() in its own vectors.
+  std::vector<int> own;
+  std::vector<int>& base = ws_ != nullptr ? ws_->base32 : own;
+  base.clear();
   if (!st_.endpoints.is_virtual()) {
+    std::size_t count = 0;
+    for (std::size_t i = 0; i < st_.holds_source.size() && i < static_cast<std::size_t>(n_); ++i) {
+      count += st_.holds_source[i] != 0 ? 1 : 0;
+    }
+    reserve_scratch(base, count);
     for (std::size_t i = 0; i < st_.holds_source.size() && i < static_cast<std::size_t>(n_); ++i) {
       if (st_.holds_source[i] != 0 && g_.live(static_cast<std::int64_t>(i))) {
         base.push_back(static_cast<int>(i));
       }
     }
   }
-  int* lists = s.base.reserve_with_headroom(res_, base.size());
+  int* lists = ws_ != nullptr ? ws_->ops_lists.reserve_with_headroom(res_, base.size())
+                              : s.base.reserve_with_headroom(res_, base.size());
   upload(res_, lists, base);
   if (!st_.endpoints.is_virtual() && !st_.holds_source.empty()) {
     // The source flags on the device (the host copy is current: compute() rebuilt it); the pulls
@@ -369,6 +415,17 @@ void hyper_sssp_cuda_operators_engine::reset() {
                         cudaMemcpyHostToDevice, stream));
   }
   init_control(res_, s);
+  if (st_.ops_knobs.compute_delta <= 0) {
+    // MOSP's defaultDelta (sssp's default near-far width): 32 x the average entry weight / the
+    // average degree, over the line graph's entries (one synchronization).
+    hyper_ops::entry_weight_kernel<<<grid(n_), block_size, 0, stream>>>(n, view_of(g_, st_, rc),
+                                                                        &rc->weight_sum);
+    DYNG_CHECK_KERNEL(stream);
+    const run_control sums = read_control(res_, s, counters_);
+    delta_ = static_cast<u64>(
+        sssp_default_delta(g_.rows.num_entries, n_, static_cast<std::int64_t>(sums.weight_sum)));
+    counters_.delta = static_cast<std::int64_t>(delta_);
+  }
   DYNG_CUDA_TRY(
       cudaMemsetAsync(dev.d_is_candidate, 0, sizeof(int) * static_cast<std::size_t>(n), stream));
   hyper_ops::init_kernel<<<grid(n_), block_size, 0, stream>>>(n, dev.d_packed, source_, packed);
@@ -399,21 +456,29 @@ void hyper_sssp_cuda_operators_engine::loop() {
   const bool budgeted = b_ != nullptr;  // compute() has no budget (MOSP_ESCHER's recompute)
   const bool warp = st_.ops_knobs.warp_rows;
 
-  // The threshold and the first split over the frontier, whose length is still on the device.
-  const ops::count_of<int> frontier{static_cast<int>(frontier_bound_), &c->frontier};
-  ops::min_distance_kernel<int><<<grid(frontier_bound_), block_size, 0, stream>>>(
-      dev.d_jump_b, frontier, dev.d_packed, packed, c);
-  DYNG_CHECK_KERNEL(stream);
-  ops::threshold_kernel<int><<<1, 1, 0, stream>>>(c, delta_, true);
-  DYNG_CHECK_KERNEL(stream);
   int* current = dev.d_front;
   int* next = dev.d_next;
   int* far = dev.d_cand_list;
   int* far2 = dev.d_aff_list;
-  ops::split_kernel<int><<<grid(frontier_bound_), block_size, 0, stream>>>(
-      dev.d_jump_b, frontier, dev.d_packed, packed, dev.d_stamp, next_generation(), current,
-      &c->near[0], dev.d_is_candidate, far, &c->far[0], false, nullptr, c);
-  DYNG_CHECK_KERNEL(stream);
+  if (delta_ == unbounded) {
+    // Unbounded: the frontier is the first near frontier (nothing to split).
+    hyper_ops::unbounded_start_kernel<<<1, 1, 0, stream>>>(c);
+    DYNG_CHECK_KERNEL(stream);
+    current = dev.d_jump_b;
+    next = dev.d_front;
+  } else {
+    // The threshold and the first split over the frontier, whose length is still on the device.
+    const ops::count_of<int> frontier{static_cast<int>(frontier_bound_), &c->frontier};
+    ops::min_distance_kernel<int><<<grid(frontier_bound_), block_size, 0, stream>>>(
+        dev.d_jump_b, frontier, dev.d_packed, packed, c);
+    DYNG_CHECK_KERNEL(stream);
+    ops::threshold_kernel<int><<<1, 1, 0, stream>>>(c, delta_, true);
+    DYNG_CHECK_KERNEL(stream);
+    ops::split_kernel<int><<<grid(frontier_bound_), block_size, 0, stream>>>(
+        dev.d_jump_b, frontier, dev.d_packed, packed, dev.d_stamp, next_generation(), current,
+        &c->near[0], dev.d_is_candidate, far, &c->far[0], false, nullptr, c);
+    DYNG_CHECK_KERNEL(stream);
+  }
   run_control state = read_control(res_, s, counters_);
   int near_slot = 0;
   int far_slot = 0;
@@ -438,7 +503,7 @@ void hyper_sssp_cuda_operators_engine::loop() {
       ++iterations;
       const int gen = next_generation();
       if (warp) {
-        hyper_ops::push_warp_kernel<<<grid(32LL * near_count), block_size, 0, stream>>>(
+        hyper_ops::push_warp_kernel<<<warp_grid(near_count), block_size, 0, stream>>>(
             current, near_count, view, dev.d_packed, packed, max_distance_, source_, dev.d_stamp,
             gen, next, &c->near[1 - near_slot], dev.d_is_candidate, far, &c->far[far_slot],
             &c->near[near_slot], c);
@@ -500,19 +565,16 @@ void hyper_sssp_cuda_operators_engine::finalize() {
   const scoped_device guard(res_.device());
   const cudaStream_t stream = native(res_);
   hsosp::device_state& dev = *st_.dev;
-  hyper_ops::device_scratch& s = *st_.ops;
-  run_control* rc = device_control(s);
   const sssp_kernels::packing packed{parent_bits_, no_parent_};
   const int n = static_cast<int>(n_);
-  if (b_ != nullptr) {
-    ops::unpack_counted_kernel<int><<<grid(n_), block_size, 0, stream>>>(
-        n, dev.d_packed, packed, dev.d_dist, dev.d_parent, &rc->c);
-  } else {
-    ops::unpack_kernel<int>
-        <<<grid(n_), block_size, 0, stream>>>(n, dev.d_packed, packed, dev.d_dist, dev.d_parent);
-  }
+  // Every word written (MOSP_ESCHER's unpackStateKernel; hyper_sssp counts no `affected`).
+  ops::unpack_kernel<int>
+      <<<grid(n_), block_size, 0, stream>>>(n, dev.d_packed, packed, dev.d_dist, dev.d_parent);
   DYNG_CHECK_KERNEL(stream);
-  (void)read_control(res_, s, counters_);  // a result complete when the call returns
+  // A result complete when the call returns (one synchronization, as MOSP_ESCHER's).
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  note_host_sync();
+  ++counters_.host_syncs;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -537,10 +599,16 @@ struct hyper_operators_kernel_registrar {
                     "hyper_ops::changes_kernel");
     register_kernel(reinterpret_cast<const void*>(&hyper_ops::heads_kernel),
                     "hyper_ops::heads_kernel");
+    register_kernel(reinterpret_cast<const void*>(&hyper_ops::pair_seed_kernel),
+                    "hyper_ops::pair_seed_kernel");
     register_kernel(reinterpret_cast<const void*>(&hyper_ops::init_kernel),
                     "hyper_ops::init_kernel");
     register_kernel(reinterpret_cast<const void*>(&hyper_ops::seed_kernel),
                     "hyper_ops::seed_kernel");
+    register_kernel(reinterpret_cast<const void*>(&hyper_ops::unbounded_start_kernel),
+                    "hyper_ops::unbounded_start_kernel");
+    register_kernel(reinterpret_cast<const void*>(&hyper_ops::entry_weight_kernel),
+                    "hyper_ops::entry_weight_kernel");
   }
 };
 

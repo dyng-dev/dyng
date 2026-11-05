@@ -110,6 +110,7 @@ struct hyper_sssp_engine_counters {
   hyper_sssp::fallback_reason reason = hyper_sssp::fallback_reason::none;  ///< why it fell back
   engine engine_used = engine::fused;  ///< the CUDA engine that ran (operators on the host)
   std::int64_t epochs = 0;             ///< near-far threshold raises (the shared engine)
+  std::int64_t delta = 0;              ///< the shared compute's near-far width (0: unbounded)
   /// The host synchronizations of the shared engine's run (its fallback included; -1: the as-is
   /// engine, whose count algorithm_budget derives from the counters above).
   std::int64_t host_syncs = -1;
@@ -126,8 +127,14 @@ struct hyper_sssp_operators_knobs {
   /// push rounds).
   std::int64_t delta = 0;
   /// compute(), the update's fallback and the static recompute on the shared engine (true) or on
-  /// the ported recompute (hsospRecompute, false).
-  bool shared_compute = false;
+  /// the ported recompute (hsospRecompute, false; also taken for distance-only words).
+  bool shared_compute = true;
+  /// The seeds of the inserted pairs: relaxed one by one after the pull (true; MOSP_ESCHER's
+  /// relaxInsertedKernel) or both endpoints pulled as sssp's insertion heads (false).
+  bool seed_pairs = true;
+  /// The near-far width of the shared compute (a static solve from the seeds); 0: MOSP's
+  /// defaultDelta over the line graph (32 x the average entry weight / the average degree).
+  std::int64_t compute_delta = 0;
 };
 
 namespace hsosp {
@@ -449,11 +456,14 @@ class hyper_sssp_cuda_operators_engine {
    * @param[in]     b          The batch (null: compute()).
    * @param[in]     budget     The budget (an update's).
    * @param[in]     max_weight The largest weight before or after the batch (the packing bound).
+   * @param[in,out] ws         An update's pooled workspace for a static solve inside it (the
+   *                           fallback; null: compute(), or b->scratch for an update).
    * @throws not_supported_error if the cuda backend is not built.
    */
   hyper_sssp_cuda_operators_engine(const resources& res, hyper_sssp_state& st,
                                    const hyper_sssp_graph& g, const hyper_sssp_batch* b,
-                                   const hyper_sssp_budget& budget, std::int64_t max_weight);
+                                   const hyper_sssp_budget& budget, std::int64_t max_weight,
+                                   hyper_sssp_workspace* ws = nullptr);
   /// update(): pack the old tree, the batch as sssp_changes, the roots, pointer jumping,
   /// invalidation, the insertion heads (1 synchronization).
   void identify_affected();
@@ -486,6 +496,7 @@ class hyper_sssp_cuda_operators_engine {
 
  private:
   [[nodiscard]] unsigned int grid(std::int64_t work) const noexcept;
+  [[nodiscard]] unsigned int warp_grid(std::int64_t rows) const noexcept;
   int next_generation();
 
   const resources& res_;
@@ -493,19 +504,25 @@ class hyper_sssp_cuda_operators_engine {
   hyper_sssp_graph g_;
   const hyper_sssp_batch* b_ = nullptr;
   hyper_sssp_budget budget_;
+  hyper_sssp_workspace* ws_ = nullptr;  ///< the pooled workspace of an update (or null)
   hyper_sssp_engine_counters counters_{};
   hyper_sssp::fallback_reason reason_ = hyper_sssp::fallback_reason::none;
   std::int64_t n_ = 0;
-  int source_ = -1;                  ///< the virtual mode's source row (-1: the public mode)
-  int parent_bits_ = 0;              ///< the packing (0: distance-only words)
-  std::uint64_t no_parent_ = 0;      ///< the packing's "no parent" value
-  std::uint64_t max_distance_ = 0;   ///< the bound n x max weight
-  std::uint64_t delta_ = 0;          ///< the near-far width
-  int max_rounds_ = 0;               ///< pointer-jumping rounds enqueued
-  int grid_cap_ = 1;                 ///< blocks the device holds at once
-  std::int64_t candidates_ = 0;      ///< candidates of the pull pass
-  std::int64_t frontier_bound_ = 0;  ///< an upper bound of the frontier's length
-  bool stopped_ = false;             ///< a trigger stopped the update: the later hooks do nothing
+  int source_ = -1;                         ///< the virtual mode's source row (-1: the public mode)
+  int parent_bits_ = 0;                     ///< the packing (0: distance-only words)
+  std::uint64_t no_parent_ = 0;             ///< the packing's "no parent" value
+  std::uint64_t max_distance_ = 0;          ///< the bound n x max weight
+  std::uint64_t delta_ = 0;                 ///< the near-far width
+  int max_rounds_ = 0;                      ///< pointer-jumping rounds enqueued
+  int grid_cap_ = 1;                        ///< blocks the device holds at once
+  std::int64_t candidates_ = 0;             ///< candidates of the pull pass
+  std::int64_t invalidated_ = 0;            ///< the invalidated nodes (the first candidates)
+  const std::int32_t* inserted_ = nullptr;  ///< the inserted pairs (device; seed_pairs)
+  const std::int32_t* gained_ = nullptr;    ///< the public mode's gained nodes (device)
+  std::int64_t num_inserted_ = 0;           ///< inserted pairs
+  std::int64_t num_gained_ = 0;             ///< gained nodes
+  std::int64_t frontier_bound_ = 0;         ///< an upper bound of the frontier's length
+  bool stopped_ = false;  ///< a trigger stopped the update: the later hooks do nothing
 };
 
 // ------------------------------------------------------------------------------------------------

@@ -312,7 +312,8 @@ std::int64_t hyper_sssp_operators_bytes(const hyper_sssp_state& /*st*/) noexcept
 }
 hyper_sssp_cuda_operators_engine::hyper_sssp_cuda_operators_engine(
     const resources& res, hyper_sssp_state& st, const hyper_sssp_graph& g,
-    const hyper_sssp_batch* b, const hyper_sssp_budget& budget, std::int64_t /*max_weight*/)
+    const hyper_sssp_batch* b, const hyper_sssp_budget& budget, std::int64_t /*max_weight*/,
+    hyper_sssp_workspace* /*ws*/)
     : res_(res), st_(st), g_(g), b_(b), budget_(budget) {
   no_cuda();
 }
@@ -678,7 +679,7 @@ template <typename vertex_t, typename weight_t>
 hyper_sssp_engine_counters hyper_sssp_problem<vertex_t, weight_t>::cuda_operators_solve(
     framework::context& ctx) {
   hyper_sssp_cuda_operators_engine solve(ctx.res(), *state_, graph_, nullptr, budget_of(),
-                                         weight_bound());
+                                         weight_bound(), ws_ ? &ws_->get() : nullptr);
   if (state_->ops_knobs.shared_compute && solve.packed()) {
     solve.reset();
     solve.loop();
@@ -822,7 +823,8 @@ namespace hyper_sssp_virtual {
 hyper_sssp::result<std::int32_t> compute(const resources& res,
                                          const hypergraph<std::int32_t, std::int32_t>& h,
                                          const hyper_sssp_endpoints& endpoints,
-                                         const hyper_sssp::options& opt, int block_size) try {
+                                         const hyper_sssp::options& opt, int block_size,
+                                         const hyper_sssp_operators_knobs& knobs) try {
   constexpr const char* what = "hyper_sssp::compute (virtual endpoints)";
   DYNG_EXPECTS(
       endpoints.source_hyperedge >= 0 && endpoints.source_hyperedge < h.hyperedge_id_bound(), what,
@@ -831,6 +833,7 @@ hyper_sssp::result<std::int32_t> compute(const resources& res,
   auto st = new_state(res, h, opt, block_size, what);
   st->endpoints = endpoints;
   st->endpoints.source_vertex = -1;
+  st->ops_knobs = knobs;
   run_compute(res, h, *st);
   return hyper_sssp_access::make(std::move(st));
 }
@@ -840,7 +843,8 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("hyper_sssp::compute (", h.hyperedge_id_bound(
 hyper_sssp::result<std::int32_t> allocate(const resources& res,
                                           const hypergraph<std::int32_t, std::int32_t>& h,
                                           const hyper_sssp_endpoints& endpoints,
-                                          const hyper_sssp::options& opt, int block_size) try {
+                                          const hyper_sssp::options& opt, int block_size,
+                                          const hyper_sssp_operators_knobs& knobs) try {
   constexpr const char* what = "hyper_sssp::allocate (virtual endpoints)";
   DYNG_EXPECTS(
       endpoints.source_hyperedge >= 0 && endpoints.source_hyperedge < h.hyperedge_id_bound(), what,
@@ -849,6 +853,7 @@ hyper_sssp::result<std::int32_t> allocate(const resources& res,
   auto st = new_state(res, h, opt, block_size, what);
   st->endpoints = endpoints;
   st->endpoints.source_vertex = -1;
+  st->ops_knobs = knobs;
   // The arrays of the store's node capacity (as compute() sizes them), nothing computed.
   const hyper::slack_row_view rows = slack_of(h, what).rows();
   const auto capacity = static_cast<std::size_t>(std::max(rows.num_nodes, rows.node_capacity));
@@ -885,6 +890,42 @@ void recompute(const resources& res, const hypergraph<std::int32_t, std::int32_t
 
 void set_block_size(hyper_sssp::result<std::int32_t>& r, int block_size) {
   hyper_sssp_access::state(r).block_size = block_size;
+}
+
+void set_operators_knobs(hyper_sssp::result<std::int32_t>& r,
+                         const hyper_sssp_operators_knobs& knobs) {
+  hyper_sssp_access::state(r).ops_knobs = knobs;
+}
+
+bool parse_operators_knobs(const std::string& text, hyper_sssp_operators_knobs& out) {
+  hyper_sssp_operators_knobs k = out;
+  std::size_t at = 0;
+  while (at < text.size()) {
+    const std::size_t end = std::min(text.find(',', at), text.size());
+    const std::string item = text.substr(at, end - at);
+    const std::size_t eq = item.find('=');
+    if (eq == std::string::npos || eq + 1 >= item.size()) return false;
+    const std::string key = item.substr(0, eq);
+    const std::string value = item.substr(eq + 1);
+    if (value.find_first_not_of("0123456789") != std::string::npos) return false;
+    const long long v = std::stoll(value);
+    if (key == "warp") {
+      k.warp_rows = v != 0;
+    } else if (key == "delta") {
+      k.delta = v;
+    } else if (key == "shared_compute") {
+      k.shared_compute = v != 0;
+    } else if (key == "seed_pairs") {
+      k.seed_pairs = v != 0;
+    } else if (key == "compute_delta") {
+      k.compute_delta = v;
+    } else {
+      return false;
+    }
+    at = end + 1;
+  }
+  out = k;
+  return true;
 }
 
 const hyper_sssp_engine_counters& last_counters(const hyper_sssp::result<std::int32_t>& r) {
@@ -1038,6 +1079,7 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
   copy->opt = st.opt;
   copy->endpoints = st.endpoints;
   copy->block_size = st.block_size;
+  copy->ops_knobs = st.ops_knobs;
   copy->home = res.get_backend();
   copy->device = copy->home == backend::cuda ? res.device() : -1;
   copy->n = st.n;

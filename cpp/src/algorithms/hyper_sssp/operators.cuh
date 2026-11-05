@@ -34,6 +34,7 @@ namespace ops = sssp_operators;
 struct run_control {
   ops::control<int> c;  ///< sssp's control block (int node ids)
   u64 work;             ///< relaxations so far (MOSP_ESCHER's units)
+  u64 weight_sum;       ///< compute(): the sum of the entries' weights (the default delta)
 };
 
 /**
@@ -48,6 +49,10 @@ struct line_graph_view {
   int zero_b = -1;                       ///< (another one)
   const unsigned char* holds = nullptr;  ///< the public mode: 1 if the node holds the source
   u64* work = nullptr;                   ///< the work counter (run_control::work)
+  /// The pulled candidates whose rows the work counter counts: the first `counted` ones, the
+  /// invalidated nodes (MOSP_ESCHER counts its pulls of the invalidated nodes, not its
+  /// relaxations of the inserted pairs, which the insertion heads' pulls stand for).
+  int counted = 0;
 
   /// @brief The weight hyper_sssp reads for node v. @param[in] v The node. @return It.
   __device__ __forceinline__ u64 weight(int v) const {
@@ -107,6 +112,15 @@ struct graph_access<hyper_ops::line_graph_view> {
   /// The work counter.
   __device__ static __forceinline__ u64* work_counter(const graph_type& g) {
     return g.work;
+  }
+  /// A neighbour's word, a plain (L1-cached) load: MOSP_ESCHER's kernels read them so; a stale
+  /// word only offers a worse candidate (the atomicMin decides; a later decrease is pushed).
+  __device__ static __forceinline__ u64 peek(const u64* word) {
+    return *word;
+  }
+  /// Whether the pull of candidate i counts (the invalidated nodes, listed first).
+  __device__ static __forceinline__ bool counts_row(const graph_type& g, int i) {
+    return i < g.counted;
   }
 };
 
@@ -190,6 +204,44 @@ __global__ void __launch_bounds__(block_size)
   }
 }
 
+/**
+ * The seeds of the inserted pairs without pulls (the knob seed_pairs; MOSP_ESCHER's
+ * relaxInsertedKernel and dynG's relax_base_kernel on sssp's words): both directions of every
+ * inserted pair offer (d(u) + w(v), u) to v, and a node that gained the source its own weight
+ * with no parent; a node whose distance decreased joins the frontier of the pull (same generation,
+ * so once). After the pull, as in MOSP_ESCHER.
+ */
+__global__ void __launch_bounds__(block_size)
+    pair_seed_kernel(const int2* inserted, int num_ins, const int* gained, int num_gained,
+                     line_graph_view g, u64* packed, packing packed_format, u64 max_distance,
+                     int source, int* stamp, int generation, int* frontier, ops::control<int>* c) {
+  const int total = 2 * num_ins + num_gained;
+  for (int i = ops::thread_index<int>(); i < total; i += ops::grid_stride<int>()) {
+    int v;
+    u64 candidate;
+    if (i < 2 * num_ins) {
+      const int2 pair = inserted[i >> 1];
+      const int u = (i & 1) == 0 ? pair.x : pair.y;
+      v = (i & 1) == 0 ? pair.y : pair.x;
+      if (v == source) continue;
+      const u64 word = ops::load(&packed[u]);
+      if (word == packed_inf) continue;
+      const u64 nd = packed_format.distance(word) + g.weight(v);
+      if (nd > max_distance) continue;
+      candidate = packed_format.pack(nd, u);
+    } else {
+      v = gained[i - 2 * num_ins];
+      candidate = packed_format.pack(g.weight(v), -1);
+    }
+    if (candidate >= ops::load(&packed[v])) continue;
+    const u64 old = atomicMin(&packed[v], candidate);
+    if (packed_format.distance(candidate) < packed_format.distance(old) &&
+        sssp_kernels::claim(stamp, v, generation)) {
+      frontier[sssp_kernels::append_index(&c->frontier)] = v;
+    }
+  }
+}
+
 /// The insertion heads: both endpoints of every inserted pair, then the public mode's nodes that
 /// gained the source (their pull includes the base offer).
 __global__ void __launch_bounds__(block_size)
@@ -210,6 +262,27 @@ __global__ void __launch_bounds__(block_size)
     init_kernel(int n, u64* packed, int source, packing packed_format) {
   for (int v = ops::thread_index<int>(); v < n; v += ops::grid_stride<int>()) {
     packed[v] = v == source ? packed_format.pack(0, -1) : packed_inf;
+  }
+}
+
+/// compute(): the sum over the rows of deg(v) x w(v), the weight sum of the line graph's entries
+/// (an entry u -> v costs w(v)), for MOSP's defaultDelta.
+__global__ void __launch_bounds__(block_size)
+    entry_weight_kernel(int n, line_graph_view g, u64* sum) {
+  u64 local = 0;
+  for (int v = ops::thread_index<int>(); v < n; v += ops::grid_stride<int>()) {
+    local += static_cast<u64>(g.rows.deg[v]) * g.weight(v);
+  }
+  sssp_kernels::sum_into(local, sum);
+}
+
+/// The start of an unbounded near-far loop (delta 0: MOSP_ESCHER's rounds): nothing is far, so the
+/// frontier is the first near frontier as it is (the split would copy it) and the threshold is
+/// above every distance.
+__global__ void unbounded_start_kernel(ops::control<int>* c) {
+  if (blockIdx.x == 0 && threadIdx.x == 0) {
+    c->threshold = packed_inf;
+    c->near[0] = c->frontier;
   }
 }
 
