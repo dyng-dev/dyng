@@ -46,6 +46,13 @@ Before 0.1.0 anything may change.
   executor of the operators, used by the tutorial algorithms dynamic_bfs and triangle_delta) left
   its OpenMP region and ended the process; it is now rethrown on the calling thread after the
   region (the carried item (b) of 0.4, the D13 class of ADR 0061; ADR 0083).
+- Fixed: a host allocation failure inside an OpenMP region of `sssp`'s OpenMP engine (a
+  per-thread list that grew in `identify_affected`, the pull pass or the near-far loop, or a
+  gathered list resized inside `omp single`) left the region and ended the process; it is now
+  kept in a `region_exceptions` carrier, every thread still reaches every barrier, and it is
+  rethrown after the region as `out_of_memory_error` with `sssp.hpp`'s guarantee; `mosp`'s OpenMP
+  compute and update, which run that engine per objective, inherit it. The fast path of a push is
+  unchanged (the carried item (a) of 0.4, the D13 class of ADR 0061; ADR 0094).
 - Internal: `escher::flatten_rows` (the port of ESCHER-GPU's `flatten2DVector`), which no library
   code called and whose OpenMP region ignored the resources' thread count, moved from the library
   to a test helper (`cpp/tests/support/escher_flatten.hpp`; the carried item (c) of 0.4; ADR 0084).
