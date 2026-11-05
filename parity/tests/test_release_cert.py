@@ -3132,7 +3132,7 @@ def test_gpu_local_steps_of_04_hold_the_slack_csr_steps(cert) -> None:
         "slack_csr sanitizers (all four tools; a forced-overflow session)",
         "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
         "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)",
-        "hyper_sssp replays (cuda, make test; three modes, update == compute)",
+        "hyper_sssp replays (cuda, make test; three modes, both engines, update == compute)",
     ]
     steps = cert.gpu_local_steps("0.4.0")
     assert set(m11) <= set(steps)

@@ -387,7 +387,7 @@ GPU_LOCAL_STEPS = {
         "slack_csr sanitizers (all four tools; a forced-overflow session)",
         "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
         "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)",
-        "hyper_sssp replays (cuda, make test; three modes, update == compute)",
+        "hyper_sssp replays (cuda, make test; three modes, both engines, update == compute)",
     ],
 }
 # The results of a step of ci/gpu_local.sh that are not a failure (only "passed" counts as run).

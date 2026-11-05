@@ -120,10 +120,12 @@
 #              result replay of the committed subset (dyng_hsosp_results_cuda_tests: a forced
 #              fallback, the three parity modes), and on the make-test case 07-hsospBench_smoke
 #              (dyng_hsosp_replay --algorithm by_id --check-compute: 26 forced fallbacks; skipped
-#              without the goldens); then the result replays of every make-test session on cuda in
-#              the three modes with update == compute (parity/compare.py hyper_sssp --part results
-#              --cases t --check-compute; records in $DYNG_GPU_RESULTS); "partial" when the
-#              goldens are missing
+#              without the goldens), on both CUDA engines (M11b: the hand cases run every case on
+#              engine::fused and engine::operators, the forced-fallback sessions once per engine);
+#              then the result replays of every make-test session on cuda in the three modes with
+#              update == compute, on both engines (parity/compare.py hyper_sssp --part results
+#              --cases t --check-compute [--cuda-engine operators]; records in $DYNG_GPU_RESULTS);
+#              "partial" when the goldens are missing
 #
 # A step is recorded passed, FAILED, skipped (DYNG_GPU_SKIP="<step> ...", or its inputs missing)
 # or partial; a release certificate needs the steps of its series passed (parity/certify.py,
@@ -694,12 +696,15 @@ if ! skipped hyper_sssp; then
     done
     if [ -f "${hs_goldens}/MANIFEST.sha256" ] && [ -x "${hs_replay}" ]; then
       for tool in memcheck racecheck synccheck initcheck; do
-        if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" \
-          --error-exitcode 1 "${hs_replay}" --algorithm by_id --check-compute --backend cuda \
-          "${hs_goldens}/test/07-hsospBench_smoke/dump.hsd.zst" >/dev/null; then
-          echo "compute-sanitizer --tool ${tool} (the forced-fallback sessions): FAILED"
-          hs_ok=0
-        fi
+        for engine in fused operators; do
+          if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" \
+            --error-exitcode 1 "${hs_replay}" --algorithm by_id --check-compute --backend cuda \
+            --cuda-engine "${engine}" "${hs_goldens}/test/07-hsospBench_smoke/dump.hsd.zst" \
+            >/dev/null; then
+            echo "compute-sanitizer --tool ${tool} (the forced-fallback sessions, ${engine}): FAILED"
+            hs_ok=0
+          fi
+        done
       done
     else
       echo "the H-SOSP goldens or ${hs_replay} missing: the forced-fallback sessions are skipped"
@@ -715,21 +720,23 @@ if ! skipped hyper_sssp; then
   fi
   if [ ! -f "${hs_goldens}/MANIFEST.sha256" ] || [ ! -x "${hs_replay}" ]; then
     echo "the H-SOSP goldens or ${hs_replay} missing; skipped"
-    record "hyper_sssp replays (cuda, make test; three modes, update == compute)" skipped
+    record "hyper_sssp replays (cuda, make test; three modes, both engines, update == compute)" skipped
   else
     hs_replays_ok=1
     mkdir -p "${hs_records}"
-    for mode in by_id by_id_public by_key; do
-      if ! heavy python3 parity/compare.py hyper_sssp --part results --mode "${mode}" \
-        --backend cuda --gpu "${gpu}" --cases t --check-compute --skip-verify \
-        --exe "${hs_replay}" --record "${hs_records}"; then
-        hs_replays_ok=0
-      fi
+    for engine in automatic operators; do
+      for mode in by_id by_id_public by_key; do
+        if ! heavy python3 parity/compare.py hyper_sssp --part results --mode "${mode}" \
+          --backend cuda --gpu "${gpu}" --cases t --check-compute --skip-verify \
+          --cuda-engine "${engine}" --exe "${hs_replay}" --record "${hs_records}"; then
+          hs_replays_ok=0
+        fi
+      done
     done
     if [ "${hs_replays_ok}" = 1 ]; then
-      record "hyper_sssp replays (cuda, make test; three modes, update == compute)" passed
+      record "hyper_sssp replays (cuda, make test; three modes, both engines, update == compute)" passed
     else
-      record "hyper_sssp replays (cuda, make test; three modes, update == compute)" FAILED
+      record "hyper_sssp replays (cuda, make test; three modes, both engines, update == compute)" FAILED
     fi
   fi
 fi
