@@ -95,7 +95,7 @@ struct graph_access<hyper_ops::line_graph_view> {
   }
   /// Pulling into v costs v's weight (MUTATION #1's twin: the neighbour's).
   __device__ static __forceinline__ u64 pull_weight(const graph_type& g, long long e, int v) {
-#if defined(DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT)
+#if defined(DYNG_MUTATION_HSOSP_OPS_PULL_ADDS_NEIGHBOUR_WEIGHT)
     // MUTATION (PLAN 8.4; M11a criterion 16 #1, the shared engine's twin, M11b criterion 4): the
     // pull adds the neighbour's weight instead of the node's.
     (void)v;

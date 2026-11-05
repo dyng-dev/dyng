@@ -522,6 +522,34 @@ MUTATIONS = [
         "defines": ["DYNG_MUTATION_HSOSP_DELTA_NO_POST_PASS"],
         "config": "sequential",
     },
+    # M11b (criterion 4): the shared engine's twins of #1 and #2 (engine::operators: the line
+    # graph's pull weight and the warp pull; the CUDA suites run every case on both engines), and
+    # the sssp mutation "a skipped subtree invalidation" in the shared operators (sssp's pointer
+    # jumping, which the shared engine runs) against this suite.
+    {
+        "name": "hsosp_ops_pull_adds_neighbour_weight",
+        "suite": "hyper_sssp",
+        "plan": "M11b 4: #1's twin in the shared engine (the pull adds the neighbour's weight)",
+        "defines": ["DYNG_MUTATION_HSOSP_OPS_PULL_ADDS_NEIGHBOUR_WEIGHT"],
+        "config": "cuda",
+    },
+    {
+        "name": "hsosp_ops_non_tight_parent",
+        "suite": "hyper_sssp",
+        "plan": "M11b 4: #2's twin in the shared engine (the warp pull records a non-tight parent)",
+        "defines": ["DYNG_MUTATION_HSOSP_OPS_NON_TIGHT_PARENT"],
+        "config": "cuda",
+    },
+    {
+        "name": "sssp_roots_only_operators_hsosp",
+        "suite": "hyper_sssp",
+        "plan": "PLAN 8.4 sssp: a skipped subtree invalidation in the shared operators (pointer "
+        "jumping marks no descendant) against hyper_sssp's suite on the shared engine (M11b 4)",
+        "file": "cpp/src/algorithms/sssp/operators.cuh",
+        "old": "    if (load(&flag[a])) {\n      flag[v] = 1;\n      continue;\n    }",
+        "new": "    if (load(&flag[a])) {\n      continue;  // MUTATION: roots only\n    }",
+        "config": "cuda",
+    },
     # triad_reference (M9a criterion 4): the oracle's planted mutation, two classes of its
     # representative list swapped (cpp/src/testing/triad_reference.cpp); its tests must fail (the
     # CTest testing.mutation.triad_reference_class_map of every build checks the same).

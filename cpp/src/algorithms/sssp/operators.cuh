@@ -308,7 +308,7 @@ __device__ __forceinline__ void pull_pass_warp(const vertex_t* candidates, verte
         work += static_cast<u64>(last - first);
       }
     }
-#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+#if defined(DYNG_MUTATION_HSOSP_OPS_NON_TIGHT_PARENT)
     vertex_t any = -1;
 #endif
     for (edge_t e = first + lane; e < last; e += 32) {
@@ -321,18 +321,18 @@ __device__ __forceinline__ void pull_pass_warp(const vertex_t* candidates, verte
       if (nd <= max_distance) {  // (as pull_pass)
         best = min(best, packed_format.pack(nd, u));
       }
-#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+#if defined(DYNG_MUTATION_HSOSP_OPS_NON_TIGHT_PARENT)
       any = u > any ? u : any;
 #endif
     }
     for (int offset = 16; offset > 0; offset >>= 1) {
       best = min(best, __shfl_xor_sync(0xffffffffu, best, offset));
-#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+#if defined(DYNG_MUTATION_HSOSP_OPS_NON_TIGHT_PARENT)
       const vertex_t other = __shfl_xor_sync(0xffffffffu, any, offset);
       any = other > any ? other : any;
 #endif
     }
-#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+#if defined(DYNG_MUTATION_HSOSP_OPS_NON_TIGHT_PARENT)
     // MUTATION (PLAN 8.4; M11a criterion 16 #2, the shared engine's twin, M11b criterion 4): the
     // pull records the highest reached neighbour as the parent, tight or not; the distances are
     // unchanged. Only hyper_sssp's shared engine runs this body.
