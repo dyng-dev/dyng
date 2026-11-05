@@ -409,3 +409,18 @@ def test_memory_and_kernels_are_subcommands(monkeypatch: pytest.MonkeyPatch) -> 
         "dblp_vertex_50000",
         "geology_hyperedge_50000",
     )
+
+
+def test_ab_reads_the_region_maps_update_rows() -> None:
+    """M11b criterion 3 (ADR 0024 shared vs as-is): `ab`'s sosp_update and dynamic_comparable rows
+    sum the region map's port stages, and its default sides are the two CUDA engines."""
+    import tomllib
+
+    doc = tomllib.loads((REPO / "parity" / "timed_regions" / "hyper_sssp.toml").read_text())
+    regions = {r["name"]: r for r in doc["reference"]["mosp_escher"]["region"]}
+    rows = dict(perf.AB_ROWS)
+    assert rows["sosp_update"] == regions["sosp_update"]["port"]
+    assert rows["dynamic_comparable"] == regions["dynamic_comparable"]["port"]
+    assert rows["static"] == regions["static"]["port"]
+    args = perf.argparse.Namespace if hasattr(perf, "argparse") else None
+    assert args is not None

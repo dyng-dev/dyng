@@ -50,6 +50,22 @@ Run them only in an exclusive-lock window of the shared calendar on GPU 0, as
 <probe|run> ...` (the clock reset after the window runs inside the lock); `perf_ab.py hyper_sssp
 ...` dispatches here.
 
+    parity/hsosp_perf.py ab --configs <name> ... [--rounds 51] [--layouts 17] [--gpu 0]
+        [--clocks base] [--a-arg ARG]... [--b-arg ARG]... [--json OUT]
+
+`ab` (M11b criterion 3: the shared engine against the as-is engine; ADR 0024, a dynG-against-dynG
+reading, not a PLAN 8.6 gate): per configuration, `--rounds` alternating rounds (A first) of
+dyng-compat-hsosp bench with A's arguments (default `--cuda-engine fused`) and B's (default
+`--cuda-engine operators`), the golden's batches, --sync-stages --digests, both guarded as `run`
+guards the port (pairs, counts, rebuilds, the result digests of every batch, mismatch_static);
+round r writes its CSV and timing files under names 8 x (r mod --layouts) characters longer, the
+same on both sides (ADR 0024's heap layouts). The fallback decisions of both sides are tabulated
+per round and batch (HD7: not a parity target). Rows per batch: sosp_update (the five stages of
+the region map), dynamic_comparable (hyper_sssp.update) and static (hyper_sssp.compute,
+reported): A's samples as "original_samples" and B's as "port_samples", so parity/ab_modes.py reads
+the record (--bar 1.02). In an exclusive-lock window on GPU 0 (`tools/locklog.py run --reset-gpu 0
+EXCL ...`), with the contamination monitor (a rejected round is repeated).
+
     parity/hsosp_perf.py sass [--object engine.cu.o] [--original hsospDevice.cu.o] [--json OUT]
 
 `sass` (M11a step 4, the as-is record; no GPU): `cuobjdump -res-usage` and `-sass` of every
@@ -1814,6 +1830,179 @@ def kernels_main(args: argparse.Namespace) -> int:
     return 0
 
 
+# The rows of `ab`: (name, stages summed per batch).
+AB_ROWS = (
+    (
+        "sosp_update",
+        [
+            "hyper_sssp.identify_affected",
+            "hyper_sssp.seed",
+            "hyper_sssp.loop",
+            "hyper_sssp.recompute",
+            "hyper_sssp.finalize",
+        ],
+    ),
+    ("dynamic_comparable", ["hyper_sssp.update"]),
+    ("static", ["hyper_sssp.compute"]),
+)
+
+
+def ab_config(args, name, dataset, kind, size, exe, env, clocks, work) -> dict:
+    """`ab` on one configuration: the rounds, the guards, the per-batch rows of both sides."""
+    path = hg.check_dataset(args.scratch, dataset)
+    _, dump = golden_case(args.scratch, name)
+    golden = golden_batches(golden_case(args.scratch, name)[0])
+    sides = {"A": list(args.a_args), "B": list(args.b_args)}
+    samples = {s: [] for s in sides}  # per round: {(stage, batch): ms}
+    decisions = {s: [] for s in sides}  # per round: [fallback per batch]
+    windows, rejected = [], []
+    with perf_ab.MachineMonitor(
+        args.gpu,
+        args.max_foreign_cpu,
+        allowed_pids={clocks.pid} if clocks.pid else None,
+        locked=clocks.locked,
+    ) as monitor:
+        r = 0
+        while r < args.rounds:
+            pad = "x" * (8 * (r % args.layouts))
+            layout = work / f"l{pad}"
+            layout.mkdir(exist_ok=True)
+            got = {}
+            wins = {}
+            reasons = []
+            for side in ("A", "B"):
+                cmd = port_argv(exe, path, kind, size, dump, layout, maintain_only=False)
+                cmd += sides[side]
+                (layout / CSV_NAME).unlink(missing_ok=True)
+                (layout / TIMING_NAME).unlink(missing_ok=True)
+                out, win = monitor.run(cmd, env)
+                bad = guard_port(out, golden, False)
+                if bad:
+                    raise SystemExit(f"{name}: round {r + 1} side {side}: the guard failed: {bad}")
+                got[side] = (
+                    hypergraph_perf.stage_times(layout / TIMING_NAME),
+                    [row["fallback"] for row in parse_port_batches(out)],
+                )
+                reasons += win.get("reasons", [])
+                wins[side] = win
+            if reasons:
+                rejected.append({"before_round": r + 1, "reasons": reasons})
+                print(f"{name}: round {r + 1} rejected ({'; '.join(reasons)})", flush=True)
+                if len(rejected) > 2 * args.rounds:
+                    raise SystemExit(f"{name}: {len(rejected)} rounds rejected; giving up")
+                continue
+            r += 1
+            # perf_ab.monitor_summary's sides: A as "original", B as "port".
+            windows.append({"original": wins["A"], "port": wins["B"]})
+            for side in sides:
+                samples[side].append(got[side][0])
+                decisions[side].append(got[side][1])
+            if r % 10 == 0 or r == args.rounds:
+                print(f"{name}: round {r}/{args.rounds}", flush=True)
+    regions = []
+    for k in range(1, len(golden) + 1):
+        for row, stages in AB_ROWS:
+            a = [hypergraph_perf.region_value(t, stages, k) for t in samples["A"]]
+            b = [hypergraph_perf.region_value(t, stages, k) for t in samples["B"]]
+            regions.append(
+                {
+                    "region": f"{row}[b{k}]",
+                    "stages": stages,
+                    "original_median_ms": statistics.median(a),
+                    "port_median_ms": statistics.median(b),
+                    "ratio": statistics.median(b) / statistics.median(a),
+                    "original_samples": a,
+                    "port_samples": b,
+                    "gated": row != "static",
+                }
+            )
+    fallbacks = {
+        side: {
+            f"b{k}": sum(1 for d in decisions[side] if k <= len(d) and d[k - 1])
+            for k in range(1, len(golden) + 1)
+        }
+        for side in sides
+    }
+    golden_fallbacks = {f"b{k}": g.get("fallback") for k, g in enumerate(golden, 1)}
+    return {
+        "config": name,
+        "dataset": dataset,
+        "kind": kind,
+        "batch": size,
+        "rounds": args.rounds,
+        "layouts": args.layouts,
+        "regions": regions,
+        "fallbacks_per_batch": {
+            "A": fallbacks["A"],
+            "B": fallbacks["B"],
+            "B_golden": golden_fallbacks,
+        },
+        "decisions": decisions,
+        "monitor": perf_ab.monitor_summary(windows, rejected, args.max_foreign_cpu),
+        "guard": {"rounds_checked": 2 * args.rounds, "passed": True},
+    }
+
+
+def ab_main(args: argparse.Namespace) -> int:
+    exe = args.exe.resolve()
+    env = env_for(args.gpu)
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="dyng-hsosp-ab-", dir=args.scratch / "runs"))
+    started = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    results = {}
+    clocks = perf_ab.ClockLock(args.gpu, args.clocks)
+    try:
+        with clocks:
+            for name, dataset, kind, size in hg.p_configs():
+                if name in args.configs:
+                    results[name] = ab_config(
+                        args, name, dataset, kind, size, exe, env, clocks, work
+                    )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    for name, res in results.items():
+        print(f"{name} (GPU {args.gpu}; clocks {clocks.record.get('locked')}):")
+        for reg in res["regions"]:
+            print(
+                f"  {reg['region']:24} A {reg['original_median_ms']:9.3f} B "
+                f"{reg['port_median_ms']:9.3f} ratio {reg['ratio']:.3f}"
+            )
+        print(f"  fallbacks per batch: {res['fallbacks_per_batch']}")
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "hyper_sssp",
+            "what": args.what
+            or "hyper_sssp's shared engine (B) against its as-is engine (A): ADR 0024's reading",
+            "date": started,
+            "date_end": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "protocol": {
+                "rounds": args.rounds,
+                "layouts": args.layouts,
+                "order": "A/B alternation (A first in every round)",
+                "gpu": args.gpu,
+                "clocks": clocks.record,
+                "lock": {k: os.environ.get(k) for k in ("DYNG_PERF_LOCK", "DYNG_PERF_LOCK_HELD")},
+                "layout": f"round r: <work>/l<8 x (r mod {args.layouts}) characters>/{CSV_NAME}, "
+                f"{TIMING_NAME}, the same on both sides (ADR 0024)",
+                "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+                "A": "dyng-compat-hsosp bench --sync-stages --digests " + " ".join(args.a_args),
+                "B": "dyng-compat-hsosp bench --sync-stages --digests " + " ".join(args.b_args),
+                "statistic": "median; parity/ab_modes.py for the modes (bar 1.02)",
+                "guard": "every run: the pairs, counts, rebuilds and the result digests of every "
+                "batch against the golden (a failure stops the reading); the fallback decisions "
+                "tabulated (HD7)",
+            },
+            "exe": hg.portable(exe),
+            "commit": hg.git_head(),
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1869,6 +2058,28 @@ def main(argv: list[str] | None = None) -> int:
         "parity/results/M11a-hsosp-preread.json)",
     )
     ru.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="a check of the harness outside any window: GPU 1, default clocks, no record",
+    )
+    ab = sub.add_parser("ab", help="dynG against dynG (ADR 0024): A's and B's port arguments")
+    ab.add_argument("--configs", nargs="+", required=True)
+    ab.add_argument("--rounds", type=int, default=51)
+    ab.add_argument("--layouts", type=int, default=17)
+    ab.add_argument("--gpu", type=int, default=0)
+    ab.add_argument("--clocks", default="base", choices=["base", "boost", "none"])
+    ab.add_argument("--a-arg", dest="a_args", action="append", default=None)
+    ab.add_argument("--b-arg", dest="b_args", action="append", default=None)
+    ab.add_argument("--what", help="the record's description (the reading it is)")
+    ab.add_argument(
+        "--exe",
+        type=Path,
+        default=REPO / "build" / "parity-cuda" / "tools" / "compat" / "dyng-compat-hsosp",
+    )
+    ab.add_argument("--scratch", type=Path, default=hg.scratch_default())
+    ab.add_argument("--json", type=Path)
+    ab.add_argument("--max-foreign-cpu", type=float, default=perf_ab.MAX_FOREIGN_CPU)
+    ab.add_argument(
         "--dry-run",
         action="store_true",
         help="a check of the harness outside any window: GPU 1, default clocks, no record",
@@ -1951,6 +2162,23 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 2
         return kernels_main(args)
+    if args.cmd == "ab":
+        args.a_args = args.a_args or ["--cuda-engine", "fused"]
+        args.b_args = args.b_args or ["--cuda-engine", "operators"]
+        if args.dry_run:
+            if args.gpu == 0:
+                print("hsosp_perf.py: a dry run never uses GPU 0 (the timing GPU)", file=sys.stderr)
+                return 2
+            args.clocks = "none"
+            args.json = None
+            return ab_main(args)
+        if os.environ.get("DYNG_PERF_LOCK_HELD") != "1":
+            print(
+                "hsosp_perf.py: run it inside an exclusive-lock window (tools/locklog.py run EXCL)",
+                file=sys.stderr,
+            )
+            return 2
+        return ab_main(args)
     if args.cmd == "sass":
         return sass_main(args)
     if args.cmd == "launches":
