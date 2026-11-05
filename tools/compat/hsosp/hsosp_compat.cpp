@@ -46,7 +46,8 @@
  *         [--del 50] [--seed 20260725] [--maxcard 25] [--maxiter 4096] [--work-budget 1]
  *         [--verify none|first|all] --golden <dump.hsd[.zst]> [--out <csv>] [--timing <file.json>]
  *         [--maintain-only] [--public] [--backend cuda|sequential]
- *         [--cuda-engine automatic|fused|operators] [--sync-stages] [--digests] [--device D]
+ *         [--cuda-engine automatic|fused|operators] [--operators-knobs SPEC] [--sync-stages]
+ *         [--digests] [--device D]
  *         [--threads T] [--check-load <loads/<dataset>.hsd.zst>]
  *
  * bench is the port side of hyper_sssp's timed regions (parity/timed_regions/hyper_sssp.toml; HD3,
@@ -141,7 +142,8 @@ int usage() {
                "[--batches 3] [--del 50] [--seed S] [--maxcard 25] [--maxiter 4096] "
                "[--work-budget 1] [--verify none|first|all] --golden <dump> [--out CSV] "
                "[--timing JSON] [--maintain-only] [--public] [--backend cuda|sequential] "
-               "[--cuda-engine automatic|fused|operators] [--sync-stages] [--digests] [--nvtx] "
+               "[--cuda-engine automatic|fused|operators] [--operators-knobs SPEC] [--sync-stages] "
+               "[--digests] [--nvtx] "
                "[--device D] [--threads T] [--check-load <load dump>]\n");
   return 2;
 }
@@ -488,7 +490,7 @@ int replay(const std::string& prefix, const std::string& backend, int threads, i
 
 struct bench_options {
   std::string hg, kind = "hyperedge", verify = "first", golden, out, timing, check_load;
-  std::string backend = "cuda", cuda_engine = "automatic";
+  std::string backend = "cuda", cuda_engine = "automatic", operators_knobs;
   std::int64_t batch = 50000, batches = 3, maxcard = 25, max_iterations = 4096;
   double del = 50.0, work_budget = 1.0;
   std::uint64_t seed = 20260725U;
@@ -506,10 +508,18 @@ class timing_log {
   void timer(const std::string& name, std::int64_t batch, double ms) {
     records_.push_back({name, batch, ms});
   }
-  /// The profiler samples completed since the last call belong to `batch`.
-  void stages(std::int64_t batch) {
+  /// The profiler samples completed since the last call belong to `batch`. With a `nested`
+  /// prefix (the static recompute's samples), every stage but hyper_sssp.compute itself is
+  /// recorded as "<nested><stage>": the static solve of the shared engine opens the same hook
+  /// stages as an update (reset, seed, loop, finalize), which must not count in the update's rows
+  /// (M11b; the as-is engine's static solve is one enact_fused stage).
+  void stages(std::int64_t batch, const std::string& nested = {}) {
     const auto& s = prof_.samples();
-    for (; seen_ < s.size(); ++seen_) records_.push_back({s[seen_].name, batch, s[seen_].host_ms});
+    for (; seen_ < s.size(); ++seen_) {
+      std::string name = s[seen_].name;
+      if (!nested.empty() && name != "hyper_sssp.compute") name = nested + name;
+      records_.push_back({std::move(name), batch, s[seen_].host_ms});
+    }
   }
   [[nodiscard]] double sum(const std::string& name, std::int64_t batch) const {
     double t = 0;
@@ -647,12 +657,18 @@ int bench(const bench_options& o, clock_type::time_point start) {
   std::optional<dyng::hyper_sssp::result<std::int32_t>> state_a, state_b;
   double reachable = 0;
   if (!o.maintain_only) {
+    // The shared engine's knobs (--operators-knobs; checked by the option parser).
+    dyng::detail::hyper_sssp_operators_knobs knobs;
+    (void)dyng::detail::hyper_sssp_virtual::parse_operators_knobs(o.operators_knobs, knobs);
     if (o.public_source) {
+      // (the public mode's initial compute() runs with the default knobs)
       state_a.emplace(dyng::hyper_sssp::compute(r, h, s_vertex, sopt));
       state_b.emplace(dyng::hyper_sssp::compute(r, h, s_vertex, sopt));
+      dyng::detail::hyper_sssp_virtual::set_operators_knobs(*state_a, knobs);
+      dyng::detail::hyper_sssp_virtual::set_operators_knobs(*state_b, knobs);
     } else {
-      state_a.emplace(dyng::detail::hyper_sssp_virtual::compute(r, h, ends, sopt));
-      state_b.emplace(dyng::detail::hyper_sssp_virtual::allocate(r, h, ends, sopt));
+      state_a.emplace(dyng::detail::hyper_sssp_virtual::compute(r, h, ends, sopt, 256, knobs));
+      state_b.emplace(dyng::detail::hyper_sssp_virtual::allocate(r, h, ends, sopt, 256, knobs));
     }
     // The reachable fraction from the initial solve (B downloads it inside its load).
     const std::vector<std::int64_t> d = dyng::to_vector(r, state_a->hyperedge_distances());
@@ -783,12 +799,14 @@ int bench(const bench_options& o, clock_type::time_point start) {
       r.synchronize();
       update = ms_since(t0);
       log.timer("update_ms", batch, update);
+      log.stages(batch);  // the update's stages (before the static solve's)
       // The static baseline: a recompute into the second, pre-allocated result.
       t0 = clock_type::now();
       dyng::detail::hyper_sssp_virtual::recompute(r, h, *state_b);
       r.synchronize();
       statik = ms_since(t0);
       log.timer("static_ms", batch, statik);
+      log.stages(batch, "static/");
       dynamic_sum += update;
       static_sum += statik;
     }
@@ -1038,6 +1056,8 @@ int main(int argc, char** argv) {
           o.backend = value();
         else if (a == "--cuda-engine")
           o.cuda_engine = value();
+        else if (a == "--operators-knobs")
+          o.operators_knobs = value();
         else
           return usage();
       }
@@ -1047,6 +1067,10 @@ int main(int argc, char** argv) {
       if (o.verify != "none" && o.verify != "first" && o.verify != "all") return usage();
       if (o.backend != "cuda" && o.backend != "sequential") return usage();
       if (o.cuda_engine != "automatic" && o.cuda_engine != "fused" && o.cuda_engine != "operators")
+        return usage();
+      dyng::detail::hyper_sssp_operators_knobs knobs;
+      if (!o.operators_knobs.empty() &&
+          !dyng::detail::hyper_sssp_virtual::parse_operators_knobs(o.operators_knobs, knobs))
         return usage();
       return bench(o, start);
     }

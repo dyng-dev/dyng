@@ -35,6 +35,7 @@
 #include "parity/hsosp/hsosp_dump.hpp"
 
 #include <dyng/core/resources.hpp>
+#include <dyng/core/types.hpp>
 
 #include <cstdint>
 #include <string>
@@ -49,6 +50,10 @@ enum class mode { by_id, by_id_public, by_key };
 struct options {
   hsosp_results::mode mode = mode::by_id;
   bool check_compute = false;  ///< every update also against a fresh compute()
+  /// The CUDA engine of every compute() (M11b: engine::operators replays the shared engine).
+  engine cuda_engine = engine::automatic;
+  /// The shared engine's knobs of every result (ADR 0095; parse_operators_knobs' text, or empty).
+  std::string operators_knobs;
   std::size_t max_mismatches = 20;
 };
 

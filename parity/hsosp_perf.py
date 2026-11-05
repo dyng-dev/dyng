@@ -714,6 +714,7 @@ def run_config(args, name, dataset, kind, size, exe, env, clocks, sampler, work,
     golden = golden_batches(case)
     b_cmd = [str(b_exe), *hg.p_argv(path, kind, size, str(work / CSV_NAME))]
     p_cmd = port_argv(exe, path, kind, size, dump, work, args.maintain_only)
+    p_cmd += list(getattr(args, "port_args", None) or [])
     b_rounds, p_rounds, windows, rejected, loads = [], [], [], [], []
     b_e2e, b_wall, p_wall, differing = [], [], [], []
     guarded = 0
@@ -892,7 +893,8 @@ def run(args: argparse.Namespace) -> int:
                 "port": "dyng-compat-hsosp bench"
                 + (" --maintain-only" if args.maintain_only else "")
                 + " --sync-stages --digests "
-                "(the golden's batches; --threads = the machine's hardware threads, as B's "
+                + "".join(f"{a} " for a in (args.port_args or []))
+                + "(the golden's batches; --threads = the machine's hardware threads, as B's "
                 "OpenMP default)",
                 "statistic": "median",
                 "contamination_monitor": "rejected rounds repeated (perf_ab.MachineMonitor)",
@@ -1842,6 +1844,14 @@ def main(argv: list[str] | None = None) -> int:
     ru.add_argument("--gpu", type=int, default=0)
     ru.add_argument("--clocks", default="base", choices=["base", "boost", "none"])
     ru.add_argument("--maintain-only", action="store_true")
+    ru.add_argument(
+        "--port-arg",
+        dest="port_args",
+        action="append",
+        default=[],
+        help="an extra argument of the port (repeatable; M11b: --port-arg=--cuda-engine "
+        "--port-arg=operators reads the shared engine)",
+    )
     ru.add_argument("--what", help="the record's description (the reading it is)")
     ru.add_argument(
         "--exe",

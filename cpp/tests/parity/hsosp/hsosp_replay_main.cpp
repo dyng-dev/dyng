@@ -10,6 +10,7 @@
  *     dyng_hsosp_replay [--backend sequential|openmp|cuda] [--device D] [--threads N] [--no-oracle]
  *                       [--no-integrity] [--json OUT] <dump.hsd[.zst]>...
  *     dyng_hsosp_replay --algorithm by_id|by_id_public|by_key [--check-compute]
+ *                       [--cuda-engine automatic|fused|operators] [--operators-knobs SPEC]
  *                       [--backend sequential|cuda] [--device D] [--json OUT] <dump.hsd[.zst]>...
  *
  * One line per dump; --json writes a JSON array of the reports. Exit status: 0 every dump
@@ -36,6 +37,7 @@ int usage() {
       "usage: dyng_hsosp_replay [--backend sequential|openmp|cuda] [--device D] [--threads N] "
       "[--no-oracle] [--no-integrity] [--json OUT] <dump.hsd[.zst]>...\n"
       "       dyng_hsosp_replay --algorithm by_id|by_id_public|by_key [--check-compute] "
+      "[--cuda-engine automatic|fused|operators] [--operators-knobs SPEC] "
       "[--backend sequential|cuda] [--device D] [--json OUT] <dump.hsd[.zst]>...\n");
   return 2;
 }
@@ -85,6 +87,19 @@ int main(int argc, char** argv) {
       }
     } else if (a == "--check-compute") {
       results.check_compute = true;
+    } else if (a == "--operators-knobs") {
+      results.operators_knobs = value();
+    } else if (a == "--cuda-engine") {
+      const std::string e = value();
+      if (e == "automatic") {
+        results.cuda_engine = dyng::engine::automatic;
+      } else if (e == "fused") {
+        results.cuda_engine = dyng::engine::fused;
+      } else if (e == "operators") {
+        results.cuda_engine = dyng::engine::operators;
+      } else {
+        return usage();
+      }
     } else if (!a.empty() && a[0] == '-') {
       return usage();
     } else {
