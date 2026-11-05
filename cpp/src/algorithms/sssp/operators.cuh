@@ -41,9 +41,28 @@
  * OPERATORS (PLAN 4.5.3) and where they live. `invalidate_subtree` (strategy pointer_jumping),
  * the pull `neighbor_reduce` with the packed argmin, the push `advance` with `packed_min`, and the
  * sparse near / far frontiers with their warp-aggregated `push` are written here and in
- * kernels.cuh, inside the sssp folder: no second algorithm uses them yet (the rule of two; the
- * planned second user is hyper_sssp). Every kernel is grid-stride, so a launch never needs more
+ * kernels.cuh, inside the sssp folder. Every kernel is grid-stride, so a launch never needs more
  * blocks than the device holds at once and a kernel whose work is gone costs one empty launch.
+ *
+ * THE SHARED ENGINE (M11b, decision O12; ADR 0095). hyper_sssp's engine::operators runs on these
+ * operators: the pull and the push read their graph through graph_access<graph_t>, the
+ * compile-time policies of the engine, whose default (sssp's device_csr) is today's code:
+ *   - row access: compact row_ptr[v] .. row_ptr[v + 1] (default), or slack rows
+ *     row_start[v] .. row_start[v] + deg[v] (util/slack_rows.cuh);
+ *   - weight source: the edge weight weights[e] (default), or node weights: w[col] when pushing
+ *     u -> col, w[v] when pulling into v;
+ *   - one symmetric view for both directions (the caller passes the same view as `in` and `out`);
+ *   - seeds: a single source (default; the host loop lists it), a source node at 0 (the same
+ *     kernels), or per-node base offers: the pull also offers base_offer(v) (with parent -1);
+ *   - a work counter (relaxations in MOSP_ESCHER's units: the row length of every pulled
+ *     candidate and of every pushed reachable node), compiled out by default;
+ *   - the mapping of rows to threads: one thread per row (default) or one warp per row
+ *     (pull_pass_warp / push_pass_warp, for heavy-tailed rows).
+ * sssp's kernels below keep their names, parameters and machine code (parity/sssp_sass.py); the
+ * generic bodies they call are inlined. The bodies stay in the sssp folder although a second
+ * algorithm now uses them (the rule of two would move them to cpp/src/operators/): a move renames
+ * every kernel (the namespace and the packing type are part of each kernel's mangled name), which
+ * changes sssp's and mosp's host objects; ADR 0095 records the lift as a rename-only follow-up.
  */
 #pragma once
 
@@ -113,6 +132,292 @@ __device__ __forceinline__ vertex_t thread_index() {
 template <typename vertex_t>
 __device__ __forceinline__ vertex_t grid_stride() {
   return static_cast<vertex_t>(gridDim.x) * static_cast<vertex_t>(blockDim.x);
+}
+
+// ------------------------------------------------------------------------------------------------
+// Graph access: the compile-time policies of the shared engine (M11b, O12; see the file comment)
+// ------------------------------------------------------------------------------------------------
+
+/**
+ * @brief How the pull and the push read a graph (rows, neighbours, weights, seeds, work). The
+ *        primary template is undefined: every graph type specializes it.
+ * @tparam graph_t The device graph the kernels receive.
+ */
+template <typename graph_t>
+struct graph_access;
+
+/**
+ * @brief sssp's graph, the defaults: compact rows, one weight per edge, no base offers, no work
+ *        counter.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+struct graph_access<device_csr<vertex_t, edge_t, weight_t>> {
+  using graph_type = device_csr<vertex_t, edge_t, weight_t>;  ///< the graph
+  using edge_type = edge_t;                                   ///< row offsets
+  static constexpr bool base_offers = false;                  ///< the pull offers base_offer(v)
+  static constexpr bool counts_work = false;  ///< the passes count their relaxations
+
+  /// First entry of row v.
+  __device__ static __forceinline__ edge_t begin(const graph_type& g, vertex_t v) {
+    return g.row_ptr[v];
+  }
+  /// One past the last entry of row v.
+  __device__ static __forceinline__ edge_t end(const graph_type& g, vertex_t v) {
+    return g.row_ptr[v + 1];
+  }
+  /// The neighbour of entry e.
+  __device__ static __forceinline__ vertex_t neighbour(const graph_type& g, edge_t e) {
+    return g.col_ind[e];
+  }
+  /// The weight of the push along entry e to its neighbour `head`.
+  __device__ static __forceinline__ u64 push_weight(const graph_type& g, edge_t e,
+                                                    vertex_t /*head*/) {
+    return static_cast<u64>(g.weights[e]);
+  }
+  /// The weight of the pull along entry e into `v`.
+  __device__ static __forceinline__ u64 pull_weight(const graph_type& g, edge_t e, vertex_t /*v*/) {
+    return static_cast<u64>(g.weights[e]);
+  }
+};
+
+/// The tail of a pull: a candidate whose word improved takes it and, if its distance decreased,
+/// joins the frontier.
+template <typename vertex_t>
+__device__ __forceinline__ void pull_improve(vertex_t v, u64 current, u64 best, u64* packed,
+                                             packing packed_format, int* stamp, int generation,
+                                             vertex_t* frontier, control<vertex_t>* c) {
+  if (best < current) {
+    const u64 old = atomicMin(&packed[v], best);
+    if (packed_format.distance(best) < packed_format.distance(old) && claim(stamp, v, generation)) {
+      frontier[append_index(&c->frontier)] = v;
+    }
+  }
+}
+
+/// One relaxation of a push: the head `w` of entry e is offered (du + weight, u); an improved head
+/// joins the next near frontier or the far pile.
+template <typename vertex_t, typename graph_t>
+__device__ __forceinline__ void push_relax(const graph_t& out,
+                                           typename graph_access<graph_t>::edge_type e, vertex_t u,
+                                           u64 du, u64* packed, packing packed_format,
+                                           u64 max_distance, vertex_t source, u64 threshold,
+                                           int* stamp, int generation, vertex_t* next_list,
+                                           vertex_t* next_count, int* in_far, vertex_t* far_list,
+                                           vertex_t* far_count) {
+  using access = graph_access<graph_t>;
+  const vertex_t w = access::neighbour(out, e);
+  if (w == source) {
+    return;
+  }
+  const u64 nd = du + access::push_weight(out, e, w);
+  if (nd > max_distance) {
+    return;  // never shortest; would not fit the packed word
+  }
+  const u64 candidate = packed_format.pack(nd, u);
+  if (candidate >= load(&packed[w])) {
+    return;
+  }
+  const u64 old = atomicMin(&packed[w], candidate);
+  if (nd < packed_format.distance(old)) {
+    if (nd < threshold) {
+      if (claim(stamp, w, generation)) {
+        next_list[append_index(next_count)] = w;
+      }
+    } else if (atomicExch(&in_far[w], 1) == 0) {
+      far_list[append_index(far_count)] = w;
+    }
+  }
+}
+
+/**
+ * The pull pass, one thread per candidate: every candidate takes the best (distance, lowest id)
+ * word over its row (and its base offer), and joins the frontier if its distance decreased.
+ * `work` (the counter of a graph that counts) receives the row lengths.
+ */
+template <typename vertex_t, typename graph_t>
+__device__ __forceinline__ void pull_pass(const vertex_t* candidates, vertex_t count,
+                                          const graph_t& in, u64* packed, packing packed_format,
+                                          u64 max_distance, int* stamp, int generation,
+                                          vertex_t* frontier, control<vertex_t>* c) {
+  using access = graph_access<graph_t>;
+  using edge_t = typename access::edge_type;
+  [[maybe_unused]] u64 work = 0;
+  for (vertex_t i = thread_index<vertex_t>(); i < count; i += grid_stride<vertex_t>()) {
+    const vertex_t v = candidates[i];
+    const u64 current = load(&packed[v]);
+    u64 best = current;
+    if constexpr (access::base_offers) {
+      best = min(best, access::base_offer(in, v, packed_format));
+    }
+    if constexpr (access::counts_work) {
+      work += static_cast<u64>(access::end(in, v) - access::begin(in, v));
+    }
+    for (edge_t e = access::begin(in, v); e < access::end(in, v); ++e) {
+      const vertex_t u = access::neighbour(in, e);
+      const u64 word = load(&packed[u]);
+      if (word == packed_inf) {
+        continue;
+      }
+      const u64 nd = packed_format.distance(word) + access::pull_weight(in, e, v);
+      if (nd <= max_distance) {  // larger: never shortest, may not fit
+        best = min(best, packed_format.pack(nd, u));
+      }
+    }
+    pull_improve(v, current, best, packed, packed_format, stamp, generation, frontier, c);
+  }
+  if constexpr (access::counts_work) {
+    sum_into(work, access::work_counter(in));
+  }
+}
+
+/**
+ * The pull pass, one warp per candidate (the shared engine's mapping for heavy-tailed rows): the
+ * lanes stride over the row and the warp reduces the packed words, the same minimum as pull_pass.
+ */
+template <typename vertex_t, typename graph_t>
+__device__ __forceinline__ void pull_pass_warp(const vertex_t* candidates, vertex_t count,
+                                               const graph_t& in, u64* packed,
+                                               packing packed_format, u64 max_distance, int* stamp,
+                                               int generation, vertex_t* frontier,
+                                               control<vertex_t>* c) {
+  using access = graph_access<graph_t>;
+  using edge_t = typename access::edge_type;
+  const int lane = static_cast<int>(threadIdx.x & 31);
+  const vertex_t warps = grid_stride<vertex_t>() / 32;
+  [[maybe_unused]] u64 work = 0;
+  for (vertex_t i = thread_index<vertex_t>() / 32; i < count; i += warps) {
+    const vertex_t v = candidates[i];
+    const u64 current = load(&packed[v]);
+    u64 best = current;
+    if constexpr (access::base_offers) {
+      best = min(best, access::base_offer(in, v, packed_format));
+    }
+    const edge_t first = access::begin(in, v);
+    const edge_t last = access::end(in, v);
+    if constexpr (access::counts_work) {
+      if (lane == 0) {
+        work += static_cast<u64>(last - first);
+      }
+    }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+    vertex_t any = -1;
+#endif
+    for (edge_t e = first + lane; e < last; e += 32) {
+      const vertex_t u = access::neighbour(in, e);
+      const u64 word = load(&packed[u]);
+      if (word == packed_inf) {
+        continue;
+      }
+      const u64 nd = packed_format.distance(word) + access::pull_weight(in, e, v);
+      if (nd <= max_distance) {  // (as pull_pass)
+        best = min(best, packed_format.pack(nd, u));
+      }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+      any = u > any ? u : any;
+#endif
+    }
+    for (int offset = 16; offset > 0; offset >>= 1) {
+      best = min(best, __shfl_xor_sync(0xffffffffu, best, offset));
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+      const vertex_t other = __shfl_xor_sync(0xffffffffu, any, offset);
+      any = other > any ? other : any;
+#endif
+    }
+#if defined(DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT)
+    // MUTATION (PLAN 8.4; M11a criterion 16 #2, the shared engine's twin, M11b criterion 4): the
+    // pull records the highest reached neighbour as the parent, tight or not; the distances are
+    // unchanged. Only hyper_sssp's shared engine runs this body.
+    if (best < current && packed_format.parent<vertex_t>(best) >= 0) {
+      best = packed_format.pack(packed_format.distance(best), any);
+    }
+#endif
+    if (lane == 0) {
+      pull_improve(v, current, best, packed, packed_format, stamp, generation, frontier, c);
+    }
+  }
+  if constexpr (access::counts_work) {
+    sum_into(work, access::work_counter(in));
+  }
+}
+
+/**
+ * The push iteration, one thread per frontier node: the near frontier relaxes its rows (see
+ * push_kernel). `work` (a graph that counts) receives the row lengths of the reachable nodes.
+ */
+template <typename vertex_t, typename graph_t>
+__device__ __forceinline__ void push_pass(const vertex_t* near_list, vertex_t near_count,
+                                          const graph_t& out, u64* packed, packing packed_format,
+                                          u64 max_distance, vertex_t source, int* stamp,
+                                          int generation, vertex_t* next_list, vertex_t* next_count,
+                                          int* in_far, vertex_t* far_list, vertex_t* far_count,
+                                          vertex_t* reset, const control<vertex_t>* c) {
+  using access = graph_access<graph_t>;
+  using edge_t = typename access::edge_type;
+  const u64 threshold = c->threshold;
+  if (blockIdx.x == 0 && threadIdx.x == 0) {
+    *reset = 0;
+  }
+  [[maybe_unused]] u64 work = 0;
+  for (vertex_t i = thread_index<vertex_t>(); i < near_count; i += grid_stride<vertex_t>()) {
+    const vertex_t u = near_list[i];
+    const u64 word = load(&packed[u]);
+    if (word == packed_inf) {
+      continue;
+    }
+    const u64 du = packed_format.distance(word);
+    if constexpr (access::counts_work) {
+      work += static_cast<u64>(access::end(out, u) - access::begin(out, u));
+    }
+    for (edge_t e = access::begin(out, u); e < access::end(out, u); ++e) {
+      push_relax(out, e, u, du, packed, packed_format, max_distance, source, threshold, stamp,
+                 generation, next_list, next_count, in_far, far_list, far_count);
+    }
+  }
+  if constexpr (access::counts_work) {
+    sum_into(work, access::work_counter(out));
+  }
+}
+
+/// The push iteration, one warp per frontier node (the lanes stride over its row).
+template <typename vertex_t, typename graph_t>
+__device__ __forceinline__ void push_pass_warp(const vertex_t* near_list, vertex_t near_count,
+                                               const graph_t& out, u64* packed,
+                                               packing packed_format, u64 max_distance,
+                                               vertex_t source, int* stamp, int generation,
+                                               vertex_t* next_list, vertex_t* next_count,
+                                               int* in_far, vertex_t* far_list, vertex_t* far_count,
+                                               vertex_t* reset, const control<vertex_t>* c) {
+  using access = graph_access<graph_t>;
+  using edge_t = typename access::edge_type;
+  const u64 threshold = c->threshold;
+  if (blockIdx.x == 0 && threadIdx.x == 0) {
+    *reset = 0;
+  }
+  const int lane = static_cast<int>(threadIdx.x & 31);
+  const vertex_t warps = grid_stride<vertex_t>() / 32;
+  [[maybe_unused]] u64 work = 0;
+  for (vertex_t i = thread_index<vertex_t>() / 32; i < near_count; i += warps) {
+    const vertex_t u = near_list[i];
+    const u64 word = load(&packed[u]);
+    if (word == packed_inf) {
+      continue;
+    }
+    const u64 du = packed_format.distance(word);
+    const edge_t first = access::begin(out, u);
+    const edge_t last = access::end(out, u);
+    if constexpr (access::counts_work) {
+      if (lane == 0) {
+        work += static_cast<u64>(last - first);
+      }
+    }
+    for (edge_t e = first + lane; e < last; e += 32) {
+      push_relax(out, e, u, du, packed, packed_format, max_distance, source, threshold, stamp,
+                 generation, next_list, next_count, in_far, far_list, far_count);
+    }
+  }
+  if constexpr (access::counts_work) {
+    sum_into(work, access::work_counter(out));
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -257,29 +562,8 @@ __global__ void __launch_bounds__(block_size)
                 device_csr<vertex_t, edge_t, weight_t> in, u64* packed, packing packed_format,
                 u64 max_distance, int* stamp, int generation, vertex_t* frontier,
                 control<vertex_t>* c) {
-  for (vertex_t i = thread_index<vertex_t>(); i < count; i += grid_stride<vertex_t>()) {
-    const vertex_t v = candidates[i];
-    const u64 current = load(&packed[v]);
-    u64 best = current;
-    for (edge_t e = in.row_ptr[v]; e < in.row_ptr[v + 1]; ++e) {
-      const vertex_t u = in.col_ind[e];
-      const u64 word = load(&packed[u]);
-      if (word == packed_inf) {
-        continue;
-      }
-      const u64 nd = packed_format.distance(word) + static_cast<u64>(in.weights[e]);
-      if (nd <= max_distance) {  // larger: never shortest, may not fit
-        best = min(best, packed_format.pack(nd, u));
-      }
-    }
-    if (best < current) {
-      const u64 old = atomicMin(&packed[v], best);
-      if (packed_format.distance(best) < packed_format.distance(old) &&
-          claim(stamp, v, generation)) {
-        frontier[append_index(&c->frontier)] = v;
-      }
-    }
-  }
+  pull_pass(candidates, count, in, packed, packed_format, max_distance, stamp, generation, frontier,
+            c);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -362,42 +646,8 @@ __global__ void __launch_bounds__(block_size)
                 u64 max_distance, vertex_t source, int* stamp, int generation, vertex_t* next_list,
                 vertex_t* next_count, int* in_far, vertex_t* far_list, vertex_t* far_count,
                 vertex_t* reset, const control<vertex_t>* c) {
-  const u64 threshold = c->threshold;
-  if (blockIdx.x == 0 && threadIdx.x == 0) {
-    *reset = 0;
-  }
-  for (vertex_t i = thread_index<vertex_t>(); i < near_count; i += grid_stride<vertex_t>()) {
-    const vertex_t u = near_list[i];
-    const u64 word = load(&packed[u]);
-    if (word == packed_inf) {
-      continue;
-    }
-    const u64 du = packed_format.distance(word);
-    for (edge_t e = out.row_ptr[u]; e < out.row_ptr[u + 1]; ++e) {
-      const vertex_t w = out.col_ind[e];
-      if (w == source) {
-        continue;
-      }
-      const u64 nd = du + static_cast<u64>(out.weights[e]);
-      if (nd > max_distance) {
-        continue;  // never shortest; would not fit the packed word
-      }
-      const u64 candidate = packed_format.pack(nd, u);
-      if (candidate >= load(&packed[w])) {
-        continue;
-      }
-      const u64 old = atomicMin(&packed[w], candidate);
-      if (nd < packed_format.distance(old)) {
-        if (nd < threshold) {
-          if (claim(stamp, w, generation)) {
-            next_list[append_index(next_count)] = w;
-          }
-        } else if (atomicExch(&in_far[w], 1) == 0) {
-          far_list[append_index(far_count)] = w;
-        }
-      }
-    }
-  }
+  push_pass(near_list, near_count, out, packed, packed_format, max_distance, source, stamp,
+            generation, next_list, next_count, in_far, far_list, far_count, reset, c);
 }
 
 // ------------------------------------------------------------------------------------------------
