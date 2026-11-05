@@ -76,7 +76,8 @@ results (of different sources, or with other hypergraph algorithms) after one co
 
 **Options** (all tunables): `work_budget` (1.0; a multiple of the live line-graph entries),
 `max_iterations` (4096 push rounds, cuda), `on_budget` (`budget_action::recompute` or `error`),
-`cuda_engine` (`automatic` / `fused`; `operators` arrives in M11b) and `validate_inputs`.
+`cuda_engine` (`automatic` and `fused`: MOSP_ESCHER's kernels; `operators`: the shared sssp
+engine, the same results) and `validate_inputs`.
 
 **Stats**: the inherited `update_stats` fields, `batch`, `line_graph_insertions`,
 `line_graph_deletions`, `invalidated`, `relaxations` and `fallback_reason`. Which are
@@ -87,7 +88,8 @@ deterministic is stated per field in the header.
 | Backend | Engine | Notes |
 |---|---|---|
 | sequential | `engine::operators` | MOSP_ESCHER's host emulation (emulateSospRecompute, emulateSospUpdate) on the host line graph; the budget is checked before each expansion; no iteration, width or depth limit |
-| cuda | `engine::fused` | MOSP_ESCHER's kernels as they are (transplanted with `parity/escher_port/transplant.py`, ADR 0091) |
+| cuda | `engine::fused` (the default) | MOSP_ESCHER's kernels as they are (transplanted with `parity/escher_port/transplant.py`, ADR 0091) |
+| cuda | `engine::operators` | the shared sssp engine (M11b, O12; ADR 0095): sssp's CUDA operators over the line graph (slack rows, node weights `w[col]` pushing and `w[v]` pulling, one symmetric view, the public mode's base offers, one warp per row), the host loop of sssp's operators engine with MOSP_ESCHER's budget triggers, the static solve on sssp's near-far loop with MOSP's defaultDelta |
 | openmp | none | `not_supported_error` naming sequential and cuda (HD14) |
 
 Requirements, checked by `compute()` and before the commit of `update()`: `hypergraph<int32_t,
