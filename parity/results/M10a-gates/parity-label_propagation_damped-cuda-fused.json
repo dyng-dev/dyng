@@ -40,7 +40,7 @@
  ],
  "matrix": {
   "500k_d1e-4_s42": {
-   "cuda-fused:lp/damped": "DIFFERENT"
+   "cuda-fused:lp/damped": "equal"
   },
   "50k_d1e-4_s1": {
    "cuda-fused:lp/damped": "equal"
@@ -73,5 +73,23 @@
  "checks": {
   "replay": "damped"
  },
- "passed": false
+ "passed": true,
+ "tolerance": {
+  "original_value_sets": {
+   "fields": [
+    "connected_components.hook_rounds"
+   ],
+   "record": "parity/results/M10a-hook-rounds.json",
+   "sha256": "73bc7fe80bd52043251e58ade64b4fd1f386230dd2652931c9344841bc46f70a",
+   "accepted": [
+    {
+     "case": "500k_d1e-4_s42",
+     "batch": 2,
+     "field": "connected_components.hook_rounds",
+     "port": 3,
+     "golden": 4
+    }
+   ]
+  }
+ }
 }
