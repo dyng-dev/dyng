@@ -173,6 +173,12 @@ Before 0.1.0 anything may change.
   gate compares whole instructions; the IrLP replay checks the snapshot counts; the oracle replay
   checks the flips and the maximum; the memory sampler polls every 0.25 s and counts a side only
   when it saw its own process.
+- M10a review fixes (parity and certificate; ADR 0100, the author's decision of 2026-11-05): the
+  fused engine's damped replay compares `connected_components.hook_rounds`, a non-deterministic
+  counter of LabelPropagation-CUDA, against the values the original's own runs produce for the
+  case and batch (`parity/results/M10a-hook-rounds.json`, from its recorder twin's runs), every
+  other field exactly; `compare.py label_propagation damped-rejudge` judges an existing record
+  again; `certify.py` checks every accepted value against the committed evidence.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
