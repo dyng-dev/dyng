@@ -3310,6 +3310,52 @@ def test_the_lp_certificate_fails_on_a_changed_tolerance_or_preset(
     )
 
 
+def test_the_lp_certificate_judges_the_hook_rounds_against_the_original(
+    cert, bench, tmp_path: Path, fixed_driver
+) -> None:
+    """ADR 0100 (the author's decision of 2026-11-05): a damped replay that accepted a
+    connected_components.hook_rounds value the original's own runs produce (500k batch 2: 3 or 4)
+    passes; one that accepted a value outside the committed evidence, at another case or batch,
+    on another field, or with other value sets, fails the 0.4.0 certificate."""
+    import hashlib
+
+    lpp = load("parity/label_propagation_port.py")
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    path = results / "parity-label_propagation_damped-cuda-fused.json"
+    full = path.read_text()
+    sha = hashlib.sha256(lpp.ORIGINAL_VALUES_RECORD.read_bytes()).hexdigest()
+
+    def rule(accepted: list[dict], **over) -> dict:
+        r = {"fields": ["connected_components.hook_rounds"],
+             "record": "parity/results/M10a-hook-rounds.json", "sha256": sha,
+             "accepted": accepted, **over}  # fmt: skip
+        return {"original_value_sets": r}
+
+    good = {"case": "500k_d1e-4_s42", "batch": 2, "field": "connected_components.hook_rounds",
+            "port": 3, "golden": 4}  # fmt: skip
+    for tolerance, passes in [
+        (rule([good]), True),
+        (rule([]), True),
+        (rule([{**good, "port": 5}]), False),
+        (rule([{**good, "batch": 3}]), False),
+        (rule([{**good, "case": "50k_d1e-4_s42"}]), False),
+        (rule([{**good, "field": "connected_components.num_components"}]), False),
+        (rule([good], sha256="0" * 64), False),
+        (rule([good], fields=["connected_components.hook_rounds", "label_init.w0"]), False),
+        ({**rule([good]), "bound": 2}, False),
+    ]:
+        rec = json.loads(full)
+        rec["tolerance"] = tolerance
+        path.write_text(json.dumps(rec))
+        assert (write() == 0) is passes, (tolerance, doc()["verdict"]["problems"])
+        if not passes:
+            assert any("label_propagation_damped" in p for p in doc()["verdict"]["problems"]), (
+                tolerance
+            )
+    path.write_text(full)
+    assert write() == 0, doc()["verdict"]
+
+
 def test_the_lp_certificate_needs_every_case_of_every_set(
     cert, bench, tmp_path: Path, fixed_driver
 ) -> None:

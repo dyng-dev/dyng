@@ -1147,6 +1147,10 @@ def label_propagation_replays(name: str, spec: dict, entry: dict, problems: list
         before = len(problems)
         problems += frozen_tolerance_problems(name, spec, entry)
         ok = ok and len(problems) == before
+    if name == "label_propagation_damped":
+        before = len(problems)
+        problems += original_value_set_problems(name, entry)
+        ok = ok and len(problems) == before
     entry["passed"] = ok
 
 
@@ -1161,6 +1165,57 @@ def label_propagation_cases(name: str, spec: dict) -> list[str]:
     if spec.get("cases"):
         return sorted(spec["cases"])
     return list(LABEL_PROPAGATION_FIXED_CASES.get(name, []))
+
+
+def original_value_set_problems(name: str, entry: dict) -> list[str]:
+    """The damped replay's non-deterministic counters (ADR 0100; the author's decision of
+    2026-11-05): connected_components.hook_rounds may differ from the golden only by a value the
+    original's own runs produce for that case and batch. The committed evidence record
+    (label_propagation_port.ORIGINAL_VALUES_RECORD) must be derived from its committed twin
+    records; a replay that applied a rule (its tolerance) must name that record by its SHA-256 and
+    those fields alone, and every difference it accepted must have both values in the evidence's
+    set of the case and batch. A replay without a rule compared every field exactly."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import label_propagation_port as lpp
+
+    own = lpp.original_values_problems()
+    if own:
+        return [f"golden set {name}: {p}" for p in own]
+    record = lpp.ORIGINAL_VALUES_RECORD
+    sha = hashlib.sha256(record.read_bytes()).hexdigest()
+    sets = json.loads(record.read_text()).get("cases") or {}
+    fields = sorted(f"{t}.{n}" for t, n in lpp.ORIGINAL_VALUE_FIELDS)
+    entry["original_value_sets"] = {
+        "record": record.relative_to(REPO).as_posix(), "sha256": sha, "fields": fields,
+    }  # fmt: skip
+    out = []
+    for r in entry["replays"]:
+        tol = r.get("tolerance")
+        if tol is None:
+            continue
+        rule = tol.get("original_value_sets") if isinstance(tol, dict) else None
+        if not isinstance(rule, dict) or set(tol) != {"original_value_sets"}:
+            out.append(f"golden set {name}: {r['record']} applied a tolerance other than the "
+                       f"original's value sets of ADR 0100 ({sorted(tol, key=str)})")  # fmt: skip
+            continue
+        if rule.get("sha256") != sha or sorted(rule.get("fields") or []) != fields:
+            out.append(f"golden set {name}: {r['record']} applied value sets that are not the "
+                       f"committed {record.name} for {fields}")  # fmt: skip
+        for a in rule.get("accepted") or []:
+            allowed = (sets.get(a.get("case")) or {}).get("values", {}).get(str(a.get("batch")))
+            if (
+                a.get("field") not in fields
+                or allowed is None
+                or a.get("port") not in allowed
+                or a.get("golden") not in allowed
+            ):
+                out.append(
+                    f"golden set {name}: {r['record']} accepted {a.get('field')} = "
+                    f"{a.get('port')} (golden {a.get('golden')}) at {a.get('case')} batch "
+                    f"{a.get('batch')}, which the original's own runs do not produce "
+                    f"({allowed or 'no recorded values'})"
+                )
+    return out
 
 
 def frozen_tolerance_problems(name: str, spec: dict, entry: dict) -> list[str]:

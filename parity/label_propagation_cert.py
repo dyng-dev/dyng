@@ -14,7 +14,10 @@ written: stamp_port()) into parity/certify.py's replay format: one record per se
 cases), the port's commit and build, one configuration `<backend>:lp/<kind>` (damped and hub:
 `cuda-fused:lp/<kind>`), the case x configuration matrix ("equal" or "DIFFERENT"), the checks and,
 for the calibrated kinds (inplace, oracle), the tolerance the replay applied, which certify.py
-recomputes from the committed calibration record (frozen_tolerance_problems).
+recomputes from the committed calibration record (frozen_tolerance_problems); for damped, the
+original's value sets the replay applied to its non-deterministic counters and every difference
+they accepted (ADR 0100), which certify.py checks against the committed evidence
+(original_value_set_problems).
 
 KIND is one of KINDS. A record without its port stamp, or of another kind, is refused.
 """
@@ -132,7 +135,27 @@ def tolerance_of(kind: str, doc: dict) -> dict | None:
         }
     if kind == "oracle":
         return oracle_tolerance(doc)
+    if kind == "damped" and doc.get("original_value_sets") is not None:
+        return {"original_value_sets": original_value_sets(doc)}
     return None
+
+
+def original_value_sets(doc: dict) -> dict:
+    """The rule a damped replay applied (ADR 0100), read from the record: the fields compared
+    against the original's own values, the evidence record and its SHA-256 the replay used, and
+    every difference it accepted (case, batch, field, the port's and the golden's values), which
+    certify.py checks against the committed evidence (original_value_set_problems)."""
+    rule = doc["original_value_sets"]
+    return {
+        "fields": rule.get("fields"),
+        "record": rule.get("record"),
+        "sha256": rule.get("sha256"),
+        "accepted": [
+            {"case": c["case"], **{k: a.get(k) for k in ("batch", "field", "port", "golden")}}
+            for c in doc.get("cases", [])
+            for a in c.get("original_values_accepted") or []
+        ],
+    }
 
 
 def oracle_tolerance(doc: dict) -> dict:
@@ -216,6 +239,17 @@ def write_certificate(kind: str, docs: list[dict], out: Path) -> Path:
         first["passed"] = first["passed"] and r["passed"]
         if "tolerance" in r and kind == "inplace":
             first["tolerance"].update(r["tolerance"])
+        if kind == "damped" and ("tolerance" in r or "tolerance" in first):
+            a = (first.get("tolerance") or {}).get("original_value_sets")
+            b = (r.get("tolerance") or {}).get("original_value_sets")
+            if (
+                a is None
+                or b is None
+                or {k: a[k] for k in ("fields", "record", "sha256")}
+                != {k: b[k] for k in ("fields", "record", "sha256")}
+            ):
+                raise CertError("damped records of one certificate record apply the same rule")
+            a["accepted"] += b["accepted"]
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"parity-{first['set']}-{first['backend']}.json"
     path.write_text(json.dumps(first, indent=1) + "\n")
