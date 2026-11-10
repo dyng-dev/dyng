@@ -1,0 +1,48 @@
+{
+ "cases": {
+  "500k_d1e-4_s42": {
+   "source": "parity/results/M10a-merged/hook-rounds-500k.json",
+   "source_sha256": "01efc5b58e292aff06bc6dfc6ff020c7b8c088812b6440f21c51f19039a1e9fa",
+   "twin_runs": 70,
+   "values": {
+    "0": [
+     2
+    ],
+    "1": [
+     4
+    ],
+    "2": [
+     3,
+     4
+    ],
+    "3": [
+     4
+    ],
+    "4": [
+     4
+    ],
+    "5": [
+     4
+    ],
+    "6": [
+     4
+    ],
+    "7": [
+     4
+    ],
+    "8": [
+     4
+    ],
+    "9": [
+     4
+    ]
+   }
+  }
+ },
+ "decision": "GOVERNANCE.md, approvals log, 2026-11-05, the row \"The hook-round count of the damped trace parity\" (the author, S M Shovan); ADR 0100",
+ "fields": [
+  "connected_components.hook_rounds"
+ ],
+ "schema": 1,
+ "what": "The values of the trace field connected_components.hook_rounds (the Shiloach-Vishkin hook rounds of the damped trace) that LabelPropagation-CUDA@a276a3a's own runs produce, per case of P+ and batch: the trace golden's value and every value of the original's recorder twin (its unchanged objects) in the source record's fresh runs. The fused engine's damped replay accepts a port value of this field that is in the set of its case and batch (and only when the golden's value is in it too); a case or batch not listed here accepts the golden's value only, and every other trace field stays exact. The sets are derived from the sources (parity/label_propagation_port.py original_values_problems checks it; certify.py checks the replays against this file)."
+}

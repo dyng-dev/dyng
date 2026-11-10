@@ -10,6 +10,8 @@
     compare.py label_propagation trace --exe COMPAT [--backend sequential] [--cases ...] [--json F]
     compare.py label_propagation oracle-port --exe COMPAT [--backend sequential] [--json F]
     compare.py label_propagation determinism --exe COMPAT [--backend sequential] [--json F]
+    compare.py label_propagation damped --exe COMPAT [--cases ...] [--json F]
+    compare.py label_propagation damped-rejudge --record R [--json F]
 
 REPLAY is dyng_lp_replay (cpp/tests/parity/label_propagation), COMPAT dyng-compat-dynlp
 (tools/compat/dynlp) of a build.
@@ -37,13 +39,22 @@ oracle-port On C = {5k5, 50k} at delta 1e-6 by default (--cases: also L = {500k,
             dump, and IrLP (--validate) on the snapshots of C (agreement with DynLP reported).
 determinism Two runs of every C case on the backend: damped label bits identical run to run, and
             in_place too on sequential (it updates each half-sweep in vertex order).
+damped      The fused engine's byte parity on P+ (AD6): the labels, the per-batch label bits, the
+            results.csv columns and every trace field; connected_components.hook_rounds, a
+            non-deterministic counter of the original, against the original's own values of the
+            case and batch (ORIGINAL_VALUES_RECORD; the author's decision of 2026-11-05, ADR 0100).
+damped-rejudge  A damped record judged again under that rule, without a new run.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
+import hashlib
 import json
 import os
+import re
+import struct
 import subprocess
 import sys
 import tempfile
@@ -96,6 +107,13 @@ L_CASES = [g.Case(s, schedule=r) for s in ("500k", "5m") for r in ("damped", "in
 # .github/workflows/oracle.yml).
 WEEKLY_CASES = [g.Case("50k", schedule=r) for r in ("damped", "inplace")]
 MARGIN_RECORD = REPO / "parity" / "results" / "M10a-class-margin.json"
+# The non-deterministic counters of the original (the author's decision of 2026-11-05; ADR 0100):
+# the fused engine's replay compares them against the set of values LabelPropagation-CUDA's own
+# runs (its recorder twin) produce for the case and batch, which ORIGINAL_VALUES_RECORD holds,
+# derived from the committed twin records it names; a case or batch it does not list accepts the
+# golden's value only. Every other trace field stays exact.
+ORIGINAL_VALUE_FIELDS = frozenset({("connected_components", "hook_rounds")})
+ORIGINAL_VALUES_RECORD = REPO / "parity" / "results" / "M10a-hook-rounds.json"
 
 
 def runs_dir() -> Path:
@@ -139,12 +157,17 @@ def compare_traces(
     golden: dlt.Trace,
     every_field: bool = False,
     skip: frozenset[tuple[str, str]] = frozenset(),
+    original: dict[int, list[int]] | None = None,
+    accepted: list[dict] | None = None,
 ) -> tuple[int, list[dict]]:
     """Every deterministic field of every batch (TRACE_FIELDS; b0's row offsets too); with
     `every_field`, every field of every stage the golden records but GOLDEN_ONLY_FIELDS (the
     fused engine: the labels, the counts and the tags too), a field the port lacks a mismatch.
     `skip` names (stage, field) pairs that differ by construction (an in_place run against the
-    damped trace golden: propagation_begin.update_rule)."""
+    damped trace golden: propagation_begin.update_rule). `original` ({batch: values}, the case's
+    sets of ORIGINAL_VALUES_RECORD; ADR 0100): a field of ORIGINAL_VALUE_FIELDS that differs from
+    the golden is not a mismatch when the port's value and the golden's are both in the batch's
+    set; it is appended to `accepted` instead. Without `original` every field is exact."""
     # The batch loop only: the port's compute() on the empty graph records an irlp_snapshot
     # outside it (batch -1).
     mine = {b: r for b, r in ours.batches().items() if b >= 0}
@@ -188,6 +211,11 @@ def compare_traces(
                 if f is None or h is None:
                     mismatches.append({"batch": b, "field": f"{tag}.{name}", "detail": "missing"})
                 elif (f.dtype, f.count, f.sha256) != (h.dtype, h.count, h.sha256):
+                    hit = original_value(tag, name, b, f, h, original)
+                    if hit is not None:
+                        if accepted is not None:
+                            accepted.append(hit)
+                        continue
                     mismatches.append(
                         {
                             "batch": b,
@@ -197,6 +225,103 @@ def compare_traces(
                         }
                     )
     return compared, mismatches
+
+
+# --- the original's value sets of its non-deterministic counters (ADR 0100) ----------------------
+
+
+def i64_sha256(value: int) -> str:
+    """The SHA-256 of a scalar i64 trace field holding `value` (dynlp_trace.Field.sha256)."""
+    return hashlib.sha256(struct.pack("<q", value)).hexdigest()
+
+
+def original_value(
+    tag: str,
+    name: str,
+    batch: int,
+    port: dlt.Field,
+    gold: dlt.Field,
+    original: dict[int, list[int]] | None,
+) -> dict | None:
+    """The accepted difference of a field of ORIGINAL_VALUE_FIELDS ({batch, field, port, golden,
+    original_values}), or None: the field is a scalar i64 on both sides and both values are in
+    the original's set of the batch (by their SHA-256, so a digest trace is judged the same)."""
+    if original is None or (tag, name) not in ORIGINAL_VALUE_FIELDS:
+        return None
+    if not (port.dtype == gold.dtype == 2 and port.count == gold.count == 1):
+        return None
+    values = list(original.get(batch, []))
+    by_sha = {i64_sha256(v): v for v in values}
+    if port.sha256 not in by_sha or gold.sha256 not in by_sha:
+        return None
+    return {
+        "batch": batch,
+        "field": f"{tag}.{name}",
+        "port": by_sha[port.sha256],
+        "golden": by_sha[gold.sha256],
+        "original_values": values,
+    }
+
+
+def values_of_twin_record(source: dict) -> dict[str, list[int]]:
+    """{batch: sorted values} of a twin record of the hook rounds (hook-rounds-<case>.json's
+    format: the golden's value per batch and every twin run that differs from it; the port's
+    runs are not evidence)."""
+    values = {b: {v} for b, v in enumerate(source["golden"])}
+    for d in source["twin_differences"]:
+        values[d["batch"]].add(d["hook_rounds"])
+    return {str(b): sorted(v) for b, v in sorted(values.items())}
+
+
+def original_values_problems(path: Path = ORIGINAL_VALUES_RECORD) -> list[str]:
+    """The evidence record's own check: its fields are ORIGINAL_VALUE_FIELDS, every source it
+    names is committed with the SHA-256 it gives, and every case's sets are its source's."""
+    if not path.is_file():
+        return [f"{path.name} is missing"]
+    doc = json.loads(path.read_text())
+    out = []
+    want = sorted(f"{t}.{n}" for t, n in ORIGINAL_VALUE_FIELDS)
+    if sorted(doc.get("fields") or []) != want:
+        out.append(f"{path.name}: its fields {doc.get('fields')} are not {want}")
+    for case, c in sorted((doc.get("cases") or {}).items()):
+        src = REPO / c.get("source", "")
+        if not src.is_file() or hashlib.sha256(src.read_bytes()).hexdigest() != c.get(
+            "source_sha256"
+        ):
+            out.append(
+                f"{path.name}: {case}: its source {c.get('source')} is not the committed one"
+            )
+            continue
+        source = json.loads(src.read_text())
+        named = (source.get("damped_replay_mismatch") or {}).get("case", case)
+        if named != case:
+            out.append(f"{path.name}: {case}: its source is of {named}")
+        if values_of_twin_record(source) != c.get("values"):
+            out.append(f"{path.name}: {case}: its sets are not its source's twin runs")
+        if source.get("runs") != c.get("twin_runs"):
+            out.append(f"{path.name}: {case}: twin_runs is not its source's")
+    return out
+
+
+def original_values_rule(path: Path = ORIGINAL_VALUES_RECORD) -> dict:
+    """The rule a damped replay applies, as its record states it (checked first)."""
+    bad = original_values_problems(path)
+    if bad:
+        raise g.GoldenError("; ".join(bad))
+    return {
+        "fields": sorted(f"{t}.{n}" for t, n in ORIGINAL_VALUE_FIELDS),
+        "record": path.relative_to(REPO).as_posix(),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "decision": 'GOVERNANCE.md, approvals log, 2026-11-05, "The hook-round count of the '
+        'damped trace parity"; ADR 0100',
+    }
+
+
+def original_values(case: str, path: Path = ORIGINAL_VALUES_RECORD) -> dict[int, list[int]]:
+    """{batch: values} of a case (empty: the golden's value only)."""
+    doc = json.loads(path.read_text())
+    sets = ((doc.get("cases") or {}).get(case) or {}).get("values") or {}
+    return {int(b): list(v) for b, v in sets.items()}
 
 
 # --- container ------------------------------------------------------------------------------------
@@ -564,6 +689,7 @@ def cmd_damped(args: argparse.Namespace) -> int:
         raise g.GoldenError(f"the cuda-fused replay needs a parity-cuda build, got {preset}")
     damped_root = g.set_dir(g.scratch() / "goldens", "damped")
     trace_root = g.set_dir(g.scratch() / "goldens", "trace")
+    rule = original_values_rule()
     results, ok = [], True
     for case in select(g.P_CASES, args.cases):
         import time
@@ -600,7 +726,11 @@ def cmd_damped(args: argparse.Namespace) -> int:
             run_compat(args.exe, argv, env)
             ours = dlt.read(tmp / "t" / f"{args.exe.name}.dlt")
             golden = dlt.read(decompressed(trace_root / "cases" / case.name / "trace.dlt.zst", tmp))
-            compared, mismatches = compare_traces(ours, golden, every_field=True)
+            accepted: list[dict] = []
+            compared, mismatches = compare_traces(
+                ours, golden, every_field=True, original=original_values(case.name),
+                accepted=accepted,
+            )  # fmt: skip
             checks["trace"] = not mismatches and ours.digest_mode == golden.digest_mode
             seconds = time.monotonic() - t0
         good = all(checks.values())
@@ -611,6 +741,7 @@ def cmd_damped(args: argparse.Namespace) -> int:
                 "checks": checks,
                 "trace_fields": compared,
                 "trace_mismatches": mismatches[:20],
+                "original_values_accepted": accepted,
                 "results_mine": mine if not checks["results.csv"] else "equal",
                 "seconds": round(seconds, 1),
                 "equal": good,
@@ -618,7 +749,9 @@ def cmd_damped(args: argparse.Namespace) -> int:
         )
         print(
             f"{case.name}: {'identical' if good else 'DIFFERENT'} {checks} ({compared} trace "
-            f"fields; {seconds:.1f} s)" + (f": {mismatches[:3]}" if mismatches else ""),
+            f"fields; {seconds:.1f} s)"
+            + (f": {mismatches[:3]}" if mismatches else "")
+            + (f"; the original's values accepted: {accepted}" if accepted else ""),
             flush=True,
         )
     if args.json:
@@ -629,10 +762,12 @@ def cmd_damped(args: argparse.Namespace) -> int:
                 "what": "the fused CUDA engine's damped byte parity on P+ (AD6; criterion 12): "
                 "dynlp_labels.txt bytes against unpatched O, the per-batch label bits against the "
                 "twin's, the results.csv columns iterations, frontier_visits, components and "
-                "accuracy, and every field of the stage trace",
+                "accuracy, and every field of the stage trace (connected_components.hook_rounds "
+                "against the original's own values, ADR 0100)",
                 "reference": g.REFERENCE,
                 "commit": g.COMMIT,
                 "config": args.config,
+                "original_value_sets": rule,
                 "build": preset,
                 "date": g.now(),
                 "equal": ok,
@@ -641,6 +776,104 @@ def cmd_damped(args: argparse.Namespace) -> int:
         )
     print(f"damped ({args.config}):", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
+
+
+MISMATCH_DETAIL = re.compile(r"^port i64\[1\] ([0-9a-f]{12}) vs golden i64\[1\] ([0-9a-f]{12})$")
+
+
+def golden_digest_mode(path: Path) -> bool:
+    """The digest flag of a compressed trace golden, from its header alone."""
+    p = subprocess.Popen(["zstd", "-q", "-dc", "--long=27", str(path)], stdout=subprocess.PIPE)
+    assert p.stdout is not None
+    head = p.stdout.read(16)
+    p.kill()
+    p.wait()
+    if len(head) < 16 or head[:8] != dlt.MAGIC:
+        raise g.GoldenError(f"{path}: not a trace")
+    return struct.unpack("<II", head[8:16])[1] == 1
+
+
+def rejudge_damped(doc: dict, golden_mode=None) -> dict:
+    """A damped replay record judged again under the rule of ADR 0100 (no new run): every case's
+    recorded trace mismatches of ORIGINAL_VALUE_FIELDS whose port and golden values (by the
+    recorded SHA-256 prefixes) are both in the original's set of the case and batch are moved to
+    original_values_accepted; a case becomes equal only if nothing else was recorded against it
+    (its labels, label bits and results.csv equal, its mismatch list complete, i.e. shorter than
+    the 20 a record keeps, and its golden of the digest mode the replay runs the case in;
+    `golden_mode(case)` gives that mode instead of the golden's header, for the tests)."""
+    rule = original_values_rule()
+    out = copy.deepcopy(doc)
+    known = {c.name: c for c in g.P_CASES}
+    ok = True
+    for c in out["cases"]:
+        c.setdefault("original_values_accepted", [])
+        if c.get("equal") is True:
+            continue
+        mism = c.get("trace_mismatches") or []
+        original = original_values(c["case"])
+        keep = []
+        for m in mism:
+            hit = None
+            match = MISMATCH_DETAIL.match(m.get("detail", ""))
+            tag, _, name = m.get("field", "").partition(".")
+            if match and (tag, name) in ORIGINAL_VALUE_FIELDS:
+                by_prefix = {i64_sha256(v)[:12]: v for v in original.get(m["batch"], [])}
+                port, gold = by_prefix.get(match.group(1)), by_prefix.get(match.group(2))
+                if port is not None and gold is not None:
+                    hit = {"batch": m["batch"], "field": m["field"], "port": port,
+                           "golden": gold, "original_values": original[m["batch"]]}  # fmt: skip
+            if hit:
+                c["original_values_accepted"].append(hit)
+            else:
+                keep.append(m)
+        c["trace_mismatches"] = keep
+        others = {k: v for k, v in c["checks"].items() if k != "trace"}
+        case = known.get(c["case"])
+        mode = (
+            golden_mode(c["case"])
+            if golden_mode
+            else golden_digest_mode(
+                g.set_dir(g.scratch() / "goldens", "trace") / "cases" / c["case"] / "trace.dlt.zst"
+            )
+        )
+        if not keep and len(mism) < 20 and all(others.values()) and case and mode == case.digest:
+            c["checks"]["trace"] = True
+            c["equal"] = True
+        ok = ok and c["equal"] is True
+    out["equal"] = ok
+    out["original_value_sets"] = rule
+    out["rejudged"] = {
+        "date": g.now(),
+        "rule": "ADR 0100: connected_components.hook_rounds against the original's own values "
+        "(the author's decision of 2026-11-05); every other field as recorded",
+    }
+    return out
+
+
+def cmd_damped_rejudge(args: argparse.Namespace) -> int:
+    """compare.py label_propagation damped-rejudge --record R --json OUT (ADR 0100)."""
+    raw = args.record.read_bytes()
+    out = rejudge_damped(json.loads(raw))
+    out["rejudged"]["from"] = {
+        "record": perf_path(args.record),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
+    for c in out["cases"]:
+        print(f"{c['case']}: {'identical' if c['equal'] else 'DIFFERENT'}"
+              + (f"; the original's values accepted: {c['original_values_accepted']}"
+                 if c["original_values_accepted"] else ""))  # fmt: skip
+    if args.json:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(out, indent=1, sort_keys=True) + "\n")
+    print("damped (judged again under ADR 0100):", "PASSED" if out["equal"] else "FAILED")
+    return 0 if out["equal"] else 1
+
+
+def perf_path(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(REPO).as_posix()
+    except ValueError:
+        return str(path)
 
 
 # --- irlp (compute() on CUDA: IrLP's bits and iterations per snapshot) ----------------------------
@@ -933,6 +1166,7 @@ COMMANDS = {
     "oracle-port": cmd_oracle_port,
     "determinism": cmd_determinism,
     "damped": cmd_damped,
+    "damped-rejudge": cmd_damped_rejudge,
     "irlp": cmd_irlp,
     "inplace": cmd_inplace,
     "hub": cmd_hub,
@@ -972,6 +1206,9 @@ def main(argv: list[str] | None = None) -> int:
     fp.add_argument("--config", choices=["cuda-fused"], default="cuda-fused")
     fp.add_argument("--cases", type=names)
     fp.add_argument("--json", type=Path)
+    rp = sub.add_parser("damped-rejudge")
+    rp.add_argument("--record", type=Path, required=True, help="a damped --json record")
+    rp.add_argument("--json", type=Path)
     ip = sub.add_parser("irlp")
     ip.add_argument("--exe", type=Path, required=True, help="dyng-compat-dynlp")
     ip.add_argument("--backend", choices=["cuda"], default="cuda")

@@ -1647,6 +1647,7 @@ PORT_COMMANDS = (
     "oracle-port",
     "determinism",
     "damped",
+    "damped-rejudge",
     "irlp",
     "inplace",
     "hub",
