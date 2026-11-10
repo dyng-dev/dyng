@@ -109,7 +109,9 @@ round) and `memory --side port` are the port side of ADR 0064's harness.
 
 - Damped byte parity on P+ against the goldens (`compare.py label_propagation damped --config
   cuda-fused`, parity-cuda checked): `dynlp_labels.txt` bytes, every batch's label bits (5m by
-  digest), the results.csv columns and every field of the stage trace; IrLP's bits and iterations
+  digest), the results.csv columns and every field of the stage trace (amended by ADR 0100, the
+  author's decision of 2026-11-05: `connected_components.hook_rounds`, a non-deterministic counter
+  of the original, against the original's own values of the case and batch); IrLP's bits and iterations
   per snapshot at 5k5 and 50k; the hub golden bitwise, twice; the in_place cloud (every port run
   against every reference run within T_mean, T_max and T_flips, the iterations inside the frozen
   envelope, the components and the initial frontier exact); the harmonic oracle on C for both
