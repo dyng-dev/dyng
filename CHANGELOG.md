@@ -229,6 +229,10 @@ Before 0.1.0 anything may change.
   concepts page's storages, incidence edits and ids with edits; the sketch marked frozen.
 - Packaging: the plugin smoke test runs hyper_sssp compute and update on the GPU (both engines)
   and on the CPU wheel's sequential backend.
+- Parity harness (M11b): a 0.4 certificate needs hyper_sssp's replays on both CUDA engines: every
+  cuda requirement of the golden set's parity modes holds for `engine::automatic` (the as-is
+  kernels) and for the shared engine `engine::operators` (`parity/certify.py`,
+  `HYPER_SSSP_CUDA_ENGINES`).
 
 ## [0.3.0] - 2026-10-29
 
