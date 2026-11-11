@@ -23,7 +23,8 @@ keeps the version; anything an earlier reader would read differently without ref
 new version. Under that rule 0.4 adds to version 1 only what 0.3 reserved or refused: for
 hypergraph files (M11) the `.dgt` incidence operations `+i` / `-i` and the `.dgb` flag
 `incidence_edits` (bit 3); for graph files (label_propagation, also 0.4) the `.dgb` flag bit 4
-`vertex_records` and the weight code 3 (float32), which this page reserves for it.
+`vertex_records` and the weight code 3 (float32) with the `.dgt` vertex operations `+v` / `-v`
+and float weight tokens (section "Vertex batches and float weights").
 Every file 0.3 reads reads the same, the writers write every batch without the new parts byte
 for byte as 0.3 did, and a reader of 0.3 refuses a file with the new parts with an `io_error` (an
 operation reserved for 0.4; an unknown flag or weight code).
@@ -84,12 +85,14 @@ batches in one ASCII text file, one operation per line. Format version 1.
   member) is kept in the file and skipped, and counted, by `apply()`. In a graph file they are
   hypergraph operations (an `io_error` naming `read_hyperedge_batches()`). A reader of 0.3 rejects
   them (they were reserved for 0.4).
-- Reserved and rejected with an `io_error` / `FileFormatError` naming a later release: the vertex
-  operations `+v u [label]`, `-v u` (label_propagation).
-- Every token is a whole decimal integer; errors report the path, line and column.
+- **Vertex operations** (`read_batches`, 0.4) and the float weights of float graphs: see
+  [Vertex batches and float weights](#vertex-batches-and-float-weights-label_propagation-04).
+- Every token is a whole decimal integer (except the weights of a float graph, 0.4); errors
+  report the path, line and column.
 
-The graph writer writes `%dgt 1`, then per batch `%batch <i>`, its deletions and its insertions in
-batch order, and requires one K for every batch with insertions. The hypergraph writer writes
+The graph writer writes `%dgt 1`, then per batch `%batch <i>`, its vertex operations (0.4; none in
+a batch without them), its deletions and its insertions in batch order, and requires one K for
+every batch with insertions. The hypergraph writer writes
 `%dgt 1 hypergraph`, then per batch `%batch <i>`, its deletions (`-h id`), its incidence removals
 (`-i h v`), its incidence additions (`+i h v`) and its insertions (`+h v1 .. vk`, with ` ; w` when
 weighted), each in batch order. Both refuse a batch that would not read back (a negative id or
@@ -137,7 +140,7 @@ little-endian.
 | 12 | 4 | header size in bytes (u32): 64 |
 | 16 | 1 | container kind: 0 graph, 1 hypergraph |
 | 17 | 1 | vertex id type: 1 int32, 2 int64 |
-| 18 | 1 | weight type: 0 none, 1 int32, 2 int64 (3 is reserved for float32 weights of graph files, for label_propagation in 0.4; until it is declared a reader rejects it) |
+| 18 | 1 | weight type: 0 none, 1 int32, 2 int64; 3 float32 (0.4, graph files only: see [Vertex batches and float weights](#vertex-batches-and-float-weights-label_propagation-04)) |
 | 19 | 1 | hyperedge id type: 0 for graph files, 2 (int64) for hypergraph files |
 | 20 | 4 | K (u32): weights per insertion; 0 or 1 for hypergraph files (one weight per hyperedge); at most 64 |
 | 24 | 8 | flags (u64), below |
@@ -150,10 +153,10 @@ also carries the member set of the hyperedge it deleted when the batch was gener
 content), bit 1 `expected_ids` (every insertion carries the id the generating run gave it: replay
 by key, checked against `inserted_ids`), bit 2 `insert_first` (those ids hold under
 `id_reuse::insert_first`; without it, `erase_first`), bit 3 `incidence_edits` (0.4: every record
-also carries the batch's incidence removals and additions, below). Bit 4 is reserved for
-`vertex_records` of graph files (the vertex operations of label_propagation in 0.4; until it is
-declared a reader rejects it).
-A reader rejects a file with any other bit, and a graph file with any bit; a reader of 0.3
+also carries the batch's incidence removals and additions, below). Graph files have one flag,
+bit 4 `vertex_records` (0.4: see
+[Vertex batches and float weights](#vertex-batches-and-float-weights-label_propagation-04)).
+A reader rejects a file with any other bit, and a graph file with any bit but bit 4; a reader of 0.3
 rejects a file with `incidence_edits` (an unknown flag). The writers set the flags when the file
 is opened: the whole-file writers set `incidence_edits` only when a batch has an edit, so a file
 of batches without edits is byte-for-byte the file 0.3 wrote; `batch_writer` refuses a batch
@@ -166,7 +169,7 @@ start (zero padding after an array of 4-byte values):
 
 | Kind | Counts | Arrays, in this order |
 |---|---|---|
-| graph | batch id, deletions d, insertions i | deletion sources [d], deletion destinations [d], insertion sources [i], insertion destinations [i] (vertex type), weights [i x K] (weight type, insertion-major; absent for K = 0) |
+| graph | batch id, deletions d, insertions i; with `vertex_records` (0.4) also inserted vertices n, labels l and deleted vertices x (a 48-byte count block instead of 24) | deletion sources [d], deletion destinations [d], insertion sources [i], insertion destinations [i] (vertex type), weights [i x K] (weight type, insertion-major; absent for K = 0); with `vertex_records`: inserted vertices [n] (vertex type), seed labels [l] (int8, l = 0 or n), deleted vertices [x] (vertex type) |
 | hypergraph | batch id, deletions d, insertions i, members m, deleted members q (0 without `deleted_members`; a reader rejects a non-zero q without the flag); with `incidence_edits` also removals r and additions a (a 56-byte count block instead of 40) | deleted ids [d] (int64), insertion offsets [i + 1] (int64, from 0, strictly increasing, ending at m), members [m] (vertex type), weights [i] (weight type; absent for unweighted); with `deleted_members`: deleted-member offsets [d + 1] (int64, from 0, strictly increasing, ending at q: every deleted member set is non-empty) and deleted members [q] (vertex type); with `expected_ids`: expected ids [i] (int64); with `incidence_edits`: removal hyperedges [r] (int64, `>= 0`), removal vertices [r] (vertex type), addition hyperedges [a] (int64, `>= 0`), addition vertices [a] (vertex type), each in batch order |
 
 The payload length equals what its counts imply. The batch ids are non-negative and strictly
@@ -206,6 +209,71 @@ arguments), `read_binary_batches(path)` and the streaming `BatchReader(path)` (r
 `batch_id`, `batch`, `deleted_members` and `expected_ids`; host batches). The Python layer reads
 and writes incidence edits from M11b of 0.4: until then its readers refuse a file with
 `incidence_edits` or a `.dgt` batch with `+i` / `-i` (`NotSupportedError`).
+
+## Vertex batches and float weights (label_propagation, 0.4)
+
+label_propagation (0.4) reads vertex batches (vertices arrive with an optional seed label, their
+edges arrive with them, vertices depart) on float graphs (`weight_t = float`). Its batch files use
+these additions to version 1 of `.dgt` and `.dgb`, the author's decision AD13 (2026-10-28,
+jointly with M11's HD10; GOVERNANCE.md): each is refused loudly by every reader of 0.3, so it is
+not a silent change of version 1 (the rule at the top of this page), and a file that uses none
+of them is written byte for byte as 0.3 writes it.
+
+**`.dgt`** (graph files only; in a hypergraph file they are an `io_error` that names
+`read_batches()`):
+
+- `+v u [label]` inserts vertex u (`edge_batch::insert_vertex`) with its seed label: `0` or `1`
+  for a labelled (ground-truth) vertex, `-1` or nothing for an unlabelled one; `-v u` deletes
+  vertex u (`edge_batch::delete_vertex`). Ids follow the edge rules (`>= 0`, below the reader's
+  vertex count when given). Insertions and deletions each keep file order; the graph's batch
+  semantics (`batch_semantics::net_effect()`) decides what they mean.
+- The weights of a float graph (`read_batches<V, float>`) are decimal floating-point tokens as
+  `std::from_chars` reads them (`0.75`, `1e-3`), rounded to the nearest float; NaN, infinities
+  and values beyond the float range are an `io_error`. Integer graphs refuse such a token, as
+  before. The writer writes a float weight in its shortest form that reads back as the same float
+  (`std::to_chars`), and per batch its vertex insertions (`+v u`, with ` label` for a label 0 or
+  1), its vertex deletions (`-v u`), its edge deletions and its edge insertions.
+
+```text
+%dgt 1 graph
+%batch 0
++v 0 1
++v 1 0
++v 2
++e 0 2 0.75
++e 1 2 0.125
+%batch 1
++v 3
+-v 1
++e 3 0 0.5
+```
+
+**`.dgb`** (graph files only):
+
+- Weight code **3 = float32** (IEEE-754 binary32, finite) in the header's weight byte (byte 18) of
+  a graph file; a hypergraph file with code 3, and code 3 in any other type byte, are rejected.
+- Flag **bit 4 `vertex_records`** (`batch_file_flags::vertex_records = 16`, in `known_graph`): every
+  record of the file carries the batch's vertex operations, after the 0.3 arrays (the graph row of
+  the record table above): a 48-byte count block (batch id, d, i, then n inserted vertices, l seed
+  labels with l = 0 or n, x deleted vertices) and, after the weights, the inserted vertices [n]
+  (vertex type), their seed labels [l] (int8 in {-1, 0, 1}, zero-padded to 8 bytes) and the
+  deleted vertices [x] (vertex type). A hypergraph file with bit 4 is rejected; the header is
+  checked per kind (`known_graph`, `known_hypergraph`).
+- The flags are fixed when the file is opened: `write_binary_batches` sets `vertex_records` only
+  when a batch has a vertex operation, and `batch_writer` raises `invalid_argument_error` for a
+  batch with vertex operations in a file opened without it.
+- A reader of 0.3 refuses a file with code 3 ("weight type 3") or bit 4 ("unknown flags 16") with
+  an `io_error`.
+
+Converting a batch of vertex operations between `.dgt` and `.dgb` gives the same batch (the
+float weights bit for bit); the legacy generator's batches (`dynlp_vertex_arrival_stream`) at
+5k5 and 50k round-trip through both. The command line and Python read and write them from M10b
+of 0.4 (`dyng label_propagation`, `dyng.io`).
+
+**Float edge lists.** `read_edge_list<V, float>` reads the weight columns of an edge list as
+decimal floating-point tokens (the `.dgt` rule: finite, NaN and infinities refused), for example
+the symmetric similarity graph of `datasets/preprocess/knn_graph.py`; `write_edge_list` writes
+them in their shortest round-trip form. The integer paths are unchanged.
 
 ## Hypergraphs (`.hg`: `read_hypergraph` / `write_hypergraph`)
 
@@ -273,6 +341,17 @@ One line `v d` per vertex (`v INF` for unreachable vertices; values >= `infinite
 are written as `INF`), and one line `v p` per vertex (`p = -1` for none). Every vertex is listed
 exactly once, in any order. The writers produce the same bytes as MOSP's `writeDistances()` and
 `writeParents()`.
+
+## Labels (`read_labels`, `write_labels`; label_propagation, 0.4)
+
+One line `v label` per vertex, the label in fixed notation with 6 decimals: the bytes of
+LabelPropagation-CUDA@a276a3a's `dynlp_labels.txt` (`writeLabelsToFile`: the vertex as a decimal
+integer, one space, `std::to_chars(double(label), std::chars_format::fixed, 6)` (the bytes of
+`printf("%.6f")`, ties rounded to even: 0.0078125 is `0.007812`), `\n`; AD13 D2, 2026-10-28).
+`write_labels` writes the vertices 0 .. n-1 in order; `read_labels(path, n)` reads every vertex
+exactly once, in any order, each label a decimal number (`nan` and `inf` as `write_labels` writes
+non-finite labels), rounded to the nearest float: a label reads back within 5e-7 plus half a
+float ulp of the float that was written.
 
 ## Triad bins (JSON: `read_triad_bins_json` / `write_triad_bins_json`)
 
@@ -355,7 +434,8 @@ pairs merged (`duplicate_edges::keep` keeps every row and returns its timestamp)
 workers; the result does not depend on the count). Errors are `io_error` with the path and the
 line of the first malformed row in file order.
 
-The writer writes `src dst [w1..wK]` per edge, 0-based.
+The writer writes `src dst [w1..wK]` per edge, 0-based. Float weights (`weight_t = float`, 0.4):
+see [Vertex batches and float weights](#vertex-batches-and-float-weights-label_propagation-04).
 
 ## Text batches of the command line (`dyng cycle_count update --batch`, `dyng generate cycle_enum_batch`)
 
