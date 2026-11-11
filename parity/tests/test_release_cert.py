@@ -1318,8 +1318,10 @@ def test_mutation_points_match_the_code_once() -> None:
     # label_propagation's mutations (M10a criterion 16, AD9): in its sources (both backends) and,
     # for D-e, the graph's Step 0 of vertex batches; a GoogleTest suite, so a record of it needs
     # the release's cpp/tests (ADR 0061 section 4).
-    for path in sorted((REPO / "cpp/src/algorithms/label_propagation").iterdir()):
-        hooks += path.read_text()
+    # (Every file, the operators engine's operators/ folder included: M10b, ADR 0102.)
+    for path in sorted((REPO / "cpp/src/algorithms/label_propagation").rglob("*")):
+        if path.is_file():
+            hooks += path.read_text()
     hooks += (REPO / "cpp/src/graph/apply_slotted_host.cpp").read_text()
     assert [m["name"] for m in mutate.MUTATIONS if m["suite"] == "label_propagation"] == [
         "inplace_plain_jacobi",
