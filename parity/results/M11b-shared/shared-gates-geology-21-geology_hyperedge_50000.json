@@ -40,7 +40,7 @@
   "statistic": "median",
   "contamination_monitor": "rejected rounds repeated (perf_ab.MachineMonitor)",
   "guard": "every round: B's h2h_pairs, overflow_rebuilds, seeds and mismatch_static and the port's pairs digest, pair count, CSR rebuilds and (the full update) its distances' and parents' digests and mismatch_static of every batch against the golden; a failure stops the reading. The fallback decisions of both sides against the golden's: a differing round is repeated (at most doubling the rounds), more than a third of differing rounds records 'scope differs' (HD7)",
-  "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above 1.05 fixed (criterion 12)"
+  "verdict": "HD3: the per-batch rows maintain, sosp_update, static, dynamic_comparable and dynamic are 'compute' rows, within 1.05 where B's median is at least 10 ms, otherwise 1.10 with at least 21 rounds; load_plus_dynamic (end to end) within 1.10; escher, delta and csr_apply reported (corrected after the M11b review: the reading wrote M11a criterion 12's early-read rule here, while its rows apply this rule)"
  },
  "reference": {
   "name": "MOSP_ESCHER",

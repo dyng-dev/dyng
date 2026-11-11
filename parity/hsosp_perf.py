@@ -921,8 +921,16 @@ def run(args: argparse.Namespace) -> int:
                 "of both sides against the golden's: a differing round is repeated (at most "
                 "doubling the rounds), more than a third of differing rounds records 'scope "
                 "differs' (HD7)",
-                "verdict": "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above "
-                "1.05 fixed (criterion 12)",
+                "verdict": (
+                    "maintain[bk] <= 1.03 GO; 1.03-1.05 recorded with a fix plan; above "
+                    "1.05 fixed (M11a criterion 12's early read)"
+                    if args.maintain_only
+                    else "HD3: the per-batch rows maintain, sosp_update, static, "
+                    "dynamic_comparable and dynamic are 'compute' rows, within 1.05 where B's "
+                    "median is at least 10 ms, otherwise 1.10 with at least 21 rounds; "
+                    "load_plus_dynamic (end to end) within 1.10; escher, delta and csr_apply "
+                    "reported"
+                ),
             },
             "reference": {
                 "name": hg.REFERENCE,
