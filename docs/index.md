@@ -32,7 +32,7 @@ algorithms of the table are planned for later releases.
 | {doc}`triangle_delta <algorithms/triangle_delta>` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | {doc}`hyper_sssp <algorithms/hyper_sssp>` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | stable | H-SOSP (IA3 2026) |
 | {doc}`triad_count <algorithms/triad_count>` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | ESCHER / ESCHER+ |
-| `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned (0.4) | DynLP (ICS 2026) |
+| {doc}`label_propagation <algorithms/label_propagation>` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | experimental | DynLP (ICS 2026) |
 <!-- regen:algorithms end -->
 
 The {doc}`algorithms/index` page explains the columns; the {doc}`roadmap` says what each

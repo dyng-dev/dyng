@@ -22,6 +22,8 @@
 #   build           build command, run inside the copy; {jobs} is replaced by the job count
 #   build_env       extra environment for the build (VAR=value strings)
 #   cxx             the host C++ compiler, exported as CXX for the build and the export patch
+#   nvcc_default    (optional) the nvcc a build that names no NVCC= resolves to (the Makefile's
+#                   default); its `--version` goes into the build fingerprint
 #   run_env         environment every run of the reference needs
 #   export_patch    directory under parity/export_patches/ applied to the PATCHED copy only;
 #                   its build.sh receives the copy's path. "" = no patch (patched == unpatched)
@@ -186,3 +188,51 @@ not clean. The Makefile builds build/lib/libescher_core.a; the export patch reli
 executable's unchanged objects and that archive with the CBST trace recorder
 (parity/exporters/escher) through -Xlinker --wrap; no original file is modified.
 """
+
+[[reference]]
+name = "LabelPropagation-CUDA"
+origin = "$DYNG_ORIGINALS_DIR/LabelPropagation-CUDA"
+upstream = "git@github.com:SMShovan/LabelPropagation-CUDA.git"
+commit = "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+baseline_tag = "baseline-2026-09"
+baseline_commit = "f0a665e24fd4de8f7783cc10e0ae61bf93b418f5"
+# The Makefile defaults: ARCH=sm_86, NVCC = `command -v nvcc` or /usr/local/cuda/bin/nvcc (CUDA
+# 13.1 on the author's machine, where nvcc is not on PATH and /usr/local/cuda -> cuda-13.1), host
+# g++ 12.2, -O3 --use_fast_math -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp. Nothing is passed
+# on the command line; `make test` builds the same two test binaries.
+build = "make -j{jobs} all bin/propagation_test bin/input_contract_test"
+build_env = []
+cxx = "/usr/bin/g++"
+# The nvcc the Makefile's default resolves to, for the build fingerprint (build_reference.sh
+# records `<nvcc_default> --version` when the build command names no NVCC=).
+nvcc_default = "/usr/local/cuda/bin/nvcc"
+run_env = ["CUDA_MODULE_LOADING=EAGER"]
+export_patch = "LabelPropagation-CUDA"
+# The original's own unit tests. Its full `make test` (the --check oracle runs, the determinism
+# checks and compute-sanitizer: 19 tests) ran once from the unpatched copy in M10a step 1 on GPU 1
+# with OMP_NUM_THREADS=8: 19 passed in 73 s (parity/results/M10a.md section 1).
+smoke_test = "./bin/propagation_test && ./bin/input_contract_test"
+gitlinks = []
+external_inputs = [
+  "none: every input is generated in-process from the command line (generateSparseGraph, generateBatches)",
+  "bench/baseline/build.sh archives the tag baseline-2026-09 from the ORIGINAL repository (git -C <repo> archive); it is not available inside an archive copy and the parity harness does not use it",
+]
+toolchain = "CUDA 13.1 nvcc (V13.1.115; /usr/local/cuda/bin/nvcc, the Makefile's fallback), sm_86, -std=c++17 -O3 --use_fast_math -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp, linked with -lgomp; host compiler /usr/bin/g++ (Debian 12.2.0-14+deb12u1), the nvcc default"
+notes = """
+The M10 reference of label_propagation (DynLP; PLAN 6.4.7). Executables: bin/dynLP (the
+generator, the batch loop runDynLP with the damped and in-place rules, IrLP with --validate, the
+oracles with --check) and the unit tests bin/propagation_test (the hub graph of the degree bins,
+both rules) and bin/input_contract_test. The export patch relinks the UNCHANGED obj/*.o of
+bin/dynLP and bin/propagation_test with the DynLP stage recorder (parity/exporters/dynlp) through
+-Xlinker --wrap; no original file is modified, and the originals are kept as
+parity_export/orig/<name>. Recording is on only when DYNG_DYNLP_TRACE_DIR is set (ADR 0065).
+"""
+golden_sets = [
+  # M10a step 1 (parity/label_propagation_goldens.py, ADR 0065)
+  "label_propagation_generator",
+  "label_propagation_damped",
+  "label_propagation_trace",
+  "label_propagation_hub",
+  "label_propagation_irlp",
+  "label_propagation_inplace",
+]

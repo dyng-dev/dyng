@@ -1,0 +1,61 @@
+{
+ "what": "The Shiloach-Vishkin hook rounds (connected_components.hook_rounds) per batch of damped 500k_d1e-4_s42, from 70 runs of the recorder twin (LabelPropagation-CUDA@a276a3a's unchanged objects relinked with the recorder) and 70 runs of dyng-compat-dynlp (the merged library d327950, parity-cuda), on GPU 1 under the shared lock, 2026-11-04 between 21:45 and 22:14 UTC; evidence for the damped replay's mismatch (M10a.md section 14.5), not a gate",
+ "command": "runs/m10a-review-fixes/merged/hook/hook_rounds.py (10 runs, then 60), the case's argv as compare.py label_propagation damped runs it, the twin with DYNG_DYNLP_TRACE_DIR, the port with --backend cuda --trace",
+ "golden": [
+  2,
+  4,
+  4,
+  4,
+  4,
+  4,
+  4,
+  4,
+  4,
+  4
+ ],
+ "runs": 70,
+ "twin_runs_differing": 2,
+ "port_runs_differing": 3,
+ "twin_differences": [
+  {
+   "run": 28,
+   "batch": 2,
+   "hook_rounds": 3,
+   "golden": 4
+  },
+  {
+   "run": 64,
+   "batch": 2,
+   "hook_rounds": 3,
+   "golden": 4
+  }
+ ],
+ "port_differences": [
+  {
+   "run": 27,
+   "batch": 2,
+   "hook_rounds": 3,
+   "golden": 4
+  },
+  {
+   "run": 35,
+   "batch": 2,
+   "hook_rounds": 3,
+   "golden": 4
+  },
+  {
+   "run": 62,
+   "batch": 2,
+   "hook_rounds": 3,
+   "golden": 4
+  }
+ ],
+ "damped_replay_mismatch": {
+  "record": "/runs/m10a-review-fixes/merged/replays/damped.json",
+  "case": "500k_d1e-4_s42",
+  "batch": 2,
+  "port": 3,
+  "golden": 4
+ },
+ "reading": "the hook kernel reads parents that other threads of the same launch lower with atomicMin, so the number of rounds until a hook changes nothing depends on the thread schedule: the original itself takes 3 rounds instead of 4 at batch 2 in some runs; in the damped replay every other field, the component ids among them, is equal"
+}

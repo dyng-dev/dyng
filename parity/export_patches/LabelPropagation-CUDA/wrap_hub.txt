@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The symbol of LabelPropagation-CUDA@a276a3a that the bin/propagation_test recording twin wraps
+# (called from obj/tests/propagation_test.o); parity/exporters/dynlp/recorder_dynlp_hub.cpp
+# defines its __wrap_.
+_Z26launchIterativePropagationPKiS0_S0_PKfPfS0_S0_S0_ifi10UpdateRuleR20PropagationWorkspaceRiP11CUstream_st

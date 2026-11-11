@@ -172,6 +172,31 @@ HYPERGRAPH_REGION_MAP = REPO / "parity" / "timed_regions" / "hypergraph.toml"
 # triad_count against ESCHER-GPU@abcf9b2 (M9a; written before the port, ADR 0048): the same
 # original timers (section [reference.escher_gpu]), with per-batch rows.
 TRIAD_REGION_MAP = REPO / "parity" / "timed_regions" / "triad_count.toml"
+# label_propagation against LabelPropagation-CUDA@a276a3a (M10a step 1, written before the port;
+# ADR 0064): section [reference.dynlp_cuda] of label_propagation.toml.
+LP_REGION_MAP = REPO / "parity" / "timed_regions" / "label_propagation.toml"
+LP_REFERENCES = {
+    "dynlp_cuda": {
+        "name": "LabelPropagation-CUDA",
+        "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+        "map": "dynlp_cuda",
+    },
+}
+# What LabelPropagation-CUDA@a276a3a reports, as label_propagation.toml names it: the results.csv
+# columns (csv:<column>, utils.cu:265-300), the --profile stage timers of stages.csv
+# (stages:<name>, dynLP.cu's PROFILE_STAGE names), the harness's clock around the process and the
+# Nsight Systems peak of live device allocations (D1).
+DYNLP_CSV_TIMES = {"time_ms", "eval_ms"}
+DYNLP_STAGES = {
+    "b1.host.batchIds",
+    "b2.deletions+status",
+    "b3.appendEdges",
+    "b4.sparsify",
+    "b5.connectedComponents",
+    "b6.labelInit",
+    "b7.propagation",
+}
+NSYS_PEAK_LIVE = "nsys:peak_live"
 # hyper_sssp against MOSP_ESCHER@4b86159 (M11a; written before the port, ADR 0080): hsospBench's
 # CSV columns per batch and its [e2e] line, section [reference.mosp_escher].
 HSOSP_REGION_MAP = REPO / "parity" / "timed_regions" / "hyper_sssp.toml"
@@ -269,11 +294,16 @@ REGION_KEYS = {
     "per_batch",
     "rows",
     "report_sum",
-    # M10 label_propagation
+    # M10 label_propagation (ADR 0064): the index of the first per-batch row, and the gate of
+    # the report_sum row
+    "first_batch",
+    "sum_gate",
     # M11 slack_csr / hyper_sssp (no new key: the summed csv keys and the e2e: keys are timers)
 }
 # A per-batch row: "<region>[b<N>]" (triad_count.toml: update[b1], update[b2], update[b3]).
-BATCH_ROW = re.compile(r"^(?P<region>.+)\[b(?P<batch>[1-9][0-9]*)\]$")
+# label_propagation.toml (M10) numbers its rows from b0 (first_batch = 0): DynLP's batch 0 is an
+# ordinary, timed update.
+BATCH_ROW = re.compile(r"^(?P<region>.+)\[b(?P<batch>0|[1-9][0-9]*)\]$")
 # The original each backend of the port is compared with, and its section of sssp.toml.
 REFERENCES = {
     "openmp": {
@@ -589,6 +619,9 @@ def load_regions(
             | hsosp_e2e_keys()
             | {PROCESS_WALL_TIME}
         )
+    elif backend in LP_REFERENCES:  # label_propagation.toml (M10a)
+        regions = doc["reference"][LP_REFERENCES[backend]["map"]]["region"]
+        known = dynlp_report_keys()
     else:
         regions = doc["reference"][REFERENCES[backend]["map"]]["region"]
         known = set(REPORT) | {PER_OBJECTIVE_REPORT}
@@ -612,12 +645,13 @@ def load_regions(
                     f"{path}: region {r['name']}: perf_ab.py cannot parse the "
                     f"original's report line '{key}' (known: {sorted(known)})"
                 )
-        if r["gate"] not in ("compute", "end_to_end", "none"):
+        if r["gate"] not in ("compute", "end_to_end", "none") and not memory_gate(backend, r):
             raise SystemExit(f"{path}: region {r['name']}: unknown gate '{r['gate']}'")
         if not r.get("port") and not r.get("port_report"):
             raise SystemExit(f"{path}: region {r['name']}: no port stages")
         check_batch_rows(path, r)
         # M10 label_propagation
+        sum_gate(path, r)
         # M11 slack_csr / hyper_sssp
         if backend in HYPERGRAPH_REFERENCES:
             check_e2e_keys(path, r)
@@ -627,6 +661,55 @@ def load_regions(
 # The joint region-key specification of 0.4 (reconciled 2026-10-27): each milestone's keys in
 # functions of its own, below its comment; the second merger keeps both.
 # M10 label_propagation
+# --- label_propagation's keys (M10's half of the joint key specification; ADR 0064) ------
+
+
+def dynlp_report_keys() -> set[str]:
+    """The report keys of LabelPropagation-CUDA@a276a3a that label_propagation.toml may name in
+    original_report (M10a, ADR 0064)."""
+    return (
+        {f"csv:{c}" for c in DYNLP_CSV_TIMES}
+        | {f"stages:{t}" for t in DYNLP_STAGES}
+        | {PROCESS_WALL_TIME, NSYS_PEAK_LIVE}
+    )
+
+
+def memory_gate(backend: str, region: dict) -> bool:
+    """label_propagation.toml's device_memory row (M10a): gate "memory" (PLAN 8.6's <= 1.05x on
+    the Nsight Systems peak of live device allocations, D1), read from the nsys peak only."""
+    return (
+        backend in LP_REFERENCES
+        and region["gate"] == "memory"
+        and region.get("original_report") == [NSYS_PEAK_LIVE]
+    )
+
+
+def first_batch(path: Path, region: dict) -> int:
+    """M10's 'first_batch' (ADR 0064): the index of a per-batch region's first row, 1 (the
+    default: triad_count's update[b1..b3]) or 0 (label_propagation's update[b0..]: DynLP's batch 0
+    is an ordinary timed update). Only a per-batch region has it."""
+    if "first_batch" not in region:
+        return 1
+    value = region["first_batch"]
+    if not region.get("per_batch"):
+        raise SystemExit(f"{path}: region {region['name']}: 'first_batch' needs per_batch = true")
+    if isinstance(value, bool) or value not in (0, 1):
+        raise SystemExit(f"{path}: region {region['name']}: first_batch must be 0 or 1")
+    return value
+
+
+def sum_gate(path: Path, region: dict) -> str:
+    """M10's 'sum_gate' (ADR 0064): the gate of a per-batch region's report_sum row
+    "<name>[sum]", "none" (the default: the sum is reported, never gated, as in triad_count.toml)
+    or "compute" (label_propagation's gated update[sum]: PLAN 8.6's 1.05x, 1.10x under 10 ms).
+    No other gate kind; it needs report_sum = true."""
+    value = region.get("sum_gate", "none")
+    if value not in ("compute", "none"):
+        raise SystemExit(f"{path}: region {region['name']}: sum_gate must be 'compute' or 'none'")
+    if value == "compute" and not region.get("report_sum"):
+        raise SystemExit(f"{path}: region {region['name']}: sum_gate needs report_sum = true")
+    return value
+
 
 # M11 slack_csr / hyper_sssp
 # --- hyper_sssp's keys (M11's half of the joint key specification; ADR 0080 section 1.7) -------
@@ -747,24 +830,39 @@ def check_batch_rows(path: Path, region: dict) -> None:
     not read per objective and per batch at once."""
     name = region["name"]
     if not region.get("per_batch"):
-        for key in ("rows", "report_sum"):
+        for key in ("rows", "report_sum", "first_batch", "sum_gate"):
             if key in region:
                 raise SystemExit(f"{path}: region {name}: '{key}' needs per_batch = true")
         return
     if region.get("per_objective"):
         raise SystemExit(f"{path}: region {name}: per_objective and per_batch together")
     rows = region.get("rows")
-    want = [f"{name}[b{i}]" for i in range(1, len(rows or []) + 1)]
+    first = first_batch(path, region)
+    want = [f"{name}[b{i}]" for i in range(first, first + len(rows or []))]
     if not rows or rows != want:
         raise SystemExit(
-            f"{path}: region {name}: per_batch rows must be {want or [name + '[b1]', '...']} "
-            f"(got {rows})"
+            f"{path}: region {name}: per_batch rows must be "
+            f"{want or [name + f'[b{first}]', '...']} (got {rows})"
         )
+    sum_gate(path, region)
 
 
 def region_rows(region: dict) -> list[str]:
-    """The gate rows of a region: its name, or one "<name>[b<N>]" per batch (per_batch)."""
-    return list(region["rows"]) if region.get("per_batch") else [region["name"]]
+    """The gate rows of a region: its name, or one "<name>[b<N>]" per batch (per_batch), and
+    "<name>[sum]" when its report_sum row is gated (sum_gate = "compute", M10)."""
+    if not region.get("per_batch"):
+        return [region["name"]]
+    rows = list(region["rows"])
+    if region.get("sum_gate", "none") != "none":
+        rows.append(f"{region['name']}[sum]")
+    return rows
+
+
+def row_gate(region: dict, row: str) -> str:
+    """The gate of one row of a region: sum_gate for its "<name>[sum]" row, else the region's."""
+    if row == f"{region['name']}[sum]":
+        return region.get("sum_gate", "none")
+    return region["gate"]
 
 
 def batch_of_row(row: str) -> tuple[str, int | None]:
@@ -2646,6 +2744,11 @@ def main() -> int:
         import triad_perf
 
         return triad_perf.main(sys.argv[2:])
+    if sys.argv[1:2] == ["label_propagation"]:  # against LabelPropagation-CUDA (M10a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import label_propagation_perf
+
+        return label_propagation_perf.main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("prepare")

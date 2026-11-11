@@ -8,6 +8,7 @@ from __future__ import annotations
 import importlib.util
 import shutil
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -155,15 +156,34 @@ def test_scaffold_and_remove_round_trip(tmp_path: Path) -> None:
     assert after == before
 
 
+def _planned() -> list[dict[str, str]]:
+    """The entries of planned.toml (each leaves the list when its port starts)."""
+    text = (REPO / "cpp/src/algorithms/planned.toml").read_text()
+    return list(tomllib.loads(text).get("planned", []))
+
+
+def _planned_scaffold() -> tuple[str, list[str]]:
+    """The first planned algorithm and the new_algorithm.py arguments of its scaffold; skips the
+    test once no algorithm is planned. (mosp left the list in M7, triad_count in M9a,
+    label_propagation in M10a, hyper_sssp in M11a.)"""
+    entries = _planned()
+    if not entries:
+        pytest.skip("no algorithm is planned")
+    entry = entries[0]
+    args = [entry["name"], "--family", entry["family"].replace(" ", "_")]
+    if entry.get("container", "graph") != "graph":
+        args += ["--container", entry["container"]]
+    return entry["name"], args
+
+
 def test_a_planned_algorithm_leaves_the_planned_list(tmp_path: Path) -> None:
     root = _copy(tmp_path)
-    # (mosp left the list in M7, triad_count in M9a, hyper_sssp in M11a; label_propagation is a
-    # planned graph algorithm)
-    args = ["label_propagation", "--family", "fixed_point", "--no-changelog", "--root", str(root)]
-    assert new_algorithm.main(args) == 0
+    name, args = _planned_scaffold()
+    assert new_algorithm.main([*args, "--no-changelog", "--root", str(root)]) == 0
     planned = (root / "cpp/src/algorithms/planned.toml").read_text()
-    assert 'name      = "label_propagation"' not in planned
-    assert 'name      = "hyper_sssp"' not in planned  # scaffolded in M11a step 4
+    assert f'name      = "{name}"' not in planned
+    for other in _planned()[1:]:
+        assert f'name      = "{other["name"]}"' in planned
     assert regen.main(["--check", "--root", str(root)]) == 0
 
 
@@ -219,30 +239,27 @@ def test_long_names_get_valid_codeowners_lines(tmp_path: Path) -> None:
     github_meta_check = _load_ci("github_meta_check")
     root = _copy(tmp_path)
     (root / ".github").mkdir(exist_ok=True)
-    for name in ("dynamic_kcore", "label_propagation"):
+    for name in ("dynamic_kcore", "dynamic_label_spreading"):
         args = [name, "--family", "fixed_point", "--no-changelog", "--root", str(root)]
         assert new_algorithm.main(args) == 0
     codeowners = (root / ".github/CODEOWNERS").read_text()
     for line in codeowners.splitlines():
-        if "label_propagation" in line or "dynamic_kcore" in line:
+        if "dynamic_label_spreading" in line or "dynamic_kcore" in line:
             path, *owners = line.split()
             assert owners == ["@SMShovan"], line
             assert (root / path.lstrip("/")).exists(), path
     errors = [e for e in github_meta_check.check_codeowners(codeowners, root) if "kcore" in e]
-    errors += [e for e in github_meta_check.check_codeowners(codeowners, root) if "label_" in e]
+    errors += [e for e in github_meta_check.check_codeowners(codeowners, root) if "spreading" in e]
     assert errors == []
 
 
 def test_a_planned_scaffold_round_trip_restores_the_planned_entry(tmp_path: Path) -> None:
     root = _copy(tmp_path)
     before = _snapshot(root)
-    args = ["label_propagation", "--family", "fixed_point", "--root", str(root)]
-    assert new_algorithm.main(args) == 0
-    assert (
-        'name      = "label_propagation"'
-        not in (root / "cpp/src/algorithms/planned.toml").read_text()
-    )
-    assert new_algorithm.main(["label_propagation", "--remove", "--root", str(root)]) == 0
+    name, args = _planned_scaffold()
+    assert new_algorithm.main([*args, "--root", str(root)]) == 0
+    assert f'name      = "{name}"' not in (root / "cpp/src/algorithms/planned.toml").read_text()
+    assert new_algorithm.main([name, "--remove", "--root", str(root)]) == 0
     assert _snapshot(root) == before
 
 

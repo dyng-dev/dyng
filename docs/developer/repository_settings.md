@@ -276,7 +276,7 @@ Do **not** require checks of workflows that run only for some files (`labels.yml
 `wheels.yml`, which runs on pull requests only when they touch the packaging or the library; `fuzz.yml`, only
 when they touch a reader), only on tags (`release.yml`), only on some events (`welcome.yml`, the
 first-interaction greeting) or only on a schedule (the `external-links` job of `docs.yml`,
-`property.yml`): a required check that never runs blocks every pull request.
+`property.yml`, `oracle.yml`): a required check that never runs blocks every pull request.
 
 `sanitizers.yml` (M6b) runs on every pull request, so it can be required: the author decided on
 2026-10-07 to require its three checks once they were green on pull request #10 (M6b), and the

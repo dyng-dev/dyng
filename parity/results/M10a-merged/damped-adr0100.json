@@ -1,0 +1,205 @@
+{
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda"
+ },
+ "cases": [
+  {
+   "case": "5k5_d1e-4_s42",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 0.7,
+   "trace_fields": 186,
+   "trace_mismatches": []
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 1.2,
+   "trace_fields": 371,
+   "trace_mismatches": []
+  },
+  {
+   "case": "500k_d1e-4_s42",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [
+    {
+     "batch": 2,
+     "field": "connected_components.hook_rounds",
+     "golden": 4,
+     "original_values": [
+      3,
+      4
+     ],
+     "port": 3
+    }
+   ],
+   "results_mine": "equal",
+   "seconds": 5.0,
+   "trace_fields": 371,
+   "trace_mismatches": []
+  },
+  {
+   "case": "5k5_d1e-6_s42",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 1.2,
+   "trace_fields": 186,
+   "trace_mismatches": []
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 2.4,
+   "trace_fields": 371,
+   "trace_mismatches": []
+  },
+  {
+   "case": "5k5_d1e-4_s1",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 0.6,
+   "trace_fields": 186,
+   "trace_mismatches": []
+  },
+  {
+   "case": "5k5_d1e-4_s2",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 0.7,
+   "trace_fields": 186,
+   "trace_mismatches": []
+  },
+  {
+   "case": "50k_d1e-4_s1",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 1.2,
+   "trace_fields": 371,
+   "trace_mismatches": []
+  },
+  {
+   "case": "50k_d1e-4_s2",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 1.1,
+   "trace_fields": 371,
+   "trace_mismatches": []
+  },
+  {
+   "case": "5m_d1e-4_s42",
+   "checks": {
+    "dynlp_labels.txt": true,
+    "label_bits": true,
+    "results.csv": true,
+    "trace": true
+   },
+   "equal": true,
+   "original_values_accepted": [],
+   "results_mine": "equal",
+   "seconds": 33.5,
+   "trace_fields": 371,
+   "trace_mismatches": []
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "config": "cuda-fused",
+ "date": "2026-11-04T20:59:28Z",
+ "equal": true,
+ "original_value_sets": {
+  "decision": "GOVERNANCE.md, approvals log, 2026-11-05, \"The hook-round count of the damped trace parity\"; ADR 0100",
+  "fields": [
+   "connected_components.hook_rounds"
+  ],
+  "record": "parity/results/M10a-hook-rounds.json",
+  "sha256": "73bc7fe80bd52043251e58ade64b4fd1f386230dd2652931c9344841bc46f70a"
+ },
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda"
+  },
+  "commit": "d327950ff536cd8a264c02924dd87325bbac357f",
+  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+  "parity_cuda": true
+ },
+ "reference": "LabelPropagation-CUDA",
+ "rejudged": {
+  "date": "2026-11-10T19:18:43Z",
+  "from": {
+   "record": "parity/results/M10a-merged/damped.json",
+   "sha256": "2fc8c83f738770edea316eaab387ac644808f51a0f1e65e36da7c9215eef77d7"
+  },
+  "rule": "ADR 0100: connected_components.hook_rounds against the original's own values (the author's decision of 2026-11-05); every other field as recorded"
+ },
+ "schema": 1,
+ "what": "the fused CUDA engine's damped byte parity on P+ (AD6; criterion 12): dynlp_labels.txt bytes against unpatched O, the per-batch label bits against the twin's, the results.csv columns iterations, frontier_visits, components and accuracy, and every field of the stage trace"
+}

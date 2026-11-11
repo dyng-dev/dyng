@@ -37,6 +37,13 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                GoogleTest suite dyng_triad_reference_tests (the class map against ESCHER-GPU's
                table, one triple per reachable bin, the brute force over all triples); also the
                CTest `testing.mutation.triad_reference_class_map` of every build
+  label_propagation  label_propagation (M10a, criterion 16; AD9): its GoogleTest suites on the
+               host backend and on cuda (the hand cases, the original's checker oracles at 5k5
+               and 50k, the fused engine's cases, the kit's float slotted axis); the hooks
+               DYNG_MUTATION_LP_* are where the original had the defects (CHANGES.md D-a, D-b, D-c,
+               D-e) and in both schedules' update rules; also the CTests
+               `label_propagation.mutation.<name>` (label cpu) and
+               `label_propagation.mutation.cuda.<name>` (label gpu) of every build
   triad_count  triad_count (M9a, criterion 11; PLAN 8.4's triad mutations): the GoogleTest suites
                dyng_triad_count_tests (the host backends: hand cases, property tests against the
                oracle, the stats) and dyng_triad_count_cuda_tests (the same on cuda and the device
@@ -105,6 +112,22 @@ SUITES = {
     "mosp": {"target": "dyng-compat-mosp", "compare": [], "goldens": "sssp"},
     "cycle_count": {"target": "dyng-compat-cycle-enum", "compare": ["cycle_count"]},
     # M10 label_propagation
+    # label_propagation (M10a criterion 16, AD9; ADR 0077): its GoogleTest suites on the host
+    # backend and on cuda (the hand cases, the original's checker oracles at 5k5 and 50k, the fused
+    # engine's cases with the hub golden, and the conformance kit's float slotted axis); the hooks
+    # DYNG_MUTATION_LP_* are in the code both backends run where the original had the defect.
+    "label_propagation": {
+        "targets": [
+            "dyng_label_propagation_tests",
+            "dyng_label_propagation_cuda_tests",
+            "dyng_label_propagation_checker_tests",
+            "dyng_label_propagation_checker_cuda_tests",
+            "dyng_label_propagation_conformance_tests",
+            "dyng_label_propagation_conformance_cuda_tests",
+        ],
+        "runner": "gtest",
+        "compare": [],
+    },
     # The triad oracle (M9a step 2, ADR 0049): its tests (the class map against ESCHER-GPU's table,
     # one triple per bin, the brute force) run on the host.
     "triad_reference": {
@@ -258,6 +281,56 @@ MUTATIONS = [
         "config": "cuda",
     },
     # M10 label_propagation
+    # label_propagation (M10a criterion 16; PLAN 8.4 "plain Jacobi instead of half-sweeps or
+    # damping"; AD9, decided by the author on 2026-10-28: an in_place and a damped variant plus
+    # LabelPropagation-CUDA's D-a, D-b, D-c and D-e from its CHANGES.md). Each acts on both
+    # backends (sequential.cpp / label_propagation.cpp for the host, propagation.cu / sparsify.cu /
+    # cuda.cu for the fused engine; D-e in the graph's Step 0 of vertex batches, which the host and
+    # the device apply share).
+    {
+        "name": "inplace_plain_jacobi",
+        "suite": "label_propagation",
+        "plan": "AD9 / PLAN 8.4: in_place as one sweep reading the previous labels (no "
+        "half-sweeps, no damping)",
+        "defines": ["DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI"],
+        "config": "cuda",  # a label: the suite runs on sequential and cuda
+    },
+    {
+        "name": "damped_no_damping",
+        "suite": "label_propagation",
+        "plan": "AD9 / PLAN 8.4: damped without the damping, F' = the average",
+        "defines": ["DYNG_MUTATION_LP_DAMPED_NO_DAMPING"],
+        "config": "cuda",
+    },
+    {
+        "name": "lp_d_a_unfiltered_components",
+        "suite": "label_propagation",
+        "plan": "AD9 / O's D-a (5dddc4e): the components over the unfiltered new edges",
+        "defines": ["DYNG_MUTATION_LP_D_A_UNFILTERED_COMPONENTS"],
+        "config": "cuda",
+    },
+    {
+        "name": "lp_d_b_affected_too_small",
+        "suite": "label_propagation",
+        "plan": "AD9 / O's D-b (4a8a631): the present endpoints of new edges not marked",
+        "defines": ["DYNG_MUTATION_LP_D_B_AFFECTED_TOO_SMALL"],
+        "config": "cuda",
+    },
+    {
+        "name": "lp_d_c_stale_buffer",
+        "suite": "label_propagation",
+        "plan": "AD9 / O's D-c (8419483): the damped commit leaves non-updated entries two "
+        "iterations old",
+        "defines": ["DYNG_MUTATION_LP_D_C_STALE_BUFFER"],
+        "config": "cuda",
+    },
+    {
+        "name": "lp_d_e_resurrected",
+        "suite": "label_propagation",
+        "plan": "AD9 / O's D-e (a38ce8c): an id inserted and deleted in one batch re-activated",
+        "defines": ["DYNG_MUTATION_LP_D_E_RESURRECTED"],
+        "config": "cuda",
+    },
     # mosp (PLAN 8.4 lists none; these put back the two parts of the combined-graph step that the
     # originals' preference vector fixed, MOSP-OpenMP's CHANGES.md M-d): the weight of a combined
     # edge counts only the first tree that holds it (W(e) = K + 1 - sum over every tree holding e
@@ -585,6 +658,25 @@ def heavy(argv: list[str]) -> list[str]:
     return (["flock", "-s", lock] if lock else []) + ["nice", "-n", "10", *argv]
 
 
+def wait_gpu1_quiet() -> None:
+    """Waits, before a GPU-1 job, while a GPU-1 quiet window other than the caller's is open (the
+    shared lock-window log, $DYNG_SCRATCH/tools/locklog.py quiet-ok), when $DYNG_GPU1_QUIET_OK
+    names the caller ('<milestone> [<step key>]'); a no-op when it is unset."""
+    caller = os.environ.get("DYNG_GPU1_QUIET_OK", "").split()
+    if not caller:
+        return
+    import time
+
+    tool = SCRATCH / "tools" / "locklog.py"
+    while (
+        subprocess.run(
+            [sys.executable, str(tool), "quiet-ok", *caller], capture_output=True
+        ).returncode
+        == 1
+    ):
+        time.sleep(60)
+
+
 def sh(argv: list[str], log: Path, cwd: Path | None = None, env: dict | None = None) -> int:
     with open(log, "a") as f:
         f.write(f"== {' '.join(argv)}\n")
@@ -663,6 +755,7 @@ def run_gtests(suite: str, exes: dict, config: str, out: Path, log: Path) -> dic
     failed, complete, rc_all, per_exe = 0, True, 0, {}
     for target in suite_targets(suite, config):
         exe = exes[target]
+        wait_gpu1_quiet()
         wait_gpu_quiet()
         proc = subprocess.run(
             heavy([str(exe), "--gtest_brief=1"]), capture_output=True, text=True, env=env
@@ -694,6 +787,7 @@ def replay(suite: str, exe: Path, config: str, out: Path, log: Path) -> dict:
     env.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("DYNG_TEST_GPU", "1"))
     argv = [sys.executable, str(REPO / "parity" / "compare.py"), *SUITES[suite]["compare"]]
     argv += ["--exe", str(exe), "--configs", config, "--json", str(out)]
+    wait_gpu1_quiet()
     wait_gpu_quiet()
     rc = sh(heavy(argv), log, env=env)
     if not out.is_file():
@@ -838,6 +932,9 @@ def run(args: argparse.Namespace) -> int:
             "{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
             "triad_count": "triad_count's tests against the independent oracle "
             "(dyng::testing::triad_reference) on every backend (no golden corpus)",
+            "label_propagation": "label_propagation's tests against the independent oracles "
+            "(dyng::testing::harmonic_solution, union_find, lp_host_model) and the original's "
+            "damped counts and hub golden, on sequential and cuda",
         },
         "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst "
         "test executables, from git archive HEAD",

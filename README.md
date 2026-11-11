@@ -34,7 +34,7 @@ pages, the C++ and Python API reference; built from `docs/` on every push to `ma
 | [`triangle_delta`](docs/algorithms/triangle_delta.md) | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | [`hyper_sssp`](docs/algorithms/hyper_sssp.md) | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | stable | H-SOSP (IA3 2026) |
 | [`triad_count`](docs/algorithms/triad_count.md) | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | ESCHER / ESCHER+ |
-| `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned (0.4) | DynLP (ICS 2026) |
+| [`label_propagation`](docs/algorithms/label_propagation.md) | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | experimental | DynLP (ICS 2026) |
 <!-- regen:algorithms end -->
 
 Each algorithm has a documentation page ([docs/algorithms](docs/algorithms/index.md)); the table

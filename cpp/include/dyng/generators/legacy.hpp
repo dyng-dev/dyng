@@ -196,6 +196,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *        std::mt19937 and std::mt19937_64) and std::shuffle exactly as the reproductions of the
  *        legacy generators do: checked at run time by drawing from both.
  *
+ * Since 0.4 it also compares the draws of DynLP's generator (generators/vertex_arrival.hpp):
+ * std::shuffle with std::mt19937 and std::uniform_real_distribution<float>.
+ *
  * The legacy streams are computed by dynG's own reproduction of libstdc++'s algorithms, so they do
  * not depend on the standard library; this check confirms that the standard library of the build
  * is the one the originals were built with (libstdc++ 11 or later: true), i.e. that a program

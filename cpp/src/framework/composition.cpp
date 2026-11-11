@@ -11,6 +11,7 @@
 #include "core/resources_access.hpp"
 #include "core/staging.hpp"
 #include "framework/budgets.hpp"
+#include "framework/entry_check.hpp"
 #include "framework/workspace.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
@@ -74,16 +75,34 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
                    i, " is the same object as result ", j, "; pass each result once");
     }
   }
+  // The entry checks of a graph whose layout is not compact, before anything reads the batch
+  // (ADR 0070, framework/entry_check.hpp): a participant's own (label_propagation: its backend,
+  // its result's state, the layout it reads), else the compact-only guard named after the update
+  // function (AD11), so that such a graph is refused with its named error before the batch is
+  // copied or checked (Step 0).
+  const std::string function = update_function(commit_stage);
+  if (g.properties().layout != row_layout::compact) {
+    for (std::size_t i = 0; i < count; ++i) {
+      auto* own =
+          dynamic_cast<framework::entry_check<graph<vertex_t, edge_t, weight_t>>*>(participants[i]);
+      if (own != nullptr) {
+        own->check_entry(res, g);
+      } else {
+        expect_compact_layout(g.properties(), function);
+      }
+    }
+  }
   // The batch is read on the host (the participants' checks and the host apply of this release):
   // arrays in device memory are copied once, under the copy policy of `res` (PLAN 4.7.1).
-  const std::string function = update_function(commit_stage);
   const host_batch<vertex_t, weight_t> staged(res, batch, function.c_str());
   const edge_batch_view<vertex_t, weight_t>& host = staged.view();
   // Step 0 of set semantics, once for every participant and the commit (ADR 0020): the
   // normalized batch of G_t (graph/normalized_batch.hpp).
   std::optional<workspace_pool::lease<normalized_workspace<vertex_t>>> normalized_lease;
   const normalized_batch<vertex_t>* normalized = nullptr;
-  if (g.properties().semantics.as_sets) {
+  if (g.properties().semantics.as_sets || g.properties().semantics.as_net_effect) {
+    // Step 0 of as_sets (the normalized edge lists) or of as_net_effect (the vertex batch
+    // checked against G_t and its net effect, ADR 0069), before any participant reads G_t.
     scoped_stage stage(res, normalize_stage(commit_stage));
     normalized_lease.emplace(
         resources_access::workspaces(res).acquire<normalized_workspace<vertex_t>>(res));
@@ -141,9 +160,16 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
       }
     }
   }
+  // A device apply of slotted rows whose report no participant settled (ADR 0074): one
+  // synchronization, its counts, and its errors (after a participant's own error, that one).
   if (first_error) {
+    try {
+      graph_access::finish_device_apply(res, g, summary);
+    } catch (...) {  // NOLINT(bugprone-empty-catch): the participant's error is the one thrown
+    }
     std::rethrow_exception(first_error);
   }
+  graph_access::finish_device_apply(res, g, summary);
   return summary;
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("dyng::update (", g.num_vertices(), " vertices, ", g.num_edges(),
@@ -156,6 +182,7 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("dyng::update (", g.num_vertices(), " vertices
       update_participant<V, E, W>* const*, std::size_t, std::string_view);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
+DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
 #undef DYNG_INSTANTIATE_RUN_UPDATE
 
 }  // namespace dyng::detail

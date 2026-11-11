@@ -1,0 +1,579 @@
+{
+ "cases": [
+  {
+   "case": "5k5_d1e-4_s42",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.008119098,
+     "mismatches": [],
+     "stream_sha256": "cd9d9831e34a1bb1e4880ef30c92373afebdfefb3bc3ebf93e3599e52a12a055",
+     "tau_bits": 1056992933,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.007696848,
+     "mismatches": [],
+     "stream_sha256": "cd9d9831e34a1bb1e4880ef30c92373afebdfefb3bc3ebf93e3599e52a12a055",
+     "tau_bits": 1056992933,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.005339199,
+     "mismatches": [],
+     "stream_sha256": "cd9d9831e34a1bb1e4880ef30c92373afebdfefb3bc3ebf93e3599e52a12a055",
+     "tau_bits": 1056992933,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.044062466,
+     "mismatches": [],
+     "stream_sha256": "92163f75860ac98d5a2e3b7b88a6b8d5fe878178b824bfccf481740747d67dfd",
+     "tau_bits": 1057011978,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.041061973,
+     "mismatches": [],
+     "stream_sha256": "92163f75860ac98d5a2e3b7b88a6b8d5fe878178b824bfccf481740747d67dfd",
+     "tau_bits": 1057011978,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.035117591,
+     "mismatches": [],
+     "stream_sha256": "92163f75860ac98d5a2e3b7b88a6b8d5fe878178b824bfccf481740747d67dfd",
+     "tau_bits": 1057011978,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "500k_d1e-4_s42",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.309572331,
+     "mismatches": [],
+     "stream_sha256": "8177b758fa5246aaead113a4f12d019058be7ff29547f840b281bb37e2a36fcf",
+     "tau_bits": 1057006488,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.229669039,
+     "mismatches": [],
+     "stream_sha256": "8177b758fa5246aaead113a4f12d019058be7ff29547f840b281bb37e2a36fcf",
+     "tau_bits": 1057006488,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.206969531,
+     "mismatches": [],
+     "stream_sha256": "8177b758fa5246aaead113a4f12d019058be7ff29547f840b281bb37e2a36fcf",
+     "tau_bits": 1057006488,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "5m_d1e-4_s42",
+   "digest_mode": true,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 4.021898603,
+     "mismatches": [],
+     "stream_sha256": "c29cf6c4d397985be08ff1762fed9c3f5e0b55325bc1fa657d7b64474bd42968",
+     "tau_bits": 1057005552,
+     "text_files_equal": null,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 2.494870501,
+     "mismatches": [],
+     "stream_sha256": "c29cf6c4d397985be08ff1762fed9c3f5e0b55325bc1fa657d7b64474bd42968",
+     "tau_bits": 1057005552,
+     "text_files_equal": null,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 2.287688292,
+     "mismatches": [],
+     "stream_sha256": "c29cf6c4d397985be08ff1762fed9c3f5e0b55325bc1fa657d7b64474bd42968",
+     "tau_bits": 1057005552,
+     "text_files_equal": null,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "5m1_d1e-4_s42",
+   "digest_mode": true,
+   "runs": [
+    {
+     "arrays_compared": 18,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 3.749780162,
+     "mismatches": [],
+     "stream_sha256": "cb82e2027b4477e49fd64df9f1f473f543c9318f630eb1557fb6e1aab5ea4c86",
+     "tau_bits": 1057005552,
+     "text_files_equal": null,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 18,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 2.285830814,
+     "mismatches": [],
+     "stream_sha256": "cb82e2027b4477e49fd64df9f1f473f543c9318f630eb1557fb6e1aab5ea4c86",
+     "tau_bits": 1057005552,
+     "text_files_equal": null,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 18,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 2.042203146,
+     "mismatches": [],
+     "stream_sha256": "cb82e2027b4477e49fd64df9f1f473f543c9318f630eb1557fb6e1aab5ea4c86",
+     "tau_bits": 1057005552,
+     "text_files_equal": null,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "50m_d1e-4_s42",
+   "digest_mode": true,
+   "runs": [
+    {
+     "arrays_compared": 81,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 96.495464178,
+     "mismatches": [],
+     "stream_sha256": "545f9ec115220f72ad502f6fe403f519f76f53d78a2ffe71aa3509a128699b55",
+     "tau_bits": 1057006284,
+     "text_files_equal": null,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 81,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 42.980858729,
+     "mismatches": [],
+     "stream_sha256": "545f9ec115220f72ad502f6fe403f519f76f53d78a2ffe71aa3509a128699b55",
+     "tau_bits": 1057006284,
+     "text_files_equal": null,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 81,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 35.394862811,
+     "mismatches": [],
+     "stream_sha256": "545f9ec115220f72ad502f6fe403f519f76f53d78a2ffe71aa3509a128699b55",
+     "tau_bits": 1057006284,
+     "text_files_equal": null,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "5k5_d1e-4_s1",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.008192841,
+     "mismatches": [],
+     "stream_sha256": "e9479d78130a34d6d0110dad4cbb8f61020e4abd0a94be0b3826e9a8bd4ca768",
+     "tau_bits": 1056882995,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.004196789,
+     "mismatches": [],
+     "stream_sha256": "e9479d78130a34d6d0110dad4cbb8f61020e4abd0a94be0b3826e9a8bd4ca768",
+     "tau_bits": 1056882995,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.004166805,
+     "mismatches": [],
+     "stream_sha256": "e9479d78130a34d6d0110dad4cbb8f61020e4abd0a94be0b3826e9a8bd4ca768",
+     "tau_bits": 1056882995,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "5k5_d1e-4_s2",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.007694083,
+     "mismatches": [],
+     "stream_sha256": "a4e152c6668da3eac3c597bc2f803c0330025dd66c15e5f7250341c4dd1a5c84",
+     "tau_bits": 1057008898,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.007965742,
+     "mismatches": [],
+     "stream_sha256": "a4e152c6668da3eac3c597bc2f803c0330025dd66c15e5f7250341c4dd1a5c84",
+     "tau_bits": 1057008898,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.014391447,
+     "mismatches": [],
+     "stream_sha256": "a4e152c6668da3eac3c597bc2f803c0330025dd66c15e5f7250341c4dd1a5c84",
+     "tau_bits": 1057008898,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "5k5_d1e-4_s3",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.008214397,
+     "mismatches": [],
+     "stream_sha256": "3554559bfb4efc05f0306030672ec0f30a44dded9f0950512c731b04c7c82a31",
+     "tau_bits": 1056990307,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.00862723,
+     "mismatches": [],
+     "stream_sha256": "3554559bfb4efc05f0306030672ec0f30a44dded9f0950512c731b04c7c82a31",
+     "tau_bits": 1056990307,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 39,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.029199055,
+     "mismatches": [],
+     "stream_sha256": "3554559bfb4efc05f0306030672ec0f30a44dded9f0950512c731b04c7c82a31",
+     "tau_bits": 1056990307,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "50k_d1e-4_s1",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.043513364,
+     "mismatches": [],
+     "stream_sha256": "d696af4f2440d02bbdcee1a89d0bd61b3448dd00de20a66f8bb0871535682e90",
+     "tau_bits": 1057005575,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.040525126,
+     "mismatches": [],
+     "stream_sha256": "d696af4f2440d02bbdcee1a89d0bd61b3448dd00de20a66f8bb0871535682e90",
+     "tau_bits": 1057005575,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.034691447,
+     "mismatches": [],
+     "stream_sha256": "d696af4f2440d02bbdcee1a89d0bd61b3448dd00de20a66f8bb0871535682e90",
+     "tau_bits": 1057005575,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "50k_d1e-4_s2",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.045620962,
+     "mismatches": [],
+     "stream_sha256": "da7e040f87ea5325cf0cbfc6382b999530346645875a98327cfcf1469c636419",
+     "tau_bits": 1056977375,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.039481268,
+     "mismatches": [],
+     "stream_sha256": "da7e040f87ea5325cf0cbfc6382b999530346645875a98327cfcf1469c636419",
+     "tau_bits": 1056977375,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.032669951,
+     "mismatches": [],
+     "stream_sha256": "da7e040f87ea5325cf0cbfc6382b999530346645875a98327cfcf1469c636419",
+     "tau_bits": 1056977375,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "50k_d1e-4_s3",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.042300764,
+     "mismatches": [],
+     "stream_sha256": "645d03abe0f17e50c5c3082bfb25687843f13d5ea142ea1a62a285f3ac96d82a",
+     "tau_bits": 1057008654,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.04098899,
+     "mismatches": [],
+     "stream_sha256": "645d03abe0f17e50c5c3082bfb25687843f13d5ea142ea1a62a285f3ac96d82a",
+     "tau_bits": 1057008654,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.038914183,
+     "mismatches": [],
+     "stream_sha256": "645d03abe0f17e50c5c3082bfb25687843f13d5ea142ea1a62a285f3ac96d82a",
+     "tau_bits": 1057008654,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "50k_deg3_d1e-4_s42",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.034527651,
+     "mismatches": [],
+     "stream_sha256": "775c1240f0c545394a209a45db0f971096e7bcb58aae9afef84bccd1f3209035",
+     "tau_bits": 1057017475,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.031167357,
+     "mismatches": [],
+     "stream_sha256": "775c1240f0c545394a209a45db0f971096e7bcb58aae9afef84bccd1f3209035",
+     "tau_bits": 1057017475,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.024370289,
+     "mismatches": [],
+     "stream_sha256": "775c1240f0c545394a209a45db0f971096e7bcb58aae9afef84bccd1f3209035",
+     "tau_bits": 1057017475,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  },
+  {
+   "case": "50k_deg7_d1e-4_s42",
+   "digest_mode": false,
+   "runs": [
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.052958075,
+     "mismatches": [],
+     "stream_sha256": "e8c14357e2b4fc89fb393edf9ed049dd5f9156d6d871bd6b6128071eefea32c6",
+     "tau_bits": 1057017597,
+     "text_files_equal": true,
+     "threads": 1
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.045540827,
+     "mismatches": [],
+     "stream_sha256": "e8c14357e2b4fc89fb393edf9ed049dd5f9156d6d871bd6b6128071eefea32c6",
+     "tau_bits": 1057017597,
+     "text_files_equal": true,
+     "threads": 8
+    },
+    {
+     "arrays_compared": 74,
+     "arrays_equal": true,
+     "exe": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity/cpp/tests/dyng_lp_replay",
+     "generate_seconds": 0.041006323,
+     "mismatches": [],
+     "stream_sha256": "e8c14357e2b4fc89fb393edf9ed049dd5f9156d6d871bd6b6128071eefea32c6",
+     "tau_bits": 1057017597,
+     "text_files_equal": true,
+     "threads": 56
+    }
+   ],
+   "same_stream_for_every_run": true
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-11-05T02:48:45Z",
+ "equal": true,
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity"
+  },
+  "commit": "d327950ff536cd8a264c02924dd87325bbac357f",
+  "executable": "$DYNG_SCRATCH/wt-m10/build/parity/cpp/tests/dyng_lp_replay",
+  "parity_cuda": false
+ },
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "generator replay (criterion 8)"
+}

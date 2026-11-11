@@ -1,0 +1,1159 @@
+{
+ "schema": 1,
+ "what": "ADR 0024 rule 3: the location of the M10a step 5 excursions above 1.02 on the final library (b2b1524 against 72eb020); an experiment record, not a gate",
+ "sides": {
+  "A": "b2b1524 ($DYNG_SCRATCH/m10-builds/b0-parity-cuda)",
+  "B": "the final M10a library, the sources of 72eb020 ($DYNG_SCRATCH/m10-builds/head-parity-cuda)"
+ },
+ "stage_profiles": {
+  "pa-openmp-safe50k": {
+   "a": "$DYNG_SCRATCH/m10-builds/b0-parity-cuda/tools/compat/dyng-compat-mosp",
+   "b": "$DYNG_SCRATCH/m10-builds/head-parity-cuda/tools/compat/dyng-compat-mosp",
+   "graph": "roadNet-PA",
+   "batch": "safe50k",
+   "alternations": 51,
+   "stage_medians": {
+    "graph.apply": {
+     "a_median_ms": 38.825,
+     "b_median_ms": 40.294,
+     "ratio": 1.0378
+    },
+    "graph.build": {
+     "a_median_ms": 3.289,
+     "b_median_ms": 3.316,
+     "ratio": 1.0083
+    },
+    "graph.transpose": {
+     "a_median_ms": 16.178,
+     "b_median_ms": 16.565,
+     "ratio": 1.0239
+    },
+    "sssp.finalize": {
+     "a_median_ms": 0.457,
+     "b_median_ms": 0.456,
+     "ratio": 0.9983
+    },
+    "sssp.identify_affected": {
+     "a_median_ms": 8.034,
+     "b_median_ms": 8.175,
+     "ratio": 1.0175
+    },
+    "sssp.import": {
+     "a_median_ms": 9.891,
+     "b_median_ms": 9.899,
+     "ratio": 1.0008
+    },
+    "sssp.loop": {
+     "a_median_ms": 24.909,
+     "b_median_ms": 24.719,
+     "ratio": 0.9924
+    },
+    "sssp.prepare": {
+     "a_median_ms": 0.82,
+     "b_median_ms": 0.787,
+     "ratio": 0.9599
+    },
+    "sssp.seed": {
+     "a_median_ms": 2.846,
+     "b_median_ms": 2.835,
+     "ratio": 0.9962
+    },
+    "sssp.validate": {
+     "a_median_ms": 5.231,
+     "b_median_ms": 5.184,
+     "ratio": 0.9911
+    },
+    "sssp.workspace": {
+     "a_median_ms": 3.585,
+     "b_median_ms": 3.738,
+     "ratio": 1.0427
+    },
+    "total.context": {
+     "a_median_ms": 0.012,
+     "b_median_ms": 0.012,
+     "ratio": 0.9957
+    },
+    "total.download": {
+     "a_median_ms": 0.0,
+     "b_median_ms": 0.0,
+     "ratio": null
+    },
+    "total.end_to_end": {
+     "a_median_ms": 307.308,
+     "b_median_ms": 309.555,
+     "ratio": 1.0073
+    },
+    "update.commit": {
+     "a_median_ms": 55.037,
+     "b_median_ms": 56.683,
+     "ratio": 1.0299
+    }
+   }
+  },
+  "pa-openmp-unsafe50k": {
+   "a": "$DYNG_SCRATCH/m10-builds/b0-parity-cuda/tools/compat/dyng-compat-mosp",
+   "b": "$DYNG_SCRATCH/m10-builds/head-parity-cuda/tools/compat/dyng-compat-mosp",
+   "graph": "roadNet-PA",
+   "batch": "unsafe50k",
+   "alternations": 51,
+   "stage_medians": {
+    "graph.apply": {
+     "a_median_ms": 39.385,
+     "b_median_ms": 40.969,
+     "ratio": 1.0402
+    },
+    "graph.build": {
+     "a_median_ms": 3.297,
+     "b_median_ms": 3.275,
+     "ratio": 0.9931
+    },
+    "graph.transpose": {
+     "a_median_ms": 16.144,
+     "b_median_ms": 16.464,
+     "ratio": 1.0198
+    },
+    "sssp.finalize": {
+     "a_median_ms": 0.459,
+     "b_median_ms": 0.459,
+     "ratio": 1.0005
+    },
+    "sssp.identify_affected": {
+     "a_median_ms": 8.144,
+     "b_median_ms": 8.121,
+     "ratio": 0.9972
+    },
+    "sssp.import": {
+     "a_median_ms": 9.898,
+     "b_median_ms": 9.868,
+     "ratio": 0.997
+    },
+    "sssp.loop": {
+     "a_median_ms": 24.699,
+     "b_median_ms": 23.813,
+     "ratio": 0.9641
+    },
+    "sssp.prepare": {
+     "a_median_ms": 0.826,
+     "b_median_ms": 0.881,
+     "ratio": 1.0671
+    },
+    "sssp.seed": {
+     "a_median_ms": 2.856,
+     "b_median_ms": 2.821,
+     "ratio": 0.9877
+    },
+    "sssp.validate": {
+     "a_median_ms": 5.22,
+     "b_median_ms": 5.238,
+     "ratio": 1.0035
+    },
+    "sssp.workspace": {
+     "a_median_ms": 3.631,
+     "b_median_ms": 3.651,
+     "ratio": 1.0053
+    },
+    "total.context": {
+     "a_median_ms": 0.012,
+     "b_median_ms": 0.012,
+     "ratio": 1.0123
+    },
+    "total.download": {
+     "a_median_ms": 0.0,
+     "b_median_ms": 0.0,
+     "ratio": null
+    },
+    "total.end_to_end": {
+     "a_median_ms": 308.527,
+     "b_median_ms": 308.927,
+     "ratio": 1.0013
+    },
+    "update.commit": {
+     "a_median_ms": 55.517,
+     "b_median_ms": 57.325,
+     "ratio": 1.0326
+    }
+   }
+  },
+  "cuda-pa-safe50k": {
+   "a": "$DYNG_SCRATCH/m10-builds/b0-parity-cuda/tools/compat/dyng-compat-mosp",
+   "b": "$DYNG_SCRATCH/m10-builds/head-parity-cuda/tools/compat/dyng-compat-mosp",
+   "graph": "roadNet-PA",
+   "batch": "safe50k",
+   "alternations": 51,
+   "stage_medians": {
+    "graph.apply": {
+     "a_median_ms": 36.574,
+     "b_median_ms": 38.081,
+     "ratio": 1.0412
+    },
+    "graph.build": {
+     "a_median_ms": 4.153,
+     "b_median_ms": 4.581,
+     "ratio": 1.1031
+    },
+    "graph.transpose_device": {
+     "a_median_ms": 0.803,
+     "b_median_ms": 0.8,
+     "ratio": 0.996
+    },
+    "graph.upload": {
+     "a_median_ms": 6.33,
+     "b_median_ms": 6.336,
+     "ratio": 1.001
+    },
+    "sssp.changes": {
+     "a_median_ms": 0.244,
+     "b_median_ms": 0.245,
+     "ratio": 1.0053
+    },
+    "sssp.enact_fused": {
+     "a_median_ms": 14.082,
+     "b_median_ms": 14.086,
+     "ratio": 1.0003
+    },
+    "sssp.import": {
+     "a_median_ms": 5.62,
+     "b_median_ms": 5.774,
+     "ratio": 1.0275
+    },
+    "sssp.prepare": {
+     "a_median_ms": 0.845,
+     "b_median_ms": 0.943,
+     "ratio": 1.115
+    },
+    "sssp.upload": {
+     "a_median_ms": 3.922,
+     "b_median_ms": 3.915,
+     "ratio": 0.9983
+    },
+    "sssp.validate": {
+     "a_median_ms": 5.353,
+     "b_median_ms": 5.33,
+     "ratio": 0.9958
+    },
+    "sssp.workspace": {
+     "a_median_ms": 1.089,
+     "b_median_ms": 1.101,
+     "ratio": 1.0109
+    },
+    "total.context": {
+     "a_median_ms": 146.11,
+     "b_median_ms": 151.475,
+     "ratio": 1.0367
+    },
+    "total.download": {
+     "a_median_ms": 9.799,
+     "b_median_ms": 9.697,
+     "ratio": 0.9895
+    },
+    "total.end_to_end": {
+     "a_median_ms": 444.489,
+     "b_median_ms": 451.2,
+     "ratio": 1.0151
+    },
+    "update.commit": {
+     "a_median_ms": 43.744,
+     "b_median_ms": 45.309,
+     "ratio": 1.0358
+    }
+   }
+  },
+  "cuda-pa-unsafe50k": {
+   "a": "$DYNG_SCRATCH/m10-builds/b0-parity-cuda/tools/compat/dyng-compat-mosp",
+   "b": "$DYNG_SCRATCH/m10-builds/head-parity-cuda/tools/compat/dyng-compat-mosp",
+   "graph": "roadNet-PA",
+   "batch": "unsafe50k",
+   "alternations": 51,
+   "stage_medians": {
+    "graph.apply": {
+     "a_median_ms": 36.785,
+     "b_median_ms": 38.597,
+     "ratio": 1.0493
+    },
+    "graph.build": {
+     "a_median_ms": 3.331,
+     "b_median_ms": 3.539,
+     "ratio": 1.0626
+    },
+    "graph.transpose_device": {
+     "a_median_ms": 0.803,
+     "b_median_ms": 0.801,
+     "ratio": 0.9976
+    },
+    "graph.upload": {
+     "a_median_ms": 6.289,
+     "b_median_ms": 6.28,
+     "ratio": 0.9985
+    },
+    "sssp.changes": {
+     "a_median_ms": 0.252,
+     "b_median_ms": 0.253,
+     "ratio": 1.0045
+    },
+    "sssp.enact_fused": {
+     "a_median_ms": 14.051,
+     "b_median_ms": 14.059,
+     "ratio": 1.0006
+    },
+    "sssp.import": {
+     "a_median_ms": 5.81,
+     "b_median_ms": 6.024,
+     "ratio": 1.0369
+    },
+    "sssp.prepare": {
+     "a_median_ms": 0.877,
+     "b_median_ms": 0.942,
+     "ratio": 1.0732
+    },
+    "sssp.upload": {
+     "a_median_ms": 3.965,
+     "b_median_ms": 3.944,
+     "ratio": 0.9949
+    },
+    "sssp.validate": {
+     "a_median_ms": 5.583,
+     "b_median_ms": 5.568,
+     "ratio": 0.9973
+    },
+    "sssp.workspace": {
+     "a_median_ms": 1.264,
+     "b_median_ms": 1.237,
+     "ratio": 0.9783
+    },
+    "total.context": {
+     "a_median_ms": 146.15,
+     "b_median_ms": 151.311,
+     "ratio": 1.0353
+    },
+    "total.download": {
+     "a_median_ms": 9.76,
+     "b_median_ms": 9.741,
+     "ratio": 0.9981
+    },
+    "total.end_to_end": {
+     "a_median_ms": 449.081,
+     "b_median_ms": 459.681,
+     "ratio": 1.0236
+    },
+    "update.commit": {
+     "a_median_ms": 43.889,
+     "b_median_ms": 45.729,
+     "ratio": 1.0419
+    }
+   }
+  },
+  "nb-pa-openmp-safe50k": {
+   "a": "$DYNG_SCRATCH/m10-builds/nb-b0/tools/compat/dyng-compat-mosp",
+   "b": "$DYNG_SCRATCH/m10-builds/nb-head/tools/compat/dyng-compat-mosp",
+   "graph": "roadNet-PA",
+   "batch": "safe50k",
+   "alternations": 51,
+   "stage_medians": {
+    "graph.apply": {
+     "a_median_ms": 39.006,
+     "b_median_ms": 39.748,
+     "ratio": 1.019
+    },
+    "graph.build": {
+     "a_median_ms": 3.079,
+     "b_median_ms": 4.406,
+     "ratio": 1.4311
+    },
+    "graph.transpose": {
+     "a_median_ms": 16.147,
+     "b_median_ms": 16.447,
+     "ratio": 1.0186
+    },
+    "sssp.finalize": {
+     "a_median_ms": 0.459,
+     "b_median_ms": 0.459,
+     "ratio": 1.0001
+    },
+    "sssp.identify_affected": {
+     "a_median_ms": 8.13,
+     "b_median_ms": 8.186,
+     "ratio": 1.0069
+    },
+    "sssp.import": {
+     "a_median_ms": 9.861,
+     "b_median_ms": 15.364,
+     "ratio": 1.558
+    },
+    "sssp.loop": {
+     "a_median_ms": 24.073,
+     "b_median_ms": 24.438,
+     "ratio": 1.0152
+    },
+    "sssp.prepare": {
+     "a_median_ms": 0.707,
+     "b_median_ms": 0.8,
+     "ratio": 1.1311
+    },
+    "sssp.seed": {
+     "a_median_ms": 2.876,
+     "b_median_ms": 2.897,
+     "ratio": 1.0073
+    },
+    "sssp.validate": {
+     "a_median_ms": 5.143,
+     "b_median_ms": 4.485,
+     "ratio": 0.872
+    },
+    "sssp.workspace": {
+     "a_median_ms": 3.609,
+     "b_median_ms": 4.642,
+     "ratio": 1.2864
+    },
+    "total.context": {
+     "a_median_ms": 0.017,
+     "b_median_ms": 0.017,
+     "ratio": 0.9657
+    },
+    "total.download": {
+     "a_median_ms": 0.0,
+     "b_median_ms": 0.0,
+     "ratio": null
+    },
+    "total.end_to_end": {
+     "a_median_ms": 291.22,
+     "b_median_ms": 315.933,
+     "ratio": 1.0849
+    },
+    "update.commit": {
+     "a_median_ms": 55.28,
+     "b_median_ms": 56.292,
+     "ratio": 1.0183
+    }
+   }
+  },
+  "nb-ca-openmp-safe50k": {
+   "a": "$DYNG_SCRATCH/m10-builds/nb-b0/tools/compat/dyng-compat-mosp",
+   "b": "$DYNG_SCRATCH/m10-builds/nb-head/tools/compat/dyng-compat-mosp",
+   "graph": "roadNet-CA",
+   "batch": "safe50k",
+   "alternations": 51,
+   "stage_medians": {
+    "graph.apply": {
+     "a_median_ms": 61.601,
+     "b_median_ms": 62.556,
+     "ratio": 1.0155
+    },
+    "graph.build": {
+     "a_median_ms": 5.917,
+     "b_median_ms": 5.688,
+     "ratio": 0.9614
+    },
+    "graph.transpose": {
+     "a_median_ms": 28.923,
+     "b_median_ms": 28.926,
+     "ratio": 1.0001
+    },
+    "sssp.finalize": {
+     "a_median_ms": 1.083,
+     "b_median_ms": 1.08,
+     "ratio": 0.9971
+    },
+    "sssp.identify_affected": {
+     "a_median_ms": 12.692,
+     "b_median_ms": 12.782,
+     "ratio": 1.0071
+    },
+    "sssp.import": {
+     "a_median_ms": 26.021,
+     "b_median_ms": 26.768,
+     "ratio": 1.0287
+    },
+    "sssp.loop": {
+     "a_median_ms": 44.057,
+     "b_median_ms": 44.103,
+     "ratio": 1.0011
+    },
+    "sssp.prepare": {
+     "a_median_ms": 0.843,
+     "b_median_ms": 0.895,
+     "ratio": 1.0615
+    },
+    "sssp.seed": {
+     "a_median_ms": 4.615,
+     "b_median_ms": 4.661,
+     "ratio": 1.0099
+    },
+    "sssp.validate": {
+     "a_median_ms": 6.629,
+     "b_median_ms": 6.764,
+     "ratio": 1.0204
+    },
+    "sssp.workspace": {
+     "a_median_ms": 8.007,
+     "b_median_ms": 8.015,
+     "ratio": 1.0009
+    },
+    "total.context": {
+     "a_median_ms": 0.018,
+     "b_median_ms": 0.017,
+     "ratio": 0.9518
+    },
+    "total.download": {
+     "a_median_ms": 0.0,
+     "b_median_ms": 0.0,
+     "ratio": null
+    },
+    "total.end_to_end": {
+     "a_median_ms": 488.39,
+     "b_median_ms": 525.321,
+     "ratio": 1.0756
+    },
+    "update.commit": {
+     "a_median_ms": 90.542,
+     "b_median_ms": 91.619,
+     "ratio": 1.0119
+    }
+   }
+  }
+ },
+ "machine_code": {
+  "method": "objdump -d of both libdyng.so, addresses normalized (the step-3 method; code_diff.py)",
+  "apply_batch_host_and_transpose": {
+   "counts": {
+    "different": 5,
+    "other alignment mod 64": 48,
+    "identical": 60,
+    "same alignment mod 64": 17
+   },
+   "different": [
+    "DIFF 16->48  1858/ 1857 dyng::apply_summary dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int",
+    "DIFF 32-> 0  1999/ 1999 dyng::apply_summary dyng::detail::apply_batch_host<int, int, int>(dyng::csr<int, int, int> const&, dyng::edge_batch_view<int, int> const&, dyng::graph",
+    "DIFF 48-> 0  1866/ 1866 dyng::apply_summary dyng::detail::apply_batch_host<int, long, dyng::unweighted>(dyng::csr<int, long, dyng::unweighted> const&, dyng::edge_batch_view<i",
+    "DIFF 16->32  2004/ 2005 dyng::apply_summary dyng::detail::apply_batch_host<int, long, int>(dyng::csr<int, long, int> const&, dyng::edge_batch_view<int, int> const&, dyng::gra",
+    "DIFF 32->48  2102/ 2101 dyng::apply_summary dyng::detail::apply_batch_host<long, long, int>(dyng::csr<long, long, int> const&, dyng::edge_batch_view<long, int> const&, dyng::"
+   ],
+   "reading": "every parallel body (._omp_fn) and every transpose function identical; the serial entries of apply_batch_host differ only in a 16-byte larger stack frame"
+  },
+  "dispatch": [
+   "DIFF  0->16   375/  491 dyng::apply_summary dyng::detail::graph_access::apply<int, int, int>(dyng::resources const&, dyng::graph<int, int, int>&, dyng::edge_batch_view<int, i",
+   "DIFF  0->48   390/  491 dyng::apply_summary dyng::detail::graph_access::apply<int, long, int>(dyng::resources const&, dyng::graph<int, long, int>&, dyng::edge_batch_view<int,",
+   "DIFF 32->16   316/  466 dyng::apply_summary dyng::detail::graph_access::apply<long, long, int>(dyng::resources const&, dyng::graph<long, long, int>&, dyng::edge_batch_view<lo",
+   "DIFF 48->16   658/  682 dyng::apply_summary dyng::detail::run_update<int, int, int>(dyng::resources const&, dyng::graph<int, int, int>&, dyng::edge_batch_view<int, int> const",
+   "DIFF 48->32   658/  682 dyng::apply_summary dyng::detail::run_update<int, long, int>(dyng::resources const&, dyng::graph<int, long, int>&, dyng::edge_batch_view<int, int> con",
+   "DIFF 48->48  1120/ 1171 dyng::apply_summary dyng::detail::run_update<long, long, int>(dyng::resources const&, dyng::graph<long, long, int>&, dyng::edge_batch_view<long, int> "
+  ]
+ },
+ "placement_experiments": {
+  "builds": {
+   "nb": "the parity flags without CUDA (-O3, DYNG_ENABLE_CUDA=OFF), compat tools only",
+   "fb": "nb plus ADR 0061's set FB (-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries) on both sides",
+   "fbc": "the parity-cuda configuration plus the set FB on the host C++ code of both sides, compat tools only"
+  },
+  "readings": {
+   "sssp-openmp-roadNet-PA-50k-170-nb": {
+    "record": "$DYNG_SCRATCH/runs/m10a-kit-mutations-gates-certificate/adr0024/sssp-openmp-roadNet-PA-50k-170-nb.json",
+    "date": "2026-11-03T00:08:55Z",
+    "a": "$DYNG_SCRATCH/m10-builds/nb-b0/tools/compat/dyng-compat-mosp",
+    "b": "$DYNG_SCRATCH/m10-builds/nb-head/tools/compat/dyng-compat-mosp",
+    "regions": {
+     "safe50k sosp_update obj0": {
+      "ratio": 1.0117,
+      "ci95": [
+       1.0025,
+       1.0198
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj1": {
+      "ratio": 1.0063,
+      "ci95": [
+       0.9873,
+       1.0224
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj2": {
+      "ratio": 1.0042,
+      "ci95": [
+       0.9931,
+       1.0133
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k apply": {
+      "ratio": 1.1309,
+      "ci95": [
+       1.007,
+       1.1582
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 1.0136,
+       "slow": 1.0117
+      },
+      "fisher_p": 0.128
+     },
+     "safe50k end_to_end": {
+      "ratio": 1.0878,
+      "ci95": [
+       1.0631,
+       1.0958
+      ],
+      "within_1.02": false,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 1.0441,
+       "slow": 1.037
+      },
+      "fisher_p": 0.0
+     },
+     "unsafe50k sosp_update obj0": {
+      "ratio": 1.0,
+      "ci95": [
+       0.9904,
+       1.0074
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj1": {
+      "ratio": 1.0027,
+      "ci95": [
+       0.9955,
+       1.0114
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj2": {
+      "ratio": 1.0044,
+      "ci95": [
+       0.9965,
+       1.0098
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k apply": {
+      "ratio": 1.0054,
+      "ci95": [
+       0.9072,
+       1.0191
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 1.0105,
+       "slow": 1.0087
+      },
+      "fisher_p": 0.271
+     },
+     "unsafe50k end_to_end": {
+      "ratio": 1.0649,
+      "ci95": [
+       1.0538,
+       1.0763
+      ],
+      "within_1.02": false,
+      "rounds": 170,
+      "mode_ratios": {
+       "slow": 1.0204
+      },
+      "fisher_p": 0.0
+     }
+    }
+   },
+   "sssp-openmp-roadNet-CA-50k-170-nb": {
+    "record": "$DYNG_SCRATCH/runs/m10a-kit-mutations-gates-certificate/adr0024/sssp-openmp-roadNet-CA-50k-170-nb.json",
+    "date": "2026-11-03T00:24:26Z",
+    "a": "$DYNG_SCRATCH/m10-builds/nb-b0/tools/compat/dyng-compat-mosp",
+    "b": "$DYNG_SCRATCH/m10-builds/nb-head/tools/compat/dyng-compat-mosp",
+    "regions": {
+     "safe50k sosp_update obj0": {
+      "ratio": 0.9984,
+      "ci95": [
+       0.9922,
+       1.0063
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj1": {
+      "ratio": 1.0,
+      "ci95": [
+       0.9946,
+       1.0065
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj2": {
+      "ratio": 0.9988,
+      "ci95": [
+       0.9904,
+       1.0067
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k apply": {
+      "ratio": 1.0203,
+      "ci95": [
+       1.0112,
+       1.028
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 1.0087,
+       "slow": 1.012
+      },
+      "fisher_p": 0.218
+     },
+     "safe50k end_to_end": {
+      "ratio": 1.0793,
+      "ci95": [
+       1.0765,
+       1.0817
+      ],
+      "within_1.02": false,
+      "rounds": 170,
+      "mode_ratios": {},
+      "fisher_p": 0.0
+     },
+     "unsafe50k sosp_update obj0": {
+      "ratio": 1.0003,
+      "ci95": [
+       0.992,
+       1.006
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj1": {
+      "ratio": 1.0027,
+      "ci95": [
+       0.9973,
+       1.0096
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj2": {
+      "ratio": 1.0013,
+      "ci95": [
+       0.9963,
+       1.0118
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k apply": {
+      "ratio": 1.0082,
+      "ci95": [
+       1.0018,
+       1.0184
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 1.0088,
+       "slow": 1.0073
+      },
+      "fisher_p": 0.371
+     },
+     "unsafe50k end_to_end": {
+      "ratio": 1.0774,
+      "ci95": [
+       1.0747,
+       1.0793
+      ],
+      "within_1.02": false,
+      "rounds": 170,
+      "mode_ratios": {},
+      "fisher_p": 0.0
+     }
+    }
+   },
+   "sssp-openmp-roadNet-PA-50k-170-fb": {
+    "record": "$DYNG_SCRATCH/runs/m10a-kit-mutations-gates-certificate/adr0024/sssp-openmp-roadNet-PA-50k-170-fb.json",
+    "date": "2026-11-03T00:58:06Z",
+    "a": "$DYNG_SCRATCH/m10-builds/fb-b0/tools/compat/dyng-compat-mosp",
+    "b": "$DYNG_SCRATCH/m10-builds/fb-head/tools/compat/dyng-compat-mosp",
+    "regions": {
+     "safe50k sosp_update obj0": {
+      "ratio": 0.9947,
+      "ci95": [
+       0.9873,
+       1.0013
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj1": {
+      "ratio": 0.9953,
+      "ci95": [
+       0.9816,
+       1.0163
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj2": {
+      "ratio": 1.0003,
+      "ci95": [
+       0.993,
+       1.0107
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k apply": {
+      "ratio": 0.9869,
+      "ci95": [
+       0.9755,
+       0.9926
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 0.9918,
+       "slow": 0.992
+      },
+      "fisher_p": 0.003
+     },
+     "safe50k end_to_end": {
+      "ratio": 0.9902,
+      "ci95": [
+       0.9827,
+       0.9951
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 0.9953,
+       "slow": 0.9942
+      },
+      "fisher_p": 0.004
+     },
+     "unsafe50k sosp_update obj0": {
+      "ratio": 0.9931,
+      "ci95": [
+       0.987,
+       1.0007
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj1": {
+      "ratio": 0.9986,
+      "ci95": [
+       0.9882,
+       1.0057
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj2": {
+      "ratio": 0.9993,
+      "ci95": [
+       0.992,
+       1.0062
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k apply": {
+      "ratio": 0.9855,
+      "ci95": [
+       0.9745,
+       0.9948
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 0.9911,
+       "slow": 0.9966
+      },
+      "fisher_p": 0.261
+     },
+     "unsafe50k end_to_end": {
+      "ratio": 0.9942,
+      "ci95": [
+       0.9869,
+       1.0002
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     }
+    }
+   },
+   "sssp-openmp-roadNet-CA-50k-170-fb": {
+    "record": "$DYNG_SCRATCH/runs/m10a-kit-mutations-gates-certificate/adr0024/sssp-openmp-roadNet-CA-50k-170-fb.json",
+    "date": "2026-11-03T01:58:13Z",
+    "a": "$DYNG_SCRATCH/m10-builds/fb-b0/tools/compat/dyng-compat-mosp",
+    "b": "$DYNG_SCRATCH/m10-builds/fb-head/tools/compat/dyng-compat-mosp",
+    "regions": {
+     "safe50k sosp_update obj0": {
+      "ratio": 1.002,
+      "ci95": [
+       0.9951,
+       1.0086
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj1": {
+      "ratio": 0.9949,
+      "ci95": [
+       0.991,
+       1.0011
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k sosp_update obj2": {
+      "ratio": 0.9931,
+      "ci95": [
+       0.987,
+       1.0057
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "safe50k apply": {
+      "ratio": 0.9571,
+      "ci95": [
+       0.9463,
+       0.9828
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 0.998,
+       "slow": 0.9953
+      },
+      "fisher_p": 0.001
+     },
+     "safe50k end_to_end": {
+      "ratio": 0.9896,
+      "ci95": [
+       0.9858,
+       0.9948
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj0": {
+      "ratio": 1.0024,
+      "ci95": [
+       0.9953,
+       1.0082
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj1": {
+      "ratio": 1.0,
+      "ci95": [
+       0.9947,
+       1.0052
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k sosp_update obj2": {
+      "ratio": 1.0028,
+      "ci95": [
+       0.9959,
+       1.0088
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     },
+     "unsafe50k apply": {
+      "ratio": 0.973,
+      "ci95": [
+       0.9531,
+       0.9995
+      ],
+      "within_1.02": true,
+      "rounds": 170,
+      "mode_ratios": {
+       "fast": 0.9961,
+       "slow": 0.9962
+      },
+      "fisher_p": 0.103
+     },
+     "unsafe50k end_to_end": {
+      "ratio": 0.9893,
+      "ci95": [
+       0.9867,
+       0.9941
+      ],
+      "within_1.02": true,
+      "rounds": 170
+     }
+    }
+   },
+   "sssp-cuda-roadNet-PA-102-fbc": {
+    "record": "$DYNG_SCRATCH/runs/m10a-kit-mutations-gates-certificate/adr0024/sssp-cuda-roadNet-PA-102-fbc.json",
+    "date": "2026-11-03T18:01:58Z",
+    "a": "$DYNG_SCRATCH/m10-builds/fbc-b0/tools/compat/dyng-compat-mosp",
+    "b": "$DYNG_SCRATCH/m10-builds/fbc-head/tools/compat/dyng-compat-mosp",
+    "regions": {
+     "safe50k sosp_update obj0": {
+      "ratio": 1.0002,
+      "ci95": [
+       0.9997,
+       1.0011
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "safe50k sosp_update obj1": {
+      "ratio": 1.0,
+      "ci95": [
+       0.9994,
+       1.001
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "safe50k sosp_update obj2": {
+      "ratio": 1.0004,
+      "ci95": [
+       0.9994,
+       1.0015
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "safe50k apply": {
+      "ratio": 1.0063,
+      "ci95": [
+       0.9938,
+       1.1145
+      ],
+      "within_1.02": true,
+      "rounds": 102,
+      "mode_ratios": {
+       "fast": 1.0053,
+       "slow": 0.9985
+      },
+      "fisher_p": 0.567
+     },
+     "safe50k end_to_end": {
+      "ratio": 1.0139,
+      "ci95": [
+       1.003,
+       1.0227
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "unsafe50k sosp_update obj0": {
+      "ratio": 1.0005,
+      "ci95": [
+       0.9997,
+       1.0012
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "unsafe50k sosp_update obj1": {
+      "ratio": 1.0004,
+      "ci95": [
+       0.9998,
+       1.001
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "unsafe50k sosp_update obj2": {
+      "ratio": 0.9994,
+      "ci95": [
+       0.9983,
+       1.0005
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "unsafe50k apply": {
+      "ratio": 1.0021,
+      "ci95": [
+       0.8737,
+       1.0192
+      ],
+      "within_1.02": true,
+      "rounds": 102,
+      "mode_ratios": {
+       "fast": 1.0109,
+       "slow": 1.0072
+      },
+      "fisher_p": 0.319
+     },
+     "unsafe50k end_to_end": {
+      "ratio": 1.0093,
+      "ci95": [
+       1.0045,
+       1.0218
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "local10k sosp_update obj0": {
+      "ratio": 1.0001,
+      "ci95": [
+       0.9996,
+       1.0007
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "local10k sosp_update obj1": {
+      "ratio": 1.0001,
+      "ci95": [
+       0.9997,
+       1.0005
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "local10k sosp_update obj2": {
+      "ratio": 0.9999,
+      "ci95": [
+       0.9994,
+       1.0003
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     },
+     "local10k apply": {
+      "ratio": 1.0044,
+      "ci95": [
+       0.8618,
+       1.0293
+      ],
+      "within_1.02": true,
+      "rounds": 102,
+      "mode_ratios": {
+       "fast": 1.0088,
+       "slow": 0.9955
+      },
+      "fisher_p": 0.571
+     },
+     "local10k end_to_end": {
+      "ratio": 1.012,
+      "ci95": [
+       1.0033,
+       1.0211
+      ],
+      "within_1.02": true,
+      "rounds": 102
+     }
+    }
+   }
+  }
+ },
+ "reading": "the apply regions follow the code's placement on this CPU (JCC erratum): identical machine code at other alignments, within the bar with the mitigation on both sides; about half of the CUDA end_to_end excursion is total.context (+5.2-5.4 ms), the eager loading of label_propagation's kernels with CUDA_MODULE_LOADING=EAGER, a cost of the larger library and not placement; nb's end_to_end (1.065-1.088) lies outside the timed stages, not located further"
+}

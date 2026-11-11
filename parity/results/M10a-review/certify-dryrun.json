@@ -1,0 +1,1921 @@
+{
+ "schema": 1,
+ "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
+ "version": "0.4.0",
+ "version_file": "0.4.0.dev0",
+ "date": "2026-11-04T03:22:23Z",
+ "commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+ "branch": "m10a-label-propagation",
+ "measured_commits": [
+  "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+  "107dfef16370bed900beaf28efea1b6bfd4373c3"
+ ],
+ "code_paths": {
+  "library": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib"
+  ],
+  "tests": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib",
+   "cpp/tests",
+   "cpp/fuzz",
+   "examples",
+   "README.md"
+  ],
+  "packaging": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib",
+   "cpp/tests",
+   "cpp/fuzz",
+   "examples",
+   "README.md",
+   "python",
+   "pyproject.toml",
+   "VERSION",
+   "CHANGELOG.md",
+   "CITATION.cff",
+   "LICENSE",
+   "LICENSES",
+   "NOTICE",
+   "THIRD_PARTY_LICENSES.txt",
+   "THIRD_PARTY_LICENSES_CUDA.txt",
+   "AUTHORS.md",
+   "CONTRIBUTING.md",
+   "SECURITY.md",
+   "REUSE.toml",
+   "environment.yml",
+   "ruff.toml",
+   ".gitattributes",
+   ".gitignore",
+   "ci/wheels.sh",
+   "ci/wheel_check.py",
+   "ci/wheel-toolchain.yml",
+   "ci/plugin_wheels.sh",
+   "ci/plugin_pyproject.py",
+   "ci/plugin_smoke.py",
+   "ci/without_cuda_driver.sh",
+   "ci/cuda_toolkit.py",
+   "ci/cuda_toolkits.toml",
+   "ci/cibw_plugin.sh",
+   "ci/cibw_plugin_repair.sh",
+   "ci/cibuildwheel-plugin.toml",
+   ".github/workflows/release.yml",
+   ".github/workflows/wheels.yml"
+  ],
+  "repo": [
+   ".",
+   ":(exclude)benchmarks/results"
+  ]
+ },
+ "code_rule": "every measured commit has the release commit's sources (git diff <measured> <release> -- code_paths[scope] is empty): the library scope for the performance gates, the golden replays and the golden mutations; for a check, the scope it was recorded with (tests: a C++ test suite; packaging: the distributions; repo: a check of the whole tree but benchmarks/results). In the library scope only, a difference confined to metadata_paths is accepted when equivalence.json shows the measured programs unchanged (equivalences)",
+ "metadata_paths": {
+  "cpp/src/core/registry_table.inc": {
+   "what": "the algorithm registry table generated from the manifests by scripts/regen.py (names, titles, maturity, backends, citation keys), read only by dyng::algorithms()",
+   "functions": [
+    "dyng::algorithms()",
+    "dyng::algorithms() [clone .cold]"
+   ]
+  },
+  "cpp/src/algorithms/cycle_count/manifest.toml": {
+   "what": "the manifest of cycle_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/dynamic_bfs/manifest.toml": {
+   "what": "the manifest of dynamic_bfs (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/label_propagation/manifest.toml": {
+   "what": "the manifest of label_propagation (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/mosp/manifest.toml": {
+   "what": "the manifest of mosp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/sssp/manifest.toml": {
+   "what": "the manifest of sssp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/triad_count/manifest.toml": {
+   "what": "the manifest of triad_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/triangle_delta/manifest.toml": {
+   "what": "the manifest of triangle_delta (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  }
+ },
+ "equivalences": [],
+ "environment": {
+  "hardware": {
+   "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+   "logical_cpus": 56,
+   "memory_gb": 124.4,
+   "gpus": [
+    {
+     "index": 0,
+     "name": "NVIDIA RTX A5000",
+     "memory": "24564 MiB",
+     "compute_capability": "8.6"
+    },
+    {
+     "index": 1,
+     "name": "NVIDIA RTX A5000",
+     "memory": "24564 MiB",
+     "compute_capability": "8.6"
+    }
+   ]
+  },
+  "os": {
+   "name": "Debian GNU/Linux 12 (bookworm)",
+   "kernel": "6.1.0-52-amd64"
+  },
+  "driver": {
+   "write_time": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "cuda_driver_api": "13.1",
+   "nvidia": "590.48.01",
+   "source": "named by 18 records"
+  },
+  "toolchain": {
+   "cxx": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "nvcc": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "cmake": "cmake version 4.4.3",
+   "python": "3.12.14"
+  }
+ },
+ "originals": [
+  {
+   "name": "MOSP-OpenMP",
+   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "7284f5005e694eaa3466fd29bc0d12f7cf505a28",
+   "upstream": "https://github.com/SMShovan/MOSP-OpenMP.git",
+   "export_patch": "MOSP-OpenMP",
+   "toolchain": "system g++ 12.2, Makefile defaults: -std=c++17 -Wall -Wextra -O3 -fopenmp",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "MOSP-CUDA",
+   "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "ac29545c6ff21a05901cd124ce6760644a129263",
+   "upstream": "https://github.com/SMShovan/MOSP-CUDA.git",
+   "export_patch": "MOSP-CUDA",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, host -O3, -lineinfo, --extended-lambda (Makefile defaults)",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "CycleEnumeration-GPU",
+   "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "da2067d62c2ce8f9234908089fa15bc53b5979c0",
+   "upstream": "git@github.com:SMShovan/CycleEnumeration-GPU.git",
+   "export_patch": "CycleEnumeration-GPU",
+   "toolchain": "system g++ 12.2 and CUDA 13.1 nvcc (sm_86), CMake Release (-O3 -DNDEBUG), OpenMP and CUDA enabled as in the original's docs/RESULTS.md",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "6a44c1cf5f1639721d35b418f99b420c5c45674e",
+   "upstream": "git@github.com:SMShovan/ESCHER-GPU.git",
+   "export_patch": "ESCHER-GPU",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo -Xcompiler -fopenmp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); C++ objects: the Makefile's hard-coded CXX = g++ (-std=c++17 -O3 -Wall -fopenmp)",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "80cee6284aae8836e5319eabf5e8bd127c0dca82",
+   "upstream": "git@github.com:SMShovan/MOSP_ESCHER.git",
+   "export_patch": "MOSP_ESCHER",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo --extended-lambda -Xcompiler -fopenmp for .cu and .cpp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); tests/local: g++ -O2 -Wall -Wextra -std=c++17 -fopenmp",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "f0a665e24fd4de8f7783cc10e0ae61bf93b418f5",
+   "upstream": "git@github.com:SMShovan/LabelPropagation-CUDA.git",
+   "export_patch": "LabelPropagation-CUDA",
+   "toolchain": "CUDA 13.1 nvcc (V13.1.115; /usr/local/cuda/bin/nvcc, the Makefile's fallback), sm_86, -std=c++17 -O3 --use_fast_math -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp, linked with -lgomp; host compiler /usr/bin/g++ (Debian 12.2.0-14+deb12u1), the nvcc default",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  }
+ ],
+ "golden_suites": [
+  {
+   "set": "label_propagation_generator",
+   "kind": "label_propagation_generator",
+   "reference": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "generated_by": "parity/label_propagation_goldens.py export --twice (parity/export_goldens.py label_propagation)",
+   "cases": 14,
+   "files": 72,
+   "manifest_sha256": "31a611f551db17efe475aea943d2fd33468a102d56cfb0b2a561389972060296",
+   "case_sha256": {
+    "500k_d1e-4_s42": "97bab0f6ecd31812508598a15c58ad7090b339cce1d9bf0737aaa3de20e163d6",
+    "50k_d1e-4_s1": "d2cfb8554dce488f06ddaa206788781689500058bbf52fa4fd19e221a9e75d15",
+    "50k_d1e-4_s2": "6431cd25d7407f8db72364856f5ea58e9213e098d651b34f2d3045568dd8fe62",
+    "50k_d1e-4_s3": "5a25acc785ff81559a72e3a31d23701a2f674c7699a1c72a3ff2c5bda17d51c8",
+    "50k_d1e-4_s42": "1d65cc2c75a6ed221f7fa9d95a6e88331f656741f80145e4b5f63ac18585f410",
+    "50k_deg3_d1e-4_s42": "89c2f526498ed41df47b5f0155cec42b39cfd2a1443fe63e7c09fe917ca3d435",
+    "50k_deg7_d1e-4_s42": "9c2e9b8b2e9d53f79caa3a998b1cbcf53f3fe34adcee5b87a867d1a439b40373",
+    "50m_d1e-4_s42": "a79e5d97a0edc48e5d9f460296153dbb310179e92eb34865c451c2ebd9965e7c",
+    "5k5_d1e-4_s1": "be0bd080cc4629e0a64c9fc91bcb64ad911a603819f889b6f604047c079103d0",
+    "5k5_d1e-4_s2": "05051e05fc579a578634fb665d177267bcb192aa5ffb9ea3b3270e6345fedc0c",
+    "5k5_d1e-4_s3": "bfe3d922618c99bc4e54f343303d3e9e3ab0431e02f1b9c55ee1cf38be8bce0a",
+    "5k5_d1e-4_s42": "a1fa4444b7bd9d23b2705edbb4382a07ec48feab11b50cc770cdf7536902d715",
+    "5m1_d1e-4_s42": "59121d8e5adadbbd6d7cd4849620bb0cc819c10aa50ce812c3ed1888e0a7d943",
+    "5m_d1e-4_s42": "459adb0c18914c6a438f7af87bc4488cbd5576215129a210ac74339b22652f81"
+   },
+   "replays": [
+    {
+     "record": "parity-label_propagation_generator-sequential.json",
+     "date": "2026-11-04T01:27:55Z",
+     "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity/cpp/tests/dyng_lp_replay",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity",
+      "preset": "other"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+     },
+     "configs": [
+      "sequential:lp/generator"
+     ],
+     "checks": {
+      "replay": "generator"
+     },
+     "tolerance": null,
+     "compared": 14,
+     "failed": 0,
+     "matrix": {
+      "500k_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      },
+      "50k_d1e-4_s1": {
+       "sequential:lp/generator": "equal"
+      },
+      "50k_d1e-4_s2": {
+       "sequential:lp/generator": "equal"
+      },
+      "50k_d1e-4_s3": {
+       "sequential:lp/generator": "equal"
+      },
+      "50k_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      },
+      "50k_deg3_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      },
+      "50k_deg7_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      },
+      "50m_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      },
+      "5k5_d1e-4_s1": {
+       "sequential:lp/generator": "equal"
+      },
+      "5k5_d1e-4_s2": {
+       "sequential:lp/generator": "equal"
+      },
+      "5k5_d1e-4_s3": {
+       "sequential:lp/generator": "equal"
+      },
+      "5k5_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      },
+      "5m1_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      },
+      "5m_d1e-4_s42": {
+       "sequential:lp/generator": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [
+    "sequential"
+   ],
+   "passed": true
+  },
+  {
+   "set": "label_propagation_damped",
+   "kind": "label_propagation_damped",
+   "reference": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "generated_by": "parity/label_propagation_goldens.py export --twice (parity/export_goldens.py label_propagation)",
+   "cases": 10,
+   "files": 30,
+   "manifest_sha256": "232a98797fc2269d1cda98669a9e266b85940373ad1b7f3e75644fe0fc7fd837",
+   "case_sha256": {
+    "500k_d1e-4_s42": "a1397cd88990b2c9dd2abf7b18fe36018827127baae2e1ed2bb96eb7cf7142cd",
+    "50k_d1e-4_s1": "6b71111122126aa674183e5f923fc3d9ee871f85503fb4145267d96f42e163af",
+    "50k_d1e-4_s2": "38b9f27b38ce90692d9a3973662ca9248e5c951f2a84674213af2c4eaaef58e2",
+    "50k_d1e-4_s42": "6aee927a7975634da883ae5349d13e65df21a212e241c42d4373b9dd9294c3bb",
+    "50k_d1e-6_s42": "491db210d59edd5472c168d98dc7002d9875c4e8b4cf727fdacb99b27b211422",
+    "5k5_d1e-4_s1": "deba123ce6a5ae09d6ad5c0490ba725051b40e8d735d890f2d8681120990fb34",
+    "5k5_d1e-4_s2": "800ccc67ff6cfe59699d866134440386a35df00fd86257ad3eb975e7948f79de",
+    "5k5_d1e-4_s42": "06508a4fe83997b6d8357725f1b5f1053c5397ddf0353c9ed9c4bf8ea646666a",
+    "5k5_d1e-6_s42": "8824de20074616d876304e471b9a90f3151df8251ab10fcf6a8fbe98d8455559",
+    "5m_d1e-4_s42": "61cd61aa346969f8982579b316bde4ffe4b19c0e9f4b936a6cb51e5568009e43"
+   },
+   "replays": [
+    {
+     "record": "parity-label_propagation_damped-cuda-fused.json",
+     "date": "2026-11-04T00:38:58Z",
+     "port_commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+     },
+     "configs": [
+      "cuda-fused:lp/damped"
+     ],
+     "checks": {
+      "replay": "damped"
+     },
+     "tolerance": null,
+     "compared": 10,
+     "failed": 0,
+     "matrix": {
+      "500k_d1e-4_s42": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "50k_d1e-4_s1": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "50k_d1e-4_s2": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "50k_d1e-4_s42": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "50k_d1e-6_s42": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "5k5_d1e-4_s1": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "5k5_d1e-4_s2": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "5k5_d1e-4_s42": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "5k5_d1e-6_s42": {
+       "cuda-fused:lp/damped": "equal"
+      },
+      "5m_d1e-4_s42": {
+       "cuda-fused:lp/damped": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [
+    "cuda-fused"
+   ],
+   "passed": true
+  },
+  {
+   "set": "label_propagation_trace",
+   "kind": "label_propagation_trace",
+   "reference": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "generated_by": "parity/label_propagation_goldens.py export --twice (parity/export_goldens.py label_propagation)",
+   "cases": 10,
+   "files": 20,
+   "manifest_sha256": "ac4390b93fdc4afc5b6c012f5142844c091573d50953e2d94ef8b7d5eb456b1c",
+   "case_sha256": {
+    "500k_d1e-4_s42": "b27af07cc91d82de500cfcf3c15c8e77370058f633f0c4ee3792267ffa84b52b",
+    "50k_d1e-4_s1": "fb0273aa8ceaf0c79d88faa4a660f8765c2f280214183f5839591b80248045ae",
+    "50k_d1e-4_s2": "f892cea3def3c2042d21fbd903cbb8abd4c1c18ec2809c6d4f301426bab0eed9",
+    "50k_d1e-4_s42": "f7666ce6fb7d59932af8e489e99a2e7e963204f6594973ea570dfd1efb222ee1",
+    "50k_d1e-6_s42": "8bced7253555752bf5c72ca974928593e0c956bdac939591c82f2d486f96918a",
+    "5k5_d1e-4_s1": "5ff8403b9611b1b3d7c1b6b75798f6d2b22013b84e353dd585f5a3d2859c2102",
+    "5k5_d1e-4_s2": "aca50cc6f547930d7900bd620ac23b2251d483dedc9e1419652c6884438d043f",
+    "5k5_d1e-4_s42": "2af79a15e225a0435df66294fbb7dc86106ee24239c88a02e52405563e895755",
+    "5k5_d1e-6_s42": "c3c977504c049cedfac4599510d42954af4d000692b811b662412e320d5e22c9",
+    "5m_d1e-4_s42": "9757ed7554a92bc6f6ba95cc9725e64c0dd43880632a0bf3b0d76e68ebf64bbb"
+   },
+   "replays": [
+    {
+     "record": "parity-label_propagation_trace-cuda.json",
+     "date": "2026-11-04T00:31:49Z",
+     "port_commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+     },
+     "configs": [
+      "cuda:lp/trace"
+     ],
+     "checks": {
+      "replay": "trace"
+     },
+     "tolerance": null,
+     "compared": 10,
+     "failed": 0,
+     "matrix": {
+      "500k_d1e-4_s42": {
+       "cuda:lp/trace": "equal"
+      },
+      "50k_d1e-4_s1": {
+       "cuda:lp/trace": "equal"
+      },
+      "50k_d1e-4_s2": {
+       "cuda:lp/trace": "equal"
+      },
+      "50k_d1e-4_s42": {
+       "cuda:lp/trace": "equal"
+      },
+      "50k_d1e-6_s42": {
+       "cuda:lp/trace": "equal"
+      },
+      "5k5_d1e-4_s1": {
+       "cuda:lp/trace": "equal"
+      },
+      "5k5_d1e-4_s2": {
+       "cuda:lp/trace": "equal"
+      },
+      "5k5_d1e-4_s42": {
+       "cuda:lp/trace": "equal"
+      },
+      "5k5_d1e-6_s42": {
+       "cuda:lp/trace": "equal"
+      },
+      "5m_d1e-4_s42": {
+       "cuda:lp/trace": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-label_propagation_trace-sequential.json",
+     "date": "2026-11-04T00:38:07Z",
+     "port_commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+     },
+     "configs": [
+      "sequential:lp/trace"
+     ],
+     "checks": {
+      "replay": "trace"
+     },
+     "tolerance": null,
+     "compared": 10,
+     "failed": 0,
+     "matrix": {
+      "500k_d1e-4_s42": {
+       "sequential:lp/trace": "equal"
+      },
+      "50k_d1e-4_s1": {
+       "sequential:lp/trace": "equal"
+      },
+      "50k_d1e-4_s2": {
+       "sequential:lp/trace": "equal"
+      },
+      "50k_d1e-4_s42": {
+       "sequential:lp/trace": "equal"
+      },
+      "50k_d1e-6_s42": {
+       "sequential:lp/trace": "equal"
+      },
+      "5k5_d1e-4_s1": {
+       "sequential:lp/trace": "equal"
+      },
+      "5k5_d1e-4_s2": {
+       "sequential:lp/trace": "equal"
+      },
+      "5k5_d1e-4_s42": {
+       "sequential:lp/trace": "equal"
+      },
+      "5k5_d1e-6_s42": {
+       "sequential:lp/trace": "equal"
+      },
+      "5m_d1e-4_s42": {
+       "sequential:lp/trace": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [
+    "sequential",
+    "cuda"
+   ],
+   "passed": true
+  },
+  {
+   "set": "label_propagation_hub",
+   "kind": "label_propagation_hub",
+   "reference": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "generated_by": "parity/label_propagation_goldens.py export --twice (parity/export_goldens.py label_propagation)",
+   "cases": 1,
+   "files": 2,
+   "manifest_sha256": "0f00497684dbc567e1c4831b86d894afc0754805137997c0e972033a86d901d3",
+   "case_sha256": {},
+   "replays": [
+    {
+     "record": "parity-label_propagation_hub-cuda-fused.json",
+     "date": "2026-11-04T00:39:00Z",
+     "port_commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/cpp/tests/algorithms/label_propagation/dyng_label_propagation_cuda_tests",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+     },
+     "configs": [
+      "cuda-fused:lp/hub"
+     ],
+     "checks": {
+      "replay": "hub"
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "hub": {
+       "cuda-fused:lp/hub": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [
+    "cuda-fused"
+   ],
+   "passed": true
+  },
+  {
+   "set": "label_propagation_irlp",
+   "kind": "label_propagation_irlp",
+   "reference": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "generated_by": "parity/label_propagation_goldens.py export --twice (parity/export_goldens.py label_propagation)",
+   "cases": 2,
+   "files": 6,
+   "manifest_sha256": "5181540bcfb95324cee5e9ea2204e24d3247dd519bb929e6fffa08c6735b6e63",
+   "case_sha256": {
+    "50k_d1e-4_s42": "eb3be2835e5a0431ba8db7230ad8dad6030283b216f8716c4115221d7e4a41a9",
+    "5k5_d1e-4_s42": "67602399c94bfb59f01f2de7d67cb044fce35b53477dd27ca520a5a647f3f74b"
+   },
+   "replays": [
+    {
+     "record": "parity-label_propagation_irlp-cuda.json",
+     "date": "2026-11-04T00:39:03Z",
+     "port_commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+     },
+     "configs": [
+      "cuda:lp/irlp"
+     ],
+     "checks": {
+      "replay": "irlp"
+     },
+     "tolerance": null,
+     "compared": 2,
+     "failed": 0,
+     "matrix": {
+      "50k_d1e-4_s42": {
+       "cuda:lp/irlp": "equal"
+      },
+      "5k5_d1e-4_s42": {
+       "cuda:lp/irlp": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [
+    "cuda"
+   ],
+   "passed": true
+  },
+  {
+   "set": "label_propagation_inplace",
+   "kind": "label_propagation_inplace",
+   "reference": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "generated_by": "parity/label_propagation_goldens.py calibrate + calibrate-analyze (exported once: a distribution)",
+   "cases": 6,
+   "files": 175,
+   "manifest_sha256": "f11abd22732341466ea5defc1dbd861ae27481ceca697afdf302123f4e37986f",
+   "case_sha256": {},
+   "replays": [
+    {
+     "record": "parity-label_propagation_inplace-cuda.json",
+     "date": "2026-11-04T00:40:40Z",
+     "port_commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
+     },
+     "configs": [
+      "cuda:lp/inplace"
+     ],
+     "checks": {
+      "replay": "inplace"
+     },
+     "tolerance": {
+      "5k5_d1e-4_s42_inplace": {
+       "t_flips": 12,
+       "t_max": 0.0069990000000000885,
+       "t_mean": 0.0004279650067294746,
+       "iterations_hi": [
+        2,
+        744.7,
+        478.5,
+        250.8,
+        170.5
+       ],
+       "iterations_lo": [
+        0,
+        609.3,
+        391.5,
+        198.9,
+        124.2
+       ],
+       "iterations_sum_hi": 1641.2,
+       "iterations_sum_lo": 1328.4
+      },
+      "50k_d1e-4_s42_inplace": {
+       "t_flips": 405,
+       "t_max": 0.00689699999999982,
+       "t_mean": 0.0005503162289562289,
+       "iterations_hi": [
+        2,
+        564.3,
+        1449.8,
+        1225.4,
+        656.7,
+        959.2,
+        258.5,
+        255.2,
+        104.5,
+        78.1
+       ],
+       "iterations_lo": [
+        0,
+        461.7,
+        1112.4,
+        927,
+        518.4,
+        369.9,
+        203.4,
+        201.6,
+        83.7,
+        51.3
+       ],
+       "iterations_sum_hi": 5437.3,
+       "iterations_sum_lo": 3977.1
+      },
+      "500k_d1e-4_s42_inplace": {
+       "t_flips": 2997,
+       "t_max": 1.2280980000000001,
+       "t_mean": 0.0003922800875420878,
+       "iterations_hi": [
+        2,
+        819.5,
+        1817.2,
+        1535.6,
+        1201.2,
+        652.3,
+        391.6,
+        503.8,
+        288.2,
+        158.4
+       ],
+       "iterations_lo": [
+        0,
+        670.5,
+        1486.8,
+        1256.4,
+        947.7,
+        529.2,
+        299.7,
+        359.1,
+        229.5,
+        82.8
+       ],
+       "iterations_sum_hi": 7320.5,
+       "iterations_sum_lo": 5887.8
+      },
+      "5m_d1e-4_s42_inplace": {
+       "t_flips": 21525,
+       "t_max": 1.306071,
+       "t_mean": 0.0002672708942760942,
+       "iterations_hi": [
+        2,
+        1395.9,
+        1988.8,
+        1806.2,
+        1535.6,
+        1052.7,
+        1028.5,
+        722.7,
+        383.9,
+        419.1
+       ],
+       "iterations_lo": [
+        0,
+        1134.9,
+        1461.6,
+        1333.8,
+        1128.6,
+        806.4,
+        774,
+        554.4,
+        303.3,
+        333.9
+       ],
+       "iterations_sum_hi": 10140.9,
+       "iterations_sum_lo": 7964.1
+      }
+     },
+     "compared": 4,
+     "failed": 4,
+     "matrix": {
+      "500k_d1e-4_s42_inplace": {
+       "cuda:lp/inplace": "DIFFERENT"
+      },
+      "50k_d1e-4_s42_inplace": {
+       "cuda:lp/inplace": "DIFFERENT"
+      },
+      "5k5_d1e-4_s42_inplace": {
+       "cuda:lp/inplace": "DIFFERENT"
+      },
+      "5m_d1e-4_s42_inplace": {
+       "cuda:lp/inplace": "DIFFERENT"
+      }
+     },
+     "passed": false
+    }
+   ],
+   "required_backends": [
+    "cuda"
+   ],
+   "frozen_tolerance": {
+    "500k_d1e-4_s42_inplace": {
+     "t_mean": 0.0003922800875420878,
+     "t_max": 1.2280980000000001,
+     "t_flips": 2997,
+     "iterations_lo": [
+      0.0,
+      670.5,
+      1486.8,
+      1256.4,
+      947.7,
+      529.2,
+      299.7,
+      359.1,
+      229.5,
+      82.8
+     ],
+     "iterations_hi": [
+      2,
+      819.5,
+      1817.2,
+      1535.6,
+      1201.2,
+      652.3,
+      391.6,
+      503.8,
+      288.2,
+      158.4
+     ],
+     "iterations_sum_lo": 5887.8,
+     "iterations_sum_hi": 7320.5
+    },
+    "50k_d1e-4_s42_inplace": {
+     "t_mean": 0.0005503162289562289,
+     "t_max": 0.00689699999999982,
+     "t_flips": 405,
+     "iterations_lo": [
+      0.0,
+      461.7,
+      1112.4,
+      927.0,
+      518.4,
+      369.9,
+      203.4,
+      201.6,
+      83.7,
+      51.3
+     ],
+     "iterations_hi": [
+      2,
+      564.3,
+      1449.8,
+      1225.4,
+      656.7,
+      959.2,
+      258.5,
+      255.2,
+      104.5,
+      78.1
+     ],
+     "iterations_sum_lo": 3977.1,
+     "iterations_sum_hi": 5437.3
+    },
+    "5k5_d1e-4_s42_inplace": {
+     "t_mean": 0.0004279650067294746,
+     "t_max": 0.0069990000000000885,
+     "t_flips": 12,
+     "iterations_lo": [
+      0.0,
+      609.3,
+      391.5,
+      198.9,
+      124.2
+     ],
+     "iterations_hi": [
+      2,
+      744.7,
+      478.5,
+      250.8,
+      170.5
+     ],
+     "iterations_sum_lo": 1328.4,
+     "iterations_sum_hi": 1641.2
+    },
+    "5m_d1e-4_s42_inplace": {
+     "t_mean": 0.0002672708942760942,
+     "t_max": 1.306071,
+     "t_flips": 21525,
+     "iterations_lo": [
+      0.0,
+      1134.9,
+      1461.6,
+      1333.8,
+      1128.6,
+      806.4,
+      774.0,
+      554.4,
+      303.3,
+      333.9
+     ],
+     "iterations_hi": [
+      2,
+      1395.9,
+      1988.8,
+      1806.2,
+      1535.6,
+      1052.7,
+      1028.5,
+      722.7,
+      383.9,
+      419.1
+     ],
+     "iterations_sum_lo": 7964.1,
+     "iterations_sum_hi": 10140.9
+    }
+   },
+   "passed": false
+  },
+  {
+   "set": "label_propagation_oracle",
+   "kind": "label_propagation_oracle",
+   "reference": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "generated_by": "parity/label_propagation_goldens.py margins (O's --check runs, M10a step 1); the class margin: compare.py label_propagation margin (M10a step 2)",
+   "cases": 8,
+   "files": 8,
+   "manifest_sha256": null,
+   "case_sha256": {
+    "5k5_d1e-6_s42": "168d2f3202b0cab588a0c57eb4fc801bc1458e2a11eb857d196dc9042eb5f258",
+    "5k5_d1e-6_s42_inplace": "897a65f4b0ee8ed513d2ca6e253ea23564a3dd4ea42c5dd537fab9f4f5d7f846",
+    "50k_d1e-6_s42": "c4de7732883fddf3b7599ba297bbce39ee749d9860d1b3b1690b1ac1cd39b1d9",
+    "50k_d1e-6_s42_inplace": "04c239064f5f98a75fc4f6e4d7d552d70f7cda8771fa4f8bd5a49020ec7aff77",
+    "500k_d1e-4_s42": "9a9baa49c5686d66455fe13ca76a57024e00861a25b86121881d3992140ed2d7",
+    "500k_d1e-4_s42_inplace": "5919386683a0866cee3c5b3e4030bba289d5b730b8cdcbbd4c98a02b972d77aa",
+    "5m_d1e-4_s42": "40e73ff01d06bfa01c242a73aa28cec42e336894cf01b780d03cd7e38c6eecad",
+    "5m_d1e-4_s42_inplace": "3b5f448bc54d1566c669e7239f83a0c01c28ec67d50b74265100d70e25efb238"
+   },
+   "replays": [
+    {
+     "record": "parity-label_propagation_oracle-cuda.json",
+     "date": "2026-11-04T01:20:18Z",
+     "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": null
+     },
+     "configs": [
+      "cuda:lp/oracle"
+     ],
+     "checks": {
+      "replay": "oracle"
+     },
+     "tolerance": {
+      "bound_factor": 2000.0,
+      "class_margin_m": 0.002921747540180264,
+      "class_margin_k": 3
+     },
+     "compared": 8,
+     "failed": 0,
+     "matrix": {
+      "500k_d1e-4_s42": {
+       "cuda:lp/oracle": "equal"
+      },
+      "500k_d1e-4_s42_inplace": {
+       "cuda:lp/oracle": "equal"
+      },
+      "50k_d1e-6_s42": {
+       "cuda:lp/oracle": "equal"
+      },
+      "50k_d1e-6_s42_inplace": {
+       "cuda:lp/oracle": "equal"
+      },
+      "5k5_d1e-6_s42": {
+       "cuda:lp/oracle": "equal"
+      },
+      "5k5_d1e-6_s42_inplace": {
+       "cuda:lp/oracle": "equal"
+      },
+      "5m_d1e-4_s42": {
+       "cuda:lp/oracle": "equal"
+      },
+      "5m_d1e-4_s42_inplace": {
+       "cuda:lp/oracle": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-label_propagation_oracle-sequential.json",
+     "date": "2026-11-04T00:41:51Z",
+     "port_commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+     "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+     "build": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+      "DYNG_CUDA_ARCHITECTURES": "86",
+      "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda",
+      "preset": "parity-cuda"
+     },
+     "reference": {
+      "name": "LabelPropagation-CUDA",
+      "commit": null
+     },
+     "configs": [
+      "sequential:lp/oracle"
+     ],
+     "checks": {
+      "replay": "oracle"
+     },
+     "tolerance": {
+      "bound_factor": 2000.0,
+      "class_margin_m": 0.002921747540180264,
+      "class_margin_k": 3
+     },
+     "compared": 4,
+     "failed": 0,
+     "matrix": {
+      "50k_d1e-6_s42": {
+       "sequential:lp/oracle": "equal"
+      },
+      "50k_d1e-6_s42_inplace": {
+       "sequential:lp/oracle": "equal"
+      },
+      "5k5_d1e-6_s42": {
+       "sequential:lp/oracle": "equal"
+      },
+      "5k5_d1e-6_s42_inplace": {
+       "sequential:lp/oracle": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [
+    "sequential",
+    "cuda"
+   ],
+   "frozen_tolerance": {
+    "bound_factor": 2000,
+    "class_margin_m": 0.002921747540180264,
+    "class_margin_k": 3
+   },
+   "passed": true
+  }
+ ],
+ "committed_fixtures": [],
+ "required_suites": {
+  "ipdps25_dynamosp_sosp": {
+   "algorithm": "sssp",
+   "since": "0.1"
+  },
+  "ieee_tc_dyntrucy": {
+   "algorithm": "cycle_count",
+   "since": "0.1"
+  },
+  "ipdps25_dynamosp_mosp": {
+   "algorithm": "mosp",
+   "since": "0.2"
+  },
+  "ipdps26_escher": {
+   "algorithm": "triad_count",
+   "since": "0.3"
+  },
+  "tkde26_escher_plus": {
+   "algorithm": "triad_count",
+   "since": "0.3"
+  },
+  "ics26_dynlp": {
+   "algorithm": "label_propagation",
+   "since": "0.4"
+  }
+ },
+ "performance": [
+  {
+   "suite": "ics26_dynlp",
+   "algorithm": "label_propagation",
+   "summary": "ics26_dynlp.json",
+   "suite_file": "benchmarks/paper/ics26_dynlp.yaml",
+   "suite_sha256": "44be68e238aa0b3dbcccd3ea9fbca2d666b0e8635b6b187a0681885cbe2b8ca4",
+   "port_commits": [
+    "107dfef16370bed900beaf28efea1b6bfd4373c3"
+   ],
+   "baselines": {
+    "LabelPropagation-CUDA": {
+     "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+     "variant": "unpatched",
+     "backend": "cuda"
+    }
+   },
+   "tolerance": {
+    "compute": 1.05,
+    "compute_short": 1.1,
+    "short_region_ms": 10.0,
+    "end_to_end": 1.1,
+    "memory": 1.05
+   },
+   "inputs": {
+    "verified": true,
+    "run_check": "not run by this summary (bench_suite.py run checks every input first)",
+    "by_record": {
+     "ics26_dynlp-damped-50k-50k.json": {
+      "datasets": [
+       "50k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-damped-500k-500k.json": {
+      "datasets": [
+       "500k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-damped-5m-5m.json": {
+      "datasets": [
+       "5m"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-damped-5m1-5m1.json": {
+      "datasets": [
+       "5m1"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-memory-damped-50k.json": {
+      "datasets": [
+       "50k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-memory-damped-500k.json": {
+      "datasets": [
+       "500k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-memory-damped-5m.json": {
+      "datasets": [
+       "5m"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-memory-damped-5m1.json": {
+      "datasets": [
+       "5m1"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-in_place-50k-50k.json": {
+      "datasets": [
+       "50k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-in_place-500k-500k.json": {
+      "datasets": [
+       "500k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-in_place-5m-5m.json": {
+      "datasets": [
+       "5m"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-in_place-5m1-5m1.json": {
+      "datasets": [
+       "5m1"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-damped-default-clocks-50k.json": {
+      "datasets": [
+       "50k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-damped-default-clocks-500k.json": {
+      "datasets": [
+       "500k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-damped-default-clocks-5m.json": {
+      "datasets": [
+       "5m"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-kernels-500k-500k.json": {
+      "datasets": [
+       "500k"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-damped-50m-50m.json": {
+      "datasets": [
+       "50m"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     },
+     "ics26_dynlp-in_place-50m-50m.json": {
+      "datasets": [
+       "50m"
+      ],
+      "verified": true,
+      "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+     }
+    }
+   },
+   "readings": [
+    {
+     "reading": "damped-50k",
+     "dataset": "50k",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": true,
+     "record": "ics26_dynlp-damped-50k-50k.json",
+     "date": "2026-11-04T02:41:43Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "damped-500k",
+     "dataset": "500k",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": true,
+     "record": "ics26_dynlp-damped-500k-500k.json",
+     "date": "2026-11-04T02:44:49Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "damped-5m",
+     "dataset": "5m",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": true,
+     "record": "ics26_dynlp-damped-5m-5m.json",
+     "date": "2026-11-04T02:45:48Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "damped-5m1",
+     "dataset": "5m1",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": true,
+     "record": "ics26_dynlp-damped-5m1-5m1.json",
+     "date": "2026-11-04T02:49:53Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "memory-damped",
+     "dataset": "50k",
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": true,
+     "record": "ics26_dynlp-memory-damped-50k.json",
+     "date": "2026-11-04T02:52:33Z",
+     "protocol": {
+      "gpu": 1,
+      "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+      "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+      "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "memory-damped",
+     "dataset": "500k",
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": true,
+     "record": "ics26_dynlp-memory-damped-500k.json",
+     "date": "2026-11-04T02:52:41Z",
+     "protocol": {
+      "gpu": 1,
+      "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+      "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+      "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "memory-damped",
+     "dataset": "5m",
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": true,
+     "record": "ics26_dynlp-memory-damped-5m.json",
+     "date": "2026-11-04T02:52:52Z",
+     "protocol": {
+      "gpu": 1,
+      "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+      "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+      "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "memory-damped",
+     "dataset": "5m1",
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": true,
+     "record": "ics26_dynlp-memory-damped-5m1.json",
+     "date": "2026-11-04T02:53:24Z",
+     "protocol": {
+      "gpu": 1,
+      "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+      "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+      "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "in_place-50k",
+     "dataset": "50k",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": false,
+     "record": "ics26_dynlp-in_place-50k-50k.json",
+     "date": "2026-11-04T02:53:45Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "in_place-500k",
+     "dataset": "500k",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": false,
+     "record": "ics26_dynlp-in_place-500k-500k.json",
+     "date": "2026-11-04T02:54:12Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "in_place-5m",
+     "dataset": "5m",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": false,
+     "record": "ics26_dynlp-in_place-5m-5m.json",
+     "date": "2026-11-04T02:55:06Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "in_place-5m1",
+     "dataset": "5m1",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": false,
+     "record": "ics26_dynlp-in_place-5m1-5m1.json",
+     "date": "2026-11-04T02:58:39Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "damped-default-clocks",
+     "dataset": "50k",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ics26_dynlp-damped-default-clocks-50k.json",
+     "date": "2026-11-04T03:00:50Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "damped-default-clocks",
+     "dataset": "500k",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ics26_dynlp-damped-default-clocks-500k.json",
+     "date": "2026-11-04T03:01:02Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "damped-default-clocks",
+     "dataset": "5m",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ics26_dynlp-damped-default-clocks-5m.json",
+     "date": "2026-11-04T03:01:33Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "kernels-500k",
+     "dataset": "500k",
+     "kind": "kernels",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": false,
+     "record": "ics26_dynlp-kernels-500k-500k.json",
+     "date": "2026-11-04T03:05:29Z",
+     "protocol": {
+      "gpu": 0,
+      "tool": "ncu --clock-control base --launch-count 4000 --metrics gpu__time_duration.sum,launch__registers_per_thread,launch__occupancy_limit_registers,launch__occupancy_limit_warps,launch__occupancy_limit_shared_mem,launch__occupancy_limit_blocks,sm__maximum_warps_per_active_cycle_pct,sm__warps_active.avg.pct_of_peak_sustained_active,launch__grid_size,launch__block_size",
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "argv": "the timed argv (bench/run.sh's); the port adds --backend cuda"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "damped-50m",
+     "dataset": "50m",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": false,
+     "record": "ics26_dynlp-damped-50m-50m.json",
+     "date": "2026-11-04T03:07:47Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    },
+    {
+     "reading": "in_place-50m",
+     "dataset": "50m",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": false,
+     "record": "ics26_dynlp-in_place-50m-50m.json",
+     "date": "2026-11-04T03:18:40Z",
+     "protocol": {
+      "gpu": 0,
+      "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+      "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+      "statistic": "median; ratio = port / original"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+    }
+   ],
+   "execution_started": "2026-11-04T02:41:43Z",
+   "gated_regions": 12,
+   "within_gate": 12,
+   "ratio_range": [
+    0.9884803345381553,
+    1.0915752506810341
+   ],
+   "gate_table": [
+    {
+     "reading": "damped-50k",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "50k/damped",
+     "region": "update[sum]",
+     "ratio": 1.0047318760663217,
+     "original_ms": 106.089,
+     "port_ms": 106.59100000000001,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "damped-50k",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "50k/damped",
+     "region": "end_to_end",
+     "ratio": 1.0915752506810341,
+     "original_ms": 406.18395805358887,
+     "port_ms": 443.38035583496094,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "damped-500k",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "500k/damped",
+     "region": "update[sum]",
+     "ratio": 1.004378303718858,
+     "original_ms": 481.465,
+     "port_ms": 483.573,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "damped-500k",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "500k/damped",
+     "region": "end_to_end",
+     "ratio": 1.031706745606233,
+     "original_ms": 1163.0847454071045,
+     "port_ms": 1199.9623775482178,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "damped-5m",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "5m/damped",
+     "region": "update[sum]",
+     "ratio": 0.9884803345381553,
+     "original_ms": 5623.514,
+     "port_ms": 5558.733,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "damped-5m",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "5m/damped",
+     "region": "end_to_end",
+     "ratio": 1.0018121149903136,
+     "original_ms": 10540.274381637573,
+     "port_ms": 10559.374570846558,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "damped-5m1",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "5m1/damped",
+     "region": "update[sum]",
+     "ratio": 1.0167511693994749,
+     "original_ms": 1385.7540000000001,
+     "port_ms": 1408.9669999999999,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "damped-5m1",
+     "backend": "cuda",
+     "clocks": "boost",
+     "case": "5m1/damped",
+     "region": "end_to_end",
+     "ratio": 1.0314522680559497,
+     "original_ms": 5992.531538009644,
+     "port_ms": 6181.0102462768555,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "memory-damped",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "50k/damped",
+     "region": "device_memory",
+     "ratio": 1.0021420634015379,
+     "original_mib": 6.036642074584961,
+     "port_mib": 6.049572944641113,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "memory-damped",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "500k/damped",
+     "region": "device_memory",
+     "ratio": 1.0021401033227115,
+     "original_mib": 60.25638389587402,
+     "port_mib": 60.38533878326416,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "memory-damped",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "5m/damped",
+     "region": "device_memory",
+     "ratio": 1.0021395099297647,
+     "original_mib": 602.5544452667236,
+     "port_mib": 603.8436164855957,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "memory-damped",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "5m1/damped",
+     "region": "device_memory",
+     "ratio": 1.0120618399593366,
+     "original_mib": 1214.902795791626,
+     "port_mib": 1229.5567588806152,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    }
+   ],
+   "recorded_not_gated": [],
+   "release_only": [
+    {
+     "reading": "release-damped-50m",
+     "cases": [
+      "50m"
+     ],
+     "state": "gated",
+     "reason": "AD4's feasibility statement, judged from M10a step 5's 3 damped A/B rounds of 50m at base on the final M10a library (--noGraphFiles on both sides; parity/results/M10a-gates-final.json, parity/results/M10a.md section 12): the 3 rounds took 10 min 50 s in one exclusive window (the original about 102 s, the port about 109 s of wall time per round) and 0 of 3 rounds were rejected, so 5 rounds take about 18 min, under 2 h, with no rejected round (the limits: 2 h, 30 %); the pre-port baseline's probe agrees (98 s per round of the original, 0 of 6 rejected; parity/results/M10-baseline-2026-10-29.json). The reading is gated at R040",
+     "required": false,
+     "status": "outside this dry run (pending R040)"
+    }
+   ],
+   "passed": true
+  }
+ ],
+ "checks": [],
+ "dry_run": {
+  "algorithm": "label_propagation",
+  "what": "a dry run of one algorithm's parts of a certificate: its performance suites (recheck_gates) and golden sets judged as in a release; not a release's certificate",
+  "outside": [
+   "golden set sssp",
+   "golden set cycle_count",
+   "golden set cycle_count_cuda",
+   "golden set mosp_scale",
+   "golden set cbst_trace_escher_gpu_test",
+   "golden set cbst_trace_escher_gpu_targeted",
+   "golden set cbst_trace_mosp_escher_targeted",
+   "golden set cbst_trace_escher_gpu_coauth50k",
+   "golden set cbst_trace_mosp_escher_dblp50k_hyperedge",
+   "golden set cbst_trace_mosp_escher_dblp50k_vertex",
+   "golden set cbst_trace_escher_gpu_syn1m",
+   "golden set cbst_trace_mosp_escher_test",
+   "golden set triad_count_escher_gpu",
+   "suite ipdps25_dynamosp_sosp (sssp)",
+   "suite ieee_tc_dyntrucy (cycle_count)",
+   "suite ipdps25_dynamosp_mosp (mosp)",
+   "suite ipdps26_escher (triad_count)",
+   "suite tkde26_escher_plus (triad_count)",
+   "the release checks (checks.json)",
+   "the committed fixtures",
+   "release-only reading release-damped-50m of ics26_dynlp (gated; pending R040)"
+  ]
+ },
+ "verdict": {
+  "golden_parity": false,
+  "committed_fixtures": "outside this dry run",
+  "performance_gates": true,
+  "checks": "outside this dry run",
+  "problems": [
+   "golden set label_propagation_inplace: no passed replay on cuda (compare.py label_propagation <kind> --json, then compare.py label_propagation certificate)",
+   "golden set label_propagation_inplace: 4 of the 4 cases of the set need cuda have no passed replay (first: 500k_d1e-4_s42_inplace; a replay of a subset certifies nothing of the rest)"
+  ],
+  "passed": false
+ }
+}

@@ -21,6 +21,52 @@ target_compile_features(dyng-compat-cycle-enum PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-cycle-enum)
 dyng_enable_sanitizers(dyng-compat-cycle-enum)
 
+# LabelPropagation-CUDA@a276a3a's dynLP on dynG (M10a; ADR 0073): installed public headers only
+# (tools/compat/dynlp/check_includes.cmake checks it; CI builds it against an install tree).
+if(TARGET dyng_label_propagation)
+  add_executable(dyng-compat-dynlp dynlp/dynlp_compat.cpp)
+  target_link_libraries(dyng-compat-dynlp PRIVATE dyng::dyng dyng::testing)
+  if(DYNG_ENABLE_OPENMP)
+    # The evaluation's accuracy sums run in an OpenMP region above 10^6 vertices, as the
+    # original's computeAccuracy.
+    target_link_libraries(dyng-compat-dynlp PRIVATE OpenMP::OpenMP_CXX)
+  endif()
+  if(DYNG_ENABLE_CUDA)
+    # The tool times each update() with its own CUDA events on the resources' stream (AD2).
+    target_link_libraries(dyng-compat-dynlp PRIVATE CUDA::cudart)
+    target_compile_definitions(dyng-compat-dynlp PRIVATE DYNG_COMPAT_CUDA_EVENTS=1)
+  endif()
+  target_compile_features(dyng-compat-dynlp PRIVATE cxx_std_17)
+  dyng_set_warnings(dyng-compat-dynlp)
+  dyng_enable_sanitizers(dyng-compat-dynlp)
+  if(DYNG_BUILD_TESTS)
+    add_test(
+      NAME compat_dynlp.includes
+      COMMAND
+        ${CMAKE_COMMAND} -DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/dynlp/dynlp_compat.cpp
+        -DINCLUDE_DIR=${PROJECT_SOURCE_DIR}/cpp/include -P
+        ${CMAKE_CURRENT_SOURCE_DIR}/dynlp/check_includes.cmake
+    )
+    set_tests_properties(compat_dynlp.includes PROPERTIES LABELS "cpu;label_propagation;compat")
+    # The tool's own run of a small case (C8's refusals included).
+    add_test(NAME compat_dynlp.small
+             COMMAND dyng-compat-dynlp --totalNodes 2000 --numBatches 3 --quiet --noValidate
+                     --noGraphFiles --update damped --backend sequential --output
+                     ${CMAKE_CURRENT_BINARY_DIR}/out/compat_dynlp.small)
+    set_tests_properties(compat_dynlp.small PROPERTIES LABELS "cpu;label_propagation;compat")
+    foreach(_refused "tau0;--tau;0" "taunan;--tau;nan" "maxiter0;--maxIter;0")
+      list(GET _refused 0 _name)
+      list(GET _refused 1 _flag)
+      list(GET _refused 2 _value)
+      add_test(NAME compat_dynlp.refuses.${_name}
+               COMMAND dyng-compat-dynlp --totalNodes 100 --numBatches 2 ${_flag} ${_value}
+                       --backend sequential --output ${CMAKE_CURRENT_BINARY_DIR}/out/refused)
+      set_tests_properties(compat_dynlp.refuses.${_name} PROPERTIES LABELS
+                           "cpu;label_propagation;compat" WILL_FAIL TRUE)
+    endforeach()
+  endif()
+endif()
+
 # ESCHER-GPU@abcf9b2's batch dumps (the batch records of M8a's CBST traces) as .hg / .dgb files,
 # and their replay through dyng::hypergraph (M8b; the triad_count parity of M9 replays them). The
 # trace reader is the parity side's (cpp/tests/parity/escher), which uses the standard library only.

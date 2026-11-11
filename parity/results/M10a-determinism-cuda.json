@@ -1,0 +1,45 @@
+{
+ "backend": "cuda",
+ "cases": [
+  {
+   "case": "5k5_d1e-6_s42",
+   "digests": [
+    "7fad573506feb344b898ecce87d16007dca483afe81eb4e46829994d69d68120",
+    "7fad573506feb344b898ecce87d16007dca483afe81eb4e46829994d69d68120"
+   ],
+   "identical": true,
+   "required": true
+  },
+  {
+   "case": "5k5_d1e-6_s42_inplace",
+   "digests": [
+    "02f10175564e71de69b9d95b282f98701786c03a1d350c35ce3e8b97ad221184",
+    "4ee2cb98c5c84303761cc53efdf43c217d63bd61425ed8a74a27cc65a0752e85"
+   ],
+   "identical": false,
+   "required": false
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "digests": [
+    "a48ef782c206ab0e3ee40611d9a98f22c934290d98c7f90b34ac4e239a81c121",
+    "a48ef782c206ab0e3ee40611d9a98f22c934290d98c7f90b34ac4e239a81c121"
+   ],
+   "identical": true,
+   "required": true
+  },
+  {
+   "case": "50k_d1e-6_s42_inplace",
+   "digests": [
+    "a6c7cdc6baa438316d5627300ffb71f27acfd771a9c4be147d34215b2eaa47da",
+    "cf7718aced480ce96b8a3c4699a65c9e95fdd65d4f2a1bcef74112936eeacfa2"
+   ],
+   "identical": false,
+   "required": false
+  }
+ ],
+ "date": "2026-10-30T00:35:52Z",
+ "equal": true,
+ "schema": 1,
+ "what": "run-to-run label bits (criterion 11)"
+}

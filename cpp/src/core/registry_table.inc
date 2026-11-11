@@ -94,3 +94,16 @@ table.push_back(algorithm_info{
     {"escher2026", "escherplus2026"},
 });
 #endif
+#if defined(DYNG_ALGORITHM_LABEL_PROPAGATION)
+table.push_back(algorithm_info{
+    "label_propagation",
+    "Dynamic label propagation",
+    algorithm_family::fixed_point,
+    container_kind::graph,
+    maturity_level::experimental,
+    determinism::tolerance,
+    oracle_kind::reference,
+    {backend::sequential, backend::cuda},
+    {"dynlp2026"},
+});
+#endif

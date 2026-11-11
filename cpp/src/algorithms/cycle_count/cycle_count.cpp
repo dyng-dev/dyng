@@ -203,6 +203,7 @@ cycle_device_graph<edge_t> device_engine_graph(const device_graph<vertex_t, edge
 /// a simple graph.
 template <typename vertex_t, typename edge_t, typename weight_t>
 void expect_graph(const graph<vertex_t, edge_t, weight_t>& g, const char* what) {
+  expect_compact_layout(g.properties(), what);  // AD11: compact rows only (ADR 0070)
   const graph_properties& props = g.properties();
   DYNG_EXPECTS(props.parallel_edges == multi_edges::forbid && props.order == row_order::sorted,
                what,
@@ -347,6 +348,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void cycle_count_problem<vertex_t, edge_t, weight_t>::begin_update(framework::context& ctx,
                                                                    old_graph g,
                                                                    const requested& /*batch*/) {
+  expect_compact_layout(g->properties(), "cycle_count::update");  // AD11 (ADR 0070)
   const resources& res = ctx.res();
   expect_supported_backend(res, "cycle_count::update");
   state_ = &cycle_count_access::state(*result_);

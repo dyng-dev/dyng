@@ -9,7 +9,8 @@
 #         -DOBJECT=<its object file> [-DHEADER=<its public header>] [-DFLAGS=<f1|f2|...>]
 #         -P check_model_isolation.cmake
 #
-# HEADER defaults to cpp/include/dyng/testing/cbst_host_model.hpp. FLAGS are the compile flags
+# HEADER defaults to cpp/include/dyng/testing/cbst_host_model.hpp; ALLOWED (optional,
+# "|"-separated) names further dyng/testing headers the source may include. FLAGS are the compile flags
 # and definitions the build compiles the source with ("|"-separated: the OpenMP flag, -D...), so
 # the preprocessor sees the code the build compiles (an include under #ifdef _OPENMP counts; M9a
 # review).
@@ -46,6 +47,12 @@ if(NOT DEFINED HEADER OR "${HEADER}" STREQUAL "")
 endif()
 get_filename_component(_name "${HEADER}" NAME_WE)
 set(_allowed "${HEADER}")
+if(DEFINED ALLOWED AND NOT "${ALLOWED}" STREQUAL "")
+  # Further headers the source may include (the oracles of one family: label_propagation's
+  # lp_host_model uses dyng/testing/union_find.hpp), "|"-separated.
+  string(REPLACE "|" ";" _more "${ALLOWED}")
+  list(APPEND _allowed ${_more})
+endif()
 set(_bad "")
 foreach(_dep IN LISTS _deps)
   file(REAL_PATH "${_dep}" _real BASE_DIRECTORY "${REPO}")
@@ -53,7 +60,7 @@ foreach(_dep IN LISTS _deps)
     continue()
   endif()
   string(FIND "${_real}" "${REPO}/" _in_repo)
-  if(_in_repo EQUAL 0 AND NOT _real STREQUAL _allowed)
+  if(_in_repo EQUAL 0 AND NOT _real IN_LIST _allowed)
     list(APPEND _bad "${_real}")
   endif()
 endforeach()

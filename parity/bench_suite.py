@@ -89,6 +89,8 @@ TOOLS = {
     "cycle_count": "perf_ab.cycle_count",
     "hyper_sssp": "perf_ab.hyper_sssp",  # parity/hsosp_perf.py (M11a)
     "triad_count": "perf_ab.triad_count",  # parity/triad_perf.py (M9a step 2)
+    # parity/label_propagation_perf.py (M10a; `perf_ab.py label_propagation run|memory|kernels`)
+    "label_propagation": "perf_ab.label_propagation",
 }
 REGION_MAPS = {
     "sssp": "parity/timed_regions/sssp.toml",
@@ -96,6 +98,7 @@ REGION_MAPS = {
     "cycle_count": "parity/timed_regions/cycle_count.toml",
     "hyper_sssp": "parity/timed_regions/hyper_sssp.toml",  # M11a (ADR 0080)
     "triad_count": "parity/timed_regions/triad_count.toml",
+    "label_propagation": "parity/timed_regions/label_propagation.toml",  # M10a (ADR 0064)
 }
 # The region map's section per backend.
 MAP_KEYS = {
@@ -104,6 +107,7 @@ MAP_KEYS = {
     "cycle_count": {"openmp": "cycle_enum_openmp", "cuda": "cycle_enum_cuda"},
     "hyper_sssp": {"cuda": "mosp_escher"},
     "triad_count": {"cuda": "escher_gpu"},
+    "label_propagation": {"cuda": "dynlp_cuda"},
 }
 EXECUTABLES = {
     "sssp": "dyng-compat-mosp",
@@ -111,6 +115,7 @@ EXECUTABLES = {
     "cycle_count": "dyng-compat-cycle-enum",
     "hyper_sssp": "dyng-compat-hsosp",  # `dyng-compat-hsosp bench` (M11a)
     "triad_count": "dyng-compat-escher",  # `dyng-compat-escher run` (M9a step 2)
+    "label_propagation": "dyng-compat-dynlp",  # O's argv (tools/compat/dynlp, M10a)
 }
 # The algorithms whose harness runs one command per dataset over the MOSP bench inputs
 # ($DYNG_SCRATCH/bench/mosp/<graph>, parity/perf_ab.py prepare): sssp (`perf_ab.py run|memory`)
@@ -133,6 +138,16 @@ TRIAD_PATTERNS = ("main", "type1", "type2", "type3")
 # The memory metrics of an algorithm's suites (the gate "memory"): the Nsight Systems peak, and
 # for triad_count also the store accounting (the author's decision of 2026-10-07).
 MEMORY_METRICS = {"triad_count": ("device_memory", "store_memory")}
+# label_propagation (M10a, ADR 0078): a reading's schedule (the suite's name; perf_ab's --schedules
+# says inplace), its kinds (the ncu kernel reading is reported only), the release-only reading's
+# states (AD4: gated at R040, or recorded only with its reason), the generator its datasets are
+# pinned by (the golden set label_propagation_generator's case digests).
+LP_SCHEDULES = {"damped": "damped", "in_place": "inplace"}
+LP_KINDS = ("run", "memory", "kernels")
+LP_RELEASE_STATES = ("gated", "recorded_only")
+LP_GENERATOR = "generators::legacy::dynlp_vertex_arrival_stream"
+LP_BATCH_GENERATOR = "legacy.dynlp_vertex_arrival"
+LP_BASELINE = REPO / "parity" / "results" / "M10-baseline-2026-10-29.json"
 COMPACTED = (
     "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the "
     "rejected rounds) and triad_count's per-round stage timers (results.*.original_rounds and "
@@ -179,7 +194,10 @@ def region_map(algorithm: str, backend: str) -> dict[str, dict]:
     for r in doc["reference"][MAP_KEYS[algorithm][backend]]["region"]:
         perf_ab.check_batch_rows(REPO / REGION_MAPS[algorithm], r)
         for row in perf_ab.region_rows(r):
-            out[row] = r if row == r["name"] else dict(r, name=row, row_of=r["name"])
+            if row == r["name"]:
+                out[row] = r
+            else:  # a per-batch row, or the gated sum row (sum_gate, M10) with its own gate
+                out[row] = dict(r, name=row, row_of=r["name"], gate=perf_ab.row_gate(r, row))
     return out
 
 
@@ -862,6 +880,128 @@ def validate_triad(suite: dict, datasets: dict, batches: dict, need) -> None:
                 )
 
 
+def lp_perf():
+    import label_propagation_perf
+
+    return label_propagation_perf
+
+
+def lp_generator_digest(config: str) -> str | None:
+    """The golden set label_propagation_generator's digest of a configuration (seed 42, average
+    degree 5): the SHA-256 of its CSR, labels and batches (M10a step 1)."""
+    sets = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())["sets"]
+    case = (
+        (sets.get("label_propagation_generator") or {}).get("cases", {}).get(f"{config}_d1e-4_s42")
+    )
+    return (case or {}).get("sha256")
+
+
+def lp_recorded_lock(case: str, schedule: str) -> str | None:
+    """The clock lock the pre-port baseline recorded for a case and schedule (AD3, ADR 0021)."""
+    doc = json.loads(LP_BASELINE.read_text())
+    res = (doc.get("results") or {}).get(f"{case}/{LP_SCHEDULES.get(schedule, schedule)}") or {}
+    return (res.get("lock_decision") or {}).get("lock")
+
+
+def validate_label_propagation(suite: dict, datasets: dict, batches: dict, need) -> None:
+    """label_propagation's suite (M10a, ADR 0078): the datasets are LabelPropagation-CUDA's
+    configurations, pinned by their generator parameters and the golden set's digest; the batches
+    the same configurations; every reading has a schedule and its cases; a gated reading is damped
+    (AD2), at the baseline's recorded lock and with AD3's rounds; the in_place and default-clock
+    readings and the kernels are recorded only; a release-only reading (the 50m gate of AD4) has
+    a release gate state, gated or recorded_only, with its reason."""
+    lpp = lp_perf()
+    for dname, d in datasets.items():
+        if not need(dname in lpp.CASES, f"dataset {dname}: one of {sorted(lpp.CASES)}"):
+            continue
+        n, b = lpp.CASES[dname]
+        gen = d.get("generator") or {}
+        need(
+            gen.get("name") == LP_GENERATOR,
+            f"dataset {dname}: generator.name must be {LP_GENERATOR}",
+        )
+        need(
+            gen.get("parameters")
+            == {"total_vertices": n, "num_batches": b, "average_degree": 5, "seed": 42},
+            f"dataset {dname}: generator.parameters must be the original's configuration",
+        )
+        need(
+            d.get("sha256") == lp_generator_digest(dname),
+            f"dataset {dname}: sha256 must be the golden set label_propagation_generator's "
+            f"digest of {dname}_d1e-4_s42",
+        )
+    for bname, b in batches.items():
+        if not need(bname in lpp.CASES, f"batch {bname}: one of {sorted(lpp.CASES)}"):
+            continue
+        n, nb = lpp.CASES[bname]
+        need(
+            b.get("generator") == LP_BATCH_GENERATOR,
+            f"batch {bname}: generator {LP_BATCH_GENERATOR}",
+        )
+        need(
+            b.get("total_vertices") == n and b.get("num_batches") == nb,
+            f"batch {bname}: total_vertices {n} and num_batches {nb}",
+        )
+    release_only = 0
+    for r in suite["readings"]:
+        rname = r.get("name")
+        kind = r.get("kind")
+        schedule = r.get("schedule")
+        need(
+            schedule in LP_SCHEDULES,
+            f"reading {rname}: schedule must be one of {sorted(LP_SCHEDULES)}",
+        )
+        cases = r.get("cases") or []
+        need(bool(cases), f"reading {rname}: needs cases")
+        for c in cases:
+            need(
+                c in batches and c in datasets,
+                f"reading {rname}: case {c} is not a batch and dataset",
+            )
+        if r.get("gated"):
+            need(schedule == "damped", f"reading {rname}: AD2 gates the damped schedule only")
+            need(kind in ("run", "memory"), f"reading {rname}: a {kind} reading is reported only")
+        if kind == "memory":
+            need(r.get("gpu", 1) == 1, f"reading {rname}: the D1 peak is read on GPU 1 (B5)")
+        if r.get("release_only") is not None:
+            need(isinstance(r["release_only"], bool), f"reading {rname}: release_only is a bool")
+        if r.get("release_only"):
+            release_only += 1
+            gate = r.get("release_gate") or {}
+            need(
+                gate.get("state") in LP_RELEASE_STATES,
+                f"reading {rname}: a release-only reading needs release_gate.state in "
+                f"{LP_RELEASE_STATES} (AD4)",
+            )
+            need(
+                isinstance(gate.get("reason"), str) and bool(gate["reason"].strip()),
+                f"reading {rname}: release_gate.reason must say why (AD4)",
+            )
+            need(
+                kind == "run" and schedule == "damped" and r.get("gated") is True,
+                f"reading {rname}: the release-only reading is a gated damped run (AD4)",
+            )
+            need(r.get("clocks") == "base" and r.get("runs") == 5,
+                 f"reading {rname}: AD4's release gate is 5 rounds at base")  # fmt: skip
+            need(cases == ["50m"], f"reading {rname}: AD4's release gate is the 50m case")
+            continue
+        need(
+            "release_gate" not in r, f"reading {rname}: release_gate only on a release-only reading"
+        )
+        if kind == "run" and r.get("gated"):
+            for c in cases:
+                need(
+                    isinstance(r.get("runs"), int) and r["runs"] >= lpp.ROUNDS[c],
+                    f"reading {rname}: AD3 reads {c} with {lpp.ROUNDS[c]} rounds",
+                )
+                need(
+                    r.get("clocks") == lp_recorded_lock(c, schedule),
+                    f"reading {rname}: {c} at the baseline's recorded lock "
+                    f"{lp_recorded_lock(c, schedule)!r} (AD3, ADR 0021)",
+                )
+    need(release_only <= 1, "one release-only reading (AD4's 50m gate)")
+
+
 def harness_cases(backend: str) -> set[str]:
     import cycle_count_goldens as goldens
 
@@ -1088,6 +1228,8 @@ def validate(suite: dict) -> list[str]:
         return errors
     elif algorithm == "triad_count":
         validate_triad(suite, datasets, batches, need)
+    elif algorithm == "label_propagation":
+        validate_label_propagation(suite, datasets, batches, need)
     else:
         cases = {
             case_name(c, batches)
@@ -1111,7 +1253,13 @@ def validate(suite: dict) -> list[str]:
         ):
             continue
         names.add(rname)
-        need(r.get("kind") in KINDS, f"reading {rname}: kind must be one of {KINDS}")
+        kinds = LP_KINDS if algorithm == "label_propagation" else KINDS
+        need(r.get("kind") in kinds, f"reading {rname}: kind must be one of {kinds}")
+        if algorithm != "label_propagation":
+            need(
+                not ({"schedule", "release_only", "release_gate"} & set(r)),
+                f"reading {rname}: schedule and release-only readings are label_propagation's",
+            )
         need(
             r.get("backend") in backends,
             f"reading {rname}: backend {r.get('backend')!r} is not in backends",
@@ -1127,9 +1275,12 @@ def validate(suite: dict) -> list[str]:
         if r.get("kind") == "memory":
             need(r.get("backend") == "cuda", f"reading {rname}: memory readings are CUDA")
         runs = r.get("runs")
+        # AD4: the 50m readings of M10 are recorded with 3 rounds (damped) and one process
+        # (in place), never gated.
+        least = 1 if algorithm == "label_propagation" and not r.get("gated") else 5
         need(
-            runs is None or (isinstance(runs, int) and runs >= 5),
-            f"reading {rname}: runs must be >= 5",
+            runs is None or (isinstance(runs, int) and runs >= least),
+            f"reading {rname}: runs must be >= {least}",
         )
         if algorithm == "cycle_count":
             known = harness_cases(r.get("backend", "openmp"))
@@ -1174,10 +1325,12 @@ def plan(
     runs: int | None = None,
     lock_timeout: float = 4 * 3600.0,
     keep_contaminated: bool = False,
+    release_only: bool = False,
 ) -> list[dict]:
     """The harness commands of one execution of the suite. keep_contaminated (sssp, mosp: a
     diagnostic execution on a busy machine) keeps the rounds the contamination monitor would
-    repeat, flagged, instead of repeating them."""
+    repeat, flagged, instead of repeating them. A reading marked release_only (label_propagation's
+    50m gate of AD4, read once for the 0.4.0 certificate) is planned only with release_only."""
     algorithm = suite["algorithm"]
     selected = [r for r in suite["readings"] if not readings or r["name"] in readings]
     if readings:
@@ -1209,6 +1362,11 @@ def plan(
     for r in selected:
         backend = r["backend"]
         exe = build_root / PRESETS[backend] / "tools" / "compat" / EXECUTABLES[algorithm]
+        if r.get("release_only") and not release_only:
+            continue  # AD4: taken once at the release (R040), not by a milestone's execution
+        if algorithm == "label_propagation":
+            jobs += lp_jobs(suite, r, exe, records, datasets, runs, lock_timeout)
+            continue
         if algorithm in PER_DATASET:
             for dataset in names:
                 if datasets and dataset not in datasets:
@@ -1359,6 +1517,55 @@ def plan(
     return jobs
 
 
+def lp_jobs(suite: dict, r: dict, exe: Path, records: Path, datasets: list[str] | None,
+            runs: int | None, lock_timeout: float) -> list[dict]:  # fmt: skip
+    """label_propagation's commands of one reading: one `perf_ab.py label_propagation` per case
+    (each its own window of at most 2 h: run and kernels under the exclusive lock, memory in a
+    GPU-1 quiet window)."""
+    py = sys.executable
+    harness = str(REPO / "parity" / "perf_ab.py")
+    schedule = LP_SCHEDULES[r["schedule"]]
+    jobs = []
+    for case in r["cases"]:
+        if datasets and case not in datasets:
+            continue
+        out = records / record_name(suite, r, case)
+        common = ["--exe", str(exe), "--cases", case, "--schedules", schedule]
+        if r["kind"] == "run":
+            n = runs_for(suite, r, case, runs)
+            gpu = r.get("gpu", suite["backends"]["cuda"].get("gpu", 0))
+            argv = [py, harness, "label_propagation", "run", *common, "--rounds", str(n)]
+            argv += ["--gpu", str(gpu), "--lock-clocks", r["clocks"]]
+            argv += ["--lock-timeout", str(int(lock_timeout)), "--json", str(out)]
+            lock = "exclusive (the harness)"
+        elif r["kind"] == "memory":
+            n = None
+            argv = [py, harness, "label_propagation", "memory", "--side", "both", *common]
+            argv += ["--gpu", str(r.get("gpu", 1)), "--json", str(out)]
+            lock = "shared, in a GPU-1 quiet window (B5)"
+        else:  # kernels
+            n = None
+            gpu = r.get("gpu", suite["backends"]["cuda"].get("gpu", 0))
+            argv = [py, harness, "label_propagation", "kernels", *common, "--gpu", str(gpu)]
+            argv += ["--lock-timeout", str(int(lock_timeout)), "--json", str(out)]
+            lock = "exclusive (the harness)"
+        jobs.append(
+            {
+                "reading": r["name"],
+                "dataset": case,
+                "kind": r["kind"],
+                "gated": r["gated"],
+                "record": out,
+                "argv": argv,
+                "lock": lock,
+                "schedule": r["schedule"],
+                "runs": n,
+                "release_only": bool(r.get("release_only")),
+            }
+        )
+    return jobs
+
+
 # --- Inputs --------------------------------------------------------------------------------------
 
 
@@ -1405,6 +1612,15 @@ def verify_inputs(suite: dict, datasets: list[str] | None = None) -> dict:
                     )
             report[d["name"]] = "the golden set's stored rows of every seed have the digests"
             continue
+        if suite["algorithm"] == "label_propagation":
+            # Generated in-process by both sides from the configuration; the digest is the golden
+            # set label_propagation_generator's, which dynG's generator reproduces byte for byte
+            # (M10a step 2); the guard compares what both sides computed in every round.
+            want = lp_generator_digest(d["name"])
+            if d.get("sha256") != want:
+                raise SuiteError(f"{d['name']}: sha256 is not the golden set's {want}")
+            report[d["name"]] = "the configuration's digest is the golden set's"
+            continue
         root = input_root(suite, d)
         for rel, want in expected_inputs(suite, d).items():
             path = root / rel
@@ -1419,7 +1635,7 @@ def verify_inputs(suite: dict, datasets: list[str] | None = None) -> dict:
 
 def record_datasets(suite: dict, job: dict, record: dict) -> list[str]:
     """The suite datasets a record measured: the job's (sssp, mosp), or those its cases read."""
-    if suite["algorithm"] in PER_DATASET:
+    if suite["algorithm"] in PER_DATASET or suite["algorithm"] == "label_propagation":
         return [job["dataset"]]
     if suite["algorithm"] == "triad_count":
         return sorted({d for k in record.get("results", {}) if (d := triad_case_dataset(k))})
@@ -1516,6 +1732,32 @@ def check_record_inputs(
             "parameters), with the guard requiring the golden's counts from every measured "
             "process (each round of a timed reading; each plain and profiled run of a memory "
             "reading)",
+        }
+        if problems:
+            out["problems"] = problems
+        return out
+    if suite["algorithm"] == "label_propagation":
+        # Both sides generate the case in-process from its configuration (the argv the record
+        # names), pinned by the golden set's digest; the guard compared what both computed in
+        # every round (damped: every batch's counts and the label bytes; in place: the
+        # components), and a memory reading's two sides ran the same argv.
+        results = record.get("results") or {}
+        problems = []
+        for key, r in results.items():
+            case = key.split("/", 1)[0]
+            want = lp_perf().timed_argv(case, key.split("/")[1], Path("<scratch>"))
+            got = r.get("argv") or []
+            if got[: len(want)] != want:
+                problems.append(f"{key}: argv {r.get('argv')} is not the configuration's")
+            if by_name.get(case, {}).get("sha256") != lp_generator_digest(case):
+                problems.append(f"{key}: the suite's digest of {case} is not the golden set's")
+            if job["kind"] == "run" and (r.get("guard") or {}).get("passed") is not True:
+                problems.append(f"{key}: no guard on its rounds")
+        out |= {
+            "verified": bool(results) and not problems,
+            "how": "generated in-process by both sides from the configuration (the golden set's "
+            "digest; dynG's generator byte-identical to the original's), the per-round guard on "
+            "what both computed",
         }
         if problems:
             out["problems"] = problems
@@ -1702,6 +1944,8 @@ def read_record(
                     )
     if algorithm == "triad_count":
         check_triad_record(suite, job, record, where, problems)
+    if algorithm == "label_propagation":
+        return lp_read_record(suite, job, reading, record, tol, problems, started, where, base)
     port = record.get("port", {})
     build = port.get("build") or {}
     if job["kind"] == "run" and build.get("parity_preset") is False:
@@ -1868,6 +2112,188 @@ def read_record(
             k: v
             for k, v in (record.get("protocol") or {}).items()
             if k in ("runs", "threads", "env", "lock", "statistic", "order", "scopes")
+        },
+        "host": record.get("host"),
+        "driver": record.get("driver"),
+        "inputs": inputs,
+        "complete": complete,
+        "contaminated_runs": contaminated,
+        "regions": regions,
+        "_raw": record,
+    }
+
+
+def lp_parity_build(build: dict) -> bool:
+    """Whether a port record's build is the parity-cuda preset (Release, -O3 -fmad=true, sm_86)."""
+    flags = build.get("CMAKE_CUDA_FLAGS_RELEASE", "")
+    return (
+        build.get("CMAKE_BUILD_TYPE") == "Release"
+        and "-O3" in flags
+        and "-fmad=true" in flags
+        and build.get("DYNG_CUDA_ARCHITECTURES") == "86"
+    )
+
+
+def check_lp_record(job: dict, reading: dict, record: dict, where: str,
+                    problems: list[str]) -> bool:  # fmt: skip
+    """The record rules of one label_propagation reading (M10a, ADR 0078), checked when
+    bench_suite builds the summary and again by certify.py when it reads the summary's records
+    (M10a review: a stale or hand-assembled summary must not pass): the command, the one result
+    "<case>/<schedule>", a parity-cuda port; run: complete, at least the reading's rounds, each
+    row's medians those of its samples with one sample per round, the guard passed, the reading's
+    clock lock; memory: both sides counted, nvidia-smi sampled before, during and after the
+    reading with no foreign process and the side's own process seen during it (a sampler that saw
+    nothing would see no foreign process either; criterion 18). Returns whether the record is
+    complete (every rule held)."""
+    before = len(problems)
+    schedule = LP_SCHEDULES[reading["schedule"]]
+    want_key = f"{job['dataset']}/{schedule}"
+    results = record.get("results") or {}
+    if record.get("command") != job["kind"]:
+        problems.append(
+            f"{where}: a `{record.get('command')}` record, the reading is {job['kind']}"
+        )
+    if sorted(results) != [want_key]:
+        problems.append(f"{where}: results {sorted(results)}, the reading's is {want_key}")
+    build = (record.get("port") or {}).get("build") or {}
+    if not lp_parity_build(build):
+        problems.append(f"{where}: the port was not a parity-cuda build ({build})")
+    for key, res in results.items():
+        if job["kind"] == "run":
+            rounds = res.get("rounds", 0)
+            if res.get("complete") is not True or (job.get("runs") and rounds < job["runs"]):
+                problems.append(
+                    f"{where}: {key}: {res.get('rounds')} rounds, the reading's {job.get('runs')}"
+                )
+            if (res.get("guard") or {}).get("passed") is not True:
+                problems.append(f"{where}: {key}: the guard did not pass")
+            control = (res.get("clocks") or {}).get("control")
+            if control != reading["clocks"]:
+                problems.append(
+                    f"{where}: {key}: clocks {control!r}, the reading's {reading['clocks']!r}"
+                )
+            for name, reg in (res.get("regions") or {}).items():
+                for side in ("original", "port"):
+                    samples = (reg.get(side) or {}).get("samples")
+                    if not isinstance(samples, list) or len(samples) != rounds:
+                        n = len(samples) if isinstance(samples, list) else samples
+                        problems.append(
+                            f"{where}: {key} {name}: {n} {side} samples for {rounds} rounds"
+                        )
+                        continue
+                    med = statistics.median(samples)
+                    got = reg.get(f"{side}_median_ms")
+                    if got is None or abs(got - med) > 1e-9 * max(1.0, abs(med)):
+                        problems.append(
+                            f"{where}: {key} {name}: the {side} median {got} is not its "
+                            f"samples' {med}"
+                        )
+        elif job["kind"] == "memory":
+            if not res.get("counted"):
+                problems.append(f"{where}: {key}: not counted (a foreign process on the GPU)")
+            for side in ("original", "port"):
+                rec = res.get(side) or {}
+                gp = rec.get("gpu_processes") or {}
+                whens = {s.get("when") for s in gp.get("all") or []}
+                if rec.get("counted") is False:
+                    problems.append(f"{where}: {key}: the {side} side is not counted")
+                if gp.get("foreign"):
+                    problems.append(
+                        f"{where}: {key}: a foreign process on the GPU during the {side} reading"
+                    )
+                if not {"before", "during", "after"} <= whens:
+                    problems.append(
+                        f"{where}: {key}: the {side} reading has no nvidia-smi sample "
+                        f"{', '.join(sorted({'before', 'during', 'after'} - whens))} it"
+                    )
+                if not gp.get("own_seen_during"):
+                    problems.append(
+                        f"{where}: {key}: no nvidia-smi sample during the {side} reading saw its "
+                        "own process"
+                    )
+    return len(problems) == before
+
+
+def lp_read_record(suite: dict, job: dict, reading: dict, record: dict, tol: dict,
+                   problems: list[str], started, where: str, base: dict) -> dict:  # fmt: skip
+    """One label_propagation reading (M10a, ADR 0078): its record's results "<case>/<schedule>"
+    checked against the reading (the command, the schedule, the case, the rounds, the lock, the
+    guard, a parity-cuda port) and turned into summary rows: run: update[sum] and end_to_end
+    gated on a gated (damped) reading, every other row reported; memory: device_memory, both
+    sides counted; kernels: no row (reported in its record)."""
+    path = Path(job["record"])
+    results = record.get("results") or {}
+    complete = check_lp_record(job, reading, record, where, problems)
+    gate_of = {name: reg["gate"] for name, reg in region_map("label_propagation", "cuda").items()}
+    regions, contaminated = [], {}
+    for key, res in results.items():
+        if job["kind"] == "run":
+            if res.get("rejected"):
+                contaminated[key] = len(res["rejected"])  # repeated, never kept
+            for name, reg in (res.get("regions") or {}).items():
+                kind = gate_of.get(name, "none") if reading["gated"] else "none"
+                row = {
+                    "case": key,
+                    "region": name,
+                    "gate_kind": kind,
+                    "original_ms": reg.get("original_median_ms"),
+                    "port_ms": reg.get("port_median_ms"),
+                    "ratio": reg.get("ratio"),
+                }
+                if kind in ("compute", "end_to_end"):
+                    gate = expected_gate(tol, kind, reg["original_median_ms"])
+                    if reg.get("bar") is not None and abs(reg["bar"] - gate) > 1e-9:
+                        problems.append(
+                            f"{where}: {key} {name}: the harness's bar {reg['bar']}, the suite "
+                            f"says {gate}"
+                        )
+                    row["gate"] = gate
+                    row["within_gate"] = bool(reg["ratio"] <= gate)
+                    row["provisional"] = False
+                    row["noisy"] = False
+                regions.append(row)
+        elif job["kind"] == "memory":
+            original = peak_mib(res.get("original"))
+            port_mib = peak_mib(res.get("port"))
+            ratio = port_mib / original if original and port_mib is not None else None
+            regions.append(
+                {
+                    "case": key,
+                    "region": "device_memory",
+                    "gate_kind": "memory",
+                    "original_mib": original,
+                    "port_mib": port_mib,
+                    "ratio": ratio,
+                    "gate": tol["memory"],
+                    "within_gate": ratio is not None and ratio <= tol["memory"],
+                    "provisional": False,
+                    "noisy": False,
+                }
+            )
+    inputs = check_record_inputs(suite, job, record, started)
+    if not inputs["verified"]:
+        problems.append(f"{where}: the inputs are not verified ({inputs['how']})")
+    ref = record.get("reference") or {}
+    return {
+        "reading": job["reading"],
+        "dataset": job["dataset"],
+        "kind": job["kind"],
+        "backend": reading["backend"],
+        "clocks": reading.get("clocks"),
+        "gated": reading["gated"],
+        "schedule": reading["schedule"],
+        "record": path.name,
+        "date": record.get("date"),
+        "port_commit": (record.get("port") or {}).get("commit"),
+        "reference": {
+            "name": ref.get("name"),
+            "commit": ref.get("commit") or base["commit"],
+            "variant": ref.get("variant", "unpatched"),
+        },
+        "protocol": {
+            k: v
+            for k, v in (record.get("protocol") or {}).items()
+            if k in ("gpu", "lock", "order", "env", "argv", "statistic", "tool")
         },
         "host": record.get("host"),
         "driver": record.get("driver"),
@@ -2230,6 +2656,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         p.add_argument("--lock-timeout", type=float, default=4 * 3600.0, metavar="SECONDS")
         p.add_argument(
+            "--release-only",
+            action="store_true",
+            help="also the readings marked release_only (label_propagation's 50m gate of AD4, "
+            "read once for the 0.4.0 certificate at the release)",
+        )
+        p.add_argument(
             "--keep-contaminated",
             action="store_true",
             help="sssp, mosp: a diagnostic execution on a busy machine (always partial): keep "
@@ -2298,6 +2730,7 @@ def main(argv: list[str] | None = None) -> int:
         keep_contaminated=args.keep_contaminated,
         runs=args.runs,
         lock_timeout=args.lock_timeout,
+        release_only=args.release_only,
     )
     if args.command == "plan":
         for job in jobs:

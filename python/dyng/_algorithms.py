@@ -58,4 +58,11 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "maturity": "stable",
         "python": "yes",
     },
+    "label_propagation": {
+        "title": "Dynamic label propagation",
+        "since": "0.4",
+        "container": "graph",
+        "maturity": "experimental",
+        "python": "no",
+    },
 }

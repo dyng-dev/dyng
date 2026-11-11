@@ -325,6 +325,8 @@ class result {
    *         memory and CUDA is not built, or on cuda if the engine of opt.cuda_engine cannot run.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error.
+   * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+   *         rows serve label_propagation; ADR 0070).
    * @sync
    * @guarantee Strong: `g` and the arrays are not modified, and nothing is kept if the call
    *            throws.
@@ -428,6 +430,8 @@ namespace dyng::mosp {
  *         of options::cuda_engine cannot run.
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync
  * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs (every tree canonical, lowest-id ties).
@@ -480,6 +484,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error (after the batch was
  *         applied, `r` is left unusable).
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync
  * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs (trees, combined arrays, path costs,

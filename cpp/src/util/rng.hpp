@@ -11,11 +11,17 @@
  * for a 32-bit engine. Because it does not call std::uniform_int_distribution, the streams are the
  * same under libc++ or MSVC. A unit test compares it with std::uniform_int_distribution when the
  * test is built against libstdc++.
+ *
+ * The 32-bit-engine twins of std::shuffle and of std::uniform_real_distribution<float> (through
+ * std::generate_canonical<float, 24>) reproduce libstdc++ 12 for DynLP's generator
+ * (LabelPropagation-CUDA's, ADR 0067) and are compared with std:: at run time on libstdc++
+ * builds as well.
  */
 #pragma once
 
 #include <dyng/core/error.hpp>
 
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <random>
@@ -142,6 +148,103 @@ void legacy_shuffle(std::vector<value_t>& values, engine_t& engine) {
   for (std::uint64_t i = 1; i != urange; ++i) {
     swap(values[i], values[legacy_uniform_int64(engine, 0, i)]);
   }
+}
+
+/**
+ * @brief std::shuffle exactly as libstdc++ (GCC 9 to 16 at least; GCC 12.2 is what
+ *        LabelPropagation-CUDA was built with) performs it with a 32-bit engine such as
+ *        std::mt19937, so the order does not depend on the standard library.
+ *
+ * The engine's range is 2^32 - 1. When it covers the square of the element count n (n <= 65535),
+ * libstdc++ draws the swap positions of two successive elements from one draw of
+ * uniform_int_distribution in [0, (i + 1)(i + 2) - 1] (__gen_two_uniform_ints), after one single
+ * swap for an even count; otherwise one draw in [0, i] per element. Every draw is a 32-bit-engine
+ * draw of uniform_int_distribution, i.e. legacy_uniform_int().
+ * @tparam value_t  Element type.
+ * @tparam engine_t A 32-bit uniform random bit generator (min() == 0, max() == 2^32 - 1).
+ * @param[in,out] values The elements, shuffled in place.
+ * @param[in,out] engine The engine.
+ */
+template <typename value_t, typename engine_t>
+void legacy_shuffle32(std::vector<value_t>& values, engine_t& engine) {
+  static_assert(engine_t::min() == 0 && engine_t::max() == 0xffffffffULL,
+                "legacy_shuffle32 reproduces the 32-bit engine path only");
+  if (values.empty()) {
+    return;
+  }
+  using std::swap;
+  const std::uint64_t urngrange = 0xffffffffULL;
+  const auto urange = static_cast<std::uint64_t>(values.size());
+  if (urngrange / urange >= urange) {
+    std::uint64_t i = 1;
+    if (urange % 2 == 0) {
+      swap(values[i], values[static_cast<std::size_t>(legacy_uniform_int(engine, 0, 1))]);
+      ++i;
+    }
+    while (i != urange) {
+      // __gen_two_uniform_ints(i + 1, i + 2): one draw in [0, (i + 1)(i + 2) - 1] (< 2^32).
+      const std::uint64_t b0 = i + 1;
+      const std::uint64_t b1 = i + 2;
+      const auto x = static_cast<std::uint64_t>(
+          legacy_uniform_int(engine, 0, static_cast<std::int64_t>(b0 * b1 - 1)));
+      swap(values[i], values[x / b1]);
+      ++i;
+      swap(values[i], values[x % b1]);
+      ++i;
+    }
+    return;
+  }
+  for (std::uint64_t i = 1; i != urange; ++i) {
+    swap(values[i], values[static_cast<std::size_t>(
+                        legacy_uniform_int(engine, 0, static_cast<std::int64_t>(i)))]);
+  }
+}
+
+/**
+ * @brief std::generate_canonical<float, 24>(engine) exactly as libstdc++ 12 computes it with a
+ *        32-bit engine such as std::mt19937 (the draw under std::uniform_real_distribution<float>).
+ *
+ * One engine call (m = max(1, ceil(24 / 32)) = 1): float(x) * 1.0f summed, divided by
+ * float(2^32) in float arithmetic, and the header's correction of a result >= 1 to
+ * nextafter(1.0f, 0.0f) (x near 2^32 rounds to 2^32 in float). Exact float arithmetic, so the
+ * translation unit must not contract it (it has no product to fuse, but its callers do: see
+ * legacy_uniform_real_float()).
+ * @tparam engine_t A 32-bit uniform random bit generator (min() == 0, max() == 2^32 - 1).
+ * @param[in,out] engine The engine.
+ * @return A float in [0, 1).
+ */
+template <typename engine_t>
+float legacy_generate_canonical_float(engine_t& engine) {
+  static_assert(engine_t::min() == 0 && engine_t::max() == 0xffffffffULL,
+                "legacy_generate_canonical_float reproduces the 32-bit engine path only");
+  const auto sum = static_cast<float>(static_cast<std::uint64_t>(engine()));
+  const float scale = 4294967296.0F;  // float(1.0f * (max - min + 1)): exactly 2^32
+  float ret = sum / scale;
+  if (ret >= 1.0F) {
+    ret = std::nextafter(1.0F, 0.0F);
+  }
+  return ret;
+}
+
+/**
+ * @brief std::uniform_real_distribution<float>(a, b)(engine) exactly as libstdc++ 12 computes it
+ *        with a 32-bit engine: (u * (b - a)) + a in float, u = legacy_generate_canonical_float().
+ *
+ * The product and the sum are two separately rounded float operations: the translation unit that
+ * calls this must be compiled with -ffp-contract=off (no fused multiply-add), as the original's
+ * x86-64 build had no FMA to contract into.
+ * @tparam engine_t A 32-bit uniform random bit generator.
+ * @param[in,out] engine The engine.
+ * @param[in]     a      Lower bound.
+ * @param[in]     b      Upper bound.
+ * @return The drawn value.
+ */
+template <typename engine_t>
+float legacy_uniform_real_float(engine_t& engine, float a, float b) {
+  const float u = legacy_generate_canonical_float(engine);
+  const float width = b - a;
+  const float scaled = u * width;
+  return scaled + a;
 }
 
 }  // namespace dyng::detail

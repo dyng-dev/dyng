@@ -1,0 +1,451 @@
+{
+ "schema": 1,
+ "what": "ADR 0024 rule 3: the location of the M10a step 3 excursions above 1.02 (stage-by-stage A/B of the same binaries as the readings, and the placement experiment); an experiment record, not a gate",
+ "sides": {
+  "A": "b2b1524 ($DYNG_SCRATCH/m10-builds/b0-parity-cuda)",
+  "B": "2fa0f27 ($DYNG_SCRATCH/m10-builds/head-parity-cuda)"
+ },
+ "windows": [
+  "adr0024-sssp-apply-stages 2026-10-29T16:27:37Z",
+  "adr0024-cycle_count-cuda-stages 2026-10-29T17:24:00Z",
+  "adr0024-cycle_count-build-diagnosis 2026-10-29T18:15:21Z",
+  "adr0024-sssp-openmp-roadNet-PA-placement 2026-10-29T16:52:07Z",
+  "adr0024-graph-build-placement 2026-10-29T18:23:03Z"
+ ],
+ "stage_medians_ms": {
+  "sssp openmp roadNet-PA safe50k (51 alternations, 17 file-name layouts)": {
+   "graph.apply": {
+    "A": 39.069,
+    "B": 39.672,
+    "ratio": 1.0154
+   },
+   "graph.build": {
+    "A": 3.548,
+    "B": 3.105,
+    "ratio": 0.8753
+   },
+   "graph.transpose": {
+    "A": 16.09,
+    "B": 16.569,
+    "ratio": 1.0298
+   },
+   "sssp.finalize": {
+    "A": 0.459,
+    "B": 0.462,
+    "ratio": 1.0062
+   },
+   "sssp.identify_affected": {
+    "A": 8.08,
+    "B": 8.045,
+    "ratio": 0.9956
+   },
+   "sssp.import": {
+    "A": 9.934,
+    "B": 9.932,
+    "ratio": 0.9998
+   },
+   "sssp.loop": {
+    "A": 24.948,
+    "B": 24.298,
+    "ratio": 0.9739
+   },
+   "sssp.prepare": {
+    "A": 0.802,
+    "B": 0.873,
+    "ratio": 1.0882
+   },
+   "sssp.seed": {
+    "A": 2.869,
+    "B": 2.843,
+    "ratio": 0.9912
+   },
+   "sssp.validate": {
+    "A": 5.19,
+    "B": 5.322,
+    "ratio": 1.0254
+   },
+   "sssp.workspace": {
+    "A": 3.777,
+    "B": 3.425,
+    "ratio": 0.9067
+   },
+   "total.end_to_end": {
+    "A": 309.207,
+    "B": 307.774,
+    "ratio": 0.9954
+   },
+   "update.commit": {
+    "A": 55.227,
+    "B": 56.267,
+    "ratio": 1.0188
+   }
+  },
+  "sssp cuda roadNet-CA local10k (51, boost lock)": {
+   "graph.apply": {
+    "A": 44.194,
+    "B": 45.454,
+    "ratio": 1.0285
+   },
+   "graph.build": {
+    "A": 6.341,
+    "B": 6.271,
+    "ratio": 0.989
+   },
+   "graph.transpose_device": {
+    "A": 1.218,
+    "B": 1.217,
+    "ratio": 0.9997
+   },
+   "graph.upload": {
+    "A": 11.011,
+    "B": 11.025,
+    "ratio": 1.0013
+   },
+   "sssp.enact_fused": {
+    "A": 9.945,
+    "B": 9.939,
+    "ratio": 0.9995
+   },
+   "sssp.import": {
+    "A": 18.54,
+    "B": 14.519,
+    "ratio": 0.7831
+   },
+   "sssp.prepare": {
+    "A": 1.009,
+    "B": 1.024,
+    "ratio": 1.0154
+   },
+   "sssp.upload": {
+    "A": 7.202,
+    "B": 6.987,
+    "ratio": 0.9701
+   },
+   "sssp.validate": {
+    "A": 8.225,
+    "B": 8.498,
+    "ratio": 1.0332
+   },
+   "sssp.workspace": {
+    "A": 1.71,
+    "B": 1.28,
+    "ratio": 0.7487
+   },
+   "total.context": {
+    "A": 146.129,
+    "B": 146.557,
+    "ratio": 1.0029
+   },
+   "total.download": {
+    "A": 16.544,
+    "B": 15.804,
+    "ratio": 0.9553
+   },
+   "total.end_to_end": {
+    "A": 607.26,
+    "B": 609.647,
+    "ratio": 1.0039
+   },
+   "update.commit": {
+    "A": 56.401,
+    "B": 57.713,
+    "ratio": 1.0232
+   }
+  },
+  "sssp openmp road_usa_g safe50k (9)": {
+   "graph.apply": {
+    "A": 907.489,
+    "B": 917.188,
+    "ratio": 1.0107
+   },
+   "graph.build": {
+    "A": 30.827,
+    "B": 28.619,
+    "ratio": 0.9284
+   },
+   "graph.transpose": {
+    "A": 560.745,
+    "B": 564.802,
+    "ratio": 1.0072
+   },
+   "sssp.finalize": {
+    "A": 20.428,
+    "B": 20.383,
+    "ratio": 0.9978
+   },
+   "sssp.identify_affected": {
+    "A": 127.229,
+    "B": 124.981,
+    "ratio": 0.9823
+   },
+   "sssp.import": {
+    "A": 278.821,
+    "B": 272.614,
+    "ratio": 0.9777
+   },
+   "sssp.loop": {
+    "A": 664.567,
+    "B": 669.998,
+    "ratio": 1.0082
+   },
+   "sssp.prepare": {
+    "A": 7.654,
+    "B": 7.25,
+    "ratio": 0.9472
+   },
+   "sssp.seed": {
+    "A": 45.34,
+    "B": 45.266,
+    "ratio": 0.9984
+   },
+   "sssp.validate": {
+    "A": 93.583,
+    "B": 94.162,
+    "ratio": 1.0062
+   },
+   "sssp.workspace": {
+    "A": 50.567,
+    "B": 50.569,
+    "ratio": 1.0
+   },
+   "total.end_to_end": {
+    "A": 6253.07,
+    "B": 6298.64,
+    "ratio": 1.0073
+   },
+   "update.commit": {
+    "A": 1471.92,
+    "B": 1483.618,
+    "ratio": 1.0079
+   }
+  },
+  "cycle_count cuda count twitch_k4 (15, boost lock)": {
+   "cycle_count.compute": {
+    "A": 51.006,
+    "B": 50.745,
+    "ratio": 0.9949
+   },
+   "cycle_count.count": {
+    "A": 38.061,
+    "B": 37.743,
+    "ratio": 0.9916
+   },
+   "cycle_count.enact_fused": {
+    "A": 38.934,
+    "B": 38.618,
+    "ratio": 0.9919
+   },
+   "cycle_count.reset": {
+    "A": 0.829,
+    "B": 0.823,
+    "ratio": 0.9932
+   },
+   "graph.build": {
+    "A": 115.115,
+    "B": 140.818,
+    "ratio": 1.2233
+   },
+   "graph.upload": {
+    "A": 12.159,
+    "B": 11.869,
+    "ratio": 0.9762
+   },
+   "wall": {
+    "A": 1737.081,
+    "B": 1760.095,
+    "ratio": 1.0132
+   }
+  },
+  "cycle_count cuda count collab_k3 (9, boost lock)": {
+   "cycle_count.compute": {
+    "A": 64.099,
+    "B": 64.129,
+    "ratio": 1.0005
+   },
+   "cycle_count.count": {
+    "A": 51.147,
+    "B": 51.043,
+    "ratio": 0.998
+   },
+   "cycle_count.enact_fused": {
+    "A": 51.957,
+    "B": 51.892,
+    "ratio": 0.9987
+   },
+   "cycle_count.reset": {
+    "A": 0.795,
+    "B": 0.822,
+    "ratio": 1.0337
+   },
+   "graph.build": {
+    "A": 113.504,
+    "B": 140.839,
+    "ratio": 1.2408
+   },
+   "graph.upload": {
+    "A": 11.677,
+    "B": 11.976,
+    "ratio": 1.0255
+   },
+   "wall": {
+    "A": 3282.956,
+    "B": 3316.278,
+    "ratio": 1.0102
+   }
+  },
+  "cycle_count cuda count twitch_k4, MALLOC_MMAP_THRESHOLD_ and MALLOC_TRIM_THRESHOLD_ fixed (9)": {
+   "cycle_count.compute": {
+    "A": 51.259,
+    "B": 51.649,
+    "ratio": 1.0076
+   },
+   "cycle_count.count": {
+    "A": 38.584,
+    "B": 39.019,
+    "ratio": 1.0113
+   },
+   "cycle_count.enact_fused": {
+    "A": 39.434,
+    "B": 39.884,
+    "ratio": 1.0114
+   },
+   "cycle_count.reset": {
+    "A": 0.818,
+    "B": 0.824,
+    "ratio": 1.0074
+   },
+   "graph.build": {
+    "A": 116.277,
+    "B": 142.394,
+    "ratio": 1.2246
+   },
+   "graph.upload": {
+    "A": 11.667,
+    "B": 11.883,
+    "ratio": 1.0185
+   },
+   "wall": {
+    "A": 1676.595,
+    "B": 1690.66,
+    "ratio": 1.0084
+   }
+  },
+  "cycle_count cuda count twitch_k4, CUDA_MODULE_LOADING=LAZY (9)": {
+   "cycle_count.compute": {
+    "A": 51.947,
+    "B": 51.39,
+    "ratio": 0.9893
+   },
+   "cycle_count.count": {
+    "A": 39.242,
+    "B": 38.438,
+    "ratio": 0.9795
+   },
+   "cycle_count.enact_fused": {
+    "A": 40.123,
+    "B": 39.323,
+    "ratio": 0.9801
+   },
+   "cycle_count.reset": {
+    "A": 0.812,
+    "B": 0.835,
+    "ratio": 1.0281
+   },
+   "graph.build": {
+    "A": 114.964,
+    "B": 141.972,
+    "ratio": 1.2349
+   },
+   "graph.upload": {
+    "A": 11.91,
+    "B": 12.01,
+    "ratio": 1.0084
+   },
+   "wall": {
+    "A": 1696.309,
+    "B": 1726.744,
+    "ratio": 1.0179
+   }
+  },
+  "cycle_count cuda count twitch_k4, again (9)": {
+   "cycle_count.compute": {
+    "A": 51.622,
+    "B": 51.962,
+    "ratio": 1.0066
+   },
+   "cycle_count.count": {
+    "A": 38.242,
+    "B": 38.972,
+    "ratio": 1.0191
+   },
+   "cycle_count.enact_fused": {
+    "A": 39.105,
+    "B": 39.808,
+    "ratio": 1.018
+   },
+   "cycle_count.reset": {
+    "A": 0.807,
+    "B": 0.803,
+    "ratio": 0.9948
+   },
+   "graph.build": {
+    "A": 115.273,
+    "B": 141.02,
+    "ratio": 1.2234
+   },
+   "graph.upload": {
+    "A": 11.877,
+    "B": 12.053,
+    "ratio": 1.0148
+   },
+   "wall": {
+    "A": 1667.513,
+    "B": 1700.512,
+    "ratio": 1.0198
+   }
+  }
+ },
+ "placement": {
+  "graph.build of dyng-compat-cycle-enum on Twitch (k = 3, openmp backend, 11 alternations)": {
+   "parity-cuda": {
+    "A_median_ms": 118.1,
+    "B_median_ms": 143.93,
+    "ratio": 1.2188,
+    "builds": "the readings' builds"
+   },
+   "nb": {
+    "A_median_ms": 149.6,
+    "B_median_ms": 118.26,
+    "ratio": 0.7905,
+    "builds": "the parity preset (no CUDA), both sides"
+   },
+   "fb": {
+    "A_median_ms": 121.25,
+    "B_median_ms": 121.06,
+    "ratio": 0.9984,
+    "builds": "the parity preset with -falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries (ADR 0061's FB set), both sides"
+   }
+  },
+  "sssp openmp roadNet-PA 50k, 170 rounds over 85 layouts": {
+   "records": [
+    "M10a-ab-b0-sssp-openmp-roadNet-PA-50k-170.json (parity-cuda)",
+    "M10a-ab-b0-sssp-openmp-roadNet-PA-50k-170-nb.json (parity, no CUDA)",
+    "M10a-ab-b0-sssp-openmp-roadNet-PA-50k-170-fb.json (parity + FB flags)"
+   ]
+  }
+ },
+ "machine_code": {
+  "method": "objdump -d of libdyng.so.0.4.0 of both builds, per symbol, addresses and rip-relative offsets normalized (scratch script fncmp.py)",
+  "identical_instructions_at_other_alignments": [
+   "apply_batch_host<int,{int,long},int> parallel bodies (_omp_fn.0, _omp_fn.1)",
+   "transpose_parallel<int,{int,long},{int,unweighted}> and its parallel bodies",
+   "build_from_edges_host<int,int,unweighted>",
+   "every std::stable_sort / introsort / merge instantiation of build_rows and of the apply's row entries",
+   "io::read_edge_list<int,*>"
+  ],
+  "differing": {
+   "apply_batch_host<int,{int,long},int> serial entry": "the stack frame (16 bytes more: apply_summary's appended fields) and its zeroing; the same instruction count",
+   "graph::from_edges": "the inlined layout and net_effect checks of expect_supported_layout (+7 instructions)"
+  }
+ }
+}

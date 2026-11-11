@@ -66,6 +66,7 @@ state_t& checked(state_t* st, const char* function) {
 /// counts intersect sorted rows).
 template <typename graph_t>
 void expect_requirements(const graph_t& g, const char* function) {
+  expect_compact_layout(g.properties(), function);  // AD11: compact rows only (ADR 0070)
   const graph_properties& p = g.properties();
   DYNG_EXPECTS(
       !p.directed && p.order == row_order::sorted && p.parallel_edges == multi_edges::forbid,

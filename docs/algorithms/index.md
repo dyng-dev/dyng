@@ -16,7 +16,7 @@ code, how to cite).
 | {doc}`triangle_delta` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | 0.2 |
 | {doc}`hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | stable | 0.4 |
 | {doc}`triad_count` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | 0.3 |
-| `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned | 0.4 |
+| {doc}`label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | experimental | 0.4 |
 <!-- regen:algorithms end -->
 
 Columns:

@@ -551,6 +551,7 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
       apply_delta<V>*, int, const normalized_batch<V>*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_HOST)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_HOST)
+DYNG_FOR_EACH_FLOAT_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_HOST)
 #undef DYNG_INSTANTIATE_APPLY_SET_HOST
 
 // The device Step 0 reads 32-bit vertex ids (device_set_apply_supported_v), as the device apply.

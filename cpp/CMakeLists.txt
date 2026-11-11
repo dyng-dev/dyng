@@ -163,8 +163,8 @@ dyng_add_module(
 dyng_add_module(
   NAME graph
   SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp src/graph/names.cpp
-          src/graph/structural_change.cpp
-  CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu
+          src/graph/structural_change.cpp src/graph/apply_slotted_host.cpp
+  CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu src/graph/apply_slotted_device.cu
 )
 
 # The hypergraph module: the ESCHER CBST store (M8a; internal, cpp/src/hypergraph/escher, ADR
@@ -212,6 +212,7 @@ dyng_add_module(
     src/io/batch_io.cpp
     src/io/batch_text.cpp
     src/io/csr_triplet.cpp
+    src/io/dynlp_text.cpp
     src/io/edge_list_io.cpp
     src/io/hypergraph_io.cpp
     src/io/matrix_market.cpp
@@ -227,7 +228,17 @@ dyng_add_module(
 dyng_add_module(
   NAME generators SOURCES src/generators/legacy.cpp src/generators/legacy_cycle_enum.cpp
                           src/generators/legacy_escher.cpp src/generators/hypergraphs.cpp
+                          src/generators/legacy_dynlp.cpp
 )
+# DynLP's legacy generator reproduces libstdc++ 12's float draws and LabelPropagation-CUDA's float
+# products as separately rounded operations (ADR 0067): no fused multiply-add may be contracted
+# into them, whatever -march a build adds (GCC contracts by default where FMA exists).
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set_source_files_properties(
+    src/generators/legacy_dynlp.cpp TARGET_DIRECTORY dyng_generators
+    PROPERTIES COMPILE_OPTIONS "-ffp-contract=off"
+  )
+endif()
 
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
@@ -276,6 +287,19 @@ target_compile_features(dyng_testing_line_graph_oracle PRIVATE cxx_std_17)
 set_target_properties(dyng_testing_line_graph_oracle PROPERTIES POSITION_INDEPENDENT_CODE ON)
 dyng_set_warnings(dyng_testing_line_graph_oracle)
 dyng_enable_sanitizers(dyng_testing_line_graph_oracle)
+# The label_propagation oracles (M10a, ADR 0068): harmonic_solution, union_find (header-only) and
+# lp_host_model, in the standard library only (std::thread for harmonic_solution's optional
+# threads), checked to share nothing with label_propagation or the container
+# (label_propagation_oracles_isolation).
+add_library(
+  dyng_testing_label_propagation OBJECT src/testing/harmonic_solution.cpp
+                                        src/testing/lp_host_model.cpp
+)
+target_include_directories(dyng_testing_label_propagation PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_compile_features(dyng_testing_label_propagation PRIVATE cxx_std_17)
+set_target_properties(dyng_testing_label_propagation PROPERTIES POSITION_INDEPENDENT_CODE ON)
+dyng_set_warnings(dyng_testing_label_propagation)
+dyng_enable_sanitizers(dyng_testing_label_propagation)
 # The triad oracle (M9a, criterion 4): ESCHER-GPU's CPU reference algorithm with its own class map,
 # the standard library and OpenMP only, checked to share nothing with triad_count, its engines or
 # the container (triad_reference_isolation).
@@ -310,6 +334,7 @@ add_library(
   src/testing/mosp_oracle.cpp
   $<TARGET_OBJECTS:dyng_testing_cbst_model>
   $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+  $<TARGET_OBJECTS:dyng_testing_label_propagation>
   $<TARGET_OBJECTS:dyng_testing_triad_reference>
   $<TARGET_OBJECTS:dyng_testing_hyper_sssp_reference>
 )

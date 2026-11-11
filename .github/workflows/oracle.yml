@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The weekly harmonic oracle of label_propagation (AD7, decided by the author on 2026-10-28; M10a
+# step 5, ADR 0078): delta 1e-4 at 50k on the sequential backend, both schedules, on a
+# GitHub-hosted runner (CI checks delta 1e-6 on 5k5 and 50k per pull request through the tests;
+# delta 1e-4 is replayed at the release on 500k and 5m with CUDA, and here every week on the host).
+# dyng-compat-dynlp --check reads the published flow of LabelPropagation-CUDA's 50k stream (the
+# legacy generator, byte-identical to the original's), and dyng_lp_replay oracle compares every
+# batch's labels with dyng::testing::harmonic_solution: mean |F - F*| <= 2000 delta, the PCG
+# converged, no class flip where |F* - 0.5| > 3m (m: parity/results/M10a-class-margin.json). No
+# GPU, no secret. Not a required check.
+name: oracle
+
+on:
+  schedule:
+    - cron: "41 4 * * 0"  # Sundays 04:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  label-propagation-oracle:
+    name: label_propagation, delta 1e-4, sequential 50k
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build tools
+        run: python -m pip install "cmake>=3.30,<4.5" ninja
+      - name: Configure (parity, Release, the compatibility tools)
+        run: cmake --preset parity
+      - name: Build dyng-compat-dynlp and dyng_lp_replay
+        run: cmake --build --preset parity --target dyng-compat-dynlp dyng_lp_replay
+      - name: The harmonic oracle at delta 1e-4 on sequential 50k (both schedules)
+        env:
+          DYNG_SCRATCH: ${{ runner.temp }}/dyng-scratch
+        run: ci/oracle_weekly.sh build/parity
