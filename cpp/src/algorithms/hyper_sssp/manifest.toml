@@ -7,7 +7,6 @@
 # `graph_requirements` names what it needs of the hypergraph (ADR 0043): line_graph ("required",
 # "any"), store_v2h ("required", "any"), reuse ("any", "erase_first", "insert_first") and storage
 # ("any", "escher", "slack_csr").
-# scaffolded by scripts/new_algorithm.py: `--remove` deletes the algorithm only while this line is here
 name        = "hyper_sssp"
 title       = "Dynamic single-source shortest hyperpaths"
 computes    = "shortest hyperpaths"
@@ -26,18 +25,9 @@ oracle      = "compute"
 graph_requirements = { line_graph = "required", store_v2h = "required", reuse = "any", storage = "slack_csr" }
 cite        = ["hsosp2026"]
 maintainers = ["SMShovan"]
-python      = false   # true once python/dyng/<name>.py and its bindings exist (PLAN 4.8, file 17; M11b)
+python      = true    # dyng.hyper_sssp (python/dyng/hyper_sssp.py, python/bindings/hyper_sssp.cpp; ADR 0097)
 origin      = [ { repo = "MOSP_ESCHER", commit = "4b86159", paths = ["hsosp/include/hsosp.cuh", "hsosp/src/hsospDevice.cu", "hypergraph/src/HostHypergraph.cpp", "hypergraph/src/HypergraphOracle.cpp"] } ]
 
 [performance]
 compute_tolerance    = 1.05
 end_to_end_tolerance = 1.10
-# planned entry replaced by this scaffold (restored by --remove), index 2:
-# [[planned]]
-# name      = "hyper_sssp"
-# computes  = "shortest hyperpaths"
-# container = "hypergraph"
-# family    = "fixed point"
-# backends  = "sequential, CUDA"
-# paper     = "H-SOSP (IA3 2026)"
-# since     = "0.4"

@@ -12,6 +12,7 @@
 #include <dyng/cycle_count.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/graph.hpp>
+#include <dyng/hyper_sssp.hpp>
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/mosp.hpp>
@@ -39,6 +40,9 @@ using mosp_holder = result_holder<mosp::result<vertex_t>>;
 
 /// The holder of a triad_count result.
 using triad_count_holder = result_holder<triad_count::result>;
+
+/// The holder of a hyper_sssp result (int32 vertex ids, the one type hyper_sssp supports).
+using hyper_sssp_holder = result_holder<hyper_sssp::result<std::int32_t>>;
 
 /**
  * @brief A batch of edge changes whose arrays are Python arrays (kept alive, never copied).
@@ -174,17 +178,11 @@ struct hyper_batch_arrays {
  * @tparam weight_t Hyperedge weight type.
  * @param[in] b The batch (its arrays are copied: the owning batch keeps them).
  * @return (delete_hyperedges int64, insert_offsets int64 (at least [0]), insert_members,
- *         insert_weights int32 or None).
+ *         insert_weights int32 or None, the incidence removals' hyperedges int64 and vertices,
+ *         the incidence additions' hyperedges int64 and vertices).
  */
 template <typename vertex_t, typename weight_t>
 nb::tuple hyper_batch_to_numpy(const hyperedge_batch<vertex_t, weight_t>& b) {
-  // The Python layer takes incidence edits with M11b of 0.4: until then a batch that has one is
-  // refused rather than returned without it.
-  if (!b.delete_incidence_hyperedge().empty() || !b.insert_incidence_hyperedge().empty()) {
-    throw not_supported_error(
-        "dyng: a hyperedge batch with incidence edits ('+i' / '-i'): planned for the Python layer "
-        "of 0.4; until then read the batch from C++");
-  }
   std::vector<std::int64_t> deletions = b.delete_hyperedges();
   std::vector<std::int64_t> offsets = b.insert_offsets();
   if (offsets.empty()) {
@@ -196,8 +194,13 @@ nb::tuple hyper_batch_to_numpy(const hyperedge_batch<vertex_t, weight_t>& b) {
     std::vector<weight_t> w = b.insert_weights();
     weights = nb::cast(to_numpy(std::move(w)));
   }
+  std::vector<std::int64_t> dh = b.delete_incidence_hyperedge();
+  std::vector<vertex_t> dv = b.delete_incidence_vertex();
+  std::vector<std::int64_t> ih = b.insert_incidence_hyperedge();
+  std::vector<vertex_t> iv = b.insert_incidence_vertex();
   return nb::make_tuple(to_numpy(std::move(deletions)), to_numpy(std::move(offsets)),
-                        to_numpy(std::move(members)), weights);
+                        to_numpy(std::move(members)), weights, to_numpy(std::move(dh)),
+                        to_numpy(std::move(dv)), to_numpy(std::move(ih)), to_numpy(std::move(iv)));
 }
 
 /**

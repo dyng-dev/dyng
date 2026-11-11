@@ -8,10 +8,11 @@ their wheels), from a directory outside the source tree. Two expectations:
 
 ``--expect cuda`` (a machine with a driver and a visible GPU: ``ci/plugin_wheels.sh``)
     The plugin's module is the active native module (``dyng_cu<N>._core``), built with the static
-    CUDA runtime; ``sssp`` (both engines), ``cycle_count``, ``mosp`` and (0.3) ``triad_count``
-    (compute, then ``dyng.update`` of two results over a hypergraph batch) run on
-    ``Resources.cuda(0)`` and their arrays, read from device memory, equal the sequential
-    backend's element by element.
+    CUDA runtime; ``sssp`` (both engines), ``cycle_count``, ``mosp``, (0.3) ``triad_count``
+    (compute, then ``dyng.update`` of two results over a hypergraph batch) and (0.4)
+    ``hyper_sssp`` (compute on both CUDA engines, then ``dyng.update`` of both over a batch with
+    hyperedge and incidence changes) run on ``Resources.cuda(0)`` and their arrays, read from
+    device memory, equal the sequential backend's element by element.
 
 ``--expect fallback`` (no driver or no device: the GitHub-hosted runners of ``wheels.yml``)
     The first use of ``dyng`` issues exactly one ``dyng.BackendWarning`` and dynG runs on
@@ -19,7 +20,8 @@ their wheels), from a directory outside the source tree. Two expectations:
     ``--reason`` (``"no CUDA driver"`` on a runner without the NVIDIA driver); the plugin's own
     extension module still imports without a driver (it needs neither ``libcuda`` nor
     ``libcudart``) and reports its build (plugin, toolkit, static runtime, architectures); and
-    ``sssp`` / ``cycle_count`` / ``mosp`` / ``triad_count`` run on the CPU backends.
+    ``sssp`` / ``cycle_count`` / ``mosp`` / ``triad_count`` / ``hyper_sssp`` run on the CPU
+    backends (``hyper_sssp`` on the sequential one: it has no OpenMP backend in 0.4).
 
 Both check the installed versions (``dyng`` and the plugin equal ``--version`` when given), that
 the module was built for exactly the release list of CUDA architectures of its toolkit (PLAN
@@ -61,7 +63,43 @@ def _graphs(dyng, np, res):  # type: ignore[no-untyped-def]
         resources=res,
     )
     mo = dyng.mosp.compute(gm, 0)
-    return t, t_ops, h, mo, _triads(dyng, np, res)
+    return t, t_ops, h, mo, _triads(dyng, np, res), _hyper_sssp(dyng, np, res)
+
+
+def _hyper_sssp(dyng, np, res):  # type: ignore[no-untyped-def]
+    """hyper_sssp of a small random weighted slack_csr hypergraph on ``res`` (the sequential
+    backend for an OpenMP ``res``): two sources, one per CUDA engine, after compute and after
+    one dyng.update() of both with hyperedge and incidence changes; host copies of the arrays."""
+    if res.backend == "openmp":
+        res = dyng.Resources.sequential()
+    rng = np.random.default_rng(13)
+    rows = [
+        rng.choice(80, size=int(rng.integers(2, 5)), replace=False).tolist() for _ in range(240)
+    ]
+    weights = rng.integers(1, 50, len(rows)).tolist()
+    hg = dyng.Hypergraph.from_lists(
+        rows, weights, num_vertices=80, storage="slack_csr", line_graph="slack_csr", resources=res
+    )
+    a = dyng.hyper_sssp.compute(hg, 0)
+    b = dyng.hyper_sssp.compute(hg, 1, cuda_engine="operators")
+    before = [x.to_numpy() for r in (a, b) for x in (r.hyperedge_distances, r.hyperedge_parents)]
+    batch = dyng.HyperedgeBatch(
+        delete_hyperedges=list(range(0, 240, 9)),
+        insert_hyperedges=rows[:30:3],
+        insert_weights=weights[:30:3],
+        delete_incidences=([1, 2, 4], [rows[1][0], rows[2][0], rows[4][1]]),
+        insert_incidences=([5, 7], [rows[6][0], rows[8][0]]),
+    )
+    st_a, st_b = dyng.update(hg, batch, a, b)
+    assert st_a.batch.inserted_incidences + st_a.batch.deleted_incidences > 0, st_a.batch
+    after = [x.to_numpy() for r in (a, b) for x in (r.hyperedge_distances, r.hyperedge_parents)]
+    for r in (a, b):
+        again = dyng.hyper_sssp.compute(hg, r.source)
+        assert np.array_equal(
+            again.hyperedge_distances.to_numpy(), r.hyperedge_distances.to_numpy()
+        )
+        assert np.array_equal(again.hyperedge_parents.to_numpy(), r.hyperedge_parents.to_numpy())
+    return before, after, [a.vertex_distances().to_numpy(), b.vertex_distances().to_numpy()]
 
 
 def _triads(dyng, np, res):  # type: ignore[no-untyped-def]
@@ -84,9 +122,12 @@ def _triads(dyng, np, res):  # type: ignore[no-untyped-def]
 
 
 def _same(np, a, b) -> None:  # type: ignore[no-untyped-def]
-    t, t_ops, h, mo, tri = a
-    ts, ts_ops, hs, ms, tris = b
+    t, t_ops, h, mo, tri, hyp = a
+    ts, ts_ops, hs, ms, tris, hyps = b
     eq = np.array_equal
+    for x, y in zip(hyp, hyps, strict=True):
+        assert all(eq(u, v) for u, v in zip(x, y, strict=True)), "hyper_sssp"
+    assert int((hyp[1][0] < np.iinfo(np.int64).max // 4).sum()) > 1, "hyper_sssp reached nothing"
     for x, y in zip(tri, tris, strict=True):
         assert all(eq(u, v) for u, v in zip(x, y, strict=True)), "triad_count"
     assert int(tri[0][0].sum()) > 0, "triad_count found no triad"
@@ -156,12 +197,12 @@ def main(argv: list[str] | None = None) -> int:
         assert dyng.config()["backends"]["cuda"], dyng.config()["backends"]
         cuda = dyng.Resources.cuda(0)
         on_gpu = _graphs(dyng, np, cuda)
-        t, _, _, mo, _ = on_gpu
+        t, _, _, mo, _, _ = on_gpu
         assert t.distances.device == "cuda:0" and mo.distances(0).device == "cuda:0"
         assert t.distances.__cuda_array_interface__["shape"] == (t.distances.shape[0],)
         _same(np, on_gpu, _graphs(dyng, np, seq))
         print(
-            "plugin_smoke: sssp, cycle_count, mosp and triad_count ran on cuda "
+            "plugin_smoke: sssp, cycle_count, mosp, triad_count and hyper_sssp ran on cuda "
             f"({backend.active_module_name}); their arrays equal the sequential backend's"
         )
         return 0
@@ -198,8 +239,8 @@ def main(argv: list[str] | None = None) -> int:
     omp = dyng.Resources.openmp(2)
     _same(np, _graphs(dyng, np, omp), _graphs(dyng, np, seq))
     print(
-        "plugin_smoke: dyng._core is active; sssp, cycle_count, mosp and triad_count run on the "
-        "CPU backends"
+        "plugin_smoke: dyng._core is active; sssp, cycle_count, mosp, triad_count and hyper_sssp "
+        "run on the CPU backends"
     )
     return 0
 

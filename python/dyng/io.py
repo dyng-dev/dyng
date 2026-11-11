@@ -1039,10 +1039,10 @@ def read_hyperedge_batches(
     """Read the hypergraph batches of a ``.dgt`` batch text file, in file order.
 
     Hyperedge operations: ``+h v1 v2 .. [; w]`` (insert a hyperedge; ``; w`` for a weighted
-    read) and ``-h id`` (delete the hyperedge with that id). ``%batch <id>`` starts a batch,
+    read), ``-h id`` (delete the hyperedge with that id) and (0.4) the incidence edits
+    ``+i h v`` / ``-i h v`` (add vertex v to, or remove it from, the live hyperedge h; applied on
+    ``storage="slack_csr"``, :class:`dyng.HyperedgeBatch`). ``%batch <id>`` starts a batch,
     ``%dgt 1 hypergraph`` may name the kind; graph operations (``+e``, ``-e``) are an error here.
-    The incidence edits ``+i h v`` / ``-i h v`` of 0.4 are read by the C++ library; the Python
-    layer takes them with M11b of 0.4 and refuses a batch that has one until then.
 
     Args:
         path: The file.
@@ -1051,7 +1051,6 @@ def read_hyperedge_batches(
 
     Raises:
         FileFormatError: the file is missing or malformed.
-        NotSupportedError: a batch has incidence edits (until M11b of 0.4).
     """
     reader = (
         native.read_hyperedge_batches_i32_i32
@@ -1078,7 +1077,8 @@ def _hyper_batches(batches: Iterable[HyperedgeBatch], what: str) -> tuple[list[A
 def write_hyperedge_batches(path: PathLike, batches: Iterable[HyperedgeBatch]) -> None:
     """Write hypergraph batches as a ``.dgt`` batch text file (read back by
     :func:`read_hyperedge_batches`): ``%dgt 1 hypergraph``, then per batch ``%batch <i>``, its
-    deletions (``-h id``) and its insertions (``+h v1 .. vk`` and `` ; w`` if weighted)."""
+    deletions (``-h id``), its incidence removals (``-i h v``) and additions (``+i h v``; 0.4)
+    and its insertions (``+h v1 .. vk`` and `` ; w`` if weighted)."""
     natives, weighted = _hyper_batches(batches, "write_hyperedge_batches")
     writer = (
         native.write_hyperedge_batches_i32_i32 if weighted else native.write_hyperedge_batches_i32_u
@@ -1101,7 +1101,8 @@ class BatchFileHeader:
         vertex_type: ``"int32"`` or ``"int64"``.
         weight_type: ``"none"``, ``"int32"`` or ``"int64"``.
         num_weights: Weights per insertion (K for graphs, 0 or 1 for hypergraphs).
-        flags: The flags (``deleted_members`` 1, ``expected_ids`` 2, ``insert_first`` 4).
+        flags: The flags (``deleted_members`` 1, ``expected_ids`` 2, ``insert_first`` 4,
+            ``incidence_edits`` 8).
         num_batches: Batch records in the file.
     """
 
@@ -1127,6 +1128,12 @@ class BatchFileHeader:
     def insert_first(self) -> bool:
         """The batches were generated under ``id_reuse="insert_first"``."""
         return bool(self.flags & int(native.BATCH_FLAG_INSERT_FIRST))
+
+    @property
+    def incidence_edits(self) -> bool:
+        """The batches may carry incidence edits (0.4; set by the writers when a batch has
+        one)."""
+        return bool(self.flags & int(native.BATCH_FLAG_INCIDENCE_EDITS))
 
 
 @dataclass(frozen=True)
@@ -1261,7 +1268,9 @@ def write_binary_batches(
         expected_ids: Hypergraph batches: per batch, the id of every insertion in the generating
             run; sets the flag ``expected_ids``.
         insert_first: Hypergraph batches: the flag ``insert_first`` (the expected ids hold under
-            ``id_reuse="insert_first"``).
+            ``id_reuse="insert_first"``). The flag ``incidence_edits`` is set when a hypergraph
+            batch has an incidence edit (0.4; a file without edits stays byte-identical to
+            0.3's).
         vertex_dtype: Graph batches: ``"int32"`` or ``"int64"`` (default: int32 when every id
             fits).
     """
@@ -1347,6 +1356,8 @@ def _write_binary_hyperedge_batches(
             )
     if as_bool(insert_first, "write_binary_batches: insert_first"):
         flags |= int(native.BATCH_FLAG_INSERT_FIRST)
+    if any(b.num_incidence_edits for b in items):
+        flags |= int(native.BATCH_FLAG_INCIDENCE_EDITS)
     writer = (
         native.write_binary_hyperedge_batches_i32_i32
         if weighted

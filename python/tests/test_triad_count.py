@@ -322,7 +322,7 @@ def test_errors(res: dyng.Resources) -> None:
     with pytest.raises(dyng.InvalidArgumentError):  # a member out of range: nothing changes
         dyng.triad_count.update(h, dyng.HyperedgeBatch(insert_hyperedges=[[0, 99]]), r)
     assert h.version == 0 and r.graph_version == 0
-    with pytest.raises(dyng.NotSupportedError):  # incidence edits (0.4): nothing changes
+    with pytest.raises(dyng.NotSupportedError):  # incidence edits need slack_csr storage
         dyng.triad_count.update(h, dyng.HyperedgeBatch(insert_incidences=([0], [5])), r)
     check(h, r)
 

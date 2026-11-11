@@ -1850,6 +1850,145 @@ def triad_count_update(resources: Resources, hypergraph: HypergraphI32U, batch: 
 @overload
 def triad_count_update(resources: Resources, hypergraph: HypergraphI32I32, batch: HyperedgeBatchI32I32, result: TriadCountResult) -> TriadCountStats: ...
 
+class HyperSsspBudgetAction(enum.Enum):
+    """hyper_sssp::budget_action."""
+
+    recompute = 0
+
+    error = 1
+
+class HyperSsspFallbackReason(enum.Enum):
+    """hyper_sssp::fallback_reason."""
+
+    none = 0
+
+    work_budget = 1
+
+    iterations = 2
+
+    distance_width = 3
+
+    invalidation_depth = 4
+
+class HyperSsspOptions:
+    """hyper_sssp::options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def work_budget(self) -> float: ...
+
+    @work_budget.setter
+    def work_budget(self, arg: float, /) -> None: ...
+
+    @property
+    def max_iterations(self) -> int: ...
+
+    @max_iterations.setter
+    def max_iterations(self, arg: int, /) -> None: ...
+
+    @property
+    def on_budget(self) -> HyperSsspBudgetAction: ...
+
+    @on_budget.setter
+    def on_budget(self, arg: HyperSsspBudgetAction, /) -> None: ...
+
+    @property
+    def cuda_engine(self) -> Engine: ...
+
+    @cuda_engine.setter
+    def cuda_engine(self, arg: Engine, /) -> None: ...
+
+    @property
+    def validate_inputs(self) -> bool: ...
+
+    @validate_inputs.setter
+    def validate_inputs(self, arg: bool, /) -> None: ...
+
+class HyperSsspStats:
+    """hyper_sssp::stats."""
+
+    @property
+    def affected(self) -> int: ...
+
+    @property
+    def iterations(self) -> int: ...
+
+    @property
+    def frontier_visits(self) -> int: ...
+
+    @property
+    def fallback_used(self) -> bool: ...
+
+    @property
+    def converged(self) -> bool: ...
+
+    @property
+    def engine_used(self) -> Engine: ...
+
+    @property
+    def batch(self) -> HyperApplySummary: ...
+
+    @property
+    def line_graph_insertions(self) -> int: ...
+
+    @property
+    def line_graph_deletions(self) -> int: ...
+
+    @property
+    def invalidated(self) -> int: ...
+
+    @property
+    def relaxations(self) -> int: ...
+
+    @property
+    def fallback_reason(self) -> HyperSsspFallbackReason: ...
+
+class HyperSsspResult:
+    """A hyper_sssp::result (private)."""
+
+    @property
+    def source(self) -> int: ...
+
+    def hyperedge_distances(self) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]: ...
+
+    def hyperedge_parents(self) -> Annotated[Any, dict(dtype='int32', shape=(None,), writable=False)]: ...
+
+    def distance_to(self, hypergraph: object | None, target: int) -> int:
+        """The distance of a vertex (the hypergraph the result matches, or None)."""
+
+    def vertex_distances(self, hypergraph: object | None) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]:
+        """
+        The distance of every vertex (host memory; the hypergraph the result matches, or None).
+        """
+
+    @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
+
+    @property
+    def generation(self) -> int:
+        """The number of updates of this result (dyng.Array's staleness check)."""
+
+    @property
+    def options(self) -> HyperSsspOptions: ...
+
+    def set_options(self, options: HyperSsspOptions) -> None: ...
+
+    @property
+    def graph_version(self) -> int: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    def clone(self, resources: Resources) -> HyperSsspResult: ...
+
+def hyper_sssp_compute(resources: Resources, hypergraph: HypergraphI32I32, source: int, options: HyperSsspOptions) -> HyperSsspResult: ...
+
+def hyper_sssp_update(resources: Resources, hypergraph: HypergraphI32I32, batch: HyperedgeBatchI32I32, result: HyperSsspResult) -> HyperSsspStats: ...
+
 @overload
 def update(resources: Resources, graph: GraphI32I32I32, batch: EdgeBatchI32I32, results: list) -> list: ...
 
@@ -2062,6 +2201,8 @@ BATCH_FLAG_DELETED_MEMBERS: int = 1
 BATCH_FLAG_EXPECTED_IDS: int = 2
 
 BATCH_FLAG_INSERT_FIRST: int = 4
+
+BATCH_FLAG_INCIDENCE_EDITS: int = 8
 
 def read_hypergraph_i32_u(path: str, options: HypergraphReadOptions) -> tuple:
     """
@@ -2374,6 +2515,20 @@ class HyperedgeBatchMix(enum.Enum):
 
     empty = 12
 
+    incidence_removals = 13
+
+    incidence_additions = 14
+
+    incidence_mixed = 15
+
+    incidence_emptying = 16
+
+    incidence_same_batch = 17
+
+    incidence_repeats = 18
+
+    incidence_out_of_range = 19
+
 class UniformHypergraphOptions:
     """generators::uniform_hypergraph_options."""
 
@@ -2620,6 +2775,16 @@ def testing_rebuild_line_graph(offsets: Annotated[NDArray[numpy.int64], dict(sha
 def testing_triad_reference(offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_vertices: int, pattern: str, threads: int) -> Annotated[NDArray[numpy.uint64], dict(shape=(None,))]:
     """
     ESCHER-GPU's CPU reference triad counts of a hyperedge list (testing::triad_reference).
+    """
+
+def testing_hyper_sssp_reference(offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_vertices: int, weights: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], source: int) -> tuple:
+    """
+    MOSP_ESCHER's referenceDistances from a source vertex over h2v rows by id: (distances, parents) (testing::hyper_sssp_reference).
+    """
+
+def testing_check_hyper_sssp_tree(offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_vertices: int, weights: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], source: int, distances: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], parents: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)]) -> tuple:
+    """
+    MOSP_ESCHER's checkSosp from a source vertex: (distance mismatches, parent errors) (testing::check_hyper_sssp_tree).
     """
 
 class SsspTreeCheck:

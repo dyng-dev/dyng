@@ -3,14 +3,16 @@
 /**
  * @file testing.cpp
  * @brief dyng::testing: the host oracles (Dijkstra with lowest-id ties, the sssp tree check, the
- *        simple-cycle oracles, the mosp references and the line-graph oracle of hypergraphs), which
- *        share no code with the algorithms they check.
+ *        simple-cycle oracles, the mosp references, the line-graph oracle of hypergraphs, the
+ *        triad reference and the hyper_sssp oracle), which share no code with the algorithms they
+ *        check.
  */
 #include "types.hpp"
 
 #include <dyng/testing/check_sssp.hpp>
 #include <dyng/testing/cycle_oracle.hpp>
 #include <dyng/testing/dijkstra.hpp>
+#include <dyng/testing/hyper_sssp_reference.hpp>
 #include <dyng/testing/line_graph_oracle.hpp>
 #include <dyng/testing/mosp_oracle.hpp>
 #include <dyng/testing/triad_reference.hpp>
@@ -163,6 +165,48 @@ void bind_testing(nb::module_& m) {
       nb::arg("offsets").noconvert(), nb::arg("members").noconvert(), nb::arg("num_vertices"),
       nb::arg("pattern"), nb::arg("threads"),
       "ESCHER-GPU's CPU reference triad counts of a hyperedge list (testing::triad_reference).");
+  m.def(
+      "testing_hyper_sssp_reference",
+      [](const in_array<std::int64_t>& offsets, const in_array<std::int32_t>& members,
+         std::int64_t num_vertices, const in_array<std::int64_t>& weights, std::int64_t source) {
+        DYNG_EXPECTS(num_vertices >= 0 && num_vertices <= std::numeric_limits<std::int32_t>::max(),
+                     "hyper_sssp_reference: num_vertices ", num_vertices, " does not fit int32");
+        std::vector<std::int64_t> o(offsets.data(), offsets.data() + offsets.shape(0));
+        std::vector<std::int32_t> mem(members.data(), members.data() + members.shape(0));
+        std::vector<std::int64_t> w(weights.data(), weights.data() + weights.shape(0));
+        auto tree = without_gil([&] {
+          return testing::hyper_sssp_reference(o, mem, static_cast<std::int32_t>(num_vertices), w,
+                                               source, /*source_is_vertex=*/true);
+        });
+        return nb::make_tuple(to_numpy(std::move(tree.first)), to_numpy(std::move(tree.second)));
+      },
+      nb::arg("offsets").noconvert(), nb::arg("members").noconvert(), nb::arg("num_vertices"),
+      nb::arg("weights").noconvert(), nb::arg("source"),
+      "MOSP_ESCHER's referenceDistances from a source vertex over h2v rows by id: (distances, "
+      "parents) (testing::hyper_sssp_reference).");
+  m.def(
+      "testing_check_hyper_sssp_tree",
+      [](const in_array<std::int64_t>& offsets, const in_array<std::int32_t>& members,
+         std::int64_t num_vertices, const in_array<std::int64_t>& weights, std::int64_t source,
+         const in_array<std::int64_t>& distances, const in_array<std::int32_t>& parents) {
+        DYNG_EXPECTS(num_vertices >= 0 && num_vertices <= std::numeric_limits<std::int32_t>::max(),
+                     "check_hyper_sssp_tree: num_vertices ", num_vertices, " does not fit int32");
+        std::vector<std::int64_t> o(offsets.data(), offsets.data() + offsets.shape(0));
+        std::vector<std::int32_t> mem(members.data(), members.data() + members.shape(0));
+        std::vector<std::int64_t> w(weights.data(), weights.data() + weights.shape(0));
+        std::vector<std::int64_t> d(distances.data(), distances.data() + distances.shape(0));
+        std::vector<std::int32_t> p(parents.data(), parents.data() + parents.shape(0));
+        const auto out = without_gil([&] {
+          return testing::check_hyper_sssp_tree(o, mem, static_cast<std::int32_t>(num_vertices), w,
+                                                source, /*source_is_vertex=*/true, d, p);
+        });
+        return nb::make_tuple(out.first, out.second);
+      },
+      nb::arg("offsets").noconvert(), nb::arg("members").noconvert(), nb::arg("num_vertices"),
+      nb::arg("weights").noconvert(), nb::arg("source"), nb::arg("distances").noconvert(),
+      nb::arg("parents").noconvert(),
+      "MOSP_ESCHER's checkSosp from a source vertex: (distance mismatches, parent errors) "
+      "(testing::check_hyper_sssp_tree).");
   nb::class_<testing::sssp_tree_check>(m, "SsspTreeCheck", "testing::sssp_tree_check.")
       .def_ro("distance_mismatches", &testing::sssp_tree_check::distance_mismatches)
       .def_ro("inconsistent_parents", &testing::sssp_tree_check::inconsistent_parents)

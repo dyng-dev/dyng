@@ -8,7 +8,8 @@
  * a list. As ADR 0023 (note 1) prescribes, the binding builds the type-erased participants of the
  * results itself, with the factories each algorithm header declares for dyng::update()
  * (detail::make_sssp_participant, detail::make_cycle_count_participant,
- * detail::make_mosp_participant; over a hypergraph detail::make_triad_count_participant), and
+ * detail::make_mosp_participant; over a hypergraph detail::make_triad_count_participant and
+ * detail::make_hyper_sssp_participant), and
  * runs them through detail::participant_of<graph>::run() (participant_of<hypergraph>::run()), the
  * path dyng::update() takes: every before-apply step on G_t, one commit, then every after-apply
  * step on G_{t+1}.
@@ -139,13 +140,16 @@ void bind_update_type(nb::module_& m) {
 }
 
 /// dyng::update() over a hypergraph<V, W>: every result is a triad_count result (the hypergraph
-/// algorithm of 0.3), each with its participant from detail::make_triad_count_participant().
+/// algorithm of 0.3) or, on the weighted type hyper_sssp supports, a hyper_sssp result (0.4),
+/// each with its participant from detail::make_triad_count_participant() or
+/// detail::make_hyper_sssp_participant().
 template <typename vertex_t, typename weight_t>
 void bind_hyper_update_type(nb::module_& m) {
   using hgraph_t = hypergraph_holder<vertex_t, weight_t>;
   using container_t = hypergraph<vertex_t, weight_t>;
   using participant_t = typename detail::participant_of<container_t>::type;
   static_assert(detail::triad_count_supported_v<vertex_t, weight_t>);
+  constexpr bool hyper_sssp_ok = detail::hyper_sssp_supported_v<vertex_t, weight_t>;
 
   m.def(
       "update",
@@ -154,22 +158,35 @@ void bind_hyper_update_type(nb::module_& m) {
         DYNG_EXPECTS(nb::len(results) > 0,
                      "dyng.update: no results (applying a batch without updating any result "
                      "would leave every result of the hypergraph stale; use Hypergraph.apply())");
-        std::vector<triad_count::stats> stats(nb::len(results));
+        using slot = std::variant<triad_count::stats, hyper_sssp::stats>;
+        std::vector<slot> stats(nb::len(results));
         std::vector<triad_count_holder*> triad_results(stats.size(), nullptr);
+        std::vector<hyper_sssp_holder*> sssp_results(stats.size(), nullptr);
         for (std::size_t i = 0; i < stats.size(); ++i) {
           nb::handle item = results[i];
-          if (!nb::isinstance<triad_count_holder>(item)) {
-            throw invalid_argument_error(
-                "dyng.update: result " + std::to_string(i) +
-                " is not a result of an algorithm that supports hypergraphs (dyng.triad_count)");
+          if (nb::isinstance<triad_count_holder>(item)) {
+            triad_results[i] = &nb::cast<triad_count_holder&>(item);
+            continue;
           }
-          triad_results[i] = &nb::cast<triad_count_holder&>(item);
+          if (nb::isinstance<hyper_sssp_holder>(item)) {
+            if constexpr (hyper_sssp_ok) {
+              sssp_results[i] = &nb::cast<hyper_sssp_holder&>(item);
+              stats[i] = hyper_sssp::stats{};
+              continue;
+            }
+          }
+          throw invalid_argument_error(
+              "dyng.update: result " + std::to_string(i) +
+              " is not a result of an algorithm that supports this hypergraph type "
+              "(dyng.triad_count; dyng.hyper_sssp on a weighted hypergraph)");
         }
         without_gil([&] {
           lock_set locks;
           locks.add(h.mutex, true);
-          for (triad_count_holder* r : triad_results) {
-            locks.add(r->mutex, true);
+          for (std::size_t i = 0; i < stats.size(); ++i) {
+            locks.add(
+                triad_results[i] != nullptr ? triad_results[i]->mutex : sssp_results[i]->mutex,
+                true);
           }
           locks.lock();
           std::vector<std::unique_ptr<participant_t>> owned;
@@ -178,8 +195,15 @@ void bind_hyper_update_type(nb::module_& m) {
             owned.reserve(stats.size());
             raw.reserve(stats.size());
             for (std::size_t i = 0; i < stats.size(); ++i) {
-              owned.push_back(detail::make_triad_count_participant<vertex_t, weight_t>(
-                  triad_results[i]->for_update(res), stats[i]));
+              if (triad_results[i] != nullptr) {
+                owned.push_back(detail::make_triad_count_participant<vertex_t, weight_t>(
+                    triad_results[i]->for_update(res), std::get<triad_count::stats>(stats[i])));
+              } else {
+                if constexpr (hyper_sssp_ok) {
+                  owned.push_back(detail::make_hyper_sssp_participant<vertex_t, weight_t>(
+                      sssp_results[i]->for_update(res), std::get<hyper_sssp::stats>(stats[i])));
+                }
+              }
               raw.push_back(owned.back().get());
             }
           } catch (const std::bad_alloc& e) {
@@ -189,8 +213,12 @@ void bind_hyper_update_type(nb::module_& m) {
                                                          raw.size(), "update.commit");
         });
         nb::list out;
-        for (const triad_count::stats& s : stats) {
-          out.append(nb::cast(s));
+        for (const slot& s : stats) {
+          if (std::holds_alternative<triad_count::stats>(s)) {
+            out.append(nb::cast(std::get<triad_count::stats>(s)));
+          } else {
+            out.append(nb::cast(std::get<hyper_sssp::stats>(s)));
+          }
         }
         return out;
       },

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 """dyng.update(graph, batch, r1, r2, ...): one batch, several results (C++ ``dyng::update``),
-over a :class:`~dyng.Graph` or (0.3) a :class:`~dyng.Hypergraph`."""
+over a :class:`~dyng.Graph` or (0.3; hyper_sssp 0.4) a :class:`~dyng.Hypergraph`."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .hypergraph import HyperedgeBatch, Hypergraph
 from .resources import Resources
 
 if TYPE_CHECKING:
-    from . import cycle_count, mosp, sssp, triad_count
+    from . import cycle_count, hyper_sssp, mosp, sssp, triad_count
 
 __all__ = ["update"]
 
@@ -83,6 +83,20 @@ def update(
     *results: triad_count.Result,
     resources: Resources | None = None,
 ) -> tuple[triad_count.Stats, ...]: ...
+@overload
+def update(
+    graph: Hypergraph,
+    batch: HyperedgeBatch,
+    *results: hyper_sssp.Result,
+    resources: Resources | None = None,
+) -> tuple[hyper_sssp.Stats, ...]: ...
+@overload
+def update(
+    graph: Hypergraph,
+    batch: HyperedgeBatch,
+    *results: triad_count.Result | hyper_sssp.Result,
+    resources: Resources | None = None,
+) -> tuple[triad_count.Stats | hyper_sssp.Stats, ...]: ...
 def update(
     graph: Graph | Hypergraph,
     batch: EdgeBatch | HyperedgeBatch,
@@ -102,12 +116,12 @@ def update(
             :class:`~dyng.HyperedgeBatch` for a hypergraph).
         *results: One or more results of this graph (``dyng.sssp.Result``,
             ``dyng.cycle_count.Result``, ``dyng.mosp.Result``; of a hypergraph
-            ``dyng.triad_count.Result``), each at most once.
+            ``dyng.triad_count.Result`` and ``dyng.hyper_sssp.Result``), each at most once.
         resources: Default: the resources the graph was built with.
 
     Returns:
         One stats object per result, in order (``dyng.sssp.Stats``, ``dyng.cycle_count.Stats``,
-        ``dyng.mosp.Stats``, ``dyng.triad_count.Stats``).
+        ``dyng.mosp.Stats``, ``dyng.triad_count.Stats``, ``dyng.hyper_sssp.Stats``).
 
     Raises:
         StaleResultError: a result does not match the graph.
@@ -116,6 +130,9 @@ def update(
         OutOfMemoryError: memory cannot be allocated (also a ``MemoryError``); on a hypergraph
             with the outcomes of :func:`dyng.triad_count.update` (nothing changed before the
             commit; the hypergraph unusable inside it; the results unusable after it).
+        NotSupportedError: a result's requirement on the hypergraph does not hold (nothing is
+            changed): ``triad_count`` on a hypergraph with ``storage="slack_csr"``, or
+            ``hyper_sssp`` on one without it; OpenMP resources with a ``hyper_sssp`` result.
 
     Example:
         >>> import dyng
@@ -132,7 +149,7 @@ def update(
         >>> motifs.total, type1.total, st_type1.batch.deleted_hyperedges
         (1, 3, 1)
     """
-    from . import cycle_count, mosp, sssp, triad_count
+    from . import cycle_count, hyper_sssp, mosp, sssp, triad_count
 
     if isinstance(graph, Hypergraph):
         return _update_hypergraph(graph, batch, results, resources)
@@ -156,10 +173,12 @@ def update(
         elif isinstance(r, mosp.Result):
             mosp._check_graph(graph)
             kinds.append(mosp.Stats)
-        elif isinstance(r, triad_count.Result):
-            # DYNG_TRIAD_COUNT_CONTAINER_MESSAGE of <dyng/triad_count.hpp>, in Python's names
+        elif isinstance(r, (triad_count.Result, hyper_sssp.Result)):
+            # DYNG_TRIAD_COUNT_CONTAINER_MESSAGE of <dyng/triad_count.hpp> (and
+            # DYNG_HYPER_SSSP_CONTAINER_MESSAGE of <dyng/hyper_sssp.hpp>), in Python's names
+            name = "triad_count" if isinstance(r, triad_count.Result) else "hyper_sssp"
             raise TypeError(
-                f"dyng.update: argument {i + 2} is a dyng.triad_count.Result, a result of a "
+                f"dyng.update: argument {i + 2} is a dyng.{name}.Result, a result of a "
                 "hypergraph algorithm; dyng.update() takes a dyng.Hypergraph for it"
             )
         else:
@@ -184,8 +203,9 @@ def update(
 def _update_hypergraph(
     graph: Hypergraph, batch: Any, results: tuple[Any, ...], resources: Resources | None
 ) -> tuple[Any, ...]:
-    """dyng.update over a hypergraph: every result is a ``dyng.triad_count.Result``."""
-    from . import triad_count
+    """dyng.update over a hypergraph: every result is a ``dyng.triad_count.Result`` or a
+    ``dyng.hyper_sssp.Result``."""
+    from . import hyper_sssp, triad_count
 
     if not isinstance(batch, HyperedgeBatch):
         raise TypeError("dyng.update: the batch of a hypergraph must be a dyng.HyperedgeBatch")
@@ -195,16 +215,25 @@ def _update_hypergraph(
             "every result of the hypergraph stale; use Hypergraph.apply())"
         )
     for i, r in enumerate(results):
-        if not isinstance(r, triad_count.Result):
+        if isinstance(r, hyper_sssp.Result):
+            hyper_sssp._check_hypergraph(graph)
+        elif not isinstance(r, triad_count.Result):
             raise TypeError(
                 f"dyng.update: argument {i + 2} is not a result of a hypergraph algorithm "
-                f"(dyng.triad_count.Result), got {type(r).__name__}"
+                f"(dyng.triad_count.Result, dyng.hyper_sssp.Result), got {type(r).__name__}"
             )
     if len({id(r) for r in results}) != len(results):
         raise InvalidArgumentError("dyng.update: a result is passed more than once")
     res = resolve_on(graph, resources)
     nb = batch._native_for(graph.weighted)
-    bins = [r.num_bins for r in results]
+    bins = [r.num_bins if isinstance(r, triad_count.Result) else 0 for r in results]
     with writing(results, res):
         out = native.update(res._native, graph._native, nb, [r._native for r in results])
-    return tuple(triad_count.Stats._from_native(s, n) for s, n in zip(out, bins, strict=True))
+    stats: list[Any] = []
+    for r, s, n in zip(results, out, bins, strict=True):
+        if isinstance(r, hyper_sssp.Result):
+            r._link(graph)
+            stats.append(hyper_sssp.Stats._from_native(s))
+        else:
+            stats.append(triad_count.Stats._from_native(s, n))
+    return tuple(stats)
