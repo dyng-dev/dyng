@@ -865,8 +865,8 @@ TEST(LabelPropagationCuda, ResultsMoveBetweenTheBackends) {
   (void)lp::update(cuda, g, s.batches[3].view(), r);
   (void)lp::update(cuda, g3, s.batches[3].view(), back);
   EXPECT_EQ(host_labels(cuda, r), host_labels(cuda, back));
-  // The operators engine (M10b): compute() is IrLP on every engine; an in_place update with the
-  // operators engine is refused (the operators engine runs schedule::damped only).
+  // The operators engine (M10b): compute() is IrLP on every engine (schedule::damped here;
+  // OperatorsEngineLimitsAndScope covers the in_place refusal).
   lp::options ops = opt;
   ops.cuda_engine = dyng::engine::operators;
   auto by_ops = lp::compute(cuda, g, dyng::array_view<const std::int32_t>(),
@@ -1026,12 +1026,19 @@ TEST(LabelPropagationCuda, OperatorsEngineLimitsAndScope) {
     EXPECT_EQ(counters(f), counters(o));
     EXPECT_EQ(host_labels(cuda, rf), host_labels(cuda, ro));
   }
-  // schedule::in_place has no operators twin: refused before anything changes.
+  // schedule::in_place has no operators twin: refused by compute() and, for a result whose options
+  // were changed to it, by update() before anything changes.
   lp_graph g = capacity_graph(cuda, s);
   lp::options opt = published(s, 1e-4F, lp::schedule::in_place);
   opt.cuda_engine = dyng::engine::operators;
+  EXPECT_THROW((void)lp::compute(cuda, g, dyng::array_view<const std::int32_t>(),
+                                 dyng::array_view<const std::int8_t>(), opt),
+               dyng::not_supported_error);
+  opt.update_schedule = lp::schedule::damped;
   auto r = lp::compute(cuda, g, dyng::array_view<const std::int32_t>(),
                        dyng::array_view<const std::int8_t>(), opt);
+  opt.update_schedule = lp::schedule::in_place;
+  r.set_options(opt);
   const std::uint64_t version = g.version();
   EXPECT_THROW((void)lp::update(cuda, g, s.batches[0].view(), r), dyng::not_supported_error);
   EXPECT_EQ(g.version(), version);

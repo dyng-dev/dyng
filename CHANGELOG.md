@@ -192,9 +192,9 @@ Before 0.1.0 anything may change.
   runs update() with the framework's hooks written with label_propagation's operators
   `binned_frontier`, `neighbor_reduce` and `connected_components` (in
   `cpp/src/algorithms/label_propagation/operators/` by the rule of two), one kernel per phase,
-  `schedule::damped` only (an update under `schedule::in_place` raises `not_supported_error`
-  before anything changes; it used to raise for every call); `compute()` is IrLP on every engine
-  (`engine::operators` no longer raises there); `engine::automatic` stays the fused engine. Its
+  `schedule::damped` only (compute() and update() under `schedule::in_place` raise
+  `not_supported_error` before anything changes; it used to raise for every call); `compute()` is
+  IrLP on every engine; `engine::automatic` stays the fused engine. Its
   labels are the fused engine's bits with identical per-batch iterations, components and
   frontier_visits on P+ (`compare.py label_propagation operators`; the kit's C4 compares the two
   engines); the hub golden holds on it; the mutation CTests

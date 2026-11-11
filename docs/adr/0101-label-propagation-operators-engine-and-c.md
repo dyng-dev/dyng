@@ -70,8 +70,9 @@ rule; PLAN 4.5.4 makes the operators twin optional for in-place label propagatio
    stays the fused engine (unchanged), `engine::fused` the fused engine, `engine::operators`
    this engine. `schedule::in_place` has no operators twin (PLAN 4.5.4: non-deterministic; AD6's
    option not taken): `engine::operators` with `schedule::in_place` raises `not_supported_error`
-   in update()'s entry checks, before anything changes. `compute()` is IrLP, the published
-   static baseline, on every engine (`select_engine` returns the fused engine for compute()).
+   in compute()'s and update()'s entry checks, before anything changes (the kit's C4 and C8 then
+   find one engine for the in_place suite). `compute()` is IrLP, the published static baseline,
+   on every engine (`select_engine` returns the fused engine for compute()).
    `stats::engine_used` reports `operators`. The host backend has one engine (unchanged).
 5. **Budget (I9).** No allocation once reserved (`result::reserve()` also sizes the engine's
    per-position flags when the result's engine is `operators`); host synchronizations per update:

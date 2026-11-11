@@ -109,9 +109,10 @@ void expect_result_placement(const label_propagation_state<vertex_t>& st, const 
   }
 }
 
-/// Throws not_supported_error for an update with options::cuda_engine = engine::operators and
-/// schedule::in_place on CUDA: the operators engine runs schedule::damped only (in_place has no
-/// operators twin, PLAN 4.5.4; ADR 0101). compute() is IrLP on every engine.
+/// Throws not_supported_error for options::cuda_engine = engine::operators with
+/// schedule::in_place on CUDA, in compute() and update(): the operators engine runs
+/// schedule::damped only (in_place has no operators twin, PLAN 4.5.4; ADR 0101). compute() itself
+/// is IrLP on every engine.
 void expect_cuda_engine(const label_propagation::options& opt, const resources& res,
                         const char* function) {
   if (res.get_backend() == backend::cuda && opt.cuda_engine == engine::operators &&
@@ -1040,6 +1041,7 @@ label_propagation::result<vertex_t> label_propagation_compute(
   graph_access::expect_placement_any_layout(res, g, "label_propagation::compute");
   expect_graph(g, "label_propagation::compute");
   expect_options(opt, "label_propagation::compute");
+  expect_cuda_engine(opt, res, "label_propagation::compute");
   const host_input<vertex_t> seeds_in(res, seed_vertices,
                                       "label_propagation::compute: seed_vertices");
   const host_input<std::int8_t> labels_in(res, seed_labels,

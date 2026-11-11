@@ -115,9 +115,9 @@ struct options {
   /** @brief The CUDA engine of update(): engine::automatic or engine::fused (the verbatim port
    *         of the original's pipeline, bitwise the original's damped labels; ADR 0075), or
    *         engine::operators (the framework's hooks written with label_propagation's operators,
-   *         schedule::damped only, the fused engine's bits; ADR 0101; not_supported_error for an
-   *         update under schedule::in_place). compute() is IrLP on every engine. Ignored on the
-   *         host backends. */
+   *         schedule::damped only, the fused engine's bits; ADR 0101; not_supported_error from
+   *         compute() and update() under schedule::in_place). compute() is IrLP on every engine.
+   *         Ignored on the host backends. */
   engine cuda_engine = engine::automatic;
 };
 
