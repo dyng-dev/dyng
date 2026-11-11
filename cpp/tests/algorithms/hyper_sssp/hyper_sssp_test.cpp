@@ -666,7 +666,7 @@ TEST_P(HyperSssp, TurningValidateInputsOnLaterKeepsTheResultExact) {
     EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
     EXPECT_EQ(sp.distance_to(21), 20 * 1000 + 1);
     EXPECT_EQ(sp.distance_to(23), update_unchecked ? 20 * 1000 + 1 + 5000 + 1
-                                                  : dyng::infinite_distance<std::int64_t>());
+                                                   : dyng::infinite_distance<std::int64_t>());
   }
 }
 
