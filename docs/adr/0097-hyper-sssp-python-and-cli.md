@@ -79,7 +79,10 @@ run in 0.4.
   when a batch has an edit (so a file without edits is 0.3's, byte for byte) and the `.dgt`
   writer writes `-i` / `+i`. The native batch tuple of the readers and the generator gains the four
   edit arrays.
-- `dyng.generators.random_hyperedge_batch` takes the seven incidence mixes (HD12's enumerators).
+- `dyng.generators.random_hyperedge_batch` takes the seven incidence mixes (HD12's enumerators),
+  typed by their own `Literal`, `dyng.generators.IncidenceBatchMixName`: appending them to 0.3's
+  `HyperedgeBatchMixName` changes the alias's value, which griffe reports as a breaking change of
+  the Python API, while a new alias next to it is an addition only.
 - `dyng.testing`: `HypergraphModel.apply()` takes the edits with `apply()`'s skip rules, and
   `strategies.hyperedge_batches(model, max_incidence_edits=k)` draws them (Hypothesis: the update
   chain with edits equals compute and the oracle, both id orders).

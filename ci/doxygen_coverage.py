@@ -29,10 +29,10 @@ missing @param / @return. This script reads its XML output and additionally requ
     brief starts with the banner "EXPERIMENTAL PUBLIC; may change in any minor release") are held
     to the freeze's rules, and so are the frozen algorithm headers of triad_count (M9b, ADR 0060)
     and hyper_sssp (M11b, ADR 0096): every entity they declare is in the group `hypergraph`
-    (`experimental`, `triad_count`, `hyper_sssp`); every function they declare (free or member, deleted special members and
-    destructors exempt) documents its exceptions (at least one @throws) or is `noexcept`; and
-    every one that documents a cuda_error (device work, also without a `resources` argument: the
-    views) carries @sync or @async.
+    (`experimental`, `triad_count`, `hyper_sssp`); every function they declare (free or member,
+    deleted special members and destructors exempt) documents its exceptions (at least one
+    @throws) or is `noexcept`; and every one that documents a cuda_error (device work, also
+    without a `resources` argument: the views) carries @sync or @async.
 
 Usage: ci/doxygen_coverage.py <doxygen-xml-dir>
 """

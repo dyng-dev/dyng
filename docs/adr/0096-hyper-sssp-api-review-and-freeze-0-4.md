@@ -135,8 +135,10 @@ acknowledgement item under GOVERNANCE.md's Open decisions (M11 (HD)):
   `dyng.citation("hyper_sssp")`; the container's `HyperedgeBatch.delete_incidences`,
   `insert_incidences` (the 0.3 constructor keywords, now also properties) and
   `num_incidence_edits` **(ack)**, `dyng.io.BatchFileHeader.incidence_edits` **(ack;** the flag's
-  name**)**, the seven incidence mixes in `dyng.generators.HyperedgeBatchMixName` (the C++
-  enumerators); `dyng.testing.hyper_sssp_reference(hypergraph, source)` and
+  name**)**, the seven incidence mixes (the C++ enumerators) in their own
+  `dyng.generators.IncidenceBatchMixName` **(ack;** a new `Literal` beside
+  `HyperedgeBatchMixName`, which griffe would report as a changed value if the names were appended
+  to it**)**; `dyng.testing.hyper_sssp_reference(hypergraph, source)` and
   `check_hyper_sssp_tree(hypergraph, result)` (the C++ oracle's names); the Hypothesis strategy
   keyword `max_incidence_edits` and the fields `RandomHyperedgeBatch.delete_incidences` /
   `insert_incidences`, the model keywords `HypergraphModel.apply(..., delete_incidences=,

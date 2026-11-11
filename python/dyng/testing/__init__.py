@@ -253,9 +253,10 @@ def _hyper_sssp_inputs(hypergraph: Hypergraph, what: str) -> tuple[Any, ...]:
 
 def hyper_sssp_reference(hypergraph: Hypergraph, source: int) -> tuple[np.ndarray, np.ndarray]:
     """The shortest hyperpaths of a weighted hypergraph from a source vertex by
-    MOSP_ESCHER@4b86159's test oracle (C++ ``testing::hyper_sssp_reference``): a binary-heap Dijkstra over the line
-    graph rebuilt from the hyperedges, where entering hyperedge h costs its weight; the oracle of
-    :mod:`dyng.hyper_sssp`. It shares no code with the algorithm or the container.
+    MOSP_ESCHER@4b86159's test oracle (C++ ``testing::hyper_sssp_reference``): a binary-heap
+    Dijkstra over the line graph rebuilt from the hyperedges, where entering hyperedge h costs its
+    weight; the oracle of :mod:`dyng.hyper_sssp`. It shares no code with the algorithm or the
+    container.
 
     Args:
         hypergraph: The hypergraph (read through host copies of its rows by id and its weights;

@@ -10,7 +10,7 @@ import dyng
 import numpy as np
 import pytest
 from conftest import host_backends  # noqa: E402
-from dyng.generators.hypergraphs import HyperedgeBatchMixName
+from dyng.generators.hypergraphs import HyperedgeBatchMixName, IncidenceBatchMixName
 
 hypothesis = pytest.importorskip("hypothesis")
 st = hypothesis.strategies
@@ -37,7 +37,9 @@ def test_uniform_hypergraph_is_seeded() -> None:
     assert w.weights is not None and set(w.weights.tolist()) <= {3, 4}
 
 
-@pytest.mark.parametrize("mix", list(typing.get_args(HyperedgeBatchMixName)))
+@pytest.mark.parametrize(
+    "mix", [*typing.get_args(HyperedgeBatchMixName), *typing.get_args(IncidenceBatchMixName)]
+)
 def test_every_mix_applies(mix: str) -> None:
     # The incidence-edit mixes (0.4) apply on slack_csr storage (escher storage refuses edits).
     edits = mix.startswith("incidence_")

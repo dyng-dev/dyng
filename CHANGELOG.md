@@ -211,7 +211,7 @@ Before 0.1.0 anything may change.
   `insert_incidences` and `num_incidence_edits`; `dyng.io` reads and writes the `.dgt` and `.dgb`
   incidence edits (`BatchFileHeader.incidence_edits`; `write_binary_batches` sets the flag only
   when a batch has an edit); `dyng.generators.random_hyperedge_batch` takes the seven incidence
-  mixes; `dyng.testing`'s hypergraph model and Hypothesis strategies (`max_incidence_edits`) draw
+  mixes (typed `dyng.generators.IncidenceBatchMixName`); `dyng.testing`'s hypergraph model and Hypothesis strategies (`max_incidence_edits`) draw
   and apply incidence edits.
 - Added (api-change: the command line): **`dyng hyper_sssp compute|update`** (ADR 0097): the
   option fields as flags (`--work-budget`, `--max-iterations`, `--on-budget`, `--cuda-engine`,
