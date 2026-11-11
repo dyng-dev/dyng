@@ -62,10 +62,13 @@
  * stats::fallback_reason) when, before a push round, their relaxations exceed work_budget times
  * the live line-graph entries, or they have run max_iterations push rounds; and always when a
  * distance does not fit their packed words (engine::fused: 32 bits; engine::operators: the
- * hyperedge id bound times the largest weight next to the parent bits), or the invalidation's
+ * hyperedge id bound times the largest weight next to the parent bits, the largest weight being
+ * the largest the checks of options::validate_inputs have seen, or 2^31 - 1 once compute() or an
+ * update of the result ran without them), or the invalidation's
  * pointer jumping does not end (engine::fused: 64 rounds; engine::operators: ceil(log2 n) + 1).
  * The host engine counts the relaxations the same way, checked before each expansion, and has no
- * iteration, width or depth limit. The fallback gives the same result as
+ * iteration, width or depth limit. The work done before the first check (the invalidation, the
+ * seed's pulls and offers) is never refused. The fallback gives the same result as
  * the update would have (it is exact); under budget_action::error an exceeded work or iteration
  * budget throws convergence_error instead, after the commit.
  *

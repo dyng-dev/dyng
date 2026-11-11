@@ -188,6 +188,9 @@ struct hyper_sssp_state {
   bool poisoned = false;          ///< a failed update left the result unusable
   std::int64_t max_weight = 0;    ///< the largest weight seen by compute() and the updates (the
                                   ///< running maximum of the check; HD11)
+  bool max_weight_known = false;  ///< max_weight bounds every live weight: compute() and every
+                                  ///< update since ran with options::validate_inputs (else the
+                                  ///< shared engine's packing bound is the largest int32 weight)
   /// The hypergraph the result matches (distance_to(), vertex_distances()): its lifetime token
   /// and its implementation (hypergraph_impl<int32_t, int32_t>).
   std::weak_ptr<const int> graph_alive;

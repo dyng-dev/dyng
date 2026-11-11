@@ -411,7 +411,12 @@ engine hyper_sssp_problem<vertex_t, weight_t>::select_engine(
 
 template <typename vertex_t, typename weight_t>
 std::int64_t hyper_sssp_problem<vertex_t, weight_t>::weight_bound() const noexcept {
-  if (!state_->opt.validate_inputs) return std::numeric_limits<std::int32_t>::max();
+  // The running maximum bounds the live weights only while every compute() and update() since
+  // the result's compute() checked them: an update under validate_inputs = false, or a result
+  // whose compute() ran without it (result::set_options() can turn it on later), has no bound.
+  if (!state_->opt.validate_inputs || !state_->max_weight_known) {
+    return std::numeric_limits<std::int32_t>::max();
+  }
   return std::max(state_->max_weight, computing_ ? std::int64_t{0} : pending_max_);
 }
 
@@ -533,7 +538,11 @@ template <typename vertex_t, typename weight_t>
 void hyper_sssp_problem<vertex_t, weight_t>::end_update(framework::context& /*ctx*/, new_graph g,
                                                         const stats_type& /*stats*/) {
   link(*state_, g.get());
-  if (state_->opt.validate_inputs) state_->max_weight = pending_max_;
+  if (state_->opt.validate_inputs) {
+    state_->max_weight = pending_max_;
+  } else {
+    state_->max_weight_known = false;  // the batch's weights were not checked
+  }
   state_->last = counters_;
   ws_.reset();
 }
@@ -779,7 +788,10 @@ std::unique_ptr<hyper_sssp_state> new_state(const resources& res,
   st->block_size = block_size;
   st->home = res.get_backend();
   st->device = res.get_backend() == backend::cuda ? res.device() : -1;
-  if (opt.validate_inputs) st->max_weight = checked_weights(h, what);
+  if (opt.validate_inputs) {
+    st->max_weight = checked_weights(h, what);
+    st->max_weight_known = true;
+  }
   return st;
 }
 
@@ -1086,6 +1098,7 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
   copy->version = st.version;
   copy->graph_state = st.graph_state;
   copy->max_weight = st.max_weight;
+  copy->max_weight_known = st.max_weight_known;
   copy->graph_alive = st.graph_alive;
   copy->graph_impl = st.graph_impl;
   copy->last = st.last;

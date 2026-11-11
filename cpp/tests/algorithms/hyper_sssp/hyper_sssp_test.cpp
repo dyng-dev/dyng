@@ -628,6 +628,48 @@ TEST_P(HyperSssp, TheTwoCudaEnginesGiveTheSameBytes) {
   }
 }
 
+TEST_P(HyperSssp, TurningValidateInputsOnLaterKeepsTheResultExact) {
+  // M11b review: the shared engine's packing bound is the largest weight the checks have seen,
+  // which bounds the live weights only while every compute() and update() of the result checked
+  // them. A result computed (or updated) without validate_inputs and then turned to it by
+  // set_options() has no such bound: the update must stay exact on every engine.
+  const resources r = res();
+  rows chain;
+  std::vector<std::int32_t> w;
+  for (std::int32_t i = 0; i < 20; ++i) {
+    chain.push_back({i, i + 1});
+    w.push_back(1000);
+  }
+  for (const bool update_unchecked : {false, true}) {
+    SCOPED_TRACE(update_unchecked ? "an unchecked update first" : "an unchecked compute()");
+    whgraph h = make(r, 24, chain, w);
+    hs::options o = opts();
+    o.validate_inputs = update_unchecked;
+    result_t sp = hs::compute(r, h, 0, o);
+    ASSERT_TRUE(matches_oracle(r, h, sp, 0, true));
+    if (update_unchecked) {
+      // validate_inputs off for one update that inserts heavier weights than compute() saw
+      o.validate_inputs = false;
+      sp.set_options(o);
+      wbatch heavy;
+      heavy.insert_hyperedge({21, 22}, 5000);
+      (void)hs::update(r, h, heavy.view(), sp);
+      ASSERT_TRUE(matches_oracle(r, h, sp, 0, true));
+    }
+    o.validate_inputs = true;
+    sp.set_options(o);
+    wbatch b;
+    b.insert_hyperedge({20, 21}, 1);
+    b.insert_hyperedge({22, 23}, 1);
+    const hs::stats s = hs::update(r, h, b.view(), sp);
+    EXPECT_FALSE(s.fallback_used) << hs::to_string(s.fallback_reason);
+    EXPECT_TRUE(matches_oracle(r, h, sp, 0, true));
+    EXPECT_EQ(sp.distance_to(21), 20 * 1000 + 1);
+    EXPECT_EQ(sp.distance_to(23), update_unchecked ? 20 * 1000 + 1 + 5000 + 1
+                                                  : dyng::infinite_distance<std::int64_t>());
+  }
+}
+
 std::string config_name(const ::testing::TestParamInfo<config>& info) {
   std::string name(dyng::to_string(info.param.b));
   if (info.param.b == backend::cuda && info.param.e == dyng::engine::operators) {
