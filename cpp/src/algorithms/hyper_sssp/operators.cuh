@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP_ESCHER@4b86159:hsosp/src/hsospDevice.cu (relaxInsertedKernel: the inserted
+// pairs' seeds; markDeletedTreeEdgesKernel and markIdsKernel: the roots; the work count's units)
+// Derived from MOSP-OpenMP@c352151:headers/sospUpdateCpu.h (defaultDelta's inputs)
 /**
  * @file operators.cuh
  * @brief hyper_sssp on the shared sssp engine (engine::operators; M11b, decision O12; ADR 0095):
