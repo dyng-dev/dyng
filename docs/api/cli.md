@@ -12,6 +12,7 @@ dyng [--version] [--log-level LEVEL] COMMAND ...
   mosp compute | update         dynamic multi-objective shortest paths (0.2)
   cycle_count compute | update  directed simple-cycle histograms
   triad_count compute | update  hypergraph triad counts (0.3)
+  hyper_sssp compute | update   dynamic single-source shortest hyperpaths (0.4)
   prep SUBCOMMAND               MOSP's input preparation (the mospPrep subcommands)
   convert INPUT OUTPUT          convert a graph between formats
   generate GENERATOR            the seeded batch generators of the original tools
@@ -237,6 +238,65 @@ The original's flags and dynG's:
 | `n m r1 r2` (a generated hypergraph), `--batches`, `--batch-size`, `--seed`, `--insert-mode` | the hypergraph and batch files the generator writes (`dyng.generators.legacy.escher_hypergraph`, `EscherBatchGenerator`; `dyng-compat-escher run` is the drop-in driver) |
 | `--payload-capacity N` | `--capacity escher_gpu --min-initial-payload N` |
 | `--check`, `--reference` | `--compare-recompute`; the oracle is `dyng.testing.triad_reference` |
+
+## `dyng hyper_sssp`
+
+```text
+dyng hyper_sssp compute --input H.hg [read flags] [--source S] [options] --out DIR [--vertex-distances]
+dyng hyper_sssp update  --input H.hg [read flags] [--source S] [options] --out DIR [--vertex-distances]
+                        --batches FILE [FILE ...] [--compare-recompute]
+```
+
+Shortest hyperpaths from the source vertex `--source S` (default 0) of a weighted hypergraph
+(`dyng.hyper_sssp`; {doc}`../algorithms/hyper_sssp`). Options, the fields of
+`dyng.hyper_sssp.Options` one to one: `--work-budget X` (a multiple of the live line-graph
+entries; `inf` never falls back), `--max-iterations N`, `--on-budget recompute|error`,
+`--cuda-engine automatic|fused|operators` and `--validate-inputs` / `--no-validate-inputs`.
+The default backend is `sequential` (hyper_sssp has no OpenMP backend in 0.4: `--backend
+openmp` fails with exit status 1 and the library's message); `--backend cuda` needs a CUDA
+plugin wheel.
+
+**Hypergraph input** (`--input PATH`, also spelled `--hypergraph`): a weighted `.hg` file
+({doc}`file_formats`; `; w` ends every line: these commands read with `--weighted` unless the
+weights are drawn), read by `dyng.io.read_hypergraph` with the read flags of `dyng triad_count`
+(above), stored as `--storage slack_csr` with `--line-graph slack_csr` (the defaults here;
+`--storage escher` fails with exit status 1: hyper_sssp reads the slack_csr line graph).
+`--random-weights MIN,MAX,SEED` draws one weight per hyperedge, uniform in [MIN, MAX], and
+`--read-options hsosp` is MOSP_ESCHER's loader (vertices numbered by first appearance,
+hyperedges of at most 25 vertices, weights U[1, 100] from its seed 20260725). A hypergraph without
+weights fails with exit status 1 and names these flags; weights must lie in [1, 2^28] (with
+`--validate-inputs`, the default).
+
+**Batches** (`update`): `--batches FILE ...`, applied in order; each file is a `.dgt` batch file
+(`+h v1 .. ; w` / `-h id`, and the incidence edits `+i h v` / `-i h v`) or a `.dgb` binary batch
+file (its flag `incidence_edits` when a batch has an edit). A `.dgb` file that carries the
+expected ids of every insertion is checked as for `dyng triad_count` (exit status 1 when the ids
+diverge: build the hypergraph as the recording's run did, for MOSP_ESCHER's batches `--id-reuse
+insert_first`).
+
+**Output** (`--out DIR`, created if needed): the result after `compute`, or after the last batch
+of `update`, in sssp's distance and parent formats ({doc}`file_formats`, MOSP's
+`writeDistances()` / `writeParents()`), one line per hyperedge id in [0, hyperedge id bound):
+`DIR/hyperedge_distances.txt` (`h D(h)`, `h INF` for a dead or unreachable id) and
+`DIR/hyperedge_parents.txt` (`h p`, `-1` for a hyperedge holding the source and for a dead or
+unreachable id); with `--vertex-distances` also `DIR/vertex_distances.txt` (`v d`, the smallest
+D(h) over v's hyperedges, 0 for the source). Report lines go to standard output (`--quiet`
+drops them): the compute time and the reachable hyperedges, and per batch its counts (deleted
+and inserted hyperedges, removed and added incidences, skipped operations, the line-graph pairs
+removed and added, the invalidated hyperedges, the relaxations, the fallback reason and the
+engine). `update_seconds=` goes to standard error, and with `--compare-recompute` also
+`recompute_seconds=` and `match=yes|no` (distances and parents of a recompute; a mismatch exits
+with status 1).
+
+MOSP_ESCHER's `hsospBench` prints timings, not results; the parity harness's driver
+`dyng-compat-hsosp` replays its sessions (`to-dgb`, `replay`, `bench`).
+
+| MOSP_ESCHER@4b86159 (`hsospBench`) | `dyng hyper_sssp` |
+|---|---|
+| `--hg FILE` (its loader, `--maxcard 25`, `--seed`) | `--input FILE --read-options hsosp` (`--max-cardinality`) |
+| the virtual source row `{s}` | `--source S` (a vertex; the hyperedges holding it start at their own weight) |
+| `UpdateConfig::workBudget`, `maxIterations` | `--work-budget`, `--max-iterations` (`--on-budget error` raises instead of falling back) |
+| `--verify all` | `--compare-recompute`; the oracle is `dyng.testing.hyper_sssp_reference` |
 
 ## `dyng prep`
 
