@@ -230,7 +230,9 @@ Before 0.1.0 anything may change.
   filled; escher storage keeps refusing them (`not_supported_error`, the message names
   slack_csr); `id_reuse` documents the store order of both values with edits (ADR 0085).
 - Changed (api-change: documented behaviour): `triad_count` and the experimental
-  `count_local_patterns` refuse slack_csr storage (`not_supported_error`, strong guarantee; HD9).
+  `count_local_patterns` refuse slack_csr storage (`not_supported_error`, strong guarantee; HD9),
+  in `compute()` and in `update()`, where the storage is checked before the result's identity
+  (no result can match a slack_csr hypergraph; M11b review).
 - Added (api-change: appended enumerators, HD12): seven incidence-edit mixes of
   `generators::hyperedge_batch_mix` (`incidence_removals`, `incidence_additions`,
   `incidence_mixed`, `incidence_emptying`, `incidence_same_batch`, `incidence_repeats`,
