@@ -255,6 +255,15 @@ class graph_impl {
   }
 
   /**
+   * @brief The host CSR as it is, for the device apply of slack rows (ADR 0103), which keeps its
+   *        row starts current (the slots stay stale until something reads them).
+   * @return The host storage.
+   */
+  csr_type& host_storage_for_write() noexcept {
+    return out_;
+  }
+
+  /**
    * @brief Read the report of a pending device apply (precondition: the stream it was enqueued
    *        on was synchronized since): update the live entries, poison the graph on an overflow.
    *        No-op without a pending apply.

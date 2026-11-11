@@ -194,10 +194,6 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::with_capaci
   // the slot ranges and the states, and its slots stay unfilled until something reads them.
   const bool on_device = res.get_backend() == backend::cuda && DYNG_HAS_CUDA &&
                          detail::device_slotted_supported_v<vertex_t>;
-  if (props.layout == row_layout::slack && res.get_backend() == backend::cuda) {
-    throw not_supported_error(
-        "dyng: graph::with_capacity: row_layout::slack on the cuda backend is not built yet");
-  }
   if (props.layout == row_layout::slack) {
     detail::build_slack(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
                         props.num_weights, props, impl->host_edges_for_write(), impl->slotted,
@@ -210,7 +206,12 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::with_capaci
   if constexpr (detail::device_slotted_supported_v<vertex_t>) {
     if (on_device) {
       auto d = std::make_unique<typename impl_type::slotted_device_type>();
-      detail::build_device_slotted(res, impl->host_storage().row_ptr, props.num_weights, *d);
+      if (props.layout == row_layout::slack) {
+        detail::build_device_slack(res, impl->host_storage().row_ptr, impl->slotted.row_limit,
+                                   props.num_weights, *d);
+      } else {
+        detail::build_device_slotted(res, impl->host_storage().row_ptr, props.num_weights, *d);
+      }
       impl->adopt_slotted_device(std::move(d));
     }
   }
@@ -524,9 +525,16 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
         if (!dev.batch_current) {
           upload_vertex_batch(res, dev, batch, *normalized);
         }
-        apply_vertex_batch_device(res, dev);
-        apply_summary summary =
-            apply_vertex_states_host(state.slotted, batch.delete_vertices, *normalized, delta);
+        apply_summary summary;
+        if (state.is_slack()) {
+          // ADR 0103: the layout step on the host mirror and the device, then the appends.
+          summary = apply_vertex_batch_slack_device(res, dev, state.host_storage_for_write(),
+                                                    state.slotted, batch, *normalized, delta);
+        } else {
+          apply_vertex_batch_device(res, dev);
+          summary =
+              apply_vertex_states_host(state.slotted, batch.delete_vertices, *normalized, delta);
+        }
         if (delta != nullptr) {
           delta->num_weights = state.num_weights();
         }
@@ -606,7 +614,12 @@ void graph_access::normalize(const resources& res, const graph<vertex_t, edge_t,
         // overflow), then the batch to the device, before any participant reads G_t there.
         auto& dev = state.slotted_device(res);
         dev.batch_current = false;
-        normalize_vertex_batch(state.host_storage(), state.slotted, batch, out, false);
+        if (state.is_slack()) {
+          // The host mirror of the row starts, limits and ends is current (ADR 0103).
+          normalize_vertex_batch_slack(state.host_storage(), state.slotted, batch, out);
+        } else {
+          normalize_vertex_batch(state.host_storage(), state.slotted, batch, out, false);
+        }
         out.state_id = state.state_id;
         upload_vertex_batch(res, dev, batch, out);
         return;
@@ -769,7 +782,8 @@ graph_impl<vertex_t, edge_t, weight_t>::slotted_device(const resources& res) con
         const container_scope container;  // the graph's own work (budgets, I9)
         scoped_stage stage(res, "graph.upload");
         auto d = std::make_unique<slotted_device_type>();
-        upload_device_slotted(res, host_edges(), slotted.row_end, slotted.status, *d);
+        upload_device_slotted(res, host_edges(), slotted.row_end, slotted.status, *d,
+                              is_slack() ? &slotted.row_limit : nullptr);
         slotted_device_ = std::move(d);
       } else {
         DYNG_FAIL("graph: slotted rows on the device need 32-bit vertex ids");

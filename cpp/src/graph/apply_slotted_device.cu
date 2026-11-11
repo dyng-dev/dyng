@@ -28,6 +28,7 @@
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
 #include "graph/device_slotted.hpp"
+#include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
 #include "util/cuda_check.hpp"
 #include "util/device_error_flags.hpp"
@@ -190,7 +191,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 __global__ void append_kernel(const std::int32_t* keys, const std::int32_t* items,
                               const std::int32_t* rank, int num_half_edges, int num_nodes,
                               const vertex_t* src, const vertex_t* dst, const weight_t* weight,
-                              int num_weights, const edge_t* row_ptr, const edge_t* row_end,
+                              int num_weights, const edge_t* row_limit, const edge_t* row_end,
                               vertex_t* col_ind, weight_t* values, std::int64_t* report) {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= num_half_edges) {
@@ -204,7 +205,8 @@ __global__ void append_kernel(const std::int32_t* keys, const std::int32_t* item
   // would wrap past the row's end check (the original's arithmetic is edge_t; a documented fix).
   const std::int64_t slot =
       static_cast<std::int64_t>(row_end[source]) + static_cast<std::int64_t>(rank[i]);
-  if (slot >= static_cast<std::int64_t>(row_ptr[source + 1])) {  // row full: contract violated
+  // row_limit[v]: row_ptr[v + 1] of slotted rows, the row's limit of slack rows (ADR 0103).
+  if (slot >= static_cast<std::int64_t>(row_limit[source])) {  // row full: contract violated
     report_max(report, report_overflow_row, static_cast<std::int64_t>(source) + 1);
     report_or(report, report_error_bits, bits_of(device_error::capacity));
     return;
@@ -222,7 +224,7 @@ __global__ void append_kernel(const std::int32_t* keys, const std::int32_t* item
 /// end of the row).
 template <typename edge_t>
 __global__ void advance_row_end_kernel(const std::int32_t* keys, const std::int32_t* rank,
-                                       int num_half_edges, int num_nodes, const edge_t* row_ptr,
+                                       int num_half_edges, int num_nodes, const edge_t* row_limit,
                                        edge_t* row_end) {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= num_half_edges) {
@@ -238,7 +240,7 @@ __global__ void advance_row_end_kernel(const std::int32_t* keys, const std::int3
   // In 64 bits, as append_kernel's slot (the end of the row bounds the result).
   const std::int64_t end =
       static_cast<std::int64_t>(row_end[source]) + static_cast<std::int64_t>(rank[i]) + 1;
-  const auto limit = static_cast<std::int64_t>(row_ptr[source + 1]);
+  const auto limit = static_cast<std::int64_t>(row_limit[source]);
   row_end[source] = static_cast<edge_t>(end < limit ? end : limit);
 }
 
@@ -265,6 +267,112 @@ __global__ void fill_status_kernel(std::int32_t* status, int count, std::int32_t
   if (i < count) {
     status[i] = value;
   }
+}
+
+// ---- row_layout::slack (ADR 0103) ------------------------------------------------------------
+
+/// A value in every element (the grown part of a slack graph's per-vertex arrays).
+template <typename value_t>
+__global__ void fill_value_kernel(value_t* out, long long count, value_t value) {
+  const long long i = static_cast<long long>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (i < count) {
+    out[i] = value;
+  }
+}
+
+/// The moves of a batch (one block per move: old start, new start, entries, old limit): copy
+/// the row's entries to its new slots, in order.
+template <typename vertex_t, typename edge_t, typename weight_t>
+__global__ void move_rows_kernel(const std::int64_t* moves, int num_weights, vertex_t* col_ind,
+                                 weight_t* values) {
+  const std::int64_t* m = moves + 5 * static_cast<std::int64_t>(blockIdx.x);
+  const std::int64_t from = m[1];
+  const std::int64_t to = m[2];
+  const std::int64_t used = m[3];
+  for (std::int64_t j = threadIdx.x; j < used; j += blockDim.x) {
+    col_ind[to + j] = col_ind[from + j];
+    if (num_weights != 0) {
+      values[to + j] = values[from + j];
+    }
+  }
+}
+
+/// After move_rows_kernel: the old slots of each moved row become dead (-1 / 0), and the row's
+/// start, limit and end are set.
+template <typename vertex_t, typename edge_t, typename weight_t>
+__global__ void retire_rows_kernel(const std::int64_t* moves, int num_weights, vertex_t* col_ind,
+                                   weight_t* values, edge_t* row_ptr, edge_t* row_limit,
+                                   edge_t* row_end) {
+  const std::int64_t* m = moves + 5 * static_cast<std::int64_t>(blockIdx.x);
+  const std::int64_t from = m[1];
+  const std::int64_t limit = m[4];
+  for (std::int64_t j = from + threadIdx.x; j < limit; j += blockDim.x) {
+    col_ind[j] = vertex_t{-1};
+    if (num_weights != 0) {
+      values[j] = weight_t{};
+    }
+  }
+  if (threadIdx.x == 0) {
+    const auto v = static_cast<std::int64_t>(m[0]);
+    row_ptr[v] = static_cast<edge_t>(m[2]);
+    row_end[v] = static_cast<edge_t>(m[2] + m[3]);
+  }
+}
+
+/// The limits of the moved rows (one thread per move: the new start plus the new capacity).
+template <typename edge_t>
+__global__ void set_limits_kernel(const std::int64_t* limits, int count, edge_t* row_limit) {
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < count) {
+    row_limit[limits[2 * i]] = static_cast<edge_t>(limits[2 * i + 1]);
+  }
+}
+
+/// A compaction's kept entries per row: those whose column is not deleted, none of a deleted
+/// vertex's row (the states after the batch's deletions and insertions).
+template <typename vertex_t, typename edge_t>
+__global__ void kept_entries_kernel(const edge_t* row_ptr, const edge_t* row_end,
+                                    const vertex_t* col_ind, const std::int32_t* status, int n,
+                                    std::int64_t* kept) {
+  const int v = blockIdx.x * blockDim.x + threadIdx.x;
+  if (v >= n) {
+    return;
+  }
+  std::int64_t k = 0;
+  if (status[v] != status_deleted) {
+    for (edge_t e = row_ptr[v]; e < row_end[v]; ++e) {
+      k += status[col_ind[e]] != status_deleted ? 1 : 0;
+    }
+  }
+  kept[v] = k;
+}
+
+/// A compaction: every row rewritten at its new start with its kept entries in order (one thread
+/// per row), its end set.
+template <typename vertex_t, typename edge_t, typename weight_t>
+__global__ void rewrite_rows_kernel(const edge_t* old_ptr, edge_t* row_end, const edge_t* new_ptr,
+                                    const vertex_t* old_col, const weight_t* old_values,
+                                    const std::int32_t* status, int n, int num_weights,
+                                    vertex_t* new_col, weight_t* new_values) {
+  const int v = blockIdx.x * blockDim.x + threadIdx.x;
+  if (v >= n) {
+    return;
+  }
+  edge_t at = new_ptr[v];
+  if (status[v] != status_deleted) {
+    for (edge_t e = old_ptr[v]; e < row_end[v]; ++e) {
+      const vertex_t c = old_col[e];
+      if (status[c] == status_deleted) {
+        continue;
+      }
+      new_col[at] = c;
+      if (num_weights != 0) {
+        new_values[at] = old_values[e];
+      }
+      ++at;
+    }
+  }
+  row_end[v] = at;
 }
 
 /// The CUB temporary storage of an append of up to `half_edges` half-edges (createDeviceGraph).
@@ -352,11 +460,34 @@ void build_device_slotted(const resources& res, const std::vector<edge_t>& row_p
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+void build_device_slack(const resources& res, const std::vector<edge_t>& row_ptr,
+                        const std::vector<edge_t>& row_limit, int num_weights,
+                        device_slotted<vertex_t, edge_t, weight_t>& out) {
+  build_device_slotted(res, row_ptr, num_weights, out);
+  const scoped_device guard(res.device());
+  const cudaStream_t stream = native(res);
+  const std::size_t n = row_limit.size();
+  out.slack = true;
+  out.arena_capacity = std::max<std::int64_t>(static_cast<std::int64_t>(out.num_slots), 1);
+  out.row_limit = buffer<edge_t>(res, std::max<std::size_t>(n, 1));
+  if (n > 0) {
+    DYNG_CUDA_TRY(cudaMemcpyAsync(out.row_limit.data(), row_limit.data(), n * sizeof(edge_t),
+                                  cudaMemcpyHostToDevice, stream));
+  }
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));  // the pageable source may go away
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 void upload_device_slotted(const resources& res, const csr<vertex_t, edge_t, weight_t>& slots,
                            const std::vector<edge_t>& row_end,
                            const std::vector<vertex_status>& status,
-                           device_slotted<vertex_t, edge_t, weight_t>& out) {
-  build_device_slotted(res, slots.row_ptr, slots.num_weights, out);
+                           device_slotted<vertex_t, edge_t, weight_t>& out,
+                           const std::vector<edge_t>* row_limit) {
+  if (row_limit != nullptr) {
+    build_device_slack(res, slots.row_ptr, *row_limit, slots.num_weights, out);
+  } else {
+    build_device_slotted(res, slots.row_ptr, slots.num_weights, out);
+  }
   const scoped_device guard(res.device());
   const cudaStream_t stream = native(res);
   const auto n = row_end.size();
@@ -551,13 +682,16 @@ void upload_vertex_batch(const resources& res, device_slotted<vertex_t, edge_t, 
   g.batch_current = true;
 }
 
+namespace {
+
+/// The first half of a device apply: the report cleared, the live entries Del_eff takes with it,
+/// the deletions, then Ins \ Del.
 template <typename vertex_t, typename edge_t, typename weight_t>
-void apply_vertex_batch_device(const resources& res,
-                               device_slotted<vertex_t, edge_t, weight_t>& g) {
+void apply_vertex_states_device(const resources& res,
+                                device_slotted<vertex_t, edge_t, weight_t>& g) {
   DYNG_EXPECTS(g.batch_current, "apply (slotted, device): the batch was not uploaded");
   const scoped_device guard(res.device());
   const cudaStream_t stream = native(res);
-  const int n = static_cast<int>(g.num_vertices);
   std::int64_t* report = g.report.data();
   g.last_settled = device_slotted_settled{};
   DYNG_CUDA_TRY(cudaMemsetAsync(report, 0, report_entries * sizeof(std::int64_t), stream));
@@ -585,7 +719,17 @@ void apply_vertex_batch_device(const resources& res,
                                                                          g.status.data(), report);
     DYNG_CUDA_TRY(cudaGetLastError());
   }
-  // launchAppendEdges.
+}
+
+/// The second half: launchAppendEdges against the row limits (row_ptr + 1 of slotted rows), then
+/// the report to its pinned mirror.
+template <typename vertex_t, typename edge_t, typename weight_t>
+void append_vertex_batch_device(const resources& res, device_slotted<vertex_t, edge_t, weight_t>& g,
+                                const edge_t* row_limit) {
+  const scoped_device guard(res.device());
+  const cudaStream_t stream = native(res);
+  const int n = static_cast<int>(g.num_vertices);
+  std::int64_t* report = g.report.data();
   const auto num_edges = static_cast<int>(g.num_edges);
   if (num_edges > 0) {
     const int half_edges = 2 * num_edges;
@@ -607,11 +751,11 @@ void apply_vertex_batch_device(const resources& res,
                                                      ::cuda::std::equal_to<>(), stream));
     append_kernel<<<blocks_for(half_edges), threads_per_block, 0, stream>>>(
         sorted_keys, sorted_ids, rank, half_edges, n, g.edge_src.data(), g.edge_dst.data(),
-        g.edge_weight.data(), g.num_weights, g.row_ptr.data(), g.row_end.data(), g.col_ind.data(),
+        g.edge_weight.data(), g.num_weights, row_limit, g.row_end.data(), g.col_ind.data(),
         g.weights.data(), report);
     DYNG_CUDA_TRY(cudaGetLastError());
     advance_row_end_kernel<<<blocks_for(half_edges), threads_per_block, 0, stream>>>(
-        sorted_keys, rank, half_edges, n, g.row_ptr.data(), g.row_end.data());
+        sorted_keys, rank, half_edges, n, row_limit, g.row_end.data());
     DYNG_CUDA_TRY(cudaGetLastError());
     count_dropped_kernel<<<1, 32, 0, stream>>>(sorted_keys, rank, half_edges, n, report);
     DYNG_CUDA_TRY(cudaGetLastError());
@@ -621,6 +765,15 @@ void apply_vertex_batch_device(const resources& res,
                                 cudaMemcpyDeviceToHost, stream));
   g.batch_current = false;
   g.pending = true;
+}
+
+}  // namespace
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void apply_vertex_batch_device(const resources& res,
+                               device_slotted<vertex_t, edge_t, weight_t>& g) {
+  apply_vertex_states_device(res, g);
+  append_vertex_batch_device(res, g, g.row_ptr.data() + 1);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -664,20 +817,254 @@ void download_device_slotted(const device_slotted<vertex_t, edge_t, weight_t>& g
   note_host_sync();
 }
 
-#define DYNG_INSTANTIATE_DEVICE_SLOTTED(V, E, W)                                                  \
-  template void build_device_slotted<V, E, W>(const resources&, const std::vector<E>&, int,       \
-                                              device_slotted<V, E, W>&);                          \
-  template void upload_device_slotted<V, E, W>(                                                   \
-      const resources&, const csr<V, E, W>&, const std::vector<E>&,                               \
-      const std::vector<vertex_status>&, device_slotted<V, E, W>&);                               \
-  template void reserve_device_slotted<V, E, W>(const resources&, device_slotted<V, E, W>&,       \
-                                                std::int64_t);                                    \
-  template void upload_vertex_batch<V, E, W>(const resources&, device_slotted<V, E, W>&,          \
-                                             const edge_batch_view<V, W>&,                        \
-                                             const normalized_batch<V>&);                         \
-  template void apply_vertex_batch_device<V, E, W>(const resources&, device_slotted<V, E, W>&);   \
-  template device_slotted_settled settle_device_slotted<V, E, W>(const device_slotted<V, E, W>&); \
-  template void download_device_slotted<V, E, W>(const device_slotted<V, E, W>&, csr<V, E, W>&,   \
+namespace {
+
+/// A device buffer of `count` elements holding `old`'s first `keep` elements and `value` after
+/// them (the growth of a slack graph's per-vertex arrays; stream-ordered).
+template <typename value_t>
+buffer<value_t> grown_copy(const resources& res, const buffer<value_t>& old, std::size_t keep,
+                           std::size_t count, value_t value) {
+  const cudaStream_t stream = native(res);
+  buffer<value_t> out(res, std::max<std::size_t>(count, 1));
+  if (keep > 0) {
+    DYNG_CUDA_TRY(cudaMemcpyAsync(out.data(), old.data(), keep * sizeof(value_t),
+                                  cudaMemcpyDeviceToDevice, stream));
+  }
+  if (count > keep) {
+    const auto rest = static_cast<long long>(count - keep);
+    fill_value_kernel<<<blocks_for(rest), threads_per_block, 0, stream>>>(out.data() + keep, rest,
+                                                                          value);
+    DYNG_CUDA_TRY(cudaGetLastError());
+  }
+  return out;
+}
+
+/// The slot arena of a slack graph's device copy holds at least `slots` slots (grown with
+/// headroom outside the kernels: the new part -1 / 0, the used part copied).
+template <typename vertex_t, typename edge_t, typename weight_t>
+void ensure_arena(const resources& res, device_slotted<vertex_t, edge_t, weight_t>& g,
+                  std::int64_t slots) {
+  if (slots <= g.arena_capacity) {
+    return;
+  }
+  const cudaStream_t stream = native(res);
+  note_reservation();
+  const auto cap =
+      static_cast<std::size_t>(std::max(slots, g.arena_capacity + g.arena_capacity / 2));
+  const auto used = static_cast<std::size_t>(g.num_slots);
+  buffer<vertex_t> col(res, cap);
+  DYNG_CUDA_TRY(cudaMemsetAsync(col.data(), 0xFF, cap * sizeof(vertex_t), stream));
+  if (used > 0) {
+    DYNG_CUDA_TRY(cudaMemcpyAsync(col.data(), g.col_ind.data(), used * sizeof(vertex_t),
+                                  cudaMemcpyDeviceToDevice, stream));
+  }
+  g.col_ind = std::move(col);
+  if (g.num_weights > 0) {
+    buffer<weight_t> w(res, cap);
+    DYNG_CUDA_TRY(cudaMemsetAsync(w.data(), 0, cap * sizeof(weight_t), stream));
+    if (used > 0) {
+      DYNG_CUDA_TRY(cudaMemcpyAsync(w.data(), g.weights.data(), used * sizeof(weight_t),
+                                    cudaMemcpyDeviceToDevice, stream));
+    }
+    g.weights = std::move(w);
+  }
+  g.arena_capacity = static_cast<std::int64_t>(cap);
+}
+
+/// Grow a slack graph's device copy to `n_after` vertices: inactive vertices with empty rows of
+/// no slots at the end of the arena; the radix sort's key bits and scratch follow.
+template <typename vertex_t, typename edge_t, typename weight_t>
+void grow_device_slack(const resources& res, device_slotted<vertex_t, edge_t, weight_t>& g,
+                       std::int64_t n_after) {
+  const auto n = static_cast<std::size_t>(g.num_vertices);
+  const auto na = static_cast<std::size_t>(n_after);
+  if (na <= n) {
+    return;
+  }
+  note_reservation();
+  const auto arena = static_cast<edge_t>(g.num_slots);
+  g.row_ptr = grown_copy(res, g.row_ptr, n, na + 1, arena);
+  g.row_end = grown_copy(res, g.row_end, n, na, arena);
+  g.row_limit = grown_copy(res, g.row_limit, n, na, arena);
+  g.status = grown_copy(res, g.status, n, na, status_inactive);
+  g.num_vertices = static_cast<vertex_t>(na);
+  int bits = 1;
+  while ((1LL << bits) <= static_cast<long long>(na)) {
+    ++bits;
+  }
+  if (bits != g.key_bits) {
+    g.key_bits = bits;
+    if (g.max_edges > 0) {
+      g.temp = buffer<unsigned char>();
+      g.temp = buffer<unsigned char>(
+          res, std::max<std::size_t>(
+                   append_temp_bytes(static_cast<int>(2 * g.max_edges), g.key_bits), 1));
+    }
+  }
+}
+
+}  // namespace
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+apply_summary apply_vertex_batch_slack_device(const resources& res,
+                                              device_slotted<vertex_t, edge_t, weight_t>& g,
+                                              csr<vertex_t, edge_t, weight_t>& slots,
+                                              slotted_rows<vertex_t, edge_t>& rows,
+                                              const edge_batch_view<vertex_t, weight_t>& batch,
+                                              const normalized_batch<vertex_t>& normalized,
+                                              apply_delta<vertex_t>* delta) {
+  DYNG_EXPECTS(g.slack && rows.slack, "apply (slack, device): the rows are not slack rows");
+  const scoped_device guard(res.device());
+  const cudaStream_t stream = native(res);
+  // The growth, on the host mirror and on the device.
+  grow_slack_rows(slots, rows, normalized.vertices_after);
+  grow_device_slack(res, g, normalized.vertices_after);
+  // The states: the host mirror (the vertex counts), then the device (the removed entries).
+  apply_summary summary = apply_vertex_states_host(rows, batch.delete_vertices, normalized, delta);
+  apply_vertex_states_device(res, g);
+  // The entries each row receives (the states after the batch are current on the host).
+  std::vector<std::int64_t> appended;
+  slack_append_counts(rows.status, batch, appended);
+  const std::size_t n = rows.status.size();
+  if (normalized.slack_compact) {
+    // A compaction: the kept entries counted on the device and read back, the layout on the host,
+    // the rows rewritten on the device into a new arena.
+    buffer<std::int64_t> kept_d(res, std::max<std::size_t>(n, 1));
+    kept_entries_kernel<<<blocks_for(static_cast<long long>(n)), threads_per_block, 0, stream>>>(
+        g.row_ptr.data(), g.row_end.data(), g.col_ind.data(), g.status.data(), static_cast<int>(n),
+        kept_d.data());
+    DYNG_CUDA_TRY(cudaGetLastError());
+    std::vector<std::int64_t> kept(n, 0);
+    if (n > 0) {
+      DYNG_CUDA_TRY(cudaMemcpyAsync(kept.data(), kept_d.data(), n * sizeof(std::int64_t),
+                                    cudaMemcpyDeviceToHost, stream));
+    }
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+    note_host_sync();
+    std::vector<edge_t> starts;
+    std::vector<edge_t> limits;
+    slack_compaction_layout(slots, rows, rows.status, kept, appended, starts, limits);
+    const std::int64_t arena = static_cast<std::int64_t>(starts.back());
+    const auto cap = static_cast<std::size_t>(std::max<std::int64_t>(arena + arena / 4, 1));
+    buffer<edge_t> new_ptr(res, n + 1);
+    buffer<edge_t> new_limit(res, std::max<std::size_t>(n, 1));
+    buffer<vertex_t> new_col(res, cap);
+    buffer<weight_t> new_w = g.num_weights > 0 ? buffer<weight_t>(res, cap) : buffer<weight_t>();
+    DYNG_CUDA_TRY(cudaMemcpyAsync(new_ptr.data(), starts.data(), (n + 1) * sizeof(edge_t),
+                                  cudaMemcpyHostToDevice, stream));
+    if (n > 0) {
+      DYNG_CUDA_TRY(cudaMemcpyAsync(new_limit.data(), limits.data(), n * sizeof(edge_t),
+                                    cudaMemcpyHostToDevice, stream));
+    }
+    DYNG_CUDA_TRY(cudaMemsetAsync(new_col.data(), 0xFF, cap * sizeof(vertex_t), stream));
+    if (g.num_weights > 0) {
+      DYNG_CUDA_TRY(cudaMemsetAsync(new_w.data(), 0, cap * sizeof(weight_t), stream));
+    }
+    rewrite_rows_kernel<<<blocks_for(static_cast<long long>(n)), threads_per_block, 0, stream>>>(
+        g.row_ptr.data(), g.row_end.data(), new_ptr.data(), g.col_ind.data(), g.weights.data(),
+        g.status.data(), static_cast<int>(n), g.num_weights, new_col.data(), new_w.data());
+    DYNG_CUDA_TRY(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream));  // the pageable sources may go away
+    g.row_ptr = std::move(new_ptr);
+    g.row_limit = std::move(new_limit);
+    g.col_ind = std::move(new_col);
+    g.weights = std::move(new_w);
+    g.num_slots = static_cast<edge_t>(arena);
+    g.arena_capacity = static_cast<std::int64_t>(cap);
+    for (std::size_t v = 0; v < n; ++v) {
+      rows.row_end[v] = static_cast<edge_t>(static_cast<std::int64_t>(starts[v]) + kept[v]);
+    }
+    slots.row_ptr.swap(starts);
+    rows.row_limit.swap(limits);
+    rows.dead_slots = 0;
+    ++rows.compactions;
+    ++rows.layout_epoch;
+    summary.compactions = 1;
+  } else if (!normalized.slack_moves.empty()) {
+    // The moves: each row's entries to the tail of the arena, its old slots dead.
+    const std::size_t k = normalized.slack_moves.size() / 2;
+    std::vector<std::int64_t> moves(5 * k);
+    std::vector<std::int64_t> limits(2 * k);
+    auto arena = static_cast<std::int64_t>(slots.row_ptr[n]);
+    for (std::size_t i = 0; i < k; ++i) {
+      const auto v = static_cast<std::size_t>(normalized.slack_moves[2 * i]);
+      const std::int64_t cap = normalized.slack_moves[2 * i + 1];
+      const auto start = static_cast<std::int64_t>(slots.row_ptr[v]);
+      const auto used = static_cast<std::int64_t>(rows.row_end[v]) - start;
+      const auto limit = static_cast<std::int64_t>(rows.row_limit[v]);
+      moves[5 * i] = static_cast<std::int64_t>(v);
+      moves[5 * i + 1] = start;
+      moves[5 * i + 2] = arena;
+      moves[5 * i + 3] = used;
+      moves[5 * i + 4] = limit;
+      limits[2 * i] = static_cast<std::int64_t>(v);
+      limits[2 * i + 1] = arena + cap;
+      rows.dead_slots =
+          static_cast<edge_t>(static_cast<std::int64_t>(rows.dead_slots) + (limit - start));
+      slots.row_ptr[v] = static_cast<edge_t>(arena);
+      rows.row_limit[v] = static_cast<edge_t>(arena + cap);
+      rows.row_end[v] = static_cast<edge_t>(arena + used);
+      arena += cap;
+      ++rows.relocations;
+    }
+    slots.row_ptr[n] = static_cast<edge_t>(arena);
+    ++rows.layout_epoch;
+    ensure_arena(res, g, arena);
+    buffer<std::int64_t> moves_d(res, moves.size());
+    buffer<std::int64_t> limits_d(res, limits.size());
+    DYNG_CUDA_TRY(cudaMemcpyAsync(moves_d.data(), moves.data(), moves.size() * sizeof(std::int64_t),
+                                  cudaMemcpyHostToDevice, stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(limits_d.data(), limits.data(),
+                                  limits.size() * sizeof(std::int64_t), cudaMemcpyHostToDevice,
+                                  stream));
+    move_rows_kernel<vertex_t, edge_t, weight_t><<<static_cast<int>(k), 128, 0, stream>>>(
+        moves_d.data(), g.num_weights, g.col_ind.data(), g.weights.data());
+    DYNG_CUDA_TRY(cudaGetLastError());
+    retire_rows_kernel<vertex_t, edge_t, weight_t><<<static_cast<int>(k), 128, 0, stream>>>(
+        moves_d.data(), g.num_weights, g.col_ind.data(), g.weights.data(), g.row_ptr.data(),
+        g.row_limit.data(), g.row_end.data());
+    DYNG_CUDA_TRY(cudaGetLastError());
+    set_limits_kernel<edge_t>
+        <<<blocks_for(static_cast<long long>(k)), threads_per_block, 0, stream>>>(
+            limits_d.data(), static_cast<int>(k), g.row_limit.data());
+    DYNG_CUDA_TRY(cudaGetLastError());
+    const edge_t end = static_cast<edge_t>(arena);
+    DYNG_CUDA_TRY(cudaMemcpyAsync(g.row_ptr.data() + n, &end, sizeof(edge_t),
+                                  cudaMemcpyHostToDevice, stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream));  // the pageable sources may go away
+    g.num_slots = static_cast<edge_t>(arena);
+    summary.relocated_rows = static_cast<std::int64_t>(k);
+  }
+  // The row ends of the appends on the host mirror, then the appends on the device.
+  for (std::size_t v = 0; v < n; ++v) {
+    if (appended[v] != 0) {
+      rows.row_end[v] =
+          static_cast<edge_t>(static_cast<std::int64_t>(rows.row_end[v]) + appended[v]);
+    }
+  }
+  append_vertex_batch_device(res, g, static_cast<const edge_t*>(g.row_limit.data()));
+  return summary;
+}
+
+#define DYNG_INSTANTIATE_DEVICE_SLOTTED(V, E, W)                                                   \
+  template void build_device_slotted<V, E, W>(const resources&, const std::vector<E>&, int,        \
+                                              device_slotted<V, E, W>&);                           \
+  template void upload_device_slotted<V, E, W>(                                                    \
+      const resources&, const csr<V, E, W>&, const std::vector<E>&,                                \
+      const std::vector<vertex_status>&, device_slotted<V, E, W>&, const std::vector<E>*);         \
+  template void build_device_slack<V, E, W>(const resources&, const std::vector<E>&,               \
+                                            const std::vector<E>&, int, device_slotted<V, E, W>&); \
+  template apply_summary apply_vertex_batch_slack_device<V, E, W>(                                 \
+      const resources&, device_slotted<V, E, W>&, csr<V, E, W>&, slotted_rows<V, E>&,              \
+      const edge_batch_view<V, W>&, const normalized_batch<V>&, apply_delta<V>*);                  \
+  template void reserve_device_slotted<V, E, W>(const resources&, device_slotted<V, E, W>&,        \
+                                                std::int64_t);                                     \
+  template void upload_vertex_batch<V, E, W>(const resources&, device_slotted<V, E, W>&,           \
+                                             const edge_batch_view<V, W>&,                         \
+                                             const normalized_batch<V>&);                          \
+  template void apply_vertex_batch_device<V, E, W>(const resources&, device_slotted<V, E, W>&);    \
+  template device_slotted_settled settle_device_slotted<V, E, W>(const device_slotted<V, E, W>&);  \
+  template void download_device_slotted<V, E, W>(const device_slotted<V, E, W>&, csr<V, E, W>&,    \
                                                  std::vector<E>&);
 
 DYNG_INSTANTIATE_DEVICE_SLOTTED(std::int32_t, std::int32_t, std::int32_t)
@@ -705,5 +1092,7 @@ DYNG_REGISTER_KERNEL(half_edges_kernel<std::int32_t>);
 DYNG_REGISTER_KERNEL(count_dropped_kernel);
 DYNG_REGISTER_KERNEL(widen_status_kernel);
 DYNG_REGISTER_KERNEL(fill_status_kernel);
+DYNG_REGISTER_KERNEL(kept_entries_kernel<std::int32_t, std::int32_t>);
+DYNG_REGISTER_KERNEL(kept_entries_kernel<std::int32_t, std::int64_t>);
 
 }  // namespace dyng::detail

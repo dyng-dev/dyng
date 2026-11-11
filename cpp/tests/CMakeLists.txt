@@ -58,7 +58,7 @@ if(DYNG_ENABLE_CUDA)
   # row_layout::slotted on the CUDA backend (M10a, ADR 0074): the device apply against the host's.
   dyng_add_test(
     NAME dyng_graph_cuda_tests
-    SOURCES graph/slotted_cuda_test.cpp
+    SOURCES graph/slotted_cuda_test.cpp graph/slack_cuda_test.cpp
     LABELS gpu graph
     TEST_PREFIX cuda.
   )
