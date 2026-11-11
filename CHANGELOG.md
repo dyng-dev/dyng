@@ -168,6 +168,25 @@ Before 0.1.0 anything may change.
   per-feature `since`; the 0.3 requirements unchanged); `EQUIVALENCE_TARGETS` / `EQUIVALENCE_FILES`
   compare `dyng-compat-hsosp` and `dyng-compat-escher` too, which widens the equivalence check of
   every version's certificate (ADR 0093).
+- Added: `hyper_sssp`'s **`engine::operators` on cuda, the shared sssp engine** (O12; ADR
+  0095): sssp's CUDA operators over the slack line graph (node weights, one symmetric view, the
+  public mode's base offers, a work counter in MOSP_ESCHER's units, one warp per row), the host
+  loop of sssp's operators engine with MOSP_ESCHER's budget triggers, and a static solve on
+  sssp's near-far loop. Its results equal `engine::fused`'s and MOSP_ESCHER's bit for bit on
+  every batch of the golden set; it is not the default: by HD13's rule (decided by the author on
+  2026-10-28) `engine::automatic` keeps MOSP_ESCHER's kernels (`engine::fused`), because four
+  `sosp_update` rows of coauth-DBLP's hyperedge batches read 1.051-1.061 of MOSP_ESCHER's against
+  the 1.05 bar (its static solve reads 0.69-0.74; the numbers are on the algorithm page).
+- Internal: sssp's CUDA operators engine reads its graph through compile-time policies (row
+  access, weight source, base offers, a work counter, neighbour loads, one warp per row;
+  `cpp/src/util/slack_rows.cuh` for slack rows); their defaults compile to the same machine code:
+  every sssp and mosp kernel and host object is identical before and after
+  (`parity/sssp_sass.py`, which also shows that a planted one-instruction change is caught).
+- Parity harness: `compare.py hyper_sssp --cuda-engine operators`, `dyng_hsosp_replay
+  --cuda-engine` and `dyng-compat-hsosp --cuda-engine` read the shared engine; `hsosp_perf.py ab`
+  (ADR 0024's A/B of the two engines) and `memory --port-arg`; the mutation twins of sites #1 and
+  #2 in the shared engine and sssp's "skipped subtree invalidation" against hyper_sssp's suite
+  (`parity/mutate.py`); `ci/gpu_local.sh`'s hyper_sssp step on both CUDA engines.
 
 ## [0.3.0] - 2026-10-29
 

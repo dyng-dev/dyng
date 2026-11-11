@@ -108,7 +108,14 @@ Deferred beyond 0.3.0:
 ## 0.4.0
 
 - `label_propagation` (DynLP): binary harmonic label propagation under vertex batches.
-- `hyper_sssp` (H-SOSP): shortest hyperpaths, on the shared shortest-path engine.
+- `hyper_sssp` (H-SOSP): shortest hyperpaths, with MOSP_ESCHER's kernels as the default CUDA
+  engine and the shared shortest-path engine selectable (`engine::operators`; it gives the same
+  results, and the gates kept the as-is kernels as the default: ADR 0095).
+- After 0.4.0 (from M11b's shared engine, ADR 0095): the shared engine's two located update
+  costs (the bounded pointer-jumping rounds and the two seed launches on large line graphs);
+  an as-is update with the shared static solve (0.69-0.74 of the ported recompute); and the
+  rename-only move of `invalidate_subtree` and `packed_min` into `cpp/src/operators/` (two users
+  now), with its own SASS record.
 - conda-forge packages; aarch64 wheels.
 
 ## Towards 1.0

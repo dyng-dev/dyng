@@ -88,8 +88,8 @@ deterministic is stated per field in the header.
 | Backend | Engine | Notes |
 |---|---|---|
 | sequential | `engine::operators` | MOSP_ESCHER's host emulation (emulateSospRecompute, emulateSospUpdate) on the host line graph; the budget is checked before each expansion; no iteration, width or depth limit |
-| cuda | `engine::fused` (the default) | MOSP_ESCHER's kernels as they are (transplanted with `parity/escher_port/transplant.py`, ADR 0091) |
-| cuda | `engine::operators` | the shared sssp engine (M11b, O12; ADR 0095): sssp's CUDA operators over the line graph (slack rows, node weights `w[col]` pushing and `w[v]` pulling, one symmetric view, the public mode's base offers, one warp per row), the host loop of sssp's operators engine with MOSP_ESCHER's budget triggers, the static solve on sssp's near-far loop with MOSP's defaultDelta |
+| cuda | `engine::fused` (the default: `engine::automatic` selects it, by the gates; section 5) | MOSP_ESCHER's kernels as they are (transplanted with `parity/escher_port/transplant.py`, ADR 0091) |
+| cuda | `engine::operators` | the shared sssp engine (M11b, O12; ADR 0095): sssp's CUDA operators over the line graph (slack rows, node weights `w[col]` pushing and `w[v]` pulling, one symmetric view, the public mode's base offers, one warp per row), the host loop of sssp's operators engine with MOSP_ESCHER's budget triggers, the static solve on sssp's near-far loop with MOSP's defaultDelta; the same results as `engine::fused`, bit for bit |
 | openmp | none | `not_supported_error` naming sequential and cuda (HD14) |
 
 Requirements, checked by `compute()` and before the commit of `update()`: `hypergraph<int32_t,
@@ -109,6 +109,30 @@ Profiler stages: `hyper_sssp.compute`, `hyper_sssp.identify_affected`, `hyper_ss
 stages. The cuda engine synchronizes the stream once per pointer-jumping round and once per push
 round. The compat tool `dyng-compat-hsosp bench` reproduces hsospBench's rows (44-column CSV) and
 `parity/hsosp_perf.py run` compares them with MOSP_ESCHER under the gate protocol of ADR 0080.
+
+**The default CUDA engine (O12; HD13, decided by the author on 2026-10-28; ADR 0095).** The
+shared sssp engine would become the default only if it gave the same results as the as-is
+engine and MOSP_ESCHER and were within every gate against MOSP_ESCHER@4b86159. It gives the same
+results (every batch of the golden set, in the three parity modes) and is within the memory
+gate (the peak of live device allocations 0.49-0.56 of MOSP_ESCHER's), but in the full gate
+reading (16 paper configurations, 21 rounds, base clocks) four `sosp_update` rows of
+coauth-DBLP's hyperedge batches are above their 1.05 bar:
+
+| Configuration, batch | MOSP_ESCHER's `t_sosp_update_ms` | `engine::fused` / MOSP_ESCHER | `engine::operators` / MOSP_ESCHER |
+|---|---:|---:|---:|
+| dblp_hyperedge_100000 b2 | 10.1 ms | 1.024 | 1.051 |
+| dblp_hyperedge_200000 b1 | 22.2 ms | 1.002 | 1.056 |
+| dblp_hyperedge_200000 b2 | 23.5 ms | 1.001 | 1.061 |
+| dblp_hyperedge_200000 b3 | 21.7 ms | 1.004 | 1.059 |
+
+The shared engine's update loses 1.2-1.5 ms there in two places: sssp's pointer jumping runs its
+ceil(log2 n) + 1 rounds where MOSP_ESCHER's stops as soon as nothing changes, and the seed pulls
+the invalidated nodes and seeds the inserted pairs in two launches. Everywhere else it reads the
+same or faster (Geology's updates 0.78-0.99 of MOSP_ESCHER's), and its static solve, sssp's
+near-far loop with MOSP's defaultDelta, reads 0.69-0.74 of MOSP_ESCHER's recompute (the as-is
+engine's: 0.98-1.04). So `engine::automatic` keeps `engine::fused`; select the shared engine with
+`options::cuda_engine = engine::operators` (for example where the static recompute or Geology-like
+updates dominate). The numbers: `parity/results/M11b.md` section 2.
 
 ## 6. Limitations
 
@@ -130,6 +154,7 @@ supported (it keeps no slack line graph); the Python layer arrives in M11b.
 | MOSP_ESCHER@4b86159 | dynG |
 |---|---|
 | `hsosp/src/hsospDevice.cu` (kernels, hsospRecompute, hsospUpdate) | `cpp/src/algorithms/hyper_sssp/kernels.cuh`, `engine.cu` (transplanted), `cuda.cu` (the driver) |
+| `hsosp/src/hsospDevice.cu` (the same steps on sssp's engine: `engine::operators`) | `operators.cuh`, `operators.cu` (hyper_sssp's kernels and host loop) over `cpp/src/algorithms/sssp/operators.cuh` (sssp's kernels with the line graph's policies) and `cpp/src/util/slack_rows.cuh` |
 | `hsosp/include/hsosp.cuh` (HsospState, UpdateConfig, UpdateStats) | `state.cuh`, `options`, `virtual_endpoints.hpp` |
 | `hypergraph/src/HostHypergraph.cpp` (emulateSospRecompute / Update) | `sequential.cpp` |
 | `hypergraph/src/HypergraphOracle.cpp` | `dyng::testing::hyper_sssp_reference` (ADR 0082) |
