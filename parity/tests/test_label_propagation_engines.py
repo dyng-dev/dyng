@@ -99,3 +99,32 @@ def test_the_frozen_bound_is_read_and_checked(tmp_path: Path) -> None:
     )
     b = lpe.frozen_bound(toml)
     assert b["c"] == 8 and b["bound"] == 8 * EPS
+
+
+def test_the_repository_bound_is_the_calibrations() -> None:
+    b = lpe.frozen_bound()
+    assert b["c"] & (b["c"] - 1) == 0 and b["bound"] == b["c"] * EPS
+
+
+def test_a_frozen_c_that_is_not_the_calibrations_is_refused(tmp_path: Path, monkeypatch) -> None:
+    import hashlib
+    import json
+
+    rec = tmp_path / "cal.json"
+    rec.write_text(json.dumps({"control_exact": True, "max_df": 4 * EPS}))  # c = 16
+    sha = hashlib.sha256(rec.read_bytes()).hexdigest()
+    monkeypatch.setattr(lpe, "REPO", tmp_path)
+    toml = tmp_path / "goldens.toml"
+    body = (
+        "[sets.label_propagation_damped]\nkind = 'x'\n"
+        "[sets.label_propagation_damped.refactored]\nepsilon = 1.1920928955078125e-07\n"
+        "calibration_record = 'cal.json'\n"
+    )
+    toml.write_text(body + f"c = 16\ncalibration_sha256 = '{sha}'\n")
+    assert lpe.frozen_bound(toml)["c"] == 16
+    toml.write_text(body + f"c = 32\ncalibration_sha256 = '{sha}'\n")
+    with pytest.raises(lpe.EngineError):
+        lpe.frozen_bound(toml)  # looser than the calibration
+    toml.write_text(body + "c = 16\ncalibration_sha256 = 'x'\n")
+    with pytest.raises(lpe.EngineError):
+        lpe.frozen_bound(toml)  # the record changed

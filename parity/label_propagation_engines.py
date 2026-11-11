@@ -155,7 +155,15 @@ def frozen_bound(path: Path = REPO / "parity" / "goldens.toml") -> dict:
     c, eps = int(spec["c"]), float(spec["epsilon"])
     if eps != EPSILON or c < 1 or c & (c - 1):
         raise EngineError(f"the frozen bound is malformed: c = {c}, epsilon = {eps}")
-    return {"c": c, "epsilon": eps, "bound": c * eps, "record": spec.get("calibration_record")}
+    record = spec.get("calibration_record")
+    if record:  # the frozen c is the calibration's (its record unchanged since)
+        data = (REPO / record).read_bytes()
+        if g.sha256_bytes(data) != spec.get("calibration_sha256"):
+            raise EngineError(f"{record} is not the calibration goldens.toml froze (SHA-256)")
+        doc = json.loads(data)
+        if not doc.get("control_exact") or constant_c(doc["max_df"]) != c:
+            raise EngineError(f"the frozen c = {c} is not the calibration's ({record})")
+    return {"c": c, "epsilon": eps, "bound": c * eps, "record": record}
 
 
 def judge_batches(max_df: list[float], counts: list[dict], bound: float) -> dict:
