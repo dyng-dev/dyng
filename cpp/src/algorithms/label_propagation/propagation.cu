@@ -209,11 +209,21 @@ __device__ __forceinline__ void processVertexGroup(const GraphView<edge_t>& g, c
 
   float wAll, weightedLabel;
   accumulateNeighbors(g, rowStart, rowEnd, lane, LANES, damped, wAll, weightedLabel);
+#if defined(DYNG_CALIBRATION_LP_PERMUTED_REDUCTION)
+  // CALIBRATION (AD6; parity/label_propagation_calibrate.py, never in a library build): the lane
+  // tree in the other association order, (p0 + p1) + (p2 + p3) + ... instead of (p0 + p4) + ...
+#pragma unroll
+  for (int offset = 1; offset < LANES; offset <<= 1) {
+    wAll += __shfl_down_sync(mask, wAll, offset, LANES);
+    weightedLabel += __shfl_down_sync(mask, weightedLabel, offset, LANES);
+  }
+#else
 #pragma unroll
   for (int offset = LANES / 2; offset > 0; offset >>= 1) {
     wAll += __shfl_down_sync(mask, wAll, offset, LANES);
     weightedLabel += __shfl_down_sync(mask, weightedLabel, offset, LANES);
   }
+#endif
 
   int changed = 0;
   if (lane == 0) {
@@ -229,6 +239,20 @@ __device__ __forceinline__ float blockSum(float value, float* s_partial) {
   const int lane = threadIdx.x & 31;
   const int warp = threadIdx.x >> 5;
   const int numWarps = (blockDim.x + 31) >> 5;
+#if defined(DYNG_CALIBRATION_LP_PERMUTED_REDUCTION)
+  // CALIBRATION (AD6; see processVertexGroup): the warp tree in the other association order and
+  // the warps' partial sums added from the last.
+#pragma unroll
+  for (int offset = 1; offset < 32; offset <<= 1) {
+    value += __shfl_down_sync(0xffffffffu, value, offset);
+  }
+  __syncthreads();  // s_partial may still be read by a previous call
+  if (lane == 0) s_partial[warp] = value;
+  __syncthreads();
+  float total = 0.0f;
+  for (int w = numWarps - 1; w >= 0; --w) total += s_partial[w];
+  return total;
+#else
 #pragma unroll
   for (int offset = 16; offset > 0; offset >>= 1) {
     value += __shfl_down_sync(0xffffffffu, value, offset);
@@ -239,6 +263,7 @@ __device__ __forceinline__ float blockSum(float value, float* s_partial) {
   float total = 0.0f;
   for (int w = 0; w < numWarps; ++w) total += s_partial[w];
   return total;
+#endif
 }
 
 /// Full update of the vertex at queue position i by the whole block (processVertexBlock).

@@ -1652,6 +1652,8 @@ PORT_COMMANDS = (
     "inplace",
     "hub",
 )
+# The refactored engines against the fused engine's damped bits (M10b; AD6; ADR 0101).
+ENGINE_COMMANDS = ("calibrate", "operators")
 
 
 def compare_main(argv: list[str] | None = None) -> int:
@@ -1659,7 +1661,9 @@ def compare_main(argv: list[str] | None = None) -> int:
     label_propagation generator|model|check-runs|oracle|margin|subset: the replays of the legacy
     generator and the oracles (M10a step 2, parity/label_propagation_replay.py); compare.py
     label_propagation container|trace|oracle-port|determinism: the replays of the port (M10a step
-    3 on, parity/label_propagation_port.py)."""
+    3 on, parity/label_propagation_port.py); compare.py label_propagation calibrate|operators: the
+    refactored engines against the fused engine's damped bits (M10b, AD6,
+    parity/label_propagation_engines.py)."""
     argv = list(argv or [])
     if argv[:1] and argv[0] in REPLAY_COMMANDS:
         import label_propagation_replay
@@ -1669,6 +1673,10 @@ def compare_main(argv: list[str] | None = None) -> int:
         import label_propagation_port
 
         return label_propagation_port.main(argv)
+    if argv[:1] and argv[0] in ENGINE_COMMANDS:
+        import label_propagation_engines
+
+        return label_propagation_engines.main(argv)
     if argv[:1] == ["certificate"]:  # the certificate records of the replays (M10a step 5)
         import label_propagation_cert
 
