@@ -164,6 +164,10 @@ class Stats:
     depend on the schedule on cuda. ``fallback_used`` and ``fallback_reason`` are deterministic on
     the sequential backend and schedule-dependent on cuda near the budget (a batch within a few
     percent of its budget may fall back in one run and not in another, with identical results).
+    ``relaxations`` and ``iterations`` also depend on the CUDA engine: ``"fused"`` (MOSP_ESCHER's
+    relax) pushes a hyperedge again when its parent id drops at an equal distance,
+    ``"operators"`` only when its distance drops, so on inputs with equal-distance ties the
+    shared engine counts fewer, and the two engines' decisions near the budget can differ.
 
     Attributes:
         affected: Hyperedges whose subtree was invalidated (= ``invalidated``).

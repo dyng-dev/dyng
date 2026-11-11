@@ -37,8 +37,8 @@ their machine code does not either.
    (`util/slack_rows.cuh`, written once in util/ for every reader of slack rows on the device:
    M10b's slotted layout can reuse it), node weights (`w[col]` pushing u -> col, `w[v]` pulling
    into v), one symmetric view (the caller passes one view as `in` and `out`), per-node base
-   offers (the pull also offers `(w(v), -1)`), a work counter in MOSP_ESCHER's units with the
-   rows it counts (`counts_row`), plain neighbour loads (`peek`), and one warp per row
+   offers (the pull also offers `(w(v), -1)`), a work counter counting row lengths as
+   MOSP_ESCHER does, with the rows it counts (`counts_row`), plain neighbour loads (`peek`), and one warp per row
    (`pull_pass_warp`, `push_pass_warp`). The seeds (a single source, a source node at 0, base
    nodes) are the host loop's. sssp's kernels keep their names and parameters and call the
    generic bodies, which inline to the same instructions.
@@ -69,9 +69,20 @@ their machine code does not either.
    lists in the pooled workspace (C8: a steady-state update allocates nothing).
 4. **The budget, MOSP_ESCHER's triggers where they apply** (HD8): before each push round,
    `iterations >= max_iterations`, then relaxations `> work_budget x max(1, live entries)`,
-   counted in MOSP_ESCHER's units (the row lengths of the invalidated nodes' pulls and of the
-   pushed reachable nodes; not the inserted pairs' seeds, which MOSP_ESCHER does not count):
-   with them the shared engine's fallback decisions equal B's on all 685 updates of T and P. The
+   counted as MOSP_ESCHER counts a relaxation (the row lengths of the invalidated nodes' pulls
+   and of the pushed reachable nodes; not the inserted pairs' seeds, which MOSP_ESCHER does not
+   count): on B's data the shared engine's fallback decisions equal B's on all 685 updates of T
+   and P. **The counts are not B's on every input** (corrected after the M11b review): B's relax
+   (`kernels.cuh`) re-queues a node whenever its packed word drops, a smaller parent id at an
+   equal distance included, while sssp's `push_relax`, `pull_improve` and hyper_sssp's
+   `pair_seed_kernel` re-queue only on a smaller distance. So on inputs with equal-distance ties
+   the shared engine pushes fewer nodes and counts fewer relaxations and sometimes fewer push
+   rounds than `engine::fused` (the review's random hypergraphs with weights 1-9: relaxations
+   lower on 98 of 120 updates, by 10-20 %; push rounds on 18; fallback decisions differing on 46
+   of 1,464 updates of a budget sweep 0.05-3.0), with identical results. A fallback decision is
+   not a parity target (HD7), so this is documented (`hyper_sssp.hpp`'s `stats::relaxations`,
+   `iterations` and `fallback_used`) and not changed: a re-queue-on-word policy would change the
+   shared engine's machine code and its readings, for counters only. The
    32-bit packed width of the as-is engine does not apply: sssp's packing holds n x the largest
    weight next to the parent bits; where it cannot (distance-only words), the update falls back
    with `distance_width` and compute() takes the ported recompute. An input distance that does

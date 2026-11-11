@@ -173,13 +173,15 @@ struct options {
  * The inherited fields mean:
  *   - `affected`: the hyperedges whose subtree was invalidated (= invalidated; deterministic);
  *   - `iterations`: the push rounds (cuda) or the expansions (sequential) of Step 2;
- *     schedule-dependent on cuda, logged only;
+ *     schedule-dependent on cuda, logged only, and engine-dependent as `relaxations`;
  *   - `frontier_visits`: the largest frontier (cuda) or the expansions (sequential);
  *     schedule-dependent on cuda;
  *   - `fallback_used`: the update fell back to a recompute. **Deterministic on sequential;
  *     schedule-dependent on cuda near the budget**: the relaxations of a push round depend on the
  *     thread schedule, so a batch within a few percent of its budget may fall back in one run and
- *     not in another, with identical results (HD7; the weaker level core/stats.hpp allows);
+ *     not in another, with identical results (HD7; the weaker level core/stats.hpp allows); the
+ *     two CUDA engines count `relaxations` differently on equal-distance ties, so their decisions
+ *     near the budget can also differ from each other;
  *   - `converged`: always true;
  *   - `engine_used`: the CUDA engine that ran (options::cuda_engine; automatic is fused), and
  *     engine::operators on sequential.
@@ -195,7 +197,11 @@ struct stats : update_stats {
   /// Deterministic: the hyperedges in invalidated subtrees (the source excluded).
   std::int64_t invalidated = 0;
   /// The relaxations the budget counted (the neighbours read by the pulls and pushes).
-  /// Schedule-dependent on cuda; deterministic on sequential.
+  /// Schedule-dependent on cuda; deterministic on sequential. Engine-dependent: engine::fused
+  /// (MOSP_ESCHER's relax) pushes a hyperedge again whenever its packed word drops, a smaller
+  /// parent id at an equal distance included, engine::operators only when its distance drops, so
+  /// on inputs with equal-distance ties the shared engine counts fewer relaxations and push rounds
+  /// (the results are the same bit for bit).
   std::int64_t relaxations = 0;
   /// Why the update fell back (fallback_reason::none if it did not); schedule-dependent on cuda
   /// near the budget, as fallback_used.
