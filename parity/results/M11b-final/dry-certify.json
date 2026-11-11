@@ -1,0 +1,41 @@
+{
+ "what": "M11b criterion 11: the dry 0.4 certify of hyper_sssp (certify.py write --results <dir> --version 0.4.0 --dry-run hyper_sssp, outside benchmarks/results) over parity/results/M11b-ia3_hsosp, and its negative checks",
+ "driver": "$DYNG_SCRATCH/runs/m11b-step4/dry.sh",
+ "runs": {
+  "pass": {
+   "change": "the records as committed (parity/results/M11b-ia3_hsosp)",
+   "passed": true,
+   "problems": [],
+   "commit": "a30fe48576de9baeefe3c32cf9d362810095d966",
+   "date": "2026-11-11T09:11:44Z"
+  },
+  "row": {
+   "change": "one gated row removed: static[b2] of dblp_vertex_50000 from its record",
+   "passed": false,
+   "problems": [
+    "ia3_hsosp.json: cuda-dblp dblp_vertex_50000 static[b2]: not in its record ia3_hsosp-cuda-dblp-dblp_vertex_50000.json",
+    "ia3_hsosp.json: cuda-dblp (ia3_hsosp-cuda-dblp-dblp_vertex_50000.json): dblp_vertex_50000: 3 batches; no gated row static[b2]"
+   ],
+   "commit": "a30fe48576de9baeefe3c32cf9d362810095d966",
+   "date": "2026-11-11T09:11:45Z"
+  },
+  "replay": {
+   "change": "one replay record removed: sequential by_key",
+   "passed": false,
+   "problems": [
+    "golden set hyper_sssp_mosp_escher: 10 of the 10 cases of sequential:hyper_sssp/by_key have no passed replay (first: paper/dblp_vertex_50000; compare.py hyper_sssp --certificate <results>)"
+   ],
+   "commit": "a30fe48576de9baeefe3c32cf9d362810095d966",
+   "date": "2026-11-11T09:11:46Z"
+  },
+  "operators": {
+   "change": "one replay record removed: the shared engine's by_id (cuda-operators)",
+   "passed": false,
+   "problems": [
+    "golden set hyper_sssp_mosp_escher: 25 of the 25 cases of cuda-operators:hyper_sssp/by_id have no passed replay (first: paper/dblp_hyperedge_100000; compare.py hyper_sssp --certificate <results>)"
+   ],
+   "commit": "a30fe48576de9baeefe3c32cf9d362810095d966",
+   "date": "2026-11-11T09:11:48Z"
+  }
+ }
+}
