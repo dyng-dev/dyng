@@ -41,6 +41,7 @@ if(TARGET dyng_label_propagation
    AND DYNG_LP_CALIBRATION_CUDA_FLAGS
 )
   separate_arguments(_dyng_lp_calibration UNIX_COMMAND "${DYNG_LP_CALIBRATION_CUDA_FLAGS}")
+  # Quoted: the flags are a list, and a list inside an unquoted generator expression splits it.
   target_compile_options(dyng_label_propagation
-                         PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${_dyng_lp_calibration}>)
+                         PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:${_dyng_lp_calibration}>")
 endif()
