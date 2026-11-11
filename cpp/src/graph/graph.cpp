@@ -46,19 +46,16 @@ void set_home(impl_t& impl, const resources& res) {
 }
 
 void expect_supported_layout(const graph_properties& props) {
-  if (props.layout == row_layout::slotted) {
-    throw not_supported_error(
-        "dyng: a graph with row_layout::slotted is built by graph::with_capacity() (its rows "
-        "receive vertex batches); from_edges(), from_csr() and the empty graph have compact rows");
-  }
-  if (props.layout != row_layout::compact) {
-    throw not_supported_error(
-        "dyng: row_layout::slack arrives with label_propagation's streaming mode (M10b, 0.4)");
+  if (props.layout == row_layout::slotted || props.layout == row_layout::slack) {
+    throw not_supported_error(detail::concat_message(
+        "dyng: a graph with row_layout::", to_string(props.layout),
+        " is built by graph::with_capacity() (its rows receive vertex batches); from_edges(), "
+        "from_csr() and the empty graph have compact rows"));
   }
   if (props.semantics.as_net_effect) {
     throw not_supported_error(
-        "dyng: batch_semantics::net_effect() (vertex batches) needs row_layout::slotted; build "
-        "the graph with graph::with_capacity()");
+        "dyng: batch_semantics::net_effect() (vertex batches) needs row_layout::slotted or "
+        "row_layout::slack; build the graph with graph::with_capacity()");
   }
   detail::expect_supported_semantics(props);  // e.g. as_sets with upsert: fail here, not at apply
 }
@@ -197,8 +194,19 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::with_capaci
   // the slot ranges and the states, and its slots stay unfilled until something reads them.
   const bool on_device = res.get_backend() == backend::cuda && DYNG_HAS_CUDA &&
                          detail::device_slotted_supported_v<vertex_t>;
-  detail::build_slotted(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
-                        props.num_weights, impl->host_edges_for_write(), impl->slotted, !on_device);
+  if (props.layout == row_layout::slack && res.get_backend() == backend::cuda) {
+    throw not_supported_error(
+        "dyng: graph::with_capacity: row_layout::slack on the cuda backend is not built yet");
+  }
+  if (props.layout == row_layout::slack) {
+    detail::build_slack(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
+                        props.num_weights, props, impl->host_edges_for_write(), impl->slotted,
+                        !on_device);
+  } else {
+    detail::build_slotted(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
+                          props.num_weights, impl->host_edges_for_write(), impl->slotted,
+                          !on_device);
+  }
   if constexpr (detail::device_slotted_supported_v<vertex_t>) {
     if (on_device) {
       auto d = std::make_unique<typename impl_type::slotted_device_type>();
@@ -363,9 +371,11 @@ void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) co
         "the end of the row were dropped): the graph is poisoned");
   }
   const std::string violation =
-      impl().is_slotted() ? detail::slotted_integrity_violation(impl().host_edges(), impl().slotted,
+      impl().is_slack()     ? detail::slack_integrity_violation(impl().host_edges(), impl().slotted,
                                                                 impl().props.num_weights)
-                          : detail::integrity_violation(impl());
+      : impl().is_slotted() ? detail::slotted_integrity_violation(
+                                  impl().host_edges(), impl().slotted, impl().props.num_weights)
+                            : detail::integrity_violation(impl());
   if (!violation.empty()) {
     DYNG_FAIL("graph integrity: ", violation);
   }
@@ -527,8 +537,11 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
         return summary;
       }
     }
-    const apply_summary summary = apply_vertex_batch_host(state.host_edges_for_write(),
-                                                          state.slotted, batch, *normalized, delta);
+    const apply_summary summary =
+        state.is_slack() ? apply_vertex_batch_slack_host(state.host_edges_for_write(),
+                                                         state.slotted, batch, *normalized, delta)
+                         : apply_vertex_batch_host(state.host_edges_for_write(), state.slotted,
+                                                   batch, *normalized, delta);
     state.drop_slotted_device();  // the host rows changed: uploaded again on first device use
     ++state.version;
     state.state_id = next_graph_state_id();
@@ -599,7 +612,11 @@ void graph_access::normalize(const resources& res, const graph<vertex_t, edge_t,
         return;
       }
     }
-    normalize_vertex_batch(state.host_edges(), state.slotted, batch, out);
+    if (state.is_slack()) {
+      normalize_vertex_batch_slack(state.host_edges(), state.slotted, batch, out);
+    } else {
+      normalize_vertex_batch(state.host_edges(), state.slotted, batch, out);
+    }
     out.state_id = state.state_id;
     return;
   }

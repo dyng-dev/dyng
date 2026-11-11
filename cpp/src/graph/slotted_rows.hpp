@@ -69,7 +69,169 @@ struct slotted_rows {
   /// Scratch of the capacity check: per row, the entries this batch appends (saturating). All 0
   /// between calls.
   mutable std::vector<std::uint32_t> counts;
+
+  // ---- row_layout::slack (ADR 0103; empty / zero for slotted rows) ----
+  /// Whether the rows are slack rows: row v owns the slots [slots.row_ptr[v], row_limit[v]), its
+  /// entries are [slots.row_ptr[v], row_end[v]); slots.row_ptr[n] is the size of the slot arena,
+  /// and slots.row_ptr is not monotone once a row moved to the tail.
+  bool slack = false;
+  double headroom = 0.125;         ///< graph_properties::headroom
+  bool allow_growth = false;       ///< batch_semantics::allow_vertex_growth
+  std::vector<edge_t> row_limit;   ///< per vertex: the end of its slots
+  edge_t dead_slots = 0;           ///< arena slots no row owns (left by moved rows), -1 / 0
+  std::int64_t relocations = 0;    ///< rows moved to the tail since construction
+  std::int64_t compactions = 0;    ///< compactions since construction
+  std::uint64_t layout_epoch = 0;  ///< +1 whenever a row's start or capacity changes
 };
+
+/**
+ * @brief The slots a slack row gets for `entries` entries: ceil(entries * (1 + headroom)), 0 for
+ *        none (ADR 0103).
+ * @param[in] entries  The entries the row must hold (>= 0).
+ * @param[in] headroom graph_properties::headroom (>= 0).
+ * @return The capacity (>= entries).
+ */
+[[nodiscard]] std::int64_t slack_capacity(std::int64_t entries, double headroom) noexcept;
+
+/**
+ * @brief The slots row v owns in a slotted or slack graph: its capacity.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in] slots The slot storage.
+ * @param[in] rows  The rows.
+ * @param[in] v     The vertex.
+ * @return row_limit[v] - row_ptr[v] (slack), row_ptr[v + 1] - row_ptr[v] (slotted).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+[[nodiscard]] std::int64_t row_capacity_of(const csr<vertex_t, edge_t, weight_t>& slots,
+                                           const slotted_rows<vertex_t, edge_t>& rows,
+                                           std::size_t v) noexcept {
+  const auto end = rows.slack ? rows.row_limit[v] : slots.row_ptr[v + 1];
+  return static_cast<std::int64_t>(end) - static_cast<std::int64_t>(slots.row_ptr[v]);
+}
+
+/**
+ * @brief Build the empty slack storage (ADR 0103): `n` vertices, all inactive, row v with
+ *        slack_capacity(capacity[v]) slots (0 where `capacity` has no entry), every slot -1 / 0.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]  n           The vertex count (>= 0).
+ * @param[in]  capacity    The expected entries of the first rows (host memory; at most n values
+ *                         >= 0; empty or partial).
+ * @param[in]  num_weights 1 (0 for weight_t = unweighted).
+ * @param[in]  props       The properties (headroom, vertex growth).
+ * @param[out] slots       The slot storage.
+ * @param[out] rows        The rows.
+ * @param[in]  fill_slots  Whether to allocate and clear the slot columns and weights.
+ * @throws invalid_argument_error if the sizes or a capacity are wrong.
+ * @throws capacity_error         if the slots do not fit edge_t.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void build_slack(std::int64_t n, array_view<const edge_t> capacity, int num_weights,
+                 const graph_properties& props, csr<vertex_t, edge_t, weight_t>& slots,
+                 slotted_rows<vertex_t, edge_t>& rows, bool fill_slots = true);
+
+/**
+ * @brief Step 0 of a vertex batch on slack rows: the checks of normalize_vertex_batch() (ids in
+ *        range of the vertex count after a growth under allow_vertex_growth), no capacity check
+ *        (a row that would overflow moves to the tail), and the layout step of the batch
+ *        (normalized_batch::slack_moves, slack_compact, vertices_after).
+ *
+ * Nothing of the graph changes (its scratch may grow to the vertex count after the batch).
+ * @throws invalid_argument_error for a malformed batch or a contract violation.
+ * @throws not_supported_error    for edge deletions.
+ * @throws capacity_error         if the rows would need more slots than edge_t holds.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void normalize_vertex_batch_slack(const csr<vertex_t, edge_t, weight_t>& slots,
+                                  const slotted_rows<vertex_t, edge_t>& rows,
+                                  const edge_batch_view<vertex_t, weight_t>& batch,
+                                  normalized_batch<vertex_t>& out);
+
+/**
+ * @brief Grow the slack rows to `n_after` vertices (inactive, empty rows of no slots at the end
+ *        of the arena); the scratch too.
+ * @param[in,out] slots      The slot storage (row_ptr grows; the arena does not).
+ * @param[in,out] rows       The rows.
+ * @param[in]     n_after    The new vertex count (>= the current one).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void grow_slack_rows(csr<vertex_t, edge_t, weight_t>& slots, slotted_rows<vertex_t, edge_t>& rows,
+                     std::int64_t n_after);
+
+/**
+ * @brief The per-row appends of a batch: for each edge whose two endpoints are active after the
+ *        batch, both endpoints' rows.
+ * @param[in]  status The vertex states after the batch.
+ * @param[in]  batch  The batch.
+ * @param[out] counts Per vertex (resized to the vertex count; zero elsewhere).
+ */
+template <typename vertex_t, typename weight_t>
+void slack_append_counts(const std::vector<vertex_status>& status,
+                         const edge_batch_view<vertex_t, weight_t>& batch,
+                         std::vector<std::int64_t>& counts);
+
+/**
+ * @brief The capacities a compaction gives the rows (ADR 0103): a row with entries to keep or to
+ *        receive gets slack_capacity(kept + appended); a row that never received an entry keeps
+ *        its capacity (a hint of with_capacity()); every other row (a deleted vertex's, or one
+ *        left without entries) gets none.
+ * @param[in]  slots    The slot storage (row starts and the arena) before the batch.
+ * @param[in]  rows     The rows before the batch (their capacities).
+ * @param[in]  status   The vertex states after the batch (its vertex count after a growth).
+ * @param[in]  kept     Per vertex the entries the compaction keeps.
+ * @param[in]  appended Per vertex the entries the batch appends.
+ * @param[out] starts   The new row starts (n + 1: the last is the new arena size).
+ * @param[out] limits   The new row limits.
+ * @throws capacity_error if the arena does not fit edge_t.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void slack_compaction_layout(const csr<vertex_t, edge_t, weight_t>& slots,
+                             const slotted_rows<vertex_t, edge_t>& rows,
+                             const std::vector<vertex_status>& status,
+                             const std::vector<std::int64_t>& kept,
+                             const std::vector<std::int64_t>& appended, std::vector<edge_t>& starts,
+                             std::vector<edge_t>& limits);
+
+/**
+ * @brief Apply a vertex batch to slack rows on the host (in place): the growth, the deletions,
+ *        the effective insertions, the layout step (the planned moves, or a compaction), then the
+ *        appends in batch order (rows keep their entries' order; a moved row keeps all of its
+ *        entries, a compaction keeps the entries whose endpoint is not deleted).
+ *
+ * Precondition: `normalized` is normalize_vertex_batch_slack() of this state and batch. Nothing
+ * throws once the record's arrays and the arena are reserved (first).
+ * @return The counters of the batch (with apply_summary::relocated_rows and compactions).
+ * @throws out_of_memory_error if the record or the arena cannot be allocated (before anything
+ *         changes).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+apply_summary apply_vertex_batch_slack_host(csr<vertex_t, edge_t, weight_t>& slots,
+                                            slotted_rows<vertex_t, edge_t>& rows,
+                                            const edge_batch_view<vertex_t, weight_t>& batch,
+                                            const normalized_batch<vertex_t>& normalized,
+                                            apply_delta<vertex_t>* delta);
+
+/**
+ * @brief Compact the slack rows now (graph-level maintenance; the tests force it): every row
+ *        rewritten in vertex order with the entries whose endpoint is not deleted, capacities by
+ *        slack_compaction_layout() (nothing appended).
+ * @param[in,out] slots The slot storage (host slots filled).
+ * @param[in,out] rows  The rows.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void compact_slack_host(csr<vertex_t, edge_t, weight_t>& slots,
+                        slotted_rows<vertex_t, edge_t>& rows);
+
+/**
+ * @brief The invariants of a slack graph (graph::check_integrity()); a description of the first
+ *        violation, empty if every invariant holds.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::string slack_integrity_violation(const csr<vertex_t, edge_t, weight_t>& slots,
+                                      const slotted_rows<vertex_t, edge_t>& rows, int num_weights);
 
 /**
  * @brief Whether `props` are the slotted rows of 0.4, and if not why: not_supported_error naming

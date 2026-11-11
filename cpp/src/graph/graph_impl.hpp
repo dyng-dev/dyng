@@ -263,11 +263,20 @@ class graph_impl {
   device_slotted_settled settle_slotted() const;
 
   /**
-   * @brief Whether the rows are slotted.
-   * @return props.layout == row_layout::slotted.
+   * @brief Whether the rows are slotted or slack (the vertex-batch layouts: slotted_rows holds
+   *        their state; slack rows are slotted rows whose slot ranges move, ADR 0103).
+   * @return props.layout is row_layout::slotted or row_layout::slack.
    */
   [[nodiscard]] bool is_slotted() const noexcept {
-    return props.layout == row_layout::slotted;
+    return props.layout == row_layout::slotted || props.layout == row_layout::slack;
+  }
+
+  /**
+   * @brief Whether the rows are slack rows (ADR 0103).
+   * @return props.layout == row_layout::slack.
+   */
+  [[nodiscard]] bool is_slack() const noexcept {
+    return props.layout == row_layout::slack;
   }
 
   /**

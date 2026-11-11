@@ -138,6 +138,67 @@ std::array<int, lp_cuda::num_degree_bins> bin_capacities(const std::vector<edge_
   return c;
 }
 
+/// The queues' capacities of a graph: by its row capacities (slotted and compact rows: row_ptr;
+/// slack rows: each row's slots, ADR 0103).
+template <typename vertex_t, typename edge_t>
+std::array<int, lp_cuda::num_degree_bins> graph_bin_capacities(
+    const graph_impl<vertex_t, edge_t, float>& gi) {
+  const auto& slots = gi.host_storage();
+  if (!gi.is_slack()) {
+    return bin_capacities(slots.row_ptr);
+  }
+  std::array<int, lp_cuda::num_degree_bins> c{};
+  const std::size_t n = slots.row_ptr.size() - 1;
+  c[lp_cuda::bin_small] = static_cast<int>(n);
+  for (std::size_t v = 0; v < n; ++v) {
+    const int top = lp_cuda::degree_bin_of(row_capacity_of(slots, gi.slotted, v));
+    c[lp_cuda::bin_medium] += top >= lp_cuda::bin_medium ? 1 : 0;
+    c[lp_cuda::bin_large] += top >= lp_cuda::bin_large ? 1 : 0;
+  }
+  return c;
+}
+
+/// Slack rows (ADR 0103): the queues' capacities a batch needs, from the length every row has
+/// after it (its entries before the batch plus its appends; a compaction only shortens rows). A
+/// vertex's bin is its row's length when it is queued, so these bound every bin.
+template <typename vertex_t, typename edge_t>
+std::array<int, lp_cuda::num_degree_bins> slack_bins_after(
+    const graph_impl<vertex_t, edge_t, float>& gi, const edge_batch_view<vertex_t, float>& batch,
+    const normalized_batch<vertex_t>& step0) {
+  const auto& slots = gi.host_storage();
+  const auto& rows = gi.slotted;
+  const auto n = static_cast<std::size_t>(step0.vertices_after);
+  std::vector<std::int64_t> len(n, 0);
+  std::vector<vertex_status> after(rows.status);
+  after.resize(n, vertex_status::inactive);
+  for (std::size_t v = 0; v < rows.row_end.size(); ++v) {
+    len[v] =
+        static_cast<std::int64_t>(rows.row_end[v]) - static_cast<std::int64_t>(slots.row_ptr[v]);
+  }
+  for (const vertex_t v : batch.delete_vertices) {
+    after[static_cast<std::size_t>(v)] = vertex_status::deleted;
+  }
+  for (const vertex_t v : step0.inserted_vertices) {
+    after[static_cast<std::size_t>(v)] = vertex_status::active;
+  }
+  for (std::size_t e = 0; e < batch.insert_src.size(); ++e) {
+    const auto u = static_cast<std::size_t>(batch.insert_src[e]);
+    const auto v = static_cast<std::size_t>(batch.insert_dst[e]);
+    if (after[u] == vertex_status::active && after[v] == vertex_status::active) {
+      ++len[u];
+      ++len[v];
+    }
+  }
+  std::array<int, lp_cuda::num_degree_bins> c{};
+  c[lp_cuda::bin_small] = static_cast<int>(n);
+  for (std::size_t v = 0; v < n; ++v) {
+    const int top = lp_cuda::degree_bin_of(len[v]);
+    c[lp_cuda::bin_medium] += top >= lp_cuda::bin_medium ? 1 : 0;
+    c[lp_cuda::bin_large] += top >= lp_cuda::bin_large ? 1 : 0;
+  }
+  return c;
+}
+
 /// Throws stale_result_error for a poisoned result.
 template <typename vertex_t>
 void expect_not_poisoned(const label_propagation_state<vertex_t>& st, const char* function) {
@@ -173,7 +234,8 @@ void expect_graph(const graph<vertex_t, edge_t, float>& g, const char* function)
                ": label_propagation needs an undirected graph (graph_properties::directed = "
                "false): it averages over the neighbours of both directions");
   const row_layout layout = g.properties().layout;
-  if (layout != row_layout::compact && layout != row_layout::slotted) {
+  if (layout != row_layout::compact && layout != row_layout::slotted &&
+      layout != row_layout::slack) {
     throw not_supported_error(concat_message(
         "dyng: ", function, ": row_layout::", to_string(layout), " is not supported yet"));
   }
@@ -291,11 +353,12 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::check_entry(
   graph_access::expect_placement_any_layout(res, graph, "label_propagation::update");
   expect_not_poisoned(*state_, "label_propagation::update");
   expect_graph(graph, "label_propagation::update");
-  if (graph.properties().layout != row_layout::slotted) {
+  if (graph.properties().layout != row_layout::slotted &&
+      graph.properties().layout != row_layout::slack) {
     throw not_supported_error(
-        "dyng: label_propagation::update: the graph needs row_layout::slotted (vertex batches "
-        "under batch_semantics::net_effect(); build it with graph::with_capacity()); compute() "
-        "also reads compact graphs");
+        "dyng: label_propagation::update: the graph needs row_layout::slotted or "
+        "row_layout::slack (vertex batches under batch_semantics::net_effect(); build it with "
+        "graph::with_capacity()); compute() also reads compact graphs");
   }
   framework::expect_current_result("label_propagation::update", state_->version,
                                    state_->graph_state, graph);
@@ -317,7 +380,69 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::begin_update(framewo
                graph.num_vertices(), " vertices");
   DYNG_EXPECTS(batch.normalized != nullptr && batch.normalized->vertex_step,
                "label_propagation::update: the framework's Step 0 of the vertex batch is missing");
+  if (batch.normalized->vertices_after > batch.normalized->vertices_before) {
+    // Vertex growth of slack rows (ADR 0103): a result keeps one label per vertex of its graph.
+    throw not_supported_error(concat_message(
+        "dyng: label_propagation::update: the batch grows the graph from ",
+        batch.normalized->vertices_before, " to ", batch.normalized->vertices_after,
+        " vertices (batch_semantics::allow_vertex_growth); label_propagation keeps the vertex "
+        "count of the graph it was computed on: build the graph with its final vertex count "
+        "(graph::with_capacity's vertex_capacity)"));
+  }
   batch_ = &batch.edges;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void label_propagation_problem<vertex_t, edge_t, weight_t>::tau_before_apply(
+    const container_type& graph, const normalized_batch<vertex_t>& step0) {
+  // The streaming mode (options::similarity_threshold = std::nullopt; ADR 0104): the sum and the
+  // count of the live entries' weights, set up from G_t the first time, then the deleted
+  // vertices' live entries taken out, in the order of Del ∩ V_t. Nothing in the published setup.
+  if (state_->opt.similarity_threshold) {
+    state_->tau_current = false;
+    return;
+  }
+  const lp_rows<edge_t> rows = host_rows(graph);  // on cuda: the rows of G_t, downloaded
+  if (!state_->tau_current) {
+    live_weight_sum(rows, state_->tau_sum, state_->tau_count);
+    state_->tau_current = true;
+  }
+  std::vector<vertex_t> gone(step0.deleted_vertices.begin(), step0.deleted_vertices.end());
+  std::sort(gone.begin(), gone.end());
+  const auto deleted_too = [&gone](std::int64_t c) {
+    return std::binary_search(gone.begin(), gone.end(), static_cast<vertex_t>(c));
+  };
+  for (const vertex_t u : step0.deleted_vertices) {
+    std::int64_t count = 0;
+    const double partial = deleted_weight(rows, static_cast<std::int64_t>(u), deleted_too, count);
+    state_->tau_sum -= partial;
+    state_->tau_count -= count;
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+float label_propagation_problem<vertex_t, edge_t, weight_t>::tau_after_apply(
+    const container_type& graph) {
+  if (state_->opt.similarity_threshold) {
+    return *state_->opt.similarity_threshold;
+  }
+  // The appended entries in batch order, an edge's two entries one after the other: the edges
+  // whose endpoints are both active after the batch (the states are current on the host).
+  const auto& status = graph_access::impl(graph).slotted.status;
+  const edge_batch_view<vertex_t, float>& b = *batch_;
+  for (std::size_t e = 0; e < b.insert_src.size(); ++e) {
+    const auto u = static_cast<std::size_t>(b.insert_src[e]);
+    const auto v = static_cast<std::size_t>(b.insert_dst[e]);
+    if (status[u] == vertex_status::active && status[v] == vertex_status::active) {
+      const double w = static_cast<double>(b.insert_weights[e]);
+      state_->tau_sum += w;
+      state_->tau_sum += w;
+      state_->tau_count += 2;
+    }
+  }
+  return state_->tau_count > 0
+             ? static_cast<float>(state_->tau_sum / static_cast<double>(state_->tau_count))
+             : 0.5F;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -331,12 +456,22 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::before_apply(
     if (!cuda_ws_) {
       cuda_ws_.emplace(ctx.lease_workspace<lp_cuda::workspace>());
     }
+    if (graph_access::impl(graph).is_slack()) {
+      // Slack rows (ADR 0103): the queues sized for the rows' lengths after this batch.
+      const auto bins = slack_bins_after(graph_access::impl(graph), batch.edges, step0);
+      for (int b = 0; b < lp_cuda::num_degree_bins; ++b) {
+        state_->cuda->capacity[b] = std::max(state_->cuda->capacity[b], bins[b]);
+        state_->bin_capacity[b] = std::max(state_->bin_capacity[b], bins[b]);
+      }
+    }
+    tau_before_apply(graph, step0);
     lp_cuda::before_apply(ctx.res(), graph, *state_->cuda, cuda_ws_->get(),
                           static_cast<std::int64_t>(state_->reserved_vertices),
                           static_cast<std::int64_t>(state_->reserved_edges),
                           state_->opt.update_schedule == label_propagation::schedule::damped);
     return;
   }
+  tau_before_apply(graph, step0);
   label_propagation_workspace& ws =
       workspace(ctx, graph, step0.inserted_vertices.size(), batch.edges.num_insertions());
   std::fill(ws.affected.begin(), ws.affected.end(), std::uint8_t{0});
@@ -412,8 +547,7 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::identify_affected(
     ws.affected[static_cast<std::size_t>(delta.insert_dst[i])] = 1;
 #endif
   }
-  tau_ = state_->opt.similarity_threshold ? *state_->opt.similarity_threshold
-                                          : average_live_weight(rows);
+  tau_ = tau_after_apply(graph);
   num_components_ = 0;
   sparsified_ = 0;
   lp_trace::writer* trace = lp_trace::writer::get();
@@ -822,8 +956,7 @@ lp_cuda::batch_args label_propagation_problem<vertex_t, edge_t, weight_t>::cuda_
   lp_cuda::batch_args a;
   // tau: the published one, or the average weight of the current graph's live entries (the
   // host sum of the sequential backend, over the downloaded rows: bitwise the same).
-  a.tau =
-      opt.similarity_threshold ? *opt.similarity_threshold : average_live_weight(host_rows(graph));
+  a.tau = tau_after_apply(graph);
   a.delta = opt.tolerance;
   a.max_iterations = static_cast<int>(std::min<std::int64_t>(opt.max_iterations, 2147483647));
   a.damped = opt.update_schedule == label_propagation::schedule::damped;
@@ -954,6 +1087,7 @@ void result<vertex_t>::set_options(const options& opt) {
   auto& st = detail::checked(impl_.get(), "label_propagation::result::set_options");
   detail::expect_options(opt, "label_propagation::result::set_options");
   st.opt = opt;
+  st.tau_current = false;  // the streaming mode's sum is set up again from the graph (ADR 0104)
 }
 
 template <typename vertex_t>
@@ -1074,7 +1208,7 @@ label_propagation::result<vertex_t> label_propagation_compute(
   }
   st->labels.assign(n, 0.5F);
   st->stamp.assign(n, 0);
-  st->bin_capacity = bin_capacities(graph_access::impl(g).host_storage().row_ptr);
+  st->bin_capacity = graph_bin_capacities(graph_access::impl(g));
   const framework::hook_stages& names = framework::stages_of<problem_t>();
   scoped_stage stage(res, names.compute);
   problem_t p(*st);

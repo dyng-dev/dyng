@@ -192,8 +192,13 @@ TEST(Slotted, WithCapacityRefusesOtherProperties) {
   p.semantics.on_self_loop = batch_semantics::self_loop::drop;
   refused(p, "semantics");
   p = slotted_props();
-  p.layout = row_layout::slack;
-  refused(p, "slack");
+  p.layout = row_layout::slack;  // 0.4 (M10b, ADR 0103): slack rows take the same properties
+  EXPECT_NO_THROW((void)build(p));
+  p.directed = true;
+  refused(p, "slack rows need graph_properties::directed");
+  p = slotted_props();
+  p.semantics.allow_vertex_growth = true;  // slotted rows refuse vertex growth
+  refused(p, "semantics");
   p = slotted_props();
   p.layout = row_layout::compact;
   EXPECT_THROW((void)build(p), dyng::invalid_argument_error);

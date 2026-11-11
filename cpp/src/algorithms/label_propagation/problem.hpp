@@ -83,6 +83,13 @@ struct label_propagation_state {
   /// The propagation queues' capacities from the graph's row capacities (computed by compute() on
   /// every backend, so a result can move to CUDA; fused.hpp's state::capacity).
   std::array<int, lp_cuda::num_degree_bins> bin_capacity{};
+  /// options::similarity_threshold = std::nullopt (the streaming mode, ADR 0104): the double sum
+  /// and the count of the weights of the graph's live directed entries, maintained by every update
+  /// while `tau_current` (set up from the graph by the first update that needs it after compute()
+  /// or set_options()).
+  double tau_sum = 0.0;
+  std::int64_t tau_count = 0;  ///< see tau_sum
+  bool tau_current = false;    ///< tau_sum and tau_count describe the graph of the last update
   /// The run-wide device state of a CUDA result (ADR 0075), nullptr on the host backends: there the
   /// labels, seeds' classes and stamps live in the vectors above; on CUDA in it (`labels` and
   /// `stamp` are empty; `seeds` stays current on the host).
@@ -251,6 +258,51 @@ lp_irlp_report irlp_sequential(const lp_rows<edge_t>& rows, const std::vector<st
 template <typename edge_t>
 float average_live_weight(const lp_rows<edge_t>& rows);
 
+/**
+ * @brief The double sum and the count of the weights of the live directed entries of `rows`, in
+ *        vertex order and slot order (average_live_weight()'s sum).
+ * @tparam edge_t Edge offset type.
+ * @param[in]  rows  The graph.
+ * @param[out] sum   The sum.
+ * @param[out] count The count.
+ */
+template <typename edge_t>
+void live_weight_sum(const lp_rows<edge_t>& rows, double& sum, std::int64_t& count);
+
+/**
+ * @brief The weight a deleted vertex takes out of the maintained sum (ADR 0104): over its row in
+ *        slot order, every live entry's weight, and again its mirror's (the same weight) when the
+ *        neighbour is neither the vertex itself nor deleted in the same batch, each added to a
+ *        double one at a time; the entries counted likewise.
+ * @tparam edge_t Edge offset type.
+ * @param[in]  rows        The graph before the batch (G_t).
+ * @param[in]  u           The deleted vertex (active in G_t).
+ * @param[in]  deleted_too Whether a vertex is deleted in the same batch.
+ * @param[out] count       The entries.
+ * @return The partial sum.
+ */
+template <typename edge_t, typename pred_t>
+double deleted_weight(const lp_rows<edge_t>& rows, std::int64_t u, const pred_t& deleted_too,
+                      std::int64_t& count) {
+  double s = 0.0;
+  count = 0;
+  for (auto e = static_cast<std::size_t>(rows.row_ptr[u]);
+       e < static_cast<std::size_t>(rows.end(u)); ++e) {
+    const std::int32_t c = rows.col_ind[e];
+    if (c < 0 || !rows.active(c)) {
+      continue;
+    }
+    const double w = static_cast<double>(rows.weights[e]);
+    s += w;
+    ++count;
+    if (c != u && !deleted_too(c)) {
+      s += w;
+      ++count;
+    }
+  }
+  return s;
+}
+
 /// The update family of label_propagation.
 inline constexpr framework::family label_propagation_family = framework::family::fixed_point;
 
@@ -360,6 +412,12 @@ class label_propagation_problem final
  private:
   /// The CUDA engines' inputs of this update (the batch's seeds join the host copy of the seeds).
   lp_cuda::batch_args cuda_batch(const container_type& graph, const applied& applied);
+  /// The streaming mode's sum (ADR 0104): set up from G_t if needed, the deleted vertices'
+  /// entries taken out (before the apply).
+  void tau_before_apply(const container_type& graph, const normalized_batch<vertex_t>& step0);
+  /// tau of this update: the published one, or the streaming mode's average after the appended
+  /// entries joined the sum (after the apply).
+  float tau_after_apply(const container_type& graph);
   /// The workspace, leased and sized for `g` (and the batch of this update).
   label_propagation_workspace& workspace(framework::context& ctx, const container_type& g,
                                          std::size_t vertices, std::size_t edges);
