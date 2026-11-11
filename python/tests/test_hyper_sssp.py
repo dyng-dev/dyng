@@ -182,6 +182,12 @@ def test_dyng_update_two_sources_and_triad_count_refusal() -> None:
         dyng.hyper_sssp.compute(esc, 0)
     with pytest.raises(dyng.StaleResultError):  # a result of another hypergraph: nothing changes
         dyng.update(esc, dyng.HyperedgeBatch(delete_hyperedges=[0]), tri, a)
+    # A triad_count result with a slack_csr hypergraph: the storage requirement's error (checked
+    # before the result's identity), alone and with a hyper_sssp result; nothing changes.
+    with pytest.raises(dyng.NotSupportedError, match="slack_csr"):
+        dyng.triad_count.update(hg, dyng.HyperedgeBatch(delete_hyperedges=[1]), tri)
+    with pytest.raises(dyng.NotSupportedError, match="slack_csr"):
+        dyng.update(hg, dyng.HyperedgeBatch(delete_hyperedges=[1]), tri, a)
     assert esc.version == 0 and hg.version == 1
     with pytest.raises(TypeError, match="hypergraph algorithm"):
         dyng.update(dyng.Graph.from_edges([0], [1], [1]), dyng.EdgeBatch(), a)  # type: ignore[call-overload]
