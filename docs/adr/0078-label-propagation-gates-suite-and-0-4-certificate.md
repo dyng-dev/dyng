@@ -138,3 +138,8 @@ fixed library: `parity/results/M10a.md` section 13.4 (12 / 12 gated rows within;
 - R040 reads `release-damped-50m` with `bench_suite.py run --release-only`; it may switch the
   state to `recorded_only` under the same AD4 condition, with the reason recorded.
 - M11's suite and replays join the same tables below their own comments.
+- On the merged tree, a scoped dry run passes only over records measured on the merged library's
+  code. M11a's records predate the merge, so `hyper_sssp`'s dry run on M10a's tree fails until
+  they are measured again. The author ruled on 2026-11-11 (GOVERNANCE.md's approvals log) that
+  this belongs to the integrator, the second of M10b and M11b to freeze, who runs both scoped dry
+  runs on the final tree (`parity/results/M10a.md` section 14.9).
