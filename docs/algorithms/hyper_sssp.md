@@ -162,19 +162,20 @@ pointer-jumping round). The compat tool `dyng-compat-hsosp bench` reproduces hso
 CSV columns) and `parity/hsosp_perf.py run` compares them with MOSP_ESCHER under the gate protocol
 of ADR 0080.
 
-**The gates against MOSP_ESCHER@4b86159** (the as-is engine, the default; M11a's reading of
-record: the unpatched code re-measured in the same session, RTX A5000 at base clocks, 16 paper
-configurations x 21 alternating rounds; ratios dynG / MOSP_ESCHER; `parity/results/M11a.md`
-section 11.6). Every gated row is within its bar:
+**The gates against MOSP_ESCHER@4b86159** (the as-is engine, the default; the reading of
+record on the final 0.4 library, M11b: the unpatched code re-measured in the same session, RTX
+A5000 at base clocks, 16 paper configurations x 21 alternating rounds; ratios dynG /
+MOSP_ESCHER; `parity/results/M11b.md` section 4, M11a's reading in `parity/results/M11a.md`
+section 11.6). Every gated row is within its bar (271 of 271):
 
 | Row (per batch b1-b3) | Bar | coauth-DBLP | Geology |
 |---|---|---|---|
-| maintain | 1.05 | 0.608-1.030 | 0.630-0.836 |
-| sosp_update | 1.05 where MOSP_ESCHER's median >= 10 ms, else 1.10 | 0.998-1.024 | 0.990-1.050 |
-| static | 1.05 | 0.981-1.005 | 0.989-1.036 |
-| dynamic_comparable | 1.05 | 0.654-1.029 | 0.656-0.851 |
-| dynamic (MOSP_ESCHER's total, with its CBST maintenance) | 1.05 | 0.150-0.378 | 0.185-0.461 |
-| load_plus_dynamic (end to end) | 1.10 | 0.648-0.701 | 0.689-0.788 |
+| maintain | 1.05 | 0.513-0.998 | 0.478-0.877 |
+| sosp_update | 1.05 where MOSP_ESCHER's median >= 10 ms, else 1.10 | 0.998-1.024 | 0.992-1.038 |
+| static | 1.05 | 0.980-1.005 | 0.988-1.034 |
+| dynamic_comparable | 1.05 | 0.553-1.000 | 0.554-0.888 |
+| dynamic (MOSP_ESCHER's total, with its CBST maintenance) | 1.05 | 0.150-0.372 | 0.194-0.460 |
+| load_plus_dynamic (end to end) | 1.10 | 0.645-0.716 | 0.682-0.806 |
 | memory: the nsys peak of live device allocations (P50 hyperedge and vertex, Geology hyperedge) | 1.05 | 0.536, 0.557 | 0.477 |
 | memory: the graph scope (MOSP_ESCHER's graph_mb) after the build and each batch | 1.05 | 1.0000 | 1.0000 |
 
@@ -186,12 +187,12 @@ gate (the peak of live device allocations 0.49-0.56 of MOSP_ESCHER's), but in th
 reading (16 paper configurations, 21 rounds, base clocks) four `sosp_update` rows of
 coauth-DBLP's hyperedge batches are above their 1.05 bar:
 
-| Configuration, batch | MOSP_ESCHER's `t_sosp_update_ms` | `engine::fused` / MOSP_ESCHER | `engine::operators` / MOSP_ESCHER |
+| Configuration, batch | MOSP_ESCHER's `t_sosp_update_ms` | `engine::fused` / MOSP_ESCHER (M11a; final 0.4 library) | `engine::operators` / MOSP_ESCHER |
 |---|---:|---:|---:|
-| dblp_hyperedge_100000 b2 | 10.1 ms | 1.024 | 1.051 |
-| dblp_hyperedge_200000 b1 | 22.2 ms | 1.002 | 1.056 |
-| dblp_hyperedge_200000 b2 | 23.5 ms | 1.001 | 1.061 |
-| dblp_hyperedge_200000 b3 | 21.7 ms | 1.004 | 1.059 |
+| dblp_hyperedge_100000 b2 | 10.1 ms | 1.024; 1.024 | 1.051 |
+| dblp_hyperedge_200000 b1 | 22.2 ms | 1.002; 1.001 | 1.056 |
+| dblp_hyperedge_200000 b2 | 23.5 ms | 1.001; 0.998 | 1.061 |
+| dblp_hyperedge_200000 b3 | 21.7 ms | 1.004; 1.004 | 1.059 |
 
 The shared engine's update loses 1.2-1.5 ms there in two places: sssp's pointer jumping runs its
 ceil(log2 n) + 1 rounds where MOSP_ESCHER's stops as soon as nothing changes, and the seed pulls
