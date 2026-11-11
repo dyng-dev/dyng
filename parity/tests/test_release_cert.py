@@ -2878,16 +2878,25 @@ def test_a_04_certificate_needs_the_hyper_sssp_replays(cert, certified) -> None:
     assert entry["passed"] is True
     assert set(entry["required_coverage"]) == {
         f"{b}:hyper_sssp/{m}"
-        for b in ("cuda", "sequential")
+        for b in ("cuda", "cuda-operators", "sequential")
         for m in ("by_id", "by_id_public", "by_key")
     } | {"cuda:hyper_sssp/store"}
     assert entry["required_coverage"]["cuda:hyper_sssp/by_id"] == 25
+    assert entry["required_coverage"]["cuda-operators:hyper_sssp/by_id"] == 25
     assert entry["required_coverage"]["cuda:hyper_sssp/store"] == 25
     # One config missing: the certificate fails, naming it.
     for f in results.glob(f"parity-{HSOSP_SET}-cuda-hyper_sssp-by_key.json"):
         f.unlink()
     assert write("0.4.0") == 1
     assert "cuda:hyper_sssp/by_key" in problems()
+    for f in results.glob(f"parity-{HSOSP_SET}-*.json"):
+        f.unlink()
+    # M11b criterion 11: the shared engine's replays are required too (both CUDA engines).
+    _hsosp_replays(cert, results, head(), skip=("cuda-operators:hyper_sssp/by_id",))
+    assert write("0.4.0") == 1
+    assert "cuda-operators:hyper_sssp/by_id" in problems()
+    _hsosp_replays(cert, results, head())
+    assert write("0.4.0") == 0, problems()
     # One case missing from a config's matrix.
     path = next(results.glob(f"parity-{HSOSP_SET}-sequential-hyper_sssp-by_id.json"))
     record = json.loads(path.read_text())
