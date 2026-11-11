@@ -239,6 +239,7 @@ def test_the_work_budget_falls_back_or_raises() -> None:
     assert hg.version == 4  # the budget is counted after the commit (the basic guarantee)
     with pytest.raises(dyng.StaleResultError, match="recompute"):
         _ = sp.hyperedge_distances
+    assert "poisoned" in repr(sp)  # repr never raises (a REPL, a debugger, a log)
     with pytest.raises(dyng.StaleResultError, match="recompute"):
         dyng.hyper_sssp.update(hg, shortcut, sp)
     check(hg, dyng.hyper_sssp.compute(hg, 0))

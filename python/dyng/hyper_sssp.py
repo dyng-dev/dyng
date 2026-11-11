@@ -54,7 +54,7 @@ from ._backend import native
 from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name, with_options
 from ._writer import resolve_on, writing
 from .array import Array
-from .errors import InvalidArgumentError, NotSupportedError
+from .errors import InvalidArgumentError, NotSupportedError, StaleResultError
 from .hypergraph import HyperApplySummary, HyperedgeBatch, Hypergraph
 from .resources import Resources, resolve
 
@@ -370,9 +370,13 @@ class Result:
         )
 
     def __repr__(self) -> str:
+        # Never raises: a result a failed update left unusable shows as poisoned.
+        try:
+            ids = f"num_hyperedge_ids={len(self.hyperedge_distances)}"
+        except StaleResultError:
+            ids = "poisoned"
         return (
-            f"dyng.hyper_sssp.Result(source={self.source}, "
-            f"num_hyperedge_ids={len(self.hyperedge_distances)}, "
+            f"dyng.hyper_sssp.Result(source={self.source}, {ids}, "
             f"graph_version={self.graph_version})"
         )
 
