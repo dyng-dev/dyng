@@ -64,7 +64,9 @@ flagged), `kernels` since step 5, `engines` in M10b:
            end_to_end; in_place reported), at the recorded lock per case and schedule
   kernels  both sides under `ncu --clock-control base` (the first NCU_LAUNCHES launches of each
            process): per kernel the launches, the time, registers and occupancy (reported)
-  engines  the port's fused against its operators engine (AD6; reported)
+  engines  the port's fused against its operators engine (AD6; ADR 0101; reported): A/B/A/B at
+           the recorded lock per case, damped only, the guard on both engines' counts and label
+           bytes (equal to each other), and the largest distance of their label bits in ulps
 """
 
 from __future__ import annotations
@@ -1047,11 +1049,228 @@ def write_memory(args, old: dict, results: dict, started: str) -> None:
     print(f"wrote {args.json}", flush=True)
 
 
-def port_side(args: argparse.Namespace) -> int:
-    raise SystemExit(
-        f"label_propagation {args.command}: its port side arrives in M10b (engines: the "
-        "operators engine); the command line and the record shape (RECORD) are fixed here"
-    )
+# --- The port's engines (engines; M10b step 1, ADR 0101; reported) --------------------------------
+
+
+def ulp_distance(a: bytes, b: bytes) -> int:
+    """The largest distance in units in the last place between two float32 dumps of equal
+    length (0 when the bits are equal; labels are non-negative, so the bit patterns order them)."""
+    import numpy as np
+
+    if len(a) != len(b):
+        raise SystemExit("the label dumps differ in length")
+    x = np.frombuffer(a, dtype="<i4").astype(np.int64)
+    y = np.frombuffer(b, dtype="<i4").astype(np.int64)
+    return int(np.abs(x - y).max()) if x.size else 0
+
+
+def engines_guard(engines: list[str], first: dict, now: dict) -> list[str]:
+    """Damped: every engine's per-batch counts and labels are its first round's, and the engines'
+    counts and labels agree with each other (AD6; ADR 0101)."""
+    bad = []
+    for e in engines:
+        bad += [f"{e}: {x}" for x in guard("damped", first[e], now[e])]
+    ref = engines[0]
+    for e in engines[1:]:
+        if now[e]["labels_sha256"] != now[ref]["labels_sha256"]:
+            bad.append(f"{e}'s dynlp_labels.txt differs from {ref}'s")
+        for k, (x, y) in enumerate(zip(now[ref]["batches"], now[e]["batches"], strict=True)):
+            for c in ("iterations", "components", "frontier_visits"):
+                if x[c] != y[c]:
+                    bad.append(f"batch {k} {c}: {e} {y[c]} != {ref} {x[c]}")
+    return bad
+
+
+def engines_reading(
+    args, exe: Path, case: str, schedule: str, env: dict, work: Path, mode: str, rounds: int
+) -> dict:
+    """`rounds` accepted rounds at `mode`: in every round one process per engine (A/B/A/B), each
+    `--backend cuda --cuda-engine <engine>`; a round with a contaminated process is repeated (at
+    most 2 x rounds rejections); then one untimed process per engine with --label-dump for the
+    largest distance between the engines' label bits (in ulps)."""
+    engines = args.engines
+    clocks = perf_ab.ClockLock(args.gpu, mode)
+    key = f"{case}/{schedule}"
+    acc: dict = {e: [] for e in engines}
+    first: dict = {}
+    windows, rejected = [], []
+    with clocks:
+        allowed = {clocks.pid} if clocks.pid else None
+        with Monitor(
+            args.gpu, args.max_foreign_cpu, allowed_pids=allowed, locked=clocks.locked
+        ) as monitor:
+            r = 0
+            while r < rounds:
+                now_: dict = {}
+                win: dict = {}
+                for e in engines:
+                    now_[e], win[e] = port_round(
+                        monitor, exe, case, schedule, env, work, r, extra=["--cuda-engine", e]
+                    )
+                first = first or now_
+                bad = engines_guard(engines, first, now_)
+                if bad:
+                    raise SystemExit(f"STOP: {key} round {r + 1}: the guard failed: {bad[:5]}")
+                reasons = [f"{e}: {x}" for e in engines for x in win[e].get("reasons", [])]
+                if reasons:
+                    rejected.append({"before_round": r + 1, "reasons": reasons})
+                    print(f"{key}: round {r + 1} rejected ({'; '.join(reasons)})", flush=True)
+                    if len(rejected) > 2 * rounds:
+                        raise SystemExit(f"{key}: {len(rejected)} rounds rejected; giving up")
+                    continue
+                r += 1
+                for e in engines:
+                    acc[e].append(now_[e])
+                windows.append(win)
+                print(
+                    f"{key} {mode} {r}/{rounds}: update[sum] "
+                    + ", ".join(f"{e} {now_[e]['update_sum_ms']:.2f} ms" for e in engines),
+                    flush=True,
+                )
+    rows = {e: summarize_rows(acc[e]) for e in engines}
+    for e in engines:
+        rows[e]["update_host[sum]"] = describe([x["update_host_sum_ms"] for x in acc[e]])
+    ref = engines[0]
+    regions = {}
+    for name, row in rows[ref].items():
+        regions[name] = {f"{e}_median_ms": rows[e][name]["median"] for e in engines}
+        for e in engines[1:]:
+            regions[name][f"{e}_over_{ref}"] = (
+                rows[e][name]["median"] / row["median"] if row["median"] else None
+            )
+        regions[name]["engines"] = {e: rows[e][name] for e in engines}
+    # The engines' label bits, untimed (one process each with --label-dump).
+    dumps = {}
+    for e in engines:
+        out = work / f"dump-{e}"
+        shutil.rmtree(out, ignore_errors=True)
+        out.mkdir(parents=True)
+        subprocess.run(
+            [
+                str(exe),
+                *timed_argv(case, schedule, out / "o"),
+                "--backend",
+                "cuda",
+                "--cuda-engine",
+                e,
+                "--label-dump",
+                str(out / "d"),
+            ],
+            env=env,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        dumps[e] = (out / "d" / "labels.f32").read_bytes()
+        shutil.rmtree(out, ignore_errors=True)
+    return {
+        "clocks": clocks.record,
+        "rounds": len(acc[ref]),
+        "complete": len(acc[ref]) >= rounds,
+        "regions": regions,
+        "per_batch": [
+            {
+                e: {
+                    "time_ms": describe([x["batches"][k]["time_ms"] for x in acc[e]]),
+                    "iterations": acc[e][0]["batches"][k]["iterations"],
+                }
+                for e in engines
+            }
+            for k in range(len(acc[ref][0]["batches"]))
+        ],
+        "max_abs_diff_ulps": {e: ulp_distance(dumps[ref], dumps[e]) for e in engines[1:]},
+        "guard": {
+            "rounds_checked": len(acc[ref]) + len(rejected),
+            "passed": True,
+            "rule": "each engine's per-batch counts and label bytes equal its first "
+            "round's and the other engine's (AD6)",
+        },
+        "monitor": {"rounds": windows, "rejected": rejected},
+        "rejected": rejected,
+    }
+
+
+def engines_cmd(args: argparse.Namespace) -> int:
+    """perf_ab.py label_propagation engines: the port's fused engine against its operators
+    engine (AD6; reported, never gated): A/B/A/B at the recorded lock per case, damped only (the
+    operators engine has no in_place schedule)."""
+    exe = port_exe(args.exe)
+    if [s for s in args.schedules if s != "damped"]:
+        raise SystemExit(
+            "engines: the operators engine runs schedule::damped only (--schedules damped)"
+        )
+    env = clean_env(args.gpu)
+    (perf_ab.SCRATCH / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="lp-engines-", dir=perf_ab.SCRATCH / "runs"))
+    old = load_record(args.json)
+    results: dict = dict(old.get("results", {}))
+    started = now()
+    try:
+        with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for case in args.cases:
+                key = f"{case}/damped"
+                lock = (
+                    recorded_lock(args.baseline, key)
+                    if args.lock_clocks == "recorded"
+                    else args.lock_clocks
+                )
+                rounds = args.rounds or ROUNDS[case]
+                rd = engines_reading(args, exe, case, "damped", env, work, lock, rounds)
+                results[key] = {
+                    "case": case,
+                    "schedule": "damped",
+                    "engines": args.engines,
+                    "lock": {"lock": lock, "source": args.lock_clocks},
+                    **rd,
+                }
+                write_engines(args, old, results, started, exe)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    for key, res in results.items():
+        u = res["regions"]["update[sum]"]
+        ratio = u.get(f"{res['engines'][1]}_over_{res['engines'][0]}")
+        print(
+            f"{key} ({res['lock']['lock']}, {res['rounds']} rounds): update[sum] "
+            f"{res['engines'][1]}/{res['engines'][0]} {ratio:.3f}; max |dF| in ulps "
+            f"{res['max_abs_diff_ulps']}"
+        )
+    return 0
+
+
+def write_engines(args, old: dict, results: dict, started: str, exe: Path) -> None:
+    if not args.json:
+        return
+    doc = {
+        "schema": 1,
+        "algorithm": "label_propagation",
+        "command": "engines",
+        "what": "the port's fused CUDA engine against its operators engine (AD6; ADR 0101; "
+        "reported, never gated): update[sum], end_to_end and the per-batch times at the recorded "
+        "lock, and the largest distance between their label bits",
+        "date": old.get("date", started),
+        "date_end": now(),
+        "port": port_record(exe),
+        "protocol": {
+            "gpu": args.gpu,
+            "lock": perf_ab.LOCK_STATUS,
+            "order": "A/B/A/B: in every round one process per engine ("
+            + ", ".join(args.engines)
+            + "), the same session",
+            "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+            "argv": "bench/run.sh's (--quiet --noValidate; files in a fresh per-round scratch "
+            "directory) + --backend cuda --cuda-engine <engine>",
+            "clocks": "the lock the baseline recorded per case (ADRs 0018, 0021)",
+            "statistic": "median; ratio = engine / " + args.engines[0],
+            "contamination_monitor": "contaminated rounds repeated (perf_ab.MachineMonitor)",
+        },
+        "driver": perf_ab.driver_versions(),
+        "results": dict(sorted(results.items())),
+    }
+    args.json.parent.mkdir(parents=True, exist_ok=True)
+    tmp = args.json.with_suffix(".tmp")
+    tmp.write_text(json.dumps(doc, indent=1) + "\n")
+    tmp.replace(args.json)
+    print(f"wrote {args.json}", flush=True)
 
 
 # --- The kernels under Nsight Compute (kernels; reported) ----------------------------------------
@@ -1234,10 +1453,17 @@ def port_record(exe: Path) -> dict:
 
 
 def port_round(
-    monitor: Monitor, exe: Path, case: str, schedule: str, env: dict, work: Path, r: int
+    monitor: Monitor,
+    exe: Path,
+    case: str,
+    schedule: str,
+    env: dict,
+    work: Path,
+    r: int,
+    extra: list[str] | None = None,
 ) -> tuple[dict, dict]:
-    """One process of the port: as one_round(), with --backend cuda, plus the host time of every
-    update() call (dyng_times.csv)."""
+    """One process of the port: as one_round(), with --backend cuda (and `extra`, the engines'
+    --cuda-engine), plus the host time of every update() call (dyng_times.csv)."""
     free = free_bytes(work)
     if free < MIN_FREE_BYTES:
         raise SystemExit(
@@ -1250,7 +1476,7 @@ def port_round(
     out.mkdir(parents=True)
     try:
         text, window = monitor.run(
-            [exe, *timed_argv(case, schedule, out), "--backend", "cuda"], env
+            [exe, *timed_argv(case, schedule, out), "--backend", "cuda", *(extra or [])], env
         )
         rows = parse_results((out / "results.csv").read_text())
         host = [
@@ -1566,6 +1792,14 @@ def parser() -> argparse.ArgumentParser:
             r.add_argument("--enforce-gates", action="store_true")
         if name == "engines":
             r.add_argument("--engines", default="fused,operators", type=lambda s: s.split(","))
+            r.add_argument(
+                "--lock-clocks",
+                choices=["recorded", "boost", "base", "none"],
+                default="recorded",
+                help="recorded: the baseline's lock per case",
+            )
+            r.add_argument("--baseline", type=Path, help="the baseline record 'recorded' reads")
+            r.set_defaults(schedules=["damped"])  # the operators engine runs damped only
         if name == "kernels":
             r.add_argument("--launches", type=int, default=NCU_LAUNCHES)
     return ap
@@ -1591,7 +1825,7 @@ def main(argv: list[str] | None = None) -> int:
         "memory": memory,
         "run": run_gates,
         "kernels": kernels,
-        "engines": port_side,
+        "engines": engines_cmd,
     }[args.command](args)
 
 

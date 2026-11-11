@@ -107,11 +107,39 @@ def test_record_shapes(tmp_path: Path, monkeypatch) -> None:
         assert {"record", "result"} <= set(lp.RECORD[command])
 
 
-def test_engines_parses_and_waits_for_m10b() -> None:
+def test_engines_parses_and_needs_the_port(tmp_path: Path) -> None:
+    """M10b step 1 (ADR 0101): engines reads the port's fused against its operators engine,
+    damped only (reported)."""
     args = lp.parser().parse_args(["engines", "--exe", "x", "--cases", "50k"])
     assert args.cases == ["50k"] and args.exe == Path("x")
-    with pytest.raises(SystemExit, match="arrives in M10b"):
-        lp.main(["engines", "--exe", "x", "--cases", "50k"])
+    assert args.engines == ["fused", "operators"] and args.schedules == ["damped"]
+    assert args.lock_clocks == "recorded"
+    with pytest.raises(SystemExit, match="no such dyng-compat-dynlp"):
+        lp.main(["engines", "--exe", str(tmp_path / "missing"), "--cases", "50k"])
+    exe = tmp_path / "dyng-compat-dynlp"
+    exe.write_text("")
+    with pytest.raises(SystemExit, match="damped only"):
+        lp.main(["engines", "--exe", str(exe), "--cases", "50k", "--schedules", "inplace"])
+
+
+def test_engines_guard_and_ulps() -> None:
+    import struct
+
+    a = facts(digest="x")
+    assert lp.engines_guard(["fused", "operators"], {"fused": a, "operators": a},
+                            {"fused": a, "operators": a}) == []  # fmt: skip
+    b = facts(iterations=(0, 1218), digest="x")
+    bad = lp.engines_guard(["fused", "operators"], {"fused": a, "operators": b},
+                           {"fused": a, "operators": b})  # fmt: skip
+    assert any("iterations" in x for x in bad)
+    c = facts(digest="y")
+    assert lp.engines_guard(["fused", "operators"], {"fused": a, "operators": c},
+                            {"fused": a, "operators": c})  # fmt: skip
+    one = struct.pack("<2f", 0.5, 0.25)
+    two = struct.pack("<2f", 0.5, struct.unpack("<f", struct.pack("<i", struct.unpack(
+        "<i", struct.pack("<f", 0.25))[0] + 3))[0])  # fmt: skip
+    assert lp.ulp_distance(one, one) == 0
+    assert lp.ulp_distance(one, two) == 3
 
 
 def test_kernels_parses_and_needs_the_port(tmp_path: Path) -> None:
