@@ -843,7 +843,9 @@ TEST_F(SsspCuda, WarmUpLoadsTheSsspKernels) {
     transpose += contains(name, "fill_reverse_kernel") ? 1 : 0;
   }
   EXPECT_EQ(persistent, 3);  // one per instantiated graph type
-  EXPECT_EQ(transpose, 3);
+  // The device container's transpose: the three integer-weight graph types and the two float
+  // graph types of label_propagation (ADR 0069).
+  EXPECT_EQ(transpose, 5);
   int push = 0;
   int jump = 0;
   for (const auto& kernel : dyng::detail::registered_kernels()) {

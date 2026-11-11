@@ -37,7 +37,7 @@ set(DYNG_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data")
 dyng_add_test(
   NAME dyng_graph_tests
   SOURCES graph/apply_test.cpp graph/graph_test.cpp graph/mosp_apply_fixture_test.cpp
-          graph/set_semantics_test.cpp graph/structural_change_test.cpp
+          graph/set_semantics_test.cpp graph/structural_change_test.cpp graph/slotted_test.cpp
   LABELS cpu graph
   LIBRARIES dyng::testing
 )
@@ -54,6 +54,14 @@ dyng_add_test(
   LABELS cpu io
 )
 if(DYNG_ENABLE_CUDA)
+  # row_layout::slotted on the CUDA backend (M10a, ADR 0074): the device apply against the host's.
+  dyng_add_test(
+    NAME dyng_graph_cuda_tests
+    SOURCES graph/slotted_cuda_test.cpp
+    LABELS gpu graph
+    TEST_PREFIX cuda.
+  )
+  target_include_directories(dyng_graph_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   # batch_reader with CUDA resources: the pinned staging and the device views (M8b).
   dyng_add_test(
     NAME dyng_io_cuda_tests
@@ -82,9 +90,16 @@ endif()
 dyng_add_test(
   NAME dyng_generators_tests
   SOURCES generators/legacy_test.cpp generators/cycle_enum_batch_test.cpp
-          generators/hypergraph_generators_test.cpp
+          generators/hypergraph_generators_test.cpp generators/vertex_arrival_test.cpp
   LABELS cpu generators
 )
+# The DynLP twins of libstdc++'s draws are compared with std:: in this file: neither side may be
+# contracted into fused multiply-adds (ADR 0067), as in src/generators/legacy_dynlp.cpp.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set_source_files_properties(
+    generators/vertex_arrival_test.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off"
+  )
+endif()
 # Parity with CycleEnumeration-GPU@0a976ad on the TUDataset graphs (outside the repository; the
 # test skips when they are missing). Label parity, not cpu: run with `ctest -L parity`.
 set(_dyng_private_tests dyng_graph_tests dyng_io_tests dyng_io_fuzz_regression_tests dyng_framework_tests
@@ -382,6 +397,25 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(line_graph_oracle_isolation PROPERTIES LABELS "cpu;hypergraph")
+  # The label_propagation oracles (M10a criterion 7, ADR 0068): harmonic_solution and
+  # lp_host_model (with the header-only union_find) include nothing of cpp/src or of an algorithm
+  # and reference no dynG symbol: they link the standard library only.
+  foreach(_lp_oracle harmonic_solution lp_host_model)
+    add_test(
+      NAME label_propagation_oracles_isolation_${_lp_oracle}
+      COMMAND
+        "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+        -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/${_lp_oracle}.cpp
+        -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/${_lp_oracle}.hpp
+        -DALLOWED=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/union_find.hpp
+        "-DOBJECT=$<FILTER:$<TARGET_OBJECTS:dyng_testing_label_propagation>,INCLUDE,${_lp_oracle}>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+    )
+    set_tests_properties(
+      label_propagation_oracles_isolation_${_lp_oracle}
+      PROPERTIES LABELS "cpu;testing;label_propagation"
+    )
+  endforeach()
   # The triad oracle (M9a criterion 4, ADR 0049): ESCHER-GPU's CPU reference algorithm with its own
   # class map, sharing no code with triad_count, its engines or the container. The preprocessor
   # runs with the flags the build compiles it with (OpenMP, the target's definitions).
@@ -578,6 +612,30 @@ else()
   target_compile_definitions(dyng_triad_replay_tests PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
 endif()
 list(APPEND _dyng_private_tests dyng_triad_replay_tests)
+# label_propagation's replays against LabelPropagation-CUDA@a276a3a (M10a step 2, ADRs 0067 and
+# 0068): the trace reader and the original's layouts (dyng_lp_replay_support), the tool
+# dyng_lp_replay that parity/compare.py label_propagation drives over the golden corpus, and the
+# CPU suite on the committed digests (the generator at 5k5 and 50k, the host model at 5k5:
+# cpp/tests/data/goldens/label_propagation).
+add_library(dyng_lp_replay_support STATIC parity/label_propagation/lp_replay.cpp)
+target_include_directories(
+  dyng_lp_replay_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/cpp/src"
+)
+target_link_libraries(dyng_lp_replay_support PUBLIC dyng::dyng dyng::testing)
+target_compile_features(dyng_lp_replay_support PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_lp_replay_support)
+dyng_enable_sanitizers(dyng_lp_replay_support)
+add_executable(dyng_lp_replay parity/label_propagation/lp_replay_main.cpp)
+target_link_libraries(dyng_lp_replay PRIVATE dyng_lp_replay_support)
+dyng_set_warnings(dyng_lp_replay)
+dyng_enable_sanitizers(dyng_lp_replay)
+dyng_add_test(
+  NAME dyng_lp_replay_tests
+  SOURCES parity/label_propagation/lp_replay_test.cpp
+  LABELS cpu parity label_propagation
+  LIBRARIES dyng_lp_replay_support
+)
+list(APPEND _dyng_private_tests dyng_lp_replay_tests)
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
@@ -1495,9 +1553,150 @@ if(DYNG_TRIAD_MUTATION_TESTS AND TARGET dyng_triad_count AND TARGET dyng_hypergr
   endforeach()
 endif()
 
+# label_propagation's mutations (M10a criterion 16; PLAN 8.4; AD9: plain Jacobi in place,
+# damped without damping, and LabelPropagation-CUDA's D-a, D-b, D-c and D-e): a copy of libdyng
+# whose label_propagation module (D-e: the graph module, whose Step 0 of vertex batches is shared
+# by the host and the device apply) is rebuilt with DYNG_MUTATION_LP_<NAME> (the hooks are in
+# sequential.cpp, label_propagation.cpp, sparsify.cu, propagation.cu, cuda.cu and
+# apply_slotted_host.cpp), linked with label_propagation's hand cases and its checker at 5k5 on the
+# host backends (label_propagation.mutation.<name>, labels cpu;mutation;label_propagation, every
+# build) and, in CUDA builds, the same on cuda with the fused engine's own cases
+# (label_propagation.mutation.cuda.<name>, labels gpu;mutation;label_propagation). The mutated
+# module keeps the original's compile options (--use_fast_math on its CUDA sources; the host
+# sources without floating-point contraction), so the control reproduces the original's damped
+# iteration counts. The CTest passes when the suite fails; the control copy must pass.
+# lp_d_c_stale_buffer and lp_d_e_resurrected apply to both backends; the hosted mutation rows of
+# parity/mutate.py (suite label_propagation) run the full suites.
+option(DYNG_LP_MUTATION_TESTS "Build the mutation tests of label_propagation" ${DYNG_MUTATION_TESTS})
+if(DYNG_LP_MUTATION_TESTS AND TARGET dyng_label_propagation AND TARGET dyng_graph)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_target_property(_dyng_lp_options dyng_label_propagation COMPILE_OPTIONS)
+  if(NOT _dyng_lp_options)
+    set(_dyng_lp_options)
+  endif()
+  # name|define|module
+  set(_dyng_lp_mutants
+      "control||dyng_label_propagation"
+      "inplace_plain_jacobi|DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI|dyng_label_propagation"
+      "damped_no_damping|DYNG_MUTATION_LP_DAMPED_NO_DAMPING|dyng_label_propagation"
+      "lp_d_a_unfiltered_components|DYNG_MUTATION_LP_D_A_UNFILTERED_COMPONENTS|dyng_label_propagation"
+      "lp_d_b_affected_too_small|DYNG_MUTATION_LP_D_B_AFFECTED_TOO_SMALL|dyng_label_propagation"
+      "lp_d_c_stale_buffer|DYNG_MUTATION_LP_D_C_STALE_BUFFER|dyng_label_propagation"
+      "lp_d_e_resurrected|DYNG_MUTATION_LP_D_E_RESURRECTED|dyng_graph"
+  )
+  set(_dyng_lp_mutant_filter "LabelPropagation.*:LabelPropagationChecker.*5k5")
+  set(_dyng_lp_mutant_cuda_filter
+      "LabelPropagation.*:LabelPropagationChecker.*5k5:LabelPropagationCuda.HubGolden")
+  foreach(_entry IN LISTS _dyng_lp_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _module)
+    set(_expect fail)
+    if(_name STREQUAL "control")
+      set(_expect pass)
+    endif()
+    get_property(_dyng_mutated_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_${_module})
+    set(_dyng_mutated_sources)
+    foreach(_source IN LISTS _dyng_mutated_relative)
+      if(NOT IS_ABSOLUTE "${_source}")
+        set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+      endif()
+      list(APPEND _dyng_mutated_sources "${_source}")
+    endforeach()
+    set(_dyng_unmutated_objects)
+    foreach(_other IN LISTS _dyng_modules)
+      if(NOT _other STREQUAL _module)
+        list(APPEND _dyng_unmutated_objects $<TARGET_OBJECTS:${_other}>)
+      endif()
+    endforeach()
+    set(_lib dyng_lp_mutant_${_name})
+    add_library(${_lib}_module OBJECT ${_dyng_mutated_sources})
+    add_library(
+      ${_lib} STATIC ${_dyng_unmutated_objects} $<TARGET_OBJECTS:${_lib}_module>
+                     $<TARGET_OBJECTS:dyng_testing_label_propagation>
+    )
+    if(_module STREQUAL "dyng_label_propagation")
+      target_compile_options(${_lib}_module PRIVATE ${_dyng_lp_options}
+                                                    $<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
+    endif()
+    add_executable(
+      dyng_label_propagation_mutant_${_name}
+      algorithms/label_propagation/label_propagation_test.cpp
+      algorithms/label_propagation/label_propagation_checker_test.cpp
+      conformance/allocation_counter.cpp
+    )
+    set(_exes dyng_label_propagation_mutant_${_name})
+    if(DYNG_ENABLE_CUDA)
+      add_executable(
+        dyng_label_propagation_cuda_mutant_${_name}
+        algorithms/label_propagation/label_propagation_test.cpp
+        algorithms/label_propagation/label_propagation_checker_test.cpp
+        algorithms/label_propagation/label_propagation_cuda_test.cpp
+        conformance/allocation_counter.cpp
+      )
+      target_compile_definitions(dyng_label_propagation_cuda_mutant_${_name} PRIVATE DYNG_TEST_CUDA=1)
+      list(APPEND _exes dyng_label_propagation_cuda_mutant_${_name})
+    endif()
+    foreach(_target ${_lib}_module ${_lib} ${_exes})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src" "${CMAKE_CURRENT_SOURCE_DIR}"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_module PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_module)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
+    endif()
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    foreach(_exe ${_exes})
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      if(_exe MATCHES "_cuda_mutant_")
+        dyng_mutant_cuda_architectures(${_exe})
+        add_test(NAME label_propagation.mutation.cuda.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=label_propagation.cuda.${_name}
+                         "-DFILTER=${_dyng_lp_mutant_cuda_filter}" -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          label_propagation.mutation.cuda.${_name}
+          PROPERTIES LABELS "gpu;mutation;label_propagation" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+        )
+      else()
+        add_test(NAME label_propagation.mutation.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=label_propagation.${_name} "-DFILTER=${_dyng_lp_mutant_filter}" -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          label_propagation.mutation.${_name}
+          PROPERTIES LABELS "cpu;mutation;label_propagation" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+        )
+      endif()
+    endforeach()
+  endforeach()
+endif()
+
 dyng_add_test(
   NAME dyng_testing_tests
-  SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp
+  SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp testing/lp_oracles_test.cpp
   LABELS cpu testing
   LIBRARIES dyng::testing
 )
@@ -1625,6 +1824,26 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   string(TOUPPER "${_dyng_algorithm}" _dyng_upper)
   list(APPEND _dyng_algorithm_defines DYNG_ALGORITHM_${_dyng_upper}=1)
 endforeach()
+# The compact-only guard of the 0.1-0.3 algorithms (ADR 0070): the checks of each algorithm built
+# here (DYNG_ALGORITHM_<NAME>; a subset build compiles the others out).
+dyng_add_test(
+  NAME dyng_compact_guard_tests
+  SOURCES graph/compact_guard_test.cpp
+  LABELS cpu graph
+)
+target_compile_definitions(dyng_compact_guard_tests PRIVATE ${_dyng_algorithm_defines})
+if(DYNG_ENABLE_CUDA)
+  # The guard before Step 0 on the cuda backend too (M10a review: a device-resident slotted
+  # graph's Step 0 would upload the batch first).
+  dyng_add_test(
+    NAME dyng_compact_guard_cuda_tests
+    SOURCES graph/compact_guard_test.cpp
+    LABELS gpu graph
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_compact_guard_cuda_tests PRIVATE ${_dyng_algorithm_defines}
+                                                                    DYNG_TEST_CUDA=1)
+endif()
 foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   set(_suite "algorithms/${_dyng_algorithm}/${_dyng_algorithm}_conformance_test.cpp")
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_suite}")
@@ -1644,7 +1863,10 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
       # runs it under ASan and TSan-OpenMP locally (M9a review: on a 4-vCPU runner its C2 cases
       # alone took more than the jobs' budget).
       set(_heavy)
-      if(_dyng_algorithm STREQUAL "triad_count")
+      # label_propagation's kit (the float slotted axis, both schedules, DynLP graphs of 5,000 to
+      # 8,000 vertices at delta 1e-6 with the harmonic solution after every batch; M10a step 5)
+      # likewise: about 3 minutes in Release and 18 in Debug on the development machine.
+      if(_dyng_algorithm STREQUAL "triad_count" OR _dyng_algorithm STREQUAL "label_propagation")
         set(_heavy slow)
       endif()
       dyng_add_test(

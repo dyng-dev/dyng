@@ -1,0 +1,880 @@
+{
+ "cases": [
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 0,
+     "batch": 0,
+     "components": 50,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 50
+    },
+    {
+     "affected": 1115,
+     "appended": 1304,
+     "batch": 1,
+     "components": 829,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 1127
+    },
+    {
+     "affected": 1953,
+     "appended": 4048,
+     "batch": 2,
+     "components": 850,
+     "deleted": 58,
+     "fields": 19,
+     "inserted": 1185
+    },
+    {
+     "affected": 2784,
+     "appended": 6780,
+     "batch": 3,
+     "components": 836,
+     "deleted": 74,
+     "fields": 19,
+     "inserted": 1200
+    },
+    {
+     "affected": 3632,
+     "appended": 9554,
+     "batch": 4,
+     "components": 858,
+     "deleted": 77,
+     "fields": 19,
+     "inserted": 1203
+    }
+   ],
+   "case": "5k5_d1e-4_s42",
+   "compared": 96,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.006290221
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 18,
+     "batch": 0,
+     "components": 497,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 500
+    },
+    {
+     "affected": 4950,
+     "appended": 2910,
+     "batch": 1,
+     "components": 4391,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 5005
+    },
+    {
+     "affected": 7156,
+     "appended": 8080,
+     "batch": 2,
+     "components": 4551,
+     "deleted": 231,
+     "fields": 19,
+     "inserted": 5236
+    },
+    {
+     "affected": 9456,
+     "appended": 13512,
+     "batch": 3,
+     "components": 4589,
+     "deleted": 333,
+     "fields": 19,
+     "inserted": 5338
+    },
+    {
+     "affected": 11728,
+     "appended": 19174,
+     "batch": 4,
+     "components": 4663,
+     "deleted": 350,
+     "fields": 19,
+     "inserted": 5355
+    },
+    {
+     "affected": 13982,
+     "appended": 24646,
+     "batch": 5,
+     "components": 4636,
+     "deleted": 379,
+     "fields": 19,
+     "inserted": 5384
+    },
+    {
+     "affected": 16237,
+     "appended": 30140,
+     "batch": 6,
+     "components": 4664,
+     "deleted": 384,
+     "fields": 19,
+     "inserted": 5389
+    },
+    {
+     "affected": 18594,
+     "appended": 35620,
+     "batch": 7,
+     "components": 4677,
+     "deleted": 429,
+     "fields": 19,
+     "inserted": 5434
+    },
+    {
+     "affected": 20821,
+     "appended": 41032,
+     "batch": 8,
+     "components": 4700,
+     "deleted": 417,
+     "fields": 19,
+     "inserted": 5422
+    },
+    {
+     "affected": 23236,
+     "appended": 46874,
+     "batch": 9,
+     "components": 4719,
+     "deleted": 438,
+     "fields": 19,
+     "inserted": 5443
+    }
+   ],
+   "case": "50k_d1e-4_s42",
+   "compared": 191,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.050253958
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 270,
+     "batch": 0,
+     "components": 4942,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 5000
+    },
+    {
+     "affected": 49500,
+     "appended": 29532,
+     "batch": 1,
+     "components": 43976,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 50050
+    },
+    {
+     "affected": 71946,
+     "appended": 82390,
+     "batch": 2,
+     "components": 45504,
+     "deleted": 2296,
+     "fields": 19,
+     "inserted": 52346
+    },
+    {
+     "affected": 94759,
+     "appended": 137418,
+     "batch": 3,
+     "components": 46088,
+     "deleted": 3177,
+     "fields": 19,
+     "inserted": 53227
+    },
+    {
+     "affected": 117806,
+     "appended": 191884,
+     "batch": 4,
+     "components": 46579,
+     "deleted": 3643,
+     "fields": 19,
+     "inserted": 53693
+    },
+    {
+     "affected": 140204,
+     "appended": 246614,
+     "batch": 5,
+     "components": 46626,
+     "deleted": 3862,
+     "fields": 19,
+     "inserted": 53912
+    },
+    {
+     "affected": 162856,
+     "appended": 300494,
+     "batch": 6,
+     "components": 46865,
+     "deleted": 4079,
+     "fields": 19,
+     "inserted": 54129
+    },
+    {
+     "affected": 185750,
+     "appended": 356046,
+     "batch": 7,
+     "components": 46791,
+     "deleted": 4182,
+     "fields": 19,
+     "inserted": 54232
+    },
+    {
+     "affected": 208551,
+     "appended": 411544,
+     "batch": 8,
+     "components": 46897,
+     "deleted": 4249,
+     "fields": 19,
+     "inserted": 54299
+    },
+    {
+     "affected": 231305,
+     "appended": 465818,
+     "batch": 9,
+     "components": 47076,
+     "deleted": 4360,
+     "fields": 19,
+     "inserted": 54410
+    }
+   ],
+   "case": "500k_d1e-4_s42",
+   "compared": 191,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 2.04984909
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 0,
+     "batch": 0,
+     "components": 50,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 50
+    },
+    {
+     "affected": 1115,
+     "appended": 1304,
+     "batch": 1,
+     "components": 829,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 1127
+    },
+    {
+     "affected": 1953,
+     "appended": 4048,
+     "batch": 2,
+     "components": 850,
+     "deleted": 58,
+     "fields": 19,
+     "inserted": 1185
+    },
+    {
+     "affected": 2784,
+     "appended": 6780,
+     "batch": 3,
+     "components": 836,
+     "deleted": 74,
+     "fields": 19,
+     "inserted": 1200
+    },
+    {
+     "affected": 3632,
+     "appended": 9554,
+     "batch": 4,
+     "components": 858,
+     "deleted": 77,
+     "fields": 19,
+     "inserted": 1203
+    }
+   ],
+   "case": "5k5_d1e-6_s42",
+   "compared": 96,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.111529836
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 18,
+     "batch": 0,
+     "components": 497,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 500
+    },
+    {
+     "affected": 4950,
+     "appended": 2910,
+     "batch": 1,
+     "components": 4391,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 5005
+    },
+    {
+     "affected": 7156,
+     "appended": 8080,
+     "batch": 2,
+     "components": 4551,
+     "deleted": 231,
+     "fields": 19,
+     "inserted": 5236
+    },
+    {
+     "affected": 9456,
+     "appended": 13512,
+     "batch": 3,
+     "components": 4589,
+     "deleted": 333,
+     "fields": 19,
+     "inserted": 5338
+    },
+    {
+     "affected": 11728,
+     "appended": 19174,
+     "batch": 4,
+     "components": 4663,
+     "deleted": 350,
+     "fields": 19,
+     "inserted": 5355
+    },
+    {
+     "affected": 13982,
+     "appended": 24646,
+     "batch": 5,
+     "components": 4636,
+     "deleted": 379,
+     "fields": 19,
+     "inserted": 5384
+    },
+    {
+     "affected": 16237,
+     "appended": 30140,
+     "batch": 6,
+     "components": 4664,
+     "deleted": 384,
+     "fields": 19,
+     "inserted": 5389
+    },
+    {
+     "affected": 18594,
+     "appended": 35620,
+     "batch": 7,
+     "components": 4677,
+     "deleted": 429,
+     "fields": 19,
+     "inserted": 5434
+    },
+    {
+     "affected": 20821,
+     "appended": 41032,
+     "batch": 8,
+     "components": 4700,
+     "deleted": 417,
+     "fields": 19,
+     "inserted": 5422
+    },
+    {
+     "affected": 23236,
+     "appended": 46874,
+     "batch": 9,
+     "components": 4719,
+     "deleted": 438,
+     "fields": 19,
+     "inserted": 5443
+    }
+   ],
+   "case": "50k_d1e-6_s42",
+   "compared": 191,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.283710519
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 0,
+     "batch": 0,
+     "components": 50,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 50
+    },
+    {
+     "affected": 1115,
+     "appended": 1438,
+     "batch": 1,
+     "components": 806,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 1127
+    },
+    {
+     "affected": 1943,
+     "appended": 3998,
+     "batch": 2,
+     "components": 848,
+     "deleted": 57,
+     "fields": 19,
+     "inserted": 1184
+    },
+    {
+     "affected": 2798,
+     "appended": 6952,
+     "batch": 3,
+     "components": 815,
+     "deleted": 76,
+     "fields": 19,
+     "inserted": 1202
+    },
+    {
+     "affected": 3653,
+     "appended": 9454,
+     "batch": 4,
+     "components": 855,
+     "deleted": 85,
+     "fields": 19,
+     "inserted": 1211
+    }
+   ],
+   "case": "5k5_d1e-4_s1",
+   "compared": 96,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.194941086
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 0,
+     "batch": 0,
+     "components": 50,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 50
+    },
+    {
+     "affected": 1115,
+     "appended": 1436,
+     "batch": 1,
+     "components": 812,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 1127
+    },
+    {
+     "affected": 1950,
+     "appended": 4072,
+     "batch": 2,
+     "components": 841,
+     "deleted": 56,
+     "fields": 19,
+     "inserted": 1183
+    },
+    {
+     "affected": 2793,
+     "appended": 6840,
+     "batch": 3,
+     "components": 794,
+     "deleted": 78,
+     "fields": 19,
+     "inserted": 1204
+    },
+    {
+     "affected": 3635,
+     "appended": 9588,
+     "batch": 4,
+     "components": 835,
+     "deleted": 84,
+     "fields": 19,
+     "inserted": 1210
+    }
+   ],
+   "case": "5k5_d1e-4_s2",
+   "compared": 96,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.088867636
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 20,
+     "batch": 0,
+     "components": 494,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 500
+    },
+    {
+     "affected": 4950,
+     "appended": 3150,
+     "batch": 1,
+     "components": 4357,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 5005
+    },
+    {
+     "affected": 7215,
+     "appended": 8218,
+     "batch": 2,
+     "components": 4526,
+     "deleted": 225,
+     "fields": 19,
+     "inserted": 5230
+    },
+    {
+     "affected": 9489,
+     "appended": 13576,
+     "batch": 3,
+     "components": 4648,
+     "deleted": 294,
+     "fields": 19,
+     "inserted": 5299
+    },
+    {
+     "affected": 11668,
+     "appended": 18828,
+     "batch": 4,
+     "components": 4644,
+     "deleted": 361,
+     "fields": 19,
+     "inserted": 5366
+    },
+    {
+     "affected": 14003,
+     "appended": 24622,
+     "batch": 5,
+     "components": 4686,
+     "deleted": 388,
+     "fields": 19,
+     "inserted": 5393
+    },
+    {
+     "affected": 16321,
+     "appended": 30016,
+     "batch": 6,
+     "components": 4715,
+     "deleted": 410,
+     "fields": 19,
+     "inserted": 5415
+    },
+    {
+     "affected": 18663,
+     "appended": 35794,
+     "batch": 7,
+     "components": 4692,
+     "deleted": 407,
+     "fields": 19,
+     "inserted": 5412
+    },
+    {
+     "affected": 20891,
+     "appended": 41356,
+     "batch": 8,
+     "components": 4709,
+     "deleted": 431,
+     "fields": 19,
+     "inserted": 5436
+    },
+    {
+     "affected": 23131,
+     "appended": 46688,
+     "batch": 9,
+     "components": 4666,
+     "deleted": 448,
+     "fields": 19,
+     "inserted": 5453
+    }
+   ],
+   "case": "50k_d1e-4_s1",
+   "compared": 191,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.279230517
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 28,
+     "batch": 0,
+     "components": 491,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 500
+    },
+    {
+     "affected": 4950,
+     "appended": 3046,
+     "batch": 1,
+     "components": 4392,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 5005
+    },
+    {
+     "affected": 7275,
+     "appended": 8342,
+     "batch": 2,
+     "components": 4580,
+     "deleted": 252,
+     "fields": 19,
+     "inserted": 5257
+    },
+    {
+     "affected": 9470,
+     "appended": 13776,
+     "batch": 3,
+     "components": 4595,
+     "deleted": 323,
+     "fields": 19,
+     "inserted": 5328
+    },
+    {
+     "affected": 11707,
+     "appended": 19078,
+     "batch": 4,
+     "components": 4608,
+     "deleted": 352,
+     "fields": 19,
+     "inserted": 5357
+    },
+    {
+     "affected": 14045,
+     "appended": 24702,
+     "batch": 5,
+     "components": 4674,
+     "deleted": 392,
+     "fields": 19,
+     "inserted": 5397
+    },
+    {
+     "affected": 16291,
+     "appended": 29992,
+     "batch": 6,
+     "components": 4674,
+     "deleted": 409,
+     "fields": 19,
+     "inserted": 5414
+    },
+    {
+     "affected": 18471,
+     "appended": 35488,
+     "batch": 7,
+     "components": 4673,
+     "deleted": 416,
+     "fields": 19,
+     "inserted": 5421
+    },
+    {
+     "affected": 20932,
+     "appended": 41306,
+     "batch": 8,
+     "components": 4699,
+     "deleted": 422,
+     "fields": 19,
+     "inserted": 5427
+    },
+    {
+     "affected": 23045,
+     "appended": 46248,
+     "batch": 9,
+     "components": 4687,
+     "deleted": 441,
+     "fields": 19,
+     "inserted": 5446
+    }
+   ],
+   "case": "50k_d1e-4_s2",
+   "compared": 191,
+   "digest_mode": false,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 0.169054368
+  },
+  {
+   "batches": [
+    {
+     "affected": 0,
+     "appended": 2450,
+     "batch": 0,
+     "components": 49376,
+     "deleted": 0,
+     "fields": 20,
+     "inserted": 50000
+    },
+    {
+     "affected": 495000,
+     "appended": 300458,
+     "batch": 1,
+     "components": 438347,
+     "deleted": 0,
+     "fields": 19,
+     "inserted": 500500
+    },
+    {
+     "affected": 720876,
+     "appended": 828038,
+     "batch": 2,
+     "components": 455279,
+     "deleted": 23632,
+     "fields": 19,
+     "inserted": 524132
+    },
+    {
+     "affected": 947433,
+     "appended": 1368058,
+     "batch": 3,
+     "components": 461973,
+     "deleted": 32000,
+     "fields": 19,
+     "inserted": 532500
+    },
+    {
+     "affected": 1173720,
+     "appended": 1913162,
+     "batch": 4,
+     "components": 465267,
+     "deleted": 36143,
+     "fields": 19,
+     "inserted": 536643
+    },
+    {
+     "affected": 1401947,
+     "appended": 2461488,
+     "batch": 5,
+     "components": 466599,
+     "deleted": 38852,
+     "fields": 19,
+     "inserted": 539352
+    },
+    {
+     "affected": 1628698,
+     "appended": 3008266,
+     "batch": 6,
+     "components": 468342,
+     "deleted": 40624,
+     "fields": 19,
+     "inserted": 541124
+    },
+    {
+     "affected": 1856124,
+     "appended": 3562046,
+     "batch": 7,
+     "components": 469007,
+     "deleted": 41821,
+     "fields": 19,
+     "inserted": 542321
+    },
+    {
+     "affected": 2084873,
+     "appended": 4111662,
+     "batch": 8,
+     "components": 469755,
+     "deleted": 42764,
+     "fields": 19,
+     "inserted": 543264
+    },
+    {
+     "affected": 2310158,
+     "appended": 4660488,
+     "batch": 9,
+     "components": 469656,
+     "deleted": 43447,
+     "fields": 19,
+     "inserted": 543947
+    }
+   ],
+   "case": "5m_d1e-4_s42",
+   "compared": 191,
+   "digest_mode": true,
+   "equal": true,
+   "generator_tau_equal": true,
+   "inputs": "generated",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "model",
+   "problem": "",
+   "seconds": 47.839522762
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-10-29T06:45:01Z",
+ "equal": true,
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "lp_host_model replay (criterion 7)"
+}

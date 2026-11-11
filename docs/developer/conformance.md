@@ -132,6 +132,25 @@ hypergraph axis is checked on every backend before the first hypergraph algorith
 planted bug (count(+) over the ids the request would get instead of `inserted_ids`) must make the
 kit fail (`conformance.mutation.frontier_requested_ids`, `parity/mutate.py` suite `kit`).
 
+**Float slotted graphs with vertex batches** (0.4, ADR 0076). A traits that names `template
+<typename graph_t> using container_axis = slotted_axis<graph_t>;` is read through the slotted
+axis (`cpp/tests/conformance/slotted_generators.hpp`), whose containers are `graph<V, E, float>`
+objects with `row_layout::slotted` under `batch_semantics::net_effect()`: label_propagation's.
+Its models are LabelPropagation-CUDA's DynLP graphs (5,000 to 8,000 vertices, average degree 5;
+`graph::with_capacity()` of their row capacities) with 70 % of the vertices present; a vertex is a
+seed when `kit_seed_label(v)` gives it a class (a rule by id, so a traits' `compute()` can name the
+seeds of any graph of the axis). The mixes: arrivals with labels, departures (of unlabelled
+vertices, the original's rule), mixed, an insertion and a deletion of one id in one batch, and
+edges between present vertices (edges withheld from earlier arrivals). C7 refuses edge
+deletions (`not_supported_error`), ids and endpoints out of range, re-insertions, ids listed
+twice, a labelled vertex deleted in its batch and bad labels (`invalid_argument_error`) and a row
+overflow (`capacity_error`); C9 checks the vertex and entry counts of `apply_summary`. Optional
+traits members for an algorithm whose levels differ per field (AD20): `affected_deterministic`
+(false: `affected` is left out of the counters), `compare_across_backends()` and
+`deterministic_across_backends()` (C3, C12); a container axis may give C11 a batch valid after the
+separate `g.apply()` (`stale_probe`). label_propagation runs two suites, `label_propagation`
+(in_place) and the test-only tag `label_propagation_damped`, each the other's C10 partner.
+
 **Undirected graphs** (0.2, ADR 0033). When `require()` sets `graph_properties::directed = false`
 (`triangle_delta`), the kit generates undirected models: each edge once, as (u, v) with u < v, its
 batches name such pairs, and the graph stores both directions. The checks that count edges or

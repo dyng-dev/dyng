@@ -1,0 +1,817 @@
+{
+ "schema": 1,
+ "what": "the fused engine's kernels against LabelPropagation-CUDA@a276a3a's (criterion 12; ADR 0075): per kernel the SASS equal but for the parameter offsets and the floating-point instructions equal with their operands; the whole SASS and the resources recorded; and no floating-point instruction (conversions included) in the graph module's device apply",
+ "date": "2026-11-04T01:28:02Z",
+ "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0",
+ "original_objects": "/home/sskg8/Projects/dyng-work/ref/LabelPropagation-CUDA@a276a3a/unpatched/obj",
+ "port_objects": "/home/sskg8/Projects/dyng-work/m10-builds/head-parity-cuda/cpp/src/algorithms/label_propagation/CMakeFiles/dyng_label_propagation.dir",
+ "kernels": {
+  "markDeletionsKernel": {
+   "port": "mark_deletions_kernel<int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    96,
+    96
+   ],
+   "resources": [
+    {
+     "REG": 16,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 16,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "buildSubgraphKernel": {
+   "port": "build_subgraph_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    1,
+    1
+   ],
+   "fp_sha256": [
+    "135af16bbed11dc4f06e47ee2a61e1842e69b98c0d734d9a4c4421904cb7a076",
+    "135af16bbed11dc4f06e47ee2a61e1842e69b98c0d734d9a4c4421904cb7a076"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    88,
+    88
+   ],
+   "resources": [
+    {
+     "REG": 19,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 19,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "markInsertedKernel": {
+   "port": "mark_inserted_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    32,
+    32
+   ],
+   "resources": [
+    {
+     "REG": 14,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 14,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "initParentKernel": {
+   "port": "init_parent_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    24,
+    24
+   ],
+   "resources": [
+    {
+     "REG": 8,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 8,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "hookKernel": {
+   "port": "hook_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    48,
+    48
+   ],
+   "resources": [
+    {
+     "REG": 14,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 14,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "compressKernel": {
+   "port": "compress_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    32,
+    32
+   ],
+   "resources": [
+    {
+     "REG": 12,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 12,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "markRootsKernel": {
+   "port": "mark_roots_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    32,
+    32
+   ],
+   "resources": [
+    {
+     "REG": 12,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 12,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "numberRootsKernel": {
+   "port": "number_roots_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    40,
+    40
+   ],
+   "resources": [
+    {
+     "REG": 14,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 14,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "assignComponentIdsKernel": {
+   "port": "assign_component_ids_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    32,
+    32
+   ],
+   "resources": [
+    {
+     "REG": 12,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 12,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "computeSupernodeWeightsKernel": {
+   "port": "compute_supernode_weights_kernel<int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    20,
+    20
+   ],
+   "fp_sha256": [
+    "a48b64df5fd040d197235bf0d3598be6d3043da66a8c02a756d99082b8b2fc68",
+    "a48b64df5fd040d197235bf0d3598be6d3043da66a8c02a756d99082b8b2fc68"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    184,
+    184
+   ],
+   "resources": [
+    {
+     "REG": 19,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 19,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "initializeLabelsKernel": {
+   "port": "initialize_labels_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    44,
+    44
+   ],
+   "fp_sha256": [
+    "881a3d73ddaf3dd645c23fc5e5d3c64144807ba2350474d1bdc8be4159f5920e",
+    "881a3d73ddaf3dd645c23fc5e5d3c64144807ba2350474d1bdc8be4159f5920e"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    176,
+    176
+   ],
+   "resources": [
+    {
+     "REG": 26,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 26,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "initFrontierKernel": {
+   "port": "init_frontier_kernel<int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    136,
+    136
+   ],
+   "resources": [
+    {
+     "REG": 20,
+     "STACK": 64,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 20,
+     "STACK": 64,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "propagateGroupKernel<8>": {
+   "port": "propagate_group_kernel<8, int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    29,
+    29
+   ],
+   "fp_sha256": [
+    "0dadc539f15cbe7af46065bdb0f34058e3c47d2dfba90b578106af9e8261267e",
+    "0dadc539f15cbe7af46065bdb0f34058e3c47d2dfba90b578106af9e8261267e"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    712,
+    712
+   ],
+   "resources": [
+    {
+     "REG": 29,
+     "STACK": 64,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 29,
+     "STACK": 64,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "propagateGroupKernel<32>": {
+   "port": "propagate_group_kernel<32, int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    36,
+    36
+   ],
+   "fp_sha256": [
+    "284e2cb452882417efce7d991c900d1375e81866e02bd9918480deb7395b1e8b",
+    "284e2cb452882417efce7d991c900d1375e81866e02bd9918480deb7395b1e8b"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    736,
+    736
+   ],
+   "resources": [
+    {
+     "REG": 30,
+     "STACK": 64,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 30,
+     "STACK": 64,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "propagateBlockKernel": {
+   "port": "propagate_block_kernel<int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    81,
+    81
+   ],
+   "fp_sha256": [
+    "bd9b16796de6db811b99958ffb6223298fe716740a15377cec21495bb9367c03",
+    "bd9b16796de6db811b99958ffb6223298fe716740a15377cec21495bb9367c03"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    528,
+    528
+   ],
+   "resources": [
+    {
+     "REG": 38,
+     "STACK": 64,
+     "SHARED": 36,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 38,
+     "STACK": 64,
+     "SHARED": 36,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "commitLabelsKernel": {
+   "port": "commit_labels_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    24,
+    24
+   ],
+   "resources": [
+    {
+     "REG": 10,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 10,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "smallFrontierKernel": {
+   "port": "small_frontier_kernel<int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    158,
+    158
+   ],
+   "fp_sha256": [
+    "50ca3f2ca9d0b2ba80ac9691210ea0f2978cb4929a975f056a7bc707e7b48a6a",
+    "50ca3f2ca9d0b2ba80ac9691210ea0f2978cb4929a975f056a7bc707e7b48a6a"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    2184,
+    2184
+   ],
+   "resources": [
+    {
+     "REG": 61,
+     "STACK": 168,
+     "SHARED": 160,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 61,
+     "STACK": 168,
+     "SHARED": 160,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "enforceGroundTruthKernel": {
+   "port": "enforce_ground_truth_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    32,
+    32
+   ],
+   "resources": [
+    {
+     "REG": 8,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 8,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "irLPKernel": {
+   "port": "ir_lp_kernel<int>",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    10,
+    10
+   ],
+   "fp_sha256": [
+    "dbd7cbe95c17d707ea1c0aa7066e29ea19d65b0afb6bc54979112396a821ad8b",
+    "dbd7cbe95c17d707ea1c0aa7066e29ea19d65b0afb6bc54979112396a821ad8b"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    128,
+    128
+   ],
+   "resources": [
+    {
+     "REG": 16,
+     "STACK": 0,
+     "SHARED": 2048,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 16,
+     "STACK": 0,
+     "SHARED": 2048,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  },
+  "irLPEnforceGTKernel": {
+   "port": "ir_lp_enforce_gt_kernel",
+   "fp_sequence_equal": true,
+   "fp_opcodes_equal": true,
+   "fp_instructions": [
+    0,
+    0
+   ],
+   "fp_sha256": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   ],
+   "identical": true,
+   "identical_but_parameter_offsets": true,
+   "instructions": [
+    32,
+    32
+   ],
+   "resources": [
+    {
+     "REG": 8,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    },
+    {
+     "REG": 8,
+     "STACK": 0,
+     "SHARED": 0,
+     "LOCAL": 0,
+     "TEXTURE": 0,
+     "SURFACE": 0,
+     "SAMPLER": 0
+    }
+   ],
+   "resources_equal": true
+  }
+ },
+ "graph_device_apply": {
+  "object": "/home/sskg8/Projects/dyng-work/m10-builds/head-parity-cuda/cpp/CMakeFiles/dyng_graph.dir/src/graph/apply_slotted_device.cu.o",
+  "functions": 24,
+  "with_floating_point": {}
+ },
+ "equal": true,
+ "problems": []
+}

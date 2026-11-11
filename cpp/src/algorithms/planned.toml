@@ -5,11 +5,3 @@
 # algorithms with a manifest.toml in the algorithm tables (README, the landing page, the
 # algorithms index). An entry moves to cpp/src/algorithms/<name>/manifest.toml when its port
 # starts (scripts/new_algorithm.py); regen.py rejects a name that has both.
-[[planned]]
-name      = "label_propagation"
-computes  = "binary harmonic label propagation under vertex batches"
-container = "graph"
-family    = "fixed point"
-backends  = "sequential, CUDA"
-paper     = "DynLP (ICS 2026)"
-since     = "0.4"

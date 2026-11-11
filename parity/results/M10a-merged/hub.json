@@ -1,0 +1,48 @@
+{
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-11-04T21:02:07Z",
+ "equal": true,
+ "golden": {
+  "damped_calls": [
+   {
+    "call": 1,
+    "delta": 1.0000000116860974e-07,
+    "frontier_visits": 14907520,
+    "iterations": 2055,
+    "labels_sha256": "c1089fca7c0ca011d4f8c8207641df1ca6f03db47cfbbcba33df0c5849820e5f",
+    "next_tag": 2057,
+    "num_nodes": 8000,
+    "persistent_iterations": 85,
+    "update_rule": 1
+   },
+   {
+    "call": 2,
+    "delta": 1.0000000116860974e-07,
+    "frontier_visits": 14907520,
+    "iterations": 2055,
+    "labels_sha256": "c1089fca7c0ca011d4f8c8207641df1ca6f03db47cfbbcba33df0c5849820e5f",
+    "next_tag": 2057,
+    "num_nodes": 8000,
+    "persistent_iterations": 85,
+    "update_rule": 1
+   }
+  ],
+  "info": "/home/sskg8/Projects/dyng-work/goldens/label_propagation_hub/info.json"
+ },
+ "output": "Running main() from /home/sskg8/Projects/dyng-work/cpm-cache/gtest/1ace/googletest/src/gtest_main.cc\nNote: Google Test filter = LabelPropagationCuda.HubGolden\n[==========] Running 1 test from 1 test suite.\n[----------] Global test environment set-up.\n[----------] 1 test from LabelPropagationCuda\n[ RUN      ] LabelPropagationCuda.HubGolden\n[       OK ] LabelPropagationCuda.HubGolden (951 ms)\n[----------] 1 test from LabelPropagationCuda (951 ms total)\n\n[----------] Global test environment tear-down\n[==========] 1 test from 1 test suite ran. (951 ms total)\n[  PASSED  ] 1 test.\n",
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda"
+  },
+  "commit": "d327950ff536cd8a264c02924dd87325bbac357f",
+  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/cpp/tests/algorithms/label_propagation/dyng_label_propagation_cuda_tests",
+  "parity_cuda": true
+ },
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "tests": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone-merged/build/parity-cuda/cpp/tests/algorithms/label_propagation/dyng_label_propagation_cuda_tests",
+ "what": "propagation_test's hub graph on the fused engine (criterion 12): the damped calls bitwise the twin's (labels SHA-256, iterations, frontier visits, persistent iterations, tags), twice; in_place within the original's bounds"
+}

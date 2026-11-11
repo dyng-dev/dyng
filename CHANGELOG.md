@@ -24,6 +24,162 @@ Before 0.1.0 anything may change.
 
 ### M10: `label_propagation` (0.4)
 
+- The parity harness of `label_propagation` against LabelPropagation-CUDA@a276a3a (M10a step 1;
+  ADRs 0063-0066; no library change): the reference in `parity/references.toml` and its
+  link-time recording twin (`parity/export_patches/LabelPropagation-CUDA`,
+  `parity/exporters/dynlp`, `parity/dynlp_trace.py`); the timed-region map
+  `parity/timed_regions/label_propagation.toml` with M10's region keys `first_batch` and
+  `sum_gate` in `parity/perf_ab.py` and `parity/bench_suite.py`; `perf_ab.py label_propagation`
+  (`parity/label_propagation_perf.py`: the pre-port baseline and the memory readings of the
+  original); the golden sets `label_propagation_{generator,damped,trace,hub,irlp,inplace}` and
+  the in_place calibration (`parity/label_propagation_goldens.py`, through
+  `export_goldens.py label_propagation` and `compare.py label_propagation --verify`), with the
+  thresholds frozen in `parity/goldens.toml`; the build-flags go/no-go
+  (`parity/label_propagation_sass.py`); the records under `parity/results/` (`M10a.md`).
+- M10a step 2 (api-change, additive; provisional until M10b's freeze): **the DynLP legacy
+  generator** (ADR 0067): `<dyng/generators/vertex_arrival.hpp>` (added to `<dyng/dyng.hpp>`)
+  with `generators::vertex_arrival_options`, `vertex_arrival_batch`, `vertex_arrival_stream` and
+  `generators::legacy::dynlp_vertex_arrival_stream()`, byte-identical to LabelPropagation-CUDA's
+  generator for a seed (every corpus case, build and thread count); libstdc++ 12's
+  `std::shuffle` with `std::mt19937` and `std::uniform_real_distribution<float>` reproduced by the
+  library and compared with `std::` at run time; `standard_library_matches_legacy_streams()` also
+  compares those draws (its description gains a sentence).
+- M10a step 2 (api-change, additive, `dyng::testing`): **the label_propagation oracles** (ADR
+  0068): `testing::harmonic_solution` (with `harmonic_options`, `harmonic_result`,
+  `label_error_against`, `class_agreement_with`), `testing::union_find` and
+  `testing::lp_host_model` (with `lp_model_batch`, `lp_model_report`), standard library only,
+  validated against the original's traces and its `--check`; the replay tool `dyng_lp_replay`
+  and `compare.py label_propagation generator|model|check-runs|oracle|margin|subset`
+  (`parity/label_propagation_replay.py`); the recorder's `check_labels` record; the committed
+  digests under `cpp/tests/data/goldens/label_propagation` (19.6 KB).
+- M10a step 3 (api-change, additive, the frozen `graph/` headers; ADR 0069): **slotted rows and
+  vertex batches** on the host. `graph<int32, int32, float>` and `graph<int32, int64, float>` are
+  instantiated; `graph::with_capacity(res, vertex_capacity, row_capacity, props)` builds a graph
+  with `row_layout::slotted` (fixed per-vertex slot ranges, a row end and a `vertex_status` per
+  vertex, all inactive), which takes vertex batches under the new `batch_semantics::net_effect()`
+  (with the appended field `batch_semantics::as_net_effect`): Ins \ Del become active, every id of
+  Del ends deleted, ids are single-use, the edges are appended to both rows in batch order, and
+  every contract violation (an id out of range, listed twice, re-inserted, a labelled vertex
+  deleted in its batch, a row overflow) is refused before anything changes. New:
+  `enum class vertex_status {active, deleted, inactive}`, `graph_view::status` and
+  `graph_view::row_end` (appended; empty for compact rows), `graph::num_active_vertices()`,
+  `apply_summary::dropped_insertions` (appended), `edge_batch::insert_vertex(v, label = -1)`,
+  `delete_vertex(v)` and their accessors (`empty()`, `clear()` and `view()` cover them), and
+  `generators::vertex_arrival_batch::view()`. The 0.1-0.3 instantiations and compact rows are
+  unchanged; a vertex batch on compact rows still raises `not_supported_error`, now naming
+  `with_capacity()`.
+- M10a step 3 (api-change, documentation only, the frozen algorithm headers; ADR 0070): **the
+  compact-only guard** (AD11). `sssp`, `mosp`, `cycle_count`, `dynamic_bfs` and `triangle_delta`
+  (`compute`, `update`, `from_arrays`), `dyng::update()` through them, the upload of the device
+  copy and the device merge refuse a graph whose rows are not `row_layout::compact` with a
+  `not_supported_error` that names the layout and the fix (`graph::from_csr(res,
+  g.to_csr(res).view(), props)` with the properties the message lists), before anything changes. Their headers and `update.hpp` gain the
+  `@throws` line; nothing else in those algorithms changes, and `triad_count` (hypergraphs) is
+  untouched.
+- M10a step 3 (api-change, additive; provisional until M10b's freeze; ADRs 0071-0073):
+  **`label_propagation`** (experimental), `<dyng/label_propagation.hpp>` (added to
+  `<dyng/dyng.hpp>`): `schedule {in_place, damped}`, `on_limit {error, report,
+  fallback_recompute}`, `options` (`similarity_threshold`, `tolerance`, `max_iterations`,
+  `on_iteration_limit`, `update_schedule`, `cuda_engine`), `stats` (`batch`, `components`,
+  `sparsified_edges`, `initial_frontier` = \|V_aff\|), `result<vertex_t>` (`labels()`,
+  `seed_labels()`, `reserve()`, ...), `compute()` (IrLP, the published baseline) and `update()`
+  (DynLP, one vertex batch on slotted rows) for `graph<int32, int32 | int64, float>`, on the
+  sequential backend (cuda in M10a step 4; no OpenMP backend in 0.4: OpenMP resources raise
+  `not_supported_error` naming sequential and cuda). Its deterministic stages equal
+  LabelPropagation-CUDA@a276a3a's trace on the whole corpus P+, and its labels meet the harmonic
+  oracle. The profiler counter `label_propagation.irlp_iterations`; the stage trace of the
+  original's recorder format when `DYNG_DYNLP_TRACE_DIR` is set (a parity diagnostic).
+- M10a step 3 (api-change, documentation only, `core/stats.hpp`; AD20): the last paragraph of the
+  `update_stats` comment: "An algorithm's stats documentation may state a weaker level
+  (deterministic per backend, or schedule-dependent) for an inherited field; that statement
+  governs for that algorithm." (label_propagation's `affected`, `converged` and `fallback_used`:
+  deterministic per backend under `damped`, schedule-dependent under `in_place`).
+- M10a step 3: `dyng-compat-dynlp` (`tools/compat/dynlp`; ADR 0073), the original's `dynLP` command
+  line on dynG (public headers only; built against the install tree by `ci/cmake_consumer.sh`;
+  C8's refusals of `--tau 0`, a NaN `--tau` and `--maxIter <= 0`); `compare.py label_propagation
+  container|trace|oracle-port|determinism` (`parity/label_propagation_port.py`) and the mode
+  `dyng_lp_replay container`; `perf_ab.py mosp --baseline-exe/--baseline-label/--layouts` (the
+  dynG-against-dynG reading of ADR 0024).
+- M10a step 4 (api-change, documentation only, the frozen `graph/graph.hpp`; ADR 0074): **slotted
+  rows on the device.** A slotted graph built with CUDA resources keeps its rows on the device
+  (LabelPropagation-CUDA's device graph): with CUDA resources of its device a vertex batch is checked
+  on the host (Step 0), copied to the device (pinned arrays directly) and applied there, and the
+  host copy of the rows is downloaded on the next host read; the row capacity is checked on the
+  device instead of before the batch, so an overflow raises `capacity_error` after the batch was
+  applied and poisons the graph (the basic guarantee; the `with_capacity()`, `apply()` and
+  `reserve()` descriptions say so). `graph::reserve(res, edge_capacity)` sizes the device scratch of
+  vertex batches of up to `edge_capacity` edges for such a graph.
+- M10a step 4 (provisional until M10b's freeze; ADR 0075): **`label_propagation` on cuda**, the
+  fused engine (the verbatim port of LabelPropagation-CUDA@a276a3a's pipeline, SASS-identical
+  kernels, compiled with `--use_fast_math` on this target only): `update()` and `compute()` (IrLP) on
+  `resources::cuda()`, the result's labels in device memory (`result::space()`), results moving
+  between the backends with `result::clone()`; `options::cuda_engine = engine::operators` raises
+  `not_supported_error` until M10b. Damped labels bitwise the original's on the corpus, in_place
+  inside the frozen calibration, the harmonic oracle met. The profiler counters
+  `label_propagation.hook_rounds` and `label_propagation.persistent_iterations`.
+- M10a step 4: `dyng-compat-dynlp --backend cuda` (page-locked batches, CUDA-event times of each
+  `update()`, `--phases`), `compare.py label_propagation damped|irlp|inplace|hub` and
+  `dyng_lp_replay container --backend cuda`, `parity/label_propagation_sass.py port` (the kernels'
+  SASS against the original's objects), `perf_ab.py label_propagation run` and `memory --side port`
+  (the A/B gates and the port's nsys peak), `ci/fast_math_scope.py` (`--use_fast_math` on
+  label_propagation's CUDA TUs only).
+- M10a step 5 (ADR 0076): **the conformance kit's float slotted axis** (`container_axis`,
+  `slotted_axis`: DynLP graphs of at least 5,000 vertices with vertex batches, the mixes
+  arrival_with_labels, departure, mixed, insert_and_delete_same_batch and edges_between_present,
+  a model with vertex states, C7 and C9 of vertex batches) and label_propagation's kit traits on
+  sequential and cuda (near_reference = the harmonic solution with AD7's bound and class rule,
+  compare damped bitwise and in_place by its exact parts and the mean, AD20's counter levels,
+  C5 skipped with its reason); the near_reference documentation of `test_traits.hpp` fixed; the
+  original's checker oracles as GoogleTests on both backends (5k5 and 50k, both schedules).
+- M10a step 5 (ADR 0077): label_propagation's six recorded mutations (AD9) in `parity/mutate.py`
+  and as the CTests `label_propagation.mutation.*`; `mutate.py run` waits before each GPU-1 job
+  while another track's GPU-1 quiet window is open, when `DYNG_GPU1_QUIET_OK` names the caller.
+- M10a step 5: the label_propagation step of `ci/gpu_local.sh` (its CUDA tests, the kit, the
+  replays of P, the in_place cloud, the oracle and compute-sanitizer), required by the 0.4
+  certificate (`GPU_LOCAL_STEPS[(0, 4)]`); the weekly hosted workflow `oracle.yml` (the harmonic
+  oracle at delta 1e-4 on sequential 50k, AD7; `ci/oracle_weekly.sh`).
+- M10a step 5 (ADR 0078): the suite `benchmarks/paper/ics26_dynlp.yaml` (readings with a schedule
+  key, AD4's release-only 50m reading with its release-gate state and reason; `bench_suite.validate`
+  extended for these keys) and the 0.4 certificate rules of label_propagation in
+  `parity/certify.py` (`REQUIRED_SUITES['ics26_dynlp']`, `LABEL_PROPAGATION_REPLAYS_SINCE`, the
+  frozen-tolerance check of the calibrated kinds, the per-case gates and the release-only row,
+  `dyng-compat-dynlp` in the equivalence lists; `compare.py label_propagation certificate`).
+- M10a step 5 (ADR 0079): Step 0 of a vertex batch (the graph's checks before a slotted apply)
+  in fewer passes over the batch: the same checks, order, messages and guarantees (the 5m1 gate
+  reading had missed AD2's bar on the host cost of Step 0). `dyng-compat-dynlp`'s evaluation
+  reads the page-locked labels, as the original reads `h_labels`.
+- M10a step 5 (provisional `<dyng/label_propagation.hpp>`, documentation only): the update's doc
+  comment and the algorithm page state that after a seed's departure labels far from it can stay
+  stale until later batches reach them (the author's decision of 2026-10-30).
+- M10a review fixes (api-change, documentation only: `graph.hpp`, `label_propagation.hpp`): a
+  device row overflow's poison is kept with the graph's host state, so an apply on any resources
+  and every `clone()` / `to_backend()` copy of a poisoned graph raise `capacity_error`; the device
+  append computes slots and row ends in 64 bits (a row near the end of 2^31 - 1 slots wrote out of
+  bounds); the graph's device arrays of a vertex batch grow with headroom and `graph::reserve()`,
+  `result::reserve()` and `options::similarity_threshold` say what each sizes or costs;
+  `run_update()` makes the compact-only guard and label_propagation's entry checks before it reads
+  the batch of a non-compact graph (an invalid vertex batch now gets the named refusal, a stale
+  result `stale_result_error`); the guard's message names the properties its suggested
+  `from_csr()` copy needs (`props.semantics = batch_semantics::upsert_last_wins()`); under
+  `on_limit::fallback_recompute` an update whose IrLP reaches the cap too reports
+  `stats::converged = false`; `compute()`, `result::reserve()` and `result::clone()` report a host
+  allocation failure as `out_of_memory_error`; `graph::num_edges()` documents that a self-loop
+  counts twice on slotted rows.
+- M10a review fixes (parity and certificate): every label_propagation golden set needs all its
+  cases on each required backend; `certify.py` re-checks the label_propagation gate records with
+  `bench_suite.check_lp_record` (rounds, samples, guard, clock lock, counted memory with
+  nvidia-smi before, during and after); the oracle's frozen tolerance is the one its replay
+  applied; the fused engine's trace replay compares every field the golden records; the SASS port
+  gate compares whole instructions; the IrLP replay checks the snapshot counts; the oracle replay
+  checks the flips and the maximum; the memory sampler polls every 0.25 s and counts a side only
+  when it saw its own process.
+- M10a review fixes (parity and certificate; ADR 0100, the author's decision of 2026-11-05): the
+  fused engine's damped replay compares `connected_components.hook_rounds`, a non-deterministic
+  counter of LabelPropagation-CUDA, against the values the original's own runs produce for the
+  case and batch (`parity/results/M10a-hook-rounds.json`, from its recorder twin's runs), every
+  other field exactly; `compare.py label_propagation damped-rejudge` judges an existing record
+  again; `certify.py` checks every accepted value against the committed evidence.
+
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
 - Added: `dyng::testing::hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`

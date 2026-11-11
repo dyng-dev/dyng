@@ -1,0 +1,252 @@
+{
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-10-29T06:11:58Z",
+ "inplace_per_batch_beyond_3m": [],
+ "inplace_per_batch_check_runs": [
+  {
+   "batch": 0,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "in_place 5k5_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 1,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "in_place 5k5_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 2,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "in_place 5k5_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 3,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "in_place 5k5_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 4,
+   "flips": 1,
+   "largest_flip_distance": 5.542696296378935e-07,
+   "source": "in_place 5k5_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 0,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 1,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 2,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 3,
+   "flips": 16,
+   "largest_flip_distance": 0.002864043317738041,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 4,
+   "flips": 3,
+   "largest_flip_distance": 5.6265177252656784e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 5,
+   "flips": 9,
+   "largest_flip_distance": 7.4783239728482e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 6,
+   "flips": 21,
+   "largest_flip_distance": 4.9798726982908104e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 7,
+   "flips": 21,
+   "largest_flip_distance": 5.421755055268207e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 8,
+   "flips": 19,
+   "largest_flip_distance": 4.092539637479131e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  },
+  {
+   "batch": 9,
+   "flips": 17,
+   "largest_flip_distance": 3.73283152818038e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace (check run, per batch)"
+  }
+ ],
+ "label_sets": [
+  {
+   "batch": 0,
+   "compared": 0,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "damped 5k5_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 1,
+   "compared": 246,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "damped 5k5_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 2,
+   "compared": 2004,
+   "flips": 2,
+   "largest_flip_distance": 0.0001991105311798247,
+   "source": "damped 5k5_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 3,
+   "compared": 3288,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "damped 5k5_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 4,
+   "compared": 4455,
+   "flips": 2,
+   "largest_flip_distance": 8.705243317080891e-05,
+   "source": "damped 5k5_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 4,
+   "compared": 4455,
+   "flips": 1,
+   "largest_flip_distance": 5.542696296378935e-07,
+   "source": "in_place 5k5_d1e-6_s42_inplace gpu1-run-00.labels.txt.zst (final labels, 6 decimals)"
+  },
+  {
+   "batch": 4,
+   "compared": 4455,
+   "flips": 1,
+   "largest_flip_distance": 5.542696296378935e-07,
+   "source": "in_place 5k5_d1e-6_s42_inplace gpu1-run-01.labels.txt.zst (final labels, 6 decimals)"
+  },
+  {
+   "batch": 4,
+   "compared": 4455,
+   "flips": 1,
+   "largest_flip_distance": 5.542696296378935e-07,
+   "source": "in_place 5k5_d1e-6_s42_inplace gpu1-run-02.labels.txt.zst (final labels, 6 decimals)"
+  },
+  {
+   "batch": 0,
+   "compared": 0,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 1,
+   "compared": 431,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 2,
+   "compared": 2519,
+   "flips": 0,
+   "largest_flip_distance": 0,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 3,
+   "compared": 8825,
+   "flips": 40,
+   "largest_flip_distance": 0.002921747540180264,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 4,
+   "compared": 16343,
+   "flips": 12,
+   "largest_flip_distance": 0.00026204036217425397,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 5,
+   "compared": 22901,
+   "flips": 25,
+   "largest_flip_distance": 0.0005133789546747369,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 6,
+   "compared": 28776,
+   "flips": 55,
+   "largest_flip_distance": 0.000189442979971699,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 7,
+   "compared": 34218,
+   "flips": 55,
+   "largest_flip_distance": 0.00015611178669960868,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 8,
+   "compared": 39447,
+   "flips": 89,
+   "largest_flip_distance": 0.00013297328304640033,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 9,
+   "compared": 44522,
+   "flips": 70,
+   "largest_flip_distance": 0.0001313622609386833,
+   "source": "damped 50k_d1e-6_s42 (golden label bits)"
+  },
+  {
+   "batch": 9,
+   "compared": 44522,
+   "flips": 17,
+   "largest_flip_distance": 3.73283152818038e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace gpu1-run-00.labels.txt.zst (final labels, 6 decimals)"
+  },
+  {
+   "batch": 9,
+   "compared": 44522,
+   "flips": 17,
+   "largest_flip_distance": 3.73283152818038e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace gpu1-run-01.labels.txt.zst (final labels, 6 decimals)"
+  },
+  {
+   "batch": 9,
+   "compared": 44522,
+   "flips": 17,
+   "largest_flip_distance": 3.73283152818038e-05,
+   "source": "in_place 50k_d1e-6_s42_inplace gpu1-run-02.labels.txt.zst (final labels, 6 decimals)"
+  }
+ ],
+ "m": 0.002921747540180264,
+ "reference": "LabelPropagation-CUDA",
+ "rule": "no flip where |F* - 0.5| > 3m",
+ "schema": 1,
+ "three_m": 0.008765242620540792,
+ "what": "the class margin m (AD7, criterion 7)"
+}

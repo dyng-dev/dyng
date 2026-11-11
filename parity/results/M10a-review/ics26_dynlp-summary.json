@@ -1,0 +1,2266 @@
+{
+ "schema": 1,
+ "suite": "ics26_dynlp",
+ "algorithm": "label_propagation",
+ "title": "DynLP: dynamic label propagation under vertex batches (dynG label_propagation)",
+ "suite_file": "benchmarks/paper/ics26_dynlp.yaml",
+ "suite_sha256": "44be68e238aa0b3dbcccd3ea9fbca2d666b0e8635b6b187a0681885cbe2b8ca4",
+ "version": "0.4.0",
+ "date": "2026-11-04T03:22:22Z",
+ "port_commits": [
+  "107dfef16370bed900beaf28efea1b6bfd4373c3"
+ ],
+ "baselines": {
+  "LabelPropagation-CUDA": {
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "variant": "unpatched",
+   "backend": "cuda"
+  }
+ },
+ "tolerance": {
+  "compute": 1.05,
+  "compute_short": 1.1,
+  "short_region_ms": 10.0,
+  "end_to_end": 1.1,
+  "memory": 1.05
+ },
+ "partial": null,
+ "execution_started": "2026-11-04T02:41:43Z",
+ "inputs": {
+  "verified": true,
+  "run_check": "not run by this summary (bench_suite.py run checks every input first)",
+  "by_record": {
+   "ics26_dynlp-damped-50k-50k.json": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-damped-500k-500k.json": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-damped-5m-5m.json": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-damped-5m1-5m1.json": {
+    "datasets": [
+     "5m1"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-memory-damped-50k.json": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-memory-damped-500k.json": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-memory-damped-5m.json": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-memory-damped-5m1.json": {
+    "datasets": [
+     "5m1"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-in_place-50k-50k.json": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-in_place-500k-500k.json": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-in_place-5m-5m.json": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-in_place-5m1-5m1.json": {
+    "datasets": [
+     "5m1"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-damped-default-clocks-50k.json": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-damped-default-clocks-500k.json": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-damped-default-clocks-5m.json": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-kernels-500k-500k.json": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-damped-50m-50m.json": {
+    "datasets": [
+     "50m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "ics26_dynlp-in_place-50m-50m.json": {
+    "datasets": [
+     "50m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   }
+  }
+ },
+ "drivers": [
+  {
+   "cuda_driver_api": "13.1",
+   "nvidia": "590.48.01"
+  }
+ ],
+ "readings": [
+  {
+   "reading": "damped-50k",
+   "dataset": "50k",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-50k-50k.json",
+   "date": "2026-11-04T02:41:43Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "50k/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 0.209,
+     "port_ms": 0.297,
+     "ratio": 1.4210526315789473
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 7.553,
+     "port_ms": 7.599,
+     "ratio": 1.0060902952469217
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 21.137,
+     "port_ms": 21.114,
+     "ratio": 0.998911860718172
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 22.143,
+     "port_ms": 22.078,
+     "ratio": 0.9970645350675157
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 15.62,
+     "port_ms": 15.574,
+     "ratio": 0.9970550576184379
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 13.365,
+     "port_ms": 13.46,
+     "ratio": 1.0071081182192294
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 8.528,
+     "port_ms": 8.61,
+     "ratio": 1.0096153846153846
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 7.727,
+     "port_ms": 7.818,
+     "ratio": 1.0117768862430438
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 5.357,
+     "port_ms": 5.457,
+     "ratio": 1.0186671644577188
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 4.482,
+     "port_ms": 4.571,
+     "ratio": 1.0198572066041944
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[sum]",
+     "gate_kind": "compute",
+     "original_ms": 106.089,
+     "port_ms": 106.59100000000001,
+     "ratio": 1.0047318760663217,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "50k/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 2.904,
+     "port_ms": 2.374,
+     "ratio": 0.8174931129476585
+    },
+    {
+     "case": "50k/damped",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 406.18395805358887,
+     "port_ms": 443.38035583496094,
+     "ratio": 1.0915752506810341,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "damped-500k",
+   "dataset": "500k",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-500k-500k.json",
+   "date": "2026-11-04T02:44:49Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "500k/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 0.352,
+     "port_ms": 0.456,
+     "ratio": 1.2954545454545456
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 17.371,
+     "port_ms": 18.176,
+     "ratio": 1.0463416038224627
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 44.217,
+     "port_ms": 44.364,
+     "ratio": 1.003324513196282
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 72.457,
+     "port_ms": 72.25,
+     "ratio": 0.997143133168638
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 77.128,
+     "port_ms": 77.283,
+     "ratio": 1.0020096463022508
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 66.893,
+     "port_ms": 67.014,
+     "ratio": 1.001808858923953
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 57.106,
+     "port_ms": 57.28,
+     "ratio": 1.0030469652926137
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 52.968,
+     "port_ms": 53.197,
+     "ratio": 1.0043233650505965
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 47.872,
+     "port_ms": 48.164,
+     "ratio": 1.0060995989304813
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 45.013,
+     "port_ms": 45.294,
+     "ratio": 1.006242641014818
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[sum]",
+     "gate_kind": "compute",
+     "original_ms": 481.465,
+     "port_ms": 483.573,
+     "ratio": 1.004378303718858,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "500k/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 28.158,
+     "port_ms": 23.365,
+     "ratio": 0.8297819447403934
+    },
+    {
+     "case": "500k/damped",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 1163.0847454071045,
+     "port_ms": 1199.9623775482178,
+     "ratio": 1.031706745606233,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "damped-5m",
+   "dataset": "5m",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-5m-5m.json",
+   "date": "2026-11-04T02:45:48Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "5m/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 2.528,
+     "port_ms": 2.46,
+     "ratio": 0.9731012658227848
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 51.501,
+     "port_ms": 53.885,
+     "ratio": 1.0462903632939167
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 281.17,
+     "port_ms": 280.839,
+     "ratio": 0.9988227762563573
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 751.723,
+     "port_ms": 741.539,
+     "ratio": 0.986452456556471
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 914.7,
+     "port_ms": 897.82,
+     "ratio": 0.981545862031267
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 851.528,
+     "port_ms": 837.224,
+     "ratio": 0.9832019616501161
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 753.865,
+     "port_ms": 744.038,
+     "ratio": 0.9869645095607303
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 687.172,
+     "port_ms": 679.989,
+     "ratio": 0.9895470129749175
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 663.112,
+     "port_ms": 656.868,
+     "ratio": 0.9905837927831197
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 665.629,
+     "port_ms": 659.271,
+     "ratio": 0.9904481325182646
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[sum]",
+     "gate_kind": "compute",
+     "original_ms": 5623.514,
+     "port_ms": 5558.733,
+     "ratio": 0.9884803345381553,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "5m/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 102.816,
+     "port_ms": 126.72,
+     "ratio": 1.2324929971988796
+    },
+    {
+     "case": "5m/damped",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 10540.274381637573,
+     "port_ms": 10559.374570846558,
+     "ratio": 1.0018121149903136,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "damped-5m1",
+   "dataset": "5m1",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-5m1-5m1.json",
+   "date": "2026-11-04T02:49:53Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "5m1"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {
+    "5m1/damped": 1
+   },
+   "regions": [
+    {
+     "case": "5m1/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 2.537,
+     "port_ms": 2.464,
+     "ratio": 0.9712258573117856
+    },
+    {
+     "case": "5m1/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 1383.276,
+     "port_ms": 1406.503,
+     "ratio": 1.016791298338148
+    },
+    {
+     "case": "5m1/damped",
+     "region": "update[sum]",
+     "gate_kind": "compute",
+     "original_ms": 1385.7540000000001,
+     "port_ms": 1408.9669999999999,
+     "ratio": 1.0167511693994749,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "5m1/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 21.196,
+     "port_ms": 52.634,
+     "ratio": 2.483204378184563
+    },
+    {
+     "case": "5m1/damped",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 5992.531538009644,
+     "port_ms": 6181.0102462768555,
+     "ratio": 1.0314522680559497,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "memory-damped",
+   "dataset": "50k",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-memory-damped-50k.json",
+   "date": "2026-11-04T02:52:33Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 1,
+    "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+    "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+    "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "50k/damped",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 6.036642074584961,
+     "port_mib": 6.049572944641113,
+     "ratio": 1.0021420634015379,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "memory-damped",
+   "dataset": "500k",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-memory-damped-500k.json",
+   "date": "2026-11-04T02:52:41Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 1,
+    "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+    "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+    "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "500k/damped",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 60.25638389587402,
+     "port_mib": 60.38533878326416,
+     "ratio": 1.0021401033227115,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "memory-damped",
+   "dataset": "5m",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-memory-damped-5m.json",
+   "date": "2026-11-04T02:52:52Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 1,
+    "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+    "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+    "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "5m/damped",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 602.5544452667236,
+     "port_mib": 603.8436164855957,
+     "ratio": 1.0021395099297647,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "memory-damped",
+   "dataset": "5m1",
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "schedule": "damped",
+   "record": "ics26_dynlp-memory-damped-5m1.json",
+   "date": "2026-11-04T02:53:24Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 1,
+    "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+    "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+    "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "5m1"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "5m1/damped",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 1214.902795791626,
+     "port_mib": 1229.5567588806152,
+     "ratio": 1.0120618399593366,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "in_place-50k",
+   "dataset": "50k",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": false,
+   "schedule": "in_place",
+   "record": "ics26_dynlp-in_place-50k-50k.json",
+   "date": "2026-11-04T02:53:45Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {
+    "50k/inplace": 2
+   },
+   "regions": [
+    {
+     "case": "50k/inplace",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 0.204,
+     "port_ms": 0.295,
+     "ratio": 1.446078431372549
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 4.355,
+     "port_ms": 4.482,
+     "ratio": 1.029161882893226
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 19.357,
+     "port_ms": 19.212,
+     "ratio": 0.9925091698093713
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 17.911,
+     "port_ms": 18.054,
+     "ratio": 1.0079839204957846
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 10.91,
+     "port_ms": 10.754,
+     "ratio": 0.9857011915673694
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 10.991,
+     "port_ms": 11.351,
+     "ratio": 1.0327540715130563
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 6.312,
+     "port_ms": 6.406,
+     "ratio": 1.01489226869455
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 4.303,
+     "port_ms": 4.388,
+     "ratio": 1.0197536602370438
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 3.918,
+     "port_ms": 3.987,
+     "ratio": 1.0176110260336906
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 3.07,
+     "port_ms": 3.038,
+     "ratio": 0.9895765472312703
+    },
+    {
+     "case": "50k/inplace",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 81.22500000000001,
+     "port_ms": 82.10600000000001,
+     "ratio": 1.0108464142813174
+    },
+    {
+     "case": "50k/inplace",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 2.9,
+     "port_ms": 2.421,
+     "ratio": 0.8348275862068966
+    },
+    {
+     "case": "50k/inplace",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 380.20944595336914,
+     "port_ms": 418.38622093200684,
+     "ratio": 1.1004098540553353
+    }
+   ]
+  },
+  {
+   "reading": "in_place-500k",
+   "dataset": "500k",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": false,
+   "schedule": "in_place",
+   "record": "ics26_dynlp-in_place-500k-500k.json",
+   "date": "2026-11-04T02:54:12Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "500k/inplace",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 0.35,
+     "port_ms": 0.459,
+     "ratio": 1.3114285714285716
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 9.611,
+     "port_ms": 10.575,
+     "ratio": 1.100301737592342
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 42.366,
+     "port_ms": 42.387,
+     "ratio": 1.000495680498513
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 62.059,
+     "port_ms": 62.211,
+     "ratio": 1.0024492821347428
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 53.401,
+     "port_ms": 53.45,
+     "ratio": 1.0009175858129997
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 39.97,
+     "port_ms": 39.937,
+     "ratio": 0.9991743807855892
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 32.734,
+     "port_ms": 32.719,
+     "ratio": 0.9995417608602676
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 28.281,
+     "port_ms": 28.358,
+     "ratio": 1.002722676001556
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 25.264,
+     "port_ms": 25.371,
+     "ratio": 1.004235275490817
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 23.5,
+     "port_ms": 23.705,
+     "ratio": 1.008723404255319
+    },
+    {
+     "case": "500k/inplace",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 317.337,
+     "port_ms": 319.152,
+     "ratio": 1.005719471728793
+    },
+    {
+     "case": "500k/inplace",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 28.257,
+     "port_ms": 23.749,
+     "ratio": 0.8404643097285628
+    },
+    {
+     "case": "500k/inplace",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 1001.4712810516357,
+     "port_ms": 1037.5845432281494,
+     "ratio": 1.0360602074765355
+    }
+   ]
+  },
+  {
+   "reading": "in_place-5m",
+   "dataset": "5m",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": false,
+   "schedule": "in_place",
+   "record": "ics26_dynlp-in_place-5m-5m.json",
+   "date": "2026-11-04T02:55:06Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {
+    "5m/inplace": 1
+   },
+   "regions": [
+    {
+     "case": "5m/inplace",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 2.522,
+     "port_ms": 2.469,
+     "ratio": 0.9789849325931801
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 34.551,
+     "port_ms": 36.742,
+     "ratio": 1.0634135046742494
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 239.431,
+     "port_ms": 241.205,
+     "ratio": 1.0074092327225799
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 587.586,
+     "port_ms": 591.482,
+     "ratio": 1.0066305187666145
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 558.512,
+     "port_ms": 560.753,
+     "ratio": 1.0040124473601286
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 451.691,
+     "port_ms": 454.811,
+     "ratio": 1.006907376945744
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 385.862,
+     "port_ms": 388.711,
+     "ratio": 1.0073834687012455
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 349.792,
+     "port_ms": 352.291,
+     "ratio": 1.0071442457231727
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 332.261,
+     "port_ms": 335.077,
+     "ratio": 1.008475264927271
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 326.75,
+     "port_ms": 330.48,
+     "ratio": 1.01141545524101
+    },
+    {
+     "case": "5m/inplace",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 3271.179,
+     "port_ms": 3296.391,
+     "ratio": 1.0077073128679293
+    },
+    {
+     "case": "5m/inplace",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 104.288,
+     "port_ms": 137.06,
+     "ratio": 1.3142451672292115
+    },
+    {
+     "case": "5m/inplace",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 8214.448690414429,
+     "port_ms": 8378.447532653809,
+     "ratio": 1.0199646803358517
+    }
+   ]
+  },
+  {
+   "reading": "in_place-5m1",
+   "dataset": "5m1",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": false,
+   "schedule": "in_place",
+   "record": "ics26_dynlp-in_place-5m1-5m1.json",
+   "date": "2026-11-04T02:58:39Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "5m1"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "5m1/inplace",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 2.535,
+     "port_ms": 2.442,
+     "ratio": 0.9633136094674556
+    },
+    {
+     "case": "5m1/inplace",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 611.88,
+     "port_ms": 640.854,
+     "ratio": 1.047352422043538
+    },
+    {
+     "case": "5m1/inplace",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 614.362,
+     "port_ms": 643.346,
+     "ratio": 1.0471773970395306
+    },
+    {
+     "case": "5m1/inplace",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 18.719,
+     "port_ms": 51.69799999999999,
+     "ratio": 2.7617928308136115
+    },
+    {
+     "case": "5m1/inplace",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 5222.181797027588,
+     "port_ms": 5395.452260971069,
+     "ratio": 1.0331797073863085
+    }
+   ]
+  },
+  {
+   "reading": "damped-default-clocks",
+   "dataset": "50k",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-default-clocks-50k.json",
+   "date": "2026-11-04T03:00:50Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "50k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "50k/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 0.211,
+     "port_ms": 0.286,
+     "ratio": 1.3554502369668247
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 6.784,
+     "port_ms": 6.852,
+     "ratio": 1.0100235849056605
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 19.072,
+     "port_ms": 19.227,
+     "ratio": 1.0081270973154364
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 19.966,
+     "port_ms": 20.135,
+     "ratio": 1.0084643894620855
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 14.021,
+     "port_ms": 14.202,
+     "ratio": 1.0129092076171458
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 12.017,
+     "port_ms": 12.29,
+     "ratio": 1.0227178164267288
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 7.813,
+     "port_ms": 8.011,
+     "ratio": 1.0253423780878024
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 7.021,
+     "port_ms": 7.172,
+     "ratio": 1.021506907847885
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 4.909,
+     "port_ms": 5.075,
+     "ratio": 1.0338154410266858
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 4.121,
+     "port_ms": 4.264,
+     "ratio": 1.0347003154574133
+    },
+    {
+     "case": "50k/damped",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 95.874,
+     "port_ms": 97.519,
+     "ratio": 1.0171579364582684
+    },
+    {
+     "case": "50k/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 2.844,
+     "port_ms": 2.289,
+     "ratio": 0.8048523206751056
+    },
+    {
+     "case": "50k/damped",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 408.4153175354004,
+     "port_ms": 442.1229362487793,
+     "ratio": 1.0825326995980193
+    }
+   ]
+  },
+  {
+   "reading": "damped-default-clocks",
+   "dataset": "500k",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-default-clocks-500k.json",
+   "date": "2026-11-04T03:01:02Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "500k/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 0.35,
+     "port_ms": 0.451,
+     "ratio": 1.2885714285714287
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 15.485,
+     "port_ms": 16.532,
+     "ratio": 1.0676138198256377
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 40.975,
+     "port_ms": 41.274,
+     "ratio": 1.0072971323978035
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 69.79,
+     "port_ms": 69.75,
+     "ratio": 0.999426851984525
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 75.788,
+     "port_ms": 75.736,
+     "ratio": 0.9993138755475802
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 66.236,
+     "port_ms": 66.174,
+     "ratio": 0.9990639531372668
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 56.935,
+     "port_ms": 56.75,
+     "ratio": 0.996750680600685
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 53.005,
+     "port_ms": 52.727,
+     "ratio": 0.9947552117724742
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 48.02,
+     "port_ms": 47.874,
+     "ratio": 0.9969596001665972
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 45.261,
+     "port_ms": 45.171,
+     "ratio": 0.9980115331079736
+    },
+    {
+     "case": "500k/damped",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 471.774,
+     "port_ms": 472.394,
+     "ratio": 1.0013141885733423
+    },
+    {
+     "case": "500k/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 27.68,
+     "port_ms": 22.701999999999998,
+     "ratio": 0.8201589595375722
+    },
+    {
+     "case": "500k/damped",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 1158.607006072998,
+     "port_ms": 1199.7828483581543,
+     "ratio": 1.0355390931259068
+    }
+   ]
+  },
+  {
+   "reading": "damped-default-clocks",
+   "dataset": "5m",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-default-clocks-5m.json",
+   "date": "2026-11-04T03:01:33Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "5m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "5m/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 2.499,
+     "port_ms": 2.477,
+     "ratio": 0.9911964785914364
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 51.869,
+     "port_ms": 53.927,
+     "ratio": 1.0396768782895371
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 276.1,
+     "port_ms": 277.042,
+     "ratio": 1.0034118073161895
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 740.397,
+     "port_ms": 736.768,
+     "ratio": 0.995098575493958
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 901.795,
+     "port_ms": 898.613,
+     "ratio": 0.9964714818778104
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 840.351,
+     "port_ms": 836.928,
+     "ratio": 0.9959267020566406
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 745.916,
+     "port_ms": 744.103,
+     "ratio": 0.9975694314105072
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 681.191,
+     "port_ms": 679.884,
+     "ratio": 0.9980813017200756
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 658.054,
+     "port_ms": 657.43,
+     "ratio": 0.9990517495524683
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 660.386,
+     "port_ms": 660.14,
+     "ratio": 0.9996274905888375
+    },
+    {
+     "case": "5m/damped",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 5558.25,
+     "port_ms": 5548.778,
+     "ratio": 0.9982958665047452
+    },
+    {
+     "case": "5m/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 50.752,
+     "port_ms": 82.47,
+     "ratio": 1.6249605926860025
+    },
+    {
+     "case": "5m/damped",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 10253.294229507446,
+     "port_ms": 10356.170415878296,
+     "ratio": 1.0100334764679617
+    }
+   ]
+  },
+  {
+   "reading": "kernels-500k",
+   "dataset": "500k",
+   "kind": "kernels",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": false,
+   "schedule": "damped",
+   "record": "ics26_dynlp-kernels-500k-500k.json",
+   "date": "2026-11-04T03:05:29Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "tool": "ncu --clock-control base --launch-count 4000 --metrics gpu__time_duration.sum,launch__registers_per_thread,launch__occupancy_limit_registers,launch__occupancy_limit_warps,launch__occupancy_limit_shared_mem,launch__occupancy_limit_blocks,sm__maximum_warps_per_active_cycle_pct,sm__warps_active.avg.pct_of_peak_sustained_active,launch__grid_size,launch__block_size",
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "argv": "the timed argv (bench/run.sh's); the port adds --backend cuda"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "500k"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": []
+  },
+  {
+   "reading": "damped-50m",
+   "dataset": "50m",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "base",
+   "gated": false,
+   "schedule": "damped",
+   "record": "ics26_dynlp-damped-50m-50m.json",
+   "date": "2026-11-04T03:07:47Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "50m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "50m/damped",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 29.817,
+     "port_ms": 26.382,
+     "ratio": 0.8847972633061677
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 282.728,
+     "port_ms": 342.678,
+     "ratio": 1.2120412551993436
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 1934.881,
+     "port_ms": 1994.639,
+     "ratio": 1.0308845867006806
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 6092.226,
+     "port_ms": 6175.437,
+     "ratio": 1.0136585543609185
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 9248.138,
+     "port_ms": 9357.672,
+     "ratio": 1.0118438976581015
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 9211.662,
+     "port_ms": 9305.3,
+     "ratio": 1.0101651580355422
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 8316.102,
+     "port_ms": 8397.783,
+     "ratio": 1.0098220295999254
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 7484.512,
+     "port_ms": 7566.201,
+     "ratio": 1.0109144056419443
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 7038.373,
+     "port_ms": 7110.47,
+     "ratio": 1.0102434184718543
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 6901.406,
+     "port_ms": 6967.641,
+     "ratio": 1.0095973197345585
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[b10]",
+     "gate_kind": "none",
+     "original_ms": 6943.441,
+     "port_ms": 7002.578,
+     "ratio": 1.0085169586664595
+    },
+    {
+     "case": "50m/damped",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 63524.061,
+     "port_ms": 64237.586,
+     "ratio": 1.0112323580823965
+    },
+    {
+     "case": "50m/damped",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 442.856,
+     "port_ms": 1521.853,
+     "ratio": 3.4364511263254873
+    },
+    {
+     "case": "50m/damped",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 102596.5883731842,
+     "port_ms": 108752.281665802,
+     "ratio": 1.0599990057196358
+    }
+   ]
+  },
+  {
+   "reading": "in_place-50m",
+   "dataset": "50m",
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "base",
+   "gated": false,
+   "schedule": "in_place",
+   "record": "ics26_dynlp-in_place-50m-50m.json",
+   "date": "2026-11-04T03:18:40Z",
+   "port_commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+   "reference": {
+    "name": "LabelPropagation-CUDA",
+    "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "gpu": 0,
+    "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+    "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+    "statistic": "median; ratio = port / original"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+   },
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "50m"
+    ],
+    "verified": true,
+    "how": "generated in-process by both sides from the configuration (the golden set's digest; dynG's generator byte-identical to the original's), the per-round guard on what both computed"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "50m/inplace",
+     "region": "update[b0]",
+     "gate_kind": "none",
+     "original_ms": 28.24,
+     "port_ms": 26.625,
+     "ratio": 0.9428116147308783
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b1]",
+     "gate_kind": "none",
+     "original_ms": 211.98,
+     "port_ms": 278.569,
+     "ratio": 1.31412869138598
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b2]",
+     "gate_kind": "none",
+     "original_ms": 1494.175,
+     "port_ms": 1554.911,
+     "ratio": 1.0406485184131713
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b3]",
+     "gate_kind": "none",
+     "original_ms": 5551.883,
+     "port_ms": 5598.19,
+     "ratio": 1.0083407737518963
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b4]",
+     "gate_kind": "none",
+     "original_ms": 6158.087,
+     "port_ms": 6199.823,
+     "ratio": 1.0067774294192335
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b5]",
+     "gate_kind": "none",
+     "original_ms": 5194.537,
+     "port_ms": 5233.324,
+     "ratio": 1.0074668829965017
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b6]",
+     "gate_kind": "none",
+     "original_ms": 4356.555,
+     "port_ms": 4387.667,
+     "ratio": 1.0071414225230715
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b7]",
+     "gate_kind": "none",
+     "original_ms": 3867.996,
+     "port_ms": 3900.142,
+     "ratio": 1.0083107635064772
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b8]",
+     "gate_kind": "none",
+     "original_ms": 3594.217,
+     "port_ms": 3624.894,
+     "ratio": 1.0085350995780165
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b9]",
+     "gate_kind": "none",
+     "original_ms": 3528.299,
+     "port_ms": 3503.834,
+     "ratio": 0.993066063845496
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[b10]",
+     "gate_kind": "none",
+     "original_ms": 3452.989,
+     "port_ms": 3483.595,
+     "ratio": 1.0088636251085652
+    },
+    {
+     "case": "50m/inplace",
+     "region": "update[sum]",
+     "gate_kind": "none",
+     "original_ms": 37438.958,
+     "port_ms": 37791.574,
+     "ratio": 1.0094184245191866
+    },
+    {
+     "case": "50m/inplace",
+     "region": "eval",
+     "gate_kind": "none",
+     "original_ms": 422.649,
+     "port_ms": 1475.2830000000001,
+     "ratio": 3.490563091359497
+    },
+    {
+     "case": "50m/inplace",
+     "region": "end_to_end",
+     "gate_kind": "none",
+     "original_ms": 76663.65718841553,
+     "port_ms": 82372.32184410095,
+     "ratio": 1.0744637663404877
+    }
+   ]
+  }
+ ],
+ "verdict": {
+  "gated_regions": 12,
+  "within_gate": 12,
+  "ratio_range": [
+   0.9884803345381553,
+   1.0915752506810341
+  ],
+  "exceeded": [],
+  "provisional": [],
+  "contaminated": [
+   "damped-5m1: 5m1/damped (1 runs above the foreign-load threshold)",
+   "in_place-50k: 50k/inplace (2 runs above the foreign-load threshold)",
+   "in_place-5m: 5m/inplace (1 runs above the foreign-load threshold)"
+  ],
+  "missing_or_incomplete": [],
+  "problems": [],
+  "passed": true
+ }
+}

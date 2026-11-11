@@ -267,6 +267,7 @@ void expect_options(const sssp::options& opt) {
 template <typename vertex_t, typename edge_t, typename weight_t>
 void expect_graph(const graph<vertex_t, edge_t, weight_t>& g, const sssp::options& opt,
                   const char* what) {
+  expect_compact_layout(g.properties(), what);  // AD11: compact rows only (ADR 0070)
   DYNG_EXPECTS(g.has_transposed(), what,
                ": sssp needs the in-edges; build the graph with "
                "graph_properties::store_transposed = true");
@@ -619,6 +620,7 @@ void grow(const resources& res, sssp_state<vertex_t, distance_t>& st, std::size_
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_problem<vertex_t, edge_t, weight_t>::begin_update(framework::context& ctx, old_graph g,
                                                             const requested& /*batch*/) {
+  expect_compact_layout(g->properties(), "sssp::update");  // AD11 (ADR 0070), before anything
   const resources& res = ctx.res();
   expect_supported_backend(res, "sssp::update");
   state_ = &sssp_access::state(*result_);

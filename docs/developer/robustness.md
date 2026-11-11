@@ -14,6 +14,7 @@ met it.
 | Corpus replay | the seed corpus and every fixed finding, once | CTest `fuzz.replay.<target>` (label `fuzz`), `cpp/tests/io/fuzz_regression_test.cpp` | every test build, so every pull request |
 | Golden mutation checks | each recorded bug, put back, must make its golden suite fail | `parity/mutate.py` | before each minor release, and when a mutation point changes (local: needs the golden corpus and a GPU) |
 | Long property runs | the Hypothesis properties with many more, non-derandomized examples | profile `full` of `python/tests/conftest.py`, `.github/workflows/property.yml` | weekly, on demand |
+| The weekly harmonic oracle | label_propagation's labels against `dyng::testing::harmonic_solution` at delta 1e-4 on sequential 50k, both schedules (AD7: mean \|F - F*\| <= 2000 delta, the PCG converged; CI checks delta 1e-6 through the tests) | `ci/oracle_weekly.sh`, `.github/workflows/oracle.yml` | weekly, on demand |
 
 The device code has its own sanitizer, `compute-sanitizer` (memcheck with leak checks, synccheck,
 racecheck), which needs a GPU and runs in `ci/gpu_local.sh`.

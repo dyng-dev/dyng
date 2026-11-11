@@ -1,0 +1,133 @@
+{
+ "cases": [
+  {
+   "backend": "sequential",
+   "batches": 5,
+   "case": "5k5_d1e-4_s42",
+   "compared": 96,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 0.2
+  },
+  {
+   "backend": "sequential",
+   "batches": 10,
+   "case": "50k_d1e-4_s42",
+   "compared": 191,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 1.4
+  },
+  {
+   "backend": "sequential",
+   "batches": 10,
+   "case": "500k_d1e-4_s42",
+   "compared": 191,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 16.6
+  },
+  {
+   "backend": "sequential",
+   "batches": 5,
+   "case": "5k5_d1e-6_s42",
+   "compared": 96,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 1.0
+  },
+  {
+   "backend": "sequential",
+   "batches": 10,
+   "case": "50k_d1e-6_s42",
+   "compared": 191,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 14.2
+  },
+  {
+   "backend": "sequential",
+   "batches": 5,
+   "case": "5k5_d1e-4_s1",
+   "compared": 96,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 0.4
+  },
+  {
+   "backend": "sequential",
+   "batches": 5,
+   "case": "5k5_d1e-4_s2",
+   "compared": 96,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 0.4
+  },
+  {
+   "backend": "sequential",
+   "batches": 10,
+   "case": "50k_d1e-4_s1",
+   "compared": 191,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 1.8
+  },
+  {
+   "backend": "sequential",
+   "batches": 10,
+   "case": "50k_d1e-4_s2",
+   "compared": 191,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 1.8
+  },
+  {
+   "backend": "sequential",
+   "batches": 10,
+   "case": "5m_d1e-4_s42",
+   "compared": 191,
+   "equal": true,
+   "mismatches": [],
+   "seconds": 360.4
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-10-30T00:35:46Z",
+ "equal": true,
+ "fields": {
+  "append_edges": [
+   "row_end",
+   "slot_col_ind",
+   "slot_values",
+   "error_flags"
+  ],
+  "apply_vertex_changes": [
+   "num_inserted",
+   "inserted",
+   "status",
+   "gt_class"
+  ],
+  "connected_components": [
+   "num_components",
+   "component_of_inserted"
+  ],
+  "label_init": [
+   "num_components",
+   "w0",
+   "w1",
+   "initial_labels_of_inserted"
+  ],
+  "propagation_begin": [
+   "frontier_size",
+   "initial_frontier"
+  ],
+  "sparsify": [
+   "tau",
+   "num_sub_edges",
+   "sub_edges_sorted"
+  ]
+ },
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "the deterministic stages of dynG's label_propagation against O's trace golden (criterion 11): status, rows, V_aff, G', components, W0/W1, the initial labels, tau"
+}

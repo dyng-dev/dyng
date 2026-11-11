@@ -44,6 +44,7 @@
 #include "conformance/generators.hpp"
 #include "conformance/hypergraph_generators.hpp"
 #include "conformance/registry.hpp"
+#include "conformance/slotted_generators.hpp"
 #include "conformance/test_traits.hpp"
 #include "conformance/type_list.hpp"
 #include "core/budget_counters.hpp"
@@ -129,6 +130,23 @@ struct partners_of<traits_t, true> {
   using type = typename concat<registered_algorithms, typename traits_t::test_partners>::type;
 };
 
+template <typename traits_t, typename graph_t, typename = void>
+struct axis_key_of {
+  using type = graph_t;  ///< the container type itself (graphs, hypergraphs)
+};
+/// The key of a container axis that a test_traits names (`template <typename graph_t> using
+/// container_axis = ...;`): label_propagation's float slotted graphs with vertex batches are
+/// graph<V, E, float> objects read through their own axis (slotted_generators.hpp, ADR 0076).
+template <typename traits_t, typename graph_t>
+struct axis_key_of<traits_t, graph_t,
+                   std::void_t<typename traits_t::template container_axis<graph_t>>> {
+  using type = typename traits_t::template container_axis<graph_t>;  ///< the traits' axis key
+};
+
+/// The container axis of an algorithm on one of its container types.
+template <typename traits_t, typename graph_t>
+using axis_of = container_traits<typename axis_key_of<traits_t, graph_t>::type>;
+
 }  // namespace kit_detail
 
 /// One typed case of the suite: an algorithm on one of its container types.
@@ -160,7 +178,7 @@ std::string type_name() {
 struct case_name {
   template <typename case_t>
   static std::string GetName(int /*index*/) {  // NOLINT(readability-identifier-naming): gtest API
-    return container_traits<typename case_t::graph_type>::case_name();
+    return kit_detail::axis_of<typename case_t::traits, typename case_t::graph_type>::case_name();
   }
 };
 
@@ -440,7 +458,7 @@ template <typename traits_t>
 
 /// The container axis of a case (containers.hpp).
 template <typename case_t>
-using axis = container_traits<typename case_t::graph_type>;
+using axis = axis_of<typename case_t::traits, typename case_t::graph_type>;
 
 /// A property preset of the checks, for the container of `case_t`.
 template <typename case_t>
@@ -514,14 +532,90 @@ void expect_oracle(const chain<case_t>& c) {
   }
 }
 
+template <typename traits_t, typename = void>
+struct affected_counted : std::true_type {};
+/// test_traits::affected_deterministic = false: `affected` is not a deterministic counter of the
+/// algorithm (label_propagation under schedule::in_place, AD20), so the counters leave it out.
+template <typename traits_t>
+struct affected_counted<traits_t, std::void_t<decltype(traits_t::affected_deterministic)>>
+    : std::bool_constant<traits_t::affected_deterministic> {};
+
 /// The deterministic counters of a stats object, with the batch summary's (on container_t).
 template <typename traits_t, typename container_t>
 std::vector<std::int64_t> counters(const typename traits_t::stats& s) {
   std::vector<std::int64_t> out = traits_t::deterministic(s);
-  out.push_back(s.affected);
-  const std::vector<std::int64_t> b = container_traits<container_t>::summary_counters(s.batch);
+  if constexpr (affected_counted<traits_t>::value) {
+    out.push_back(s.affected);
+  }
+  const std::vector<std::int64_t> b = axis_of<traits_t, container_t>::summary_counters(s.batch);
   out.insert(out.end(), b.begin(), b.end());
   return out;
+}
+
+template <typename traits_t, typename = void>
+struct has_backend_counters : std::false_type {};
+template <typename traits_t>
+struct has_backend_counters<traits_t, std::void_t<decltype(traits_t::deterministic_across_backends(
+                                          std::declval<const typename traits_t::stats&>()))>>
+    : std::true_type {};
+
+/// The counters the backends must agree on (C3): test_traits::deterministic_across_backends()
+/// with the batch summary's, where the traits name a weaker cross-backend level (AD20: the
+/// counters deterministic only per backend left out), else counters().
+template <typename traits_t, typename container_t>
+std::vector<std::int64_t> counters_across_backends(const typename traits_t::stats& s) {
+  if constexpr (has_backend_counters<traits_t>::value) {
+    std::vector<std::int64_t> out = traits_t::deterministic_across_backends(s);
+    const std::vector<std::int64_t> b = axis_of<traits_t, container_t>::summary_counters(s.batch);
+    out.insert(out.end(), b.begin(), b.end());
+    return out;
+  } else {
+    return counters<traits_t, container_t>(s);
+  }
+}
+
+template <typename traits_t, typename = void>
+struct has_backend_compare : std::false_type {};
+template <typename traits_t>
+struct has_backend_compare<traits_t, std::void_t<decltype(traits_t::compare_across_backends(
+                                         std::declval<const typename traits_t::snapshot&>(),
+                                         std::declval<const typename traits_t::snapshot&>()))>>
+    : std::true_type {};
+
+/// Two snapshots of different backends (C3, C12): test_traits::compare_across_backends() where
+/// the traits have it (a result bitwise per backend only, e.g. label_propagation's damped labels),
+/// else same().
+template <typename traits_t>
+::testing::AssertionResult same_across_backends(const typename traits_t::snapshot& expected,
+                                                const typename traits_t::snapshot& actual) {
+  if constexpr (has_backend_compare<traits_t>::value) {
+    return traits_t::compare_across_backends(expected, actual);
+  } else {
+    return same<traits_t>(expected, actual);
+  }
+}
+
+template <typename axis_t, typename = void>
+struct has_stale_probe : std::false_type {};
+template <typename axis_t>
+struct has_stale_probe<axis_t, std::void_t<decltype(axis_t::stale_probe(
+                                   std::declval<const typename axis_t::model_type&>(),
+                                   std::declval<std::mt19937_64&>()))>> : std::true_type {};
+
+/// C11's batch for dyng::update() with the stale result: the batch the separate g.apply() applied
+/// (graphs, hypergraphs), or a batch valid after it where the axis cannot give a batch twice
+/// (container_traits::stale_probe: the slotted axis's single-use vertex ids).
+template <typename axis_t>
+typename axis_t::batch_type stale_probe(const typename axis_t::model_type& model,
+                                        const typename axis_t::generated_type& gen,
+                                        std::mt19937_64& rng) {
+  if constexpr (has_stale_probe<axis_t>::value) {
+    return axis_t::stale_probe(model, rng);
+  } else {
+    (void)model;
+    (void)rng;
+    return axis_t::batch_of(gen);
+  }
 }
 
 /// A random model of a size class.
@@ -607,7 +701,8 @@ bool engines_agree(const std::vector<backend>& backends) {
 // ------------------------------------------------------------------------------------------------
 
 /// The container-specific parts of C7 and C9; specialised per container.
-template <typename case_t, typename container_t = typename case_t::graph_type>
+template <typename case_t, typename container_t = typename kit_detail::axis_key_of<
+                               typename case_t::traits, typename case_t::graph_type>::type>
 struct container_checks;
 
 /// The graph's: the kit of 0.1-0.2, unchanged.
@@ -953,6 +1048,205 @@ struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
   }
 };
 
+/// The float slotted axis's (ADR 0076): label_propagation's similarity graphs with vertex
+/// batches under net_effect() (ADR 0069).
+template <typename case_t, typename vertex_t_, typename edge_t_, typename weight_t_>
+struct container_checks<case_t, slotted_axis<graph<vertex_t_, edge_t_, weight_t_>>> {
+  using traits = typename case_t::traits;                ///< the traits
+  using graph_t = graph<vertex_t_, edge_t_, weight_t_>;  ///< the container
+  using ct = container_traits<slotted_axis<graph_t>>;    ///< its axis
+  using batch_t = edge_batch<vertex_t_, weight_t_>;      ///< the owning batch
+  using view_t = edge_batch_view<vertex_t_, weight_t_>;  ///< the batch view
+  using model_t = typename ct::model_type;               ///< the model
+
+  /// C7 under the preset on one backend: edge deletions (not_supported_error), out-of-range ids
+  /// and endpoints, re-insertions of active and deleted ids, ids listed twice, a labelled vertex
+  /// deleted in the same batch, labels that do not match the insertions (invalid_argument_error),
+  /// a row overflow (capacity_error) and bad options are refused before anything changes (the
+  /// overflow of a CUDA graph is found on the device after the commit: the graph is poisoned);
+  /// an edge to a deleted vertex is dropped and counted.
+  static void invalid_input(backend be, const kit_preset<graph_properties>& p) {
+    std::mt19937_64 rng(7000);
+    model_t model = kit_detail::model_of<case_t>(size_class::small, rng);
+    kit_detail::chain<case_t> c(kit_detail::resources_for<case_t>(be), model, p.props);
+    // A departure first, so that the graph has deleted vertices.
+    const auto leave = ct::random_batch(model, vertex_mix::departure, rng);
+    (void)c.step(ct::batch_of(leave));
+    const auto before = c.take();
+    const auto n = static_cast<vertex_t_>(c.g->num_vertices());
+    vertex_t_ a = -1;
+    vertex_t_ b = -1;
+    vertex_t_ d = -1;
+    vertex_t_ z = -1;
+    vertex_t_ z_seed = -1;
+    for (vertex_t_ v = 0; v < n; ++v) {
+      const std::uint8_t st = model.state[static_cast<std::size_t>(v)];
+      if (st == model_t::active) {
+        if (a < 0) {
+          a = v;
+        } else if (b < 0) {
+          b = v;
+        }
+      } else if (st == model_t::deleted && d < 0) {
+        d = v;
+      } else if (st == model_t::inactive) {
+        if (kit_seed_label(v) >= 0 && z_seed < 0) {
+          z_seed = v;
+        } else if (kit_seed_label(v) < 0 && z < 0) {
+          z = v;
+        }
+      }
+    }
+    ASSERT_TRUE(a >= 0 && b >= 0 && d >= 0 && z >= 0 && z_seed >= 0)
+        << "the small model needs active, deleted and inactive vertices";
+    const auto expect_refused = [&](const view_t& v, const char* what, bool not_supported) {
+      SCOPED_TRACE(what);
+      const std::uint64_t version = c.g->version();
+      const auto active = c.g->num_active_vertices();
+      const auto edges = c.g->num_edges();
+      if (not_supported) {
+        EXPECT_THROW((void)traits::template update<graph_t>(c.res, *c.g, v, *c.r),
+                     not_supported_error);
+      } else {
+        EXPECT_THROW((void)traits::template update<graph_t>(c.res, *c.g, v, *c.r),
+                     invalid_argument_error);
+      }
+      EXPECT_EQ(c.g->version(), version);
+      EXPECT_EQ(c.g->num_active_vertices(), active);
+      EXPECT_EQ(c.g->num_edges(), edges);
+      EXPECT_EQ(c.r->graph_version(), c.g->version());
+      EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+    };
+    const weight_t_ w{0.75F};
+    {
+      batch_t x(1);
+      x.delete_edge(a, b);
+      expect_refused(x.view(), "an edge deletion (not supported on slotted rows)", true);
+    }
+    {
+      batch_t x(1);
+      x.insert_vertex(n);
+      expect_refused(x.view(), "an inserted id out of range", false);
+    }
+    {
+      batch_t x(1);
+      x.delete_vertex(vertex_t_{-1});
+      expect_refused(x.view(), "a deleted id out of range", false);
+    }
+    {
+      batch_t x(1);
+      x.insert_vertex(z);
+      x.insert_edge(z, n, {w});
+      expect_refused(x.view(), "an edge endpoint out of range", false);
+    }
+    {
+      batch_t x(1);
+      x.insert_vertex(a);
+      expect_refused(x.view(), "the re-insertion of an active id", false);
+    }
+    {
+      batch_t x(1);
+      x.insert_vertex(d);
+      expect_refused(x.view(), "the re-insertion of a deleted id (single-use ids)", false);
+    }
+    {
+      batch_t x(1);
+      x.insert_vertex(z);
+      x.insert_vertex(z);
+      expect_refused(x.view(), "an id inserted twice in one batch", false);
+    }
+    {
+      batch_t x(1);
+      x.delete_vertex(a);
+      x.delete_vertex(a);
+      expect_refused(x.view(), "an id deleted twice in one batch", false);
+    }
+    {
+      batch_t x(1);
+      x.insert_vertex(z_seed, kit_seed_label(z_seed));
+      x.delete_vertex(z_seed);
+      expect_refused(x.view(), "a labelled vertex deleted in the same batch (GT and Del)", false);
+    }
+    {
+      const std::vector<std::int8_t> labels = {0};
+      view_t x;
+      x.num_weights = 1;
+      x.insert_vertex_labels = host_view(labels);
+      expect_refused(x, "a label on a vertex not being inserted", false);
+    }
+    {
+      const std::vector<vertex_t_> ids = {z};
+      const std::vector<std::int8_t> labels = {2};
+      view_t x;
+      x.num_weights = 1;
+      x.insert_vertices = host_view(ids);
+      x.insert_vertex_labels = host_view(labels);
+      expect_refused(x, "a label other than -1, 0 or 1", false);
+    }
+    // Bad options.
+    for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
+      EXPECT_THROW(bad(), invalid_argument_error) << "an invalid option was accepted";
+    }
+    // The result still updates.
+    EXPECT_NO_THROW((void)c.step(batch_t(1)));
+    // Counted: an edge to a deleted vertex is dropped (once per stored direction).
+    {
+      batch_t x(1);
+      x.insert_edge(a, d, {w});
+      const auto s = c.step(x);
+      EXPECT_EQ(s.batch.dropped_insertions, 2) << "an edge to a deleted vertex is dropped";
+      EXPECT_EQ(s.batch.inserted_edges, 0);
+      EXPECT_TRUE(ct::matches(*c.g, model));
+    }
+    kit_detail::expect_oracle(c);
+    // A row overflow: the edge (a, b) once more than a's row holds.
+    {
+      batch_t x(1);
+      const auto copies =
+          static_cast<std::int64_t>(model.capacity[static_cast<std::size_t>(a)]) + 1;
+      for (std::int64_t i = 0; i < copies; ++i) {
+        x.insert_edge(a, b, {w});
+      }
+      if (be == backend::cuda) {
+        // Found on the device after the commit (ADR 0074): capacity_error, the graph poisoned.
+        SCOPED_TRACE("a row overflow on the device");
+        EXPECT_THROW((void)c.step(x), capacity_error);
+        EXPECT_ANY_THROW((void)c.g->apply(c.res, batch_t(1).view()))
+            << "a poisoned graph refuses the next batch";
+      } else {
+        SCOPED_TRACE("a row overflow (refused before anything changes)");
+        const std::uint64_t version = c.g->version();
+        const auto edges = c.g->num_edges();
+        const auto kept = c.take();
+        EXPECT_THROW((void)c.step(x), capacity_error);
+        EXPECT_EQ(c.g->version(), version);
+        EXPECT_EQ(c.g->num_edges(), edges);
+        EXPECT_TRUE(kit_detail::same<traits>(kept, c.take()));
+        EXPECT_NO_THROW((void)c.step(batch_t(1)));
+      }
+    }
+  }
+
+  /// C9 after one batch: stats sanity (what the commit must report, from the model).
+  template <typename stats_t, typename generated_t, typename model_type_>
+  static void stats_sane(const resources& /*res*/, const stats_t& s, const generated_t& gen,
+                         const model_type_& model, const graph_t& g) {
+    const apply_summary& a = s.batch;
+    EXPECT_GE(s.affected, 0);
+    EXPECT_LE(s.affected, static_cast<std::int64_t>(g.num_vertices()));
+    EXPECT_EQ(a.num_vertices_after, static_cast<std::int64_t>(g.num_vertices()));
+    EXPECT_EQ(a.inserted_vertices, gen.expected_inserted) << "|Ins \\ Del|";
+    EXPECT_EQ(a.deleted_vertices, gen.expected_deleted) << "|Del and V_t|";
+    EXPECT_EQ(a.inserted_edges, 2 * gen.expected_live) << "the entries appended";
+    EXPECT_EQ(a.dropped_insertions, 2 * gen.expected_dropped) << "the entries dropped";
+    EXPECT_EQ(a.inserted_edges + a.dropped_insertions,
+              2 * static_cast<std::int64_t>(gen.batch.num_insertions()))
+        << "applied + skipped != requested";
+    EXPECT_EQ(a.deleted_edges + a.updated_edges + a.ignored_deletions, 0);
+    EXPECT_EQ(static_cast<std::int64_t>(g.num_active_vertices()), model.active_count);
+  }
+};
+
 // ------------------------------------------------------------------------------------------------
 // The suite
 // ------------------------------------------------------------------------------------------------
@@ -1092,7 +1386,7 @@ TYPED_TEST_P(conformance, C3_BackendsAgree) {
           chains.emplace_back(kit_detail::resources_for<TypeParam>(b), model, p.props);
         }
         for (std::size_t i = 1; i < chains.size(); ++i) {
-          EXPECT_TRUE(kit_detail::same<traits>(chains[0].take(), chains[i].take()))
+          EXPECT_TRUE(kit_detail::same_across_backends<traits>(chains[0].take(), chains[i].take()))
               << "compute() on " << to_string(backends[i]) << " differs from sequential";
         }
         for (int step = 0; step < 3; ++step) {
@@ -1100,13 +1394,14 @@ TYPED_TEST_P(conformance, C3_BackendsAgree) {
           const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
           const auto first = chains[0].step(ct::batch_of(gen));
           ct::observe(model, gen, first.batch);
-          const auto reference = kit_detail::counters<traits, graph_t>(first);
+          const auto reference = kit_detail::counters_across_backends<traits, graph_t>(first);
           const auto expected = chains[0].take();
           for (std::size_t i = 1; i < chains.size(); ++i) {
             SCOPED_TRACE(std::string(to_string(backends[i])));
-            EXPECT_EQ((kit_detail::counters<traits, graph_t>(chains[i].step(ct::batch_of(gen)))),
+            EXPECT_EQ((kit_detail::counters_across_backends<traits, graph_t>(
+                          chains[i].step(ct::batch_of(gen)))),
                       reference);
-            EXPECT_TRUE(kit_detail::same<traits>(expected, chains[i].take()));
+            EXPECT_TRUE(kit_detail::same_across_backends<traits>(expected, chains[i].take()));
           }
         }
       }
@@ -1331,7 +1626,14 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
             ::testing::Test::RecordProperty(
                 "commit_allocations_" + std::string(to_string(b)),
                 static_cast<int>(commit.allocations));  // container growth: reported only
-            EXPECT_TRUE(kit_detail::same<traits>(measured->recompute(), measured->take()));
+            if constexpr (traits::oracle == oracle_kind::compute) {
+              EXPECT_TRUE(kit_detail::same<traits>(measured->recompute(), measured->take()));
+            } else {
+              // oracle_kind::reference: update() and compute() are both near the reference, not
+              // equal to each other (label_propagation: DynLP and IrLP).
+              EXPECT_TRUE(traits::template near_reference<typename TypeParam::graph_type>(
+                  measured->res, *measured->g, measured->take()));
+            }
           }
         }
       }
@@ -1471,8 +1773,8 @@ TYPED_TEST_P(conformance, C11_StaleResultsAreDetected) {
     const std::uint64_t version = c.g->version();
     using batch_t = typename kit_detail::chain<TypeParam>::batch_type;
     EXPECT_THROW((void)c.step(batch_t{}), stale_result_error);
-    EXPECT_THROW((void)dyng::update(c.res, *c.g, ct::batch_of(gen).view(), *c.r),
-                 stale_result_error);
+    const batch_t probe = kit_detail::stale_probe<ct>(model, gen, rng);
+    EXPECT_THROW((void)dyng::update(c.res, *c.g, probe.view(), *c.r), stale_result_error);
     EXPECT_EQ(c.g->version(), version);
     EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
     // A result of another graph (built from the same edges, at the same version) is stale for
@@ -1523,7 +1825,7 @@ TYPED_TEST_P(conformance, C12_NonDefaultStreamsOrderTheWork) {
         device.res = step % 2 == 0 ? on_s : on_a;
         (void)device.step(ct::batch_of(gen));
         (void)sizeof(graph_t);
-        EXPECT_TRUE(kit_detail::same<traits>(host.take(), device.take()));
+        EXPECT_TRUE(kit_detail::same_across_backends<traits>(host.take(), device.take()));
       }
     }
   }

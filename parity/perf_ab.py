@@ -24,6 +24,8 @@ triad_count against ESCHER-GPU@abcf9b2 (parity/cbst_perf.py, hypergraph_perf.py,
     parity/perf_ab.py run --baseline-exe <earlier dynG build> --baseline-label <commit> --exe ...
     parity/perf_ab.py mosp --backend openmp|cuda --exe <parity build>/dyng-compat-mosp [--gpu 0]
                           [--runs 21] [--graph roadNet-CA] [-k K] [--pref p1,..,pK] [--json ...]
+    parity/perf_ab.py mosp --baseline-exe <earlier dynG build> --baseline-label <commit>
+                          --layouts 17 --exe ...
     parity/perf_ab.py prepare --graph roadNet-CA-K4 --widen roadNet-CA:4
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
@@ -62,7 +64,9 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          with the same arguments and read through the same profiler stages as side B. The
          correctness guards stay (byte-identical outputs, equal invalidated counters); the region
          ratios are the change of the refactor and are reported, not gated. The record's
-         "reference" names the baseline (--baseline-label).
+         "reference" names the baseline (--baseline-label). `mosp` takes the same three options
+         (M10a; ADR 0024's reading of mosp): side A is then `<baseline> --mosp`, both sides write
+         their outputs and get the round's --timing file of --layouts N.
 
 --backend cuda compares dynG's cuda backend (`dyng-compat-mosp --backend cuda`, parity-cuda
          preset) with the UNPATCHED MOSP-CUDA@e220ee2 (bin/mosp) on the same prepared inputs,
@@ -168,6 +172,31 @@ HYPERGRAPH_REGION_MAP = REPO / "parity" / "timed_regions" / "hypergraph.toml"
 # triad_count against ESCHER-GPU@abcf9b2 (M9a; written before the port, ADR 0048): the same
 # original timers (section [reference.escher_gpu]), with per-batch rows.
 TRIAD_REGION_MAP = REPO / "parity" / "timed_regions" / "triad_count.toml"
+# label_propagation against LabelPropagation-CUDA@a276a3a (M10a step 1, written before the port;
+# ADR 0064): section [reference.dynlp_cuda] of label_propagation.toml.
+LP_REGION_MAP = REPO / "parity" / "timed_regions" / "label_propagation.toml"
+LP_REFERENCES = {
+    "dynlp_cuda": {
+        "name": "LabelPropagation-CUDA",
+        "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+        "map": "dynlp_cuda",
+    },
+}
+# What LabelPropagation-CUDA@a276a3a reports, as label_propagation.toml names it: the results.csv
+# columns (csv:<column>, utils.cu:265-300), the --profile stage timers of stages.csv
+# (stages:<name>, dynLP.cu's PROFILE_STAGE names), the harness's clock around the process and the
+# Nsight Systems peak of live device allocations (D1).
+DYNLP_CSV_TIMES = {"time_ms", "eval_ms"}
+DYNLP_STAGES = {
+    "b1.host.batchIds",
+    "b2.deletions+status",
+    "b3.appendEdges",
+    "b4.sparsify",
+    "b5.connectedComponents",
+    "b6.labelInit",
+    "b7.propagation",
+}
+NSYS_PEAK_LIVE = "nsys:peak_live"
 # hyper_sssp against MOSP_ESCHER@4b86159 (M11a; written before the port, ADR 0080): hsospBench's
 # CSV columns per batch and its [e2e] line, section [reference.mosp_escher].
 HSOSP_REGION_MAP = REPO / "parity" / "timed_regions" / "hyper_sssp.toml"
@@ -265,11 +294,16 @@ REGION_KEYS = {
     "per_batch",
     "rows",
     "report_sum",
-    # M10 label_propagation
+    # M10 label_propagation (ADR 0064): the index of the first per-batch row, and the gate of
+    # the report_sum row
+    "first_batch",
+    "sum_gate",
     # M11 slack_csr / hyper_sssp (no new key: the summed csv keys and the e2e: keys are timers)
 }
 # A per-batch row: "<region>[b<N>]" (triad_count.toml: update[b1], update[b2], update[b3]).
-BATCH_ROW = re.compile(r"^(?P<region>.+)\[b(?P<batch>[1-9][0-9]*)\]$")
+# label_propagation.toml (M10) numbers its rows from b0 (first_batch = 0): DynLP's batch 0 is an
+# ordinary, timed update.
+BATCH_ROW = re.compile(r"^(?P<region>.+)\[b(?P<batch>0|[1-9][0-9]*)\]$")
 # The original each backend of the port is compared with, and its section of sssp.toml.
 REFERENCES = {
     "openmp": {
@@ -585,6 +619,9 @@ def load_regions(
             | hsosp_e2e_keys()
             | {PROCESS_WALL_TIME}
         )
+    elif backend in LP_REFERENCES:  # label_propagation.toml (M10a)
+        regions = doc["reference"][LP_REFERENCES[backend]["map"]]["region"]
+        known = dynlp_report_keys()
     else:
         regions = doc["reference"][REFERENCES[backend]["map"]]["region"]
         known = set(REPORT) | {PER_OBJECTIVE_REPORT}
@@ -608,12 +645,13 @@ def load_regions(
                     f"{path}: region {r['name']}: perf_ab.py cannot parse the "
                     f"original's report line '{key}' (known: {sorted(known)})"
                 )
-        if r["gate"] not in ("compute", "end_to_end", "none"):
+        if r["gate"] not in ("compute", "end_to_end", "none") and not memory_gate(backend, r):
             raise SystemExit(f"{path}: region {r['name']}: unknown gate '{r['gate']}'")
         if not r.get("port") and not r.get("port_report"):
             raise SystemExit(f"{path}: region {r['name']}: no port stages")
         check_batch_rows(path, r)
         # M10 label_propagation
+        sum_gate(path, r)
         # M11 slack_csr / hyper_sssp
         if backend in HYPERGRAPH_REFERENCES:
             check_e2e_keys(path, r)
@@ -623,6 +661,55 @@ def load_regions(
 # The joint region-key specification of 0.4 (reconciled 2026-10-27): each milestone's keys in
 # functions of its own, below its comment; the second merger keeps both.
 # M10 label_propagation
+# --- label_propagation's keys (M10's half of the joint key specification; ADR 0064) ------
+
+
+def dynlp_report_keys() -> set[str]:
+    """The report keys of LabelPropagation-CUDA@a276a3a that label_propagation.toml may name in
+    original_report (M10a, ADR 0064)."""
+    return (
+        {f"csv:{c}" for c in DYNLP_CSV_TIMES}
+        | {f"stages:{t}" for t in DYNLP_STAGES}
+        | {PROCESS_WALL_TIME, NSYS_PEAK_LIVE}
+    )
+
+
+def memory_gate(backend: str, region: dict) -> bool:
+    """label_propagation.toml's device_memory row (M10a): gate "memory" (PLAN 8.6's <= 1.05x on
+    the Nsight Systems peak of live device allocations, D1), read from the nsys peak only."""
+    return (
+        backend in LP_REFERENCES
+        and region["gate"] == "memory"
+        and region.get("original_report") == [NSYS_PEAK_LIVE]
+    )
+
+
+def first_batch(path: Path, region: dict) -> int:
+    """M10's 'first_batch' (ADR 0064): the index of a per-batch region's first row, 1 (the
+    default: triad_count's update[b1..b3]) or 0 (label_propagation's update[b0..]: DynLP's batch 0
+    is an ordinary timed update). Only a per-batch region has it."""
+    if "first_batch" not in region:
+        return 1
+    value = region["first_batch"]
+    if not region.get("per_batch"):
+        raise SystemExit(f"{path}: region {region['name']}: 'first_batch' needs per_batch = true")
+    if isinstance(value, bool) or value not in (0, 1):
+        raise SystemExit(f"{path}: region {region['name']}: first_batch must be 0 or 1")
+    return value
+
+
+def sum_gate(path: Path, region: dict) -> str:
+    """M10's 'sum_gate' (ADR 0064): the gate of a per-batch region's report_sum row
+    "<name>[sum]", "none" (the default: the sum is reported, never gated, as in triad_count.toml)
+    or "compute" (label_propagation's gated update[sum]: PLAN 8.6's 1.05x, 1.10x under 10 ms).
+    No other gate kind; it needs report_sum = true."""
+    value = region.get("sum_gate", "none")
+    if value not in ("compute", "none"):
+        raise SystemExit(f"{path}: region {region['name']}: sum_gate must be 'compute' or 'none'")
+    if value == "compute" and not region.get("report_sum"):
+        raise SystemExit(f"{path}: region {region['name']}: sum_gate needs report_sum = true")
+    return value
+
 
 # M11 slack_csr / hyper_sssp
 # --- hyper_sssp's keys (M11's half of the joint key specification; ADR 0080 section 1.7) -------
@@ -743,24 +830,39 @@ def check_batch_rows(path: Path, region: dict) -> None:
     not read per objective and per batch at once."""
     name = region["name"]
     if not region.get("per_batch"):
-        for key in ("rows", "report_sum"):
+        for key in ("rows", "report_sum", "first_batch", "sum_gate"):
             if key in region:
                 raise SystemExit(f"{path}: region {name}: '{key}' needs per_batch = true")
         return
     if region.get("per_objective"):
         raise SystemExit(f"{path}: region {name}: per_objective and per_batch together")
     rows = region.get("rows")
-    want = [f"{name}[b{i}]" for i in range(1, len(rows or []) + 1)]
+    first = first_batch(path, region)
+    want = [f"{name}[b{i}]" for i in range(first, first + len(rows or []))]
     if not rows or rows != want:
         raise SystemExit(
-            f"{path}: region {name}: per_batch rows must be {want or [name + '[b1]', '...']} "
-            f"(got {rows})"
+            f"{path}: region {name}: per_batch rows must be "
+            f"{want or [name + f'[b{first}]', '...']} (got {rows})"
         )
+    sum_gate(path, region)
 
 
 def region_rows(region: dict) -> list[str]:
-    """The gate rows of a region: its name, or one "<name>[b<N>]" per batch (per_batch)."""
-    return list(region["rows"]) if region.get("per_batch") else [region["name"]]
+    """The gate rows of a region: its name, or one "<name>[b<N>]" per batch (per_batch), and
+    "<name>[sum]" when its report_sum row is gated (sum_gate = "compute", M10)."""
+    if not region.get("per_batch"):
+        return [region["name"]]
+    rows = list(region["rows"])
+    if region.get("sum_gate", "none") != "none":
+        rows.append(f"{region['name']}[sum]")
+    return rows
+
+
+def row_gate(region: dict, row: str) -> str:
+    """The gate of one row of a region: sum_gate for its "<name>[sum]" row, else the region's."""
+    if row == f"{region['name']}[sum]":
+        return region.get("sum_gate", "none")
+    return region["gate"]
 
 
 def batch_of_row(row: str) -> tuple[str, int | None]:
@@ -2021,12 +2123,25 @@ def mosp_options(args: argparse.Namespace) -> list:
     return out
 
 
+def mosp_baseline(args: argparse.Namespace) -> Path | None:
+    """`mosp --baseline-exe`: the earlier dynG build of side A (checked), or None."""
+    baseline = getattr(args, "baseline_exe", None)
+    if baseline is None:
+        return None
+    baseline = baseline.resolve()
+    if not baseline.is_file():
+        raise SystemExit(f"--baseline-exe {baseline} does not exist")
+    return baseline
+
+
 def mosp_ab(args: argparse.Namespace) -> int:
     """The MOSP update of dynG (`dyng-compat-mosp --mosp`) against the unpatched original
     (`bin/mosp` of MOSP-OpenMP@c352151 or MOSP-CUDA@e220ee2), A/B/A/B under the perf lock (GPU
     clocks locked on cuda), both sides writing every output file as the original's bench/run.sh
     does; regions from parity/timed_regions/mosp.toml: "(a) compute" and "(b) end to end" gated,
-    the per-objective updates, the combined step and the path costs reported."""
+    the per-objective updates, the combined step and the path costs reported. With
+    --baseline-exe (M10a; ADR 0024) side A is an earlier dynG build's `dyng-compat-mosp --mosp`
+    instead, read through the same stages over --layouts heap layouts, nothing gated."""
     regions = load_regions(args.backend, MOSP_REGION_MAP, ("compute", "end_to_end"))
     keys = report_keys(regions)
     reference = REFERENCES[args.backend]
@@ -2043,11 +2158,20 @@ def mosp_ab(args: argparse.Namespace) -> int:
     env, port_args = run_env(args)
     if args.backend == "cuda" and args.cuda_engine != "automatic":
         port_args = [*port_args, "--cuda-engine", args.cuda_engine]
-    build_reference(reference["name"])
-    ref = reference_copy(reference["name"])
-    marker = ref / ".dyng-reference"
-    side_a = [ref / "bin" / "mosp"]
+    baseline = mosp_baseline(args)
+    if baseline is not None:
+        # Side A is an earlier dynG build (ADR 0024: dynG against dynG), read through the same
+        # profiler stages as side B; the ratios are reported, not gated.
+        regions = [dict(r, gate="none") for r in regions]
+        ref, marker = baseline.parent, baseline.parent / ".no-reference-marker"
+        side_a = [baseline, "--mosp", *port_args]
+    else:
+        build_reference(reference["name"])
+        ref = reference_copy(reference["name"])
+        marker = ref / ".dyng-reference"
+        side_a = [ref / "bin" / "mosp"]
     side_b = [exe, "--mosp", *port_args]
+    side_a_name = args.baseline_label if baseline is not None else "original"
     extra = mosp_options(args)
     batches = batch_list(args)
     results, failures = {}, []
@@ -2080,14 +2204,25 @@ def mosp_ab(args: argparse.Namespace) -> int:
                     r = 0
                     while r < args.runs:
                         before = os.getloadavg()[0]
-                        timing = work / "timing.csv"
+                        timing = (
+                            layout_timing(work, "timing", args, r)
+                            if baseline is not None
+                            else work / "timing.csv"
+                        )
                         # Both write their outputs (bench/run.sh), into a directory deleted after
                         # the run, outside the timed program (or neither: --no-output).
                         out_a = ["--no-output"] if args.no_output else ["--out", work / "A"]
                         out_b = ["--no-output"] if args.no_output else ["--out", work / "B"]
-                        log_a, win_a = monitor.run([*side_a, *common, *out_a], env)
-                        clear(work / "A")
-                        orig = parse_original(log_a, k, keys)
+                        if baseline is not None:
+                            log_a, win_a = monitor.run(
+                                [*side_a, *common, *out_a, "--timing", timing], env
+                            )
+                            clear(work / "A")
+                            orig = with_engine_stage(parse_port(log_a, timing, k), k)
+                        else:
+                            log_a, win_a = monitor.run([*side_a, *common, *out_a], env)
+                            clear(work / "A")
+                            orig = parse_original(log_a, k, keys)
                         log_b, win_b = monitor.run(
                             [*side_b, *common, *out_b, "--timing", timing], env
                         )
@@ -2108,11 +2243,21 @@ def mosp_ab(args: argparse.Namespace) -> int:
                                 f"{orig['invalidated']} != port {port['invalidated']}"
                             )
                         compute = next(x for x in regions if x["name"] == "compute")
+                        a_ms = (
+                            port_value(orig, compute, None)
+                            if baseline is not None
+                            else original_value(orig, compute, None)
+                        )
+                        a_e2e = (
+                            stage_sum(orig, ["total.end_to_end"])
+                            if baseline is not None
+                            else orig["report"]["end_to_end_ms"]
+                        )
                         print(
-                            f"{batch} round {r}/{args.runs}: (a) original "
-                            f"{original_value(orig, compute, None):.1f} ms, port "
-                            f"{port_value(port, compute, None):.1f} ms; (b) original "
-                            f"{orig['report']['end_to_end_ms']:.0f} ms, port "
+                            f"{batch} round {r}/{args.runs}: (a) {side_a_name} "
+                            f"{a_ms:.1f} ms, port "
+                            f"{port_value(port, compute, None):.1f} ms; (b) {side_a_name} "
+                            f"{a_e2e:.0f} ms, port "
                             f"{stage_sum(port, ['total.end_to_end']):.0f} ms; foreign CPU "
                             f"{win_a['foreign_cpu_cores']:.2f} / {win_b['foreign_cpu_cores']:.2f}"
                             " cores" + gpu_note(window),
@@ -2124,12 +2269,13 @@ def mosp_ab(args: argparse.Namespace) -> int:
                     k,
                     args.runs,
                     loads,
+                    a_value=port_value if baseline is not None else None,
                     monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
                 )
     finally:
         with contextlib.suppress(OSError):
             subprocess.run(["rm", "-rf", str(work)], check=False)
-    report(results)
+    report(results, labels=(args.baseline_label, "dynG") if baseline is not None else None)
     exceeded = [
         f"{b}: {e['region']} {e['ratio']:.3f} > {e['gate']:.2f}"
         for b, res in results.items()
@@ -2545,6 +2691,33 @@ def memory(args: argparse.Namespace) -> int:
     return 0
 
 
+def add_mosp_baseline_options(r: argparse.ArgumentParser) -> None:
+    """`mosp`'s dynG-against-dynG options (M10a; ADR 0024's reading of mosp): side A is an
+    earlier dynG build's `dyng-compat-mosp --mosp`, read through the same profiler stages as side
+    B, over N heap layouts; the options of `run`, added to `mosp` without changing `run`."""
+    r.add_argument(
+        "--baseline-exe",
+        type=Path,
+        help="replace side A (the original's bin/mosp) by an earlier dynG build's "
+        "dyng-compat-mosp, run as `--mosp` and read through the same profiler stages (ADR 0024: "
+        "dynG against dynG); the ratios are reported, not gated",
+    )
+    r.add_argument(
+        "--baseline-label",
+        default="baseline",
+        help="the name of side A in the report with --baseline-exe (e.g. a commit)",
+    )
+    r.add_argument(
+        "--layouts",
+        type=int,
+        default=1,
+        metavar="N",
+        help="with --baseline-exe: cycle the rounds through N heap layouts (the --timing file "
+        "name grows by 8 characters per layout, the same on both sides; as `run --layouts`); 1 "
+        "(the default) reads one layout",
+    )
+
+
 def main() -> int:
     if sys.argv[1:2] == ["hyper_sssp"]:  # hyper_sssp against MOSP_ESCHER (M11a)
         sys.path.insert(0, str(REPO / "parity"))
@@ -2571,6 +2744,11 @@ def main() -> int:
         import triad_perf
 
         return triad_perf.main(sys.argv[2:])
+    if sys.argv[1:2] == ["label_propagation"]:  # against LabelPropagation-CUDA (M10a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import label_propagation_perf
+
+        return label_propagation_perf.main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("prepare")
@@ -2668,6 +2846,8 @@ def main() -> int:
                 help="run the port as dyng-compat-mosp --mosp (the whole MOSP update, the "
                 "original's scope; M7) instead of the K sssp updates",
             )
+        if command == "mosp":
+            add_mosp_baseline_options(r)
         if command in ("engines", "mosp"):
             r.add_argument(
                 "--lock-clocks",

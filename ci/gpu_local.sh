@@ -134,6 +134,20 @@
 #              both are also in `ctest -L gpu`), then ci/cmake_consumer.sh on this build: a user Op
 #              compiled by nvcc against the installed package, run on the GPU and the host backends,
 #              and a host-only consumer of the experimental host header
+#   label_propagation  label_propagation (M10a, ADRs 0074-0077): its CUDA tests, the original's
+#              checker oracles (dyng_label_propagation_checker_cuda_tests: 5k5 and 50k at delta
+#              1e-6, both schedules) and the conformance kit's float slotted axis
+#              (dyng_label_propagation_conformance_cuda_tests); the replays of P against
+#              LabelPropagation-CUDA@a276a3a's goldens (parity/compare.py label_propagation trace
+#              --backend cuda; damped --config cuda-fused, which needs a parity-cuda build: the
+#              step is "partial" on another preset or without the goldens), the in_place cloud
+#              (inplace, 5k5 and 50k, 3 runs each, against the frozen calibration) and the
+#              harmonic oracle on C (oracle-port --backend cuda); compute-sanitizer memcheck on
+#              dyng-compat-dynlp at 5k5 and 50k (both schedules), on the unit tests and on the
+#              input-contract tests and on the slotted device apply's tests (the overflow near the
+#              int32 limit), initcheck at 5k5 with and without --check, racecheck on the
+#              propagation tests (the hub golden and the hand cases) and synccheck on the
+#              persistent small-frontier block (the 5k5 runs, whose tail iterations run it)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -611,6 +625,118 @@ fi
 # The steps of 0.4 (parity/certify.py GPU_LOCAL_STEPS[(0, 4)]): each milestone adds its steps below
 # its own comment.
 # M10 label_propagation
+if ! skipped label_propagation; then
+  step "label_propagation: CUDA tests, replays and sanitizers (GPU ${gpu})"
+  lpr_ok=1
+  lpr_partial=0
+  lpr_dir="${build_dir}/cpp/tests/algorithms/label_propagation"
+  lpr_unit="${lpr_dir}/dyng_label_propagation_cuda_tests"
+  lpr_checker="${lpr_dir}/dyng_label_propagation_checker_cuda_tests"
+  lpr_kit="${build_dir}/cpp/tests/dyng_label_propagation_conformance_cuda_tests"
+  lpr_compat="${build_dir}/tools/compat/dyng-compat-dynlp"
+  lpr_replay="${build_dir}/cpp/tests/dyng_lp_replay"
+  lpr_p="5k5_d1e-4_s42,50k_d1e-4_s42,500k_d1e-4_s42,5k5_d1e-6_s42,50k_d1e-6_s42"
+  lpr_p="${lpr_p},5k5_d1e-4_s1,5k5_d1e-4_s2,50k_d1e-4_s1,50k_d1e-4_s2"
+  lpr_out="${DYNG_GPU_RESULTS:-${build_dir}/label_propagation-records}"
+  mkdir -p "${lpr_out}"
+  if [ -z "${sanitizer}" ] || [ ! -x "${lpr_unit}" ] || [ ! -x "${lpr_checker}" ] ||
+    [ ! -x "${lpr_kit}" ] || [ ! -x "${lpr_compat}" ] || [ ! -x "${lpr_replay}" ]; then
+    echo "compute-sanitizer or a label_propagation executable missing"
+    lpr_ok=0
+  else
+    for exe in "${lpr_unit}" "${lpr_checker}" "${lpr_kit}"; do
+      if ! heavy "${exe}" --gtest_brief=1; then
+        echo "$(basename "${exe}"): FAILED"
+        lpr_ok=0
+      fi
+    done
+    lpr_goldens="${DYNG_SCRATCH}/goldens/label_propagation_trace/MANIFEST.sha256"
+    if [ -f "${lpr_goldens}" ]; then
+      if ! heavy python3 parity/compare.py label_propagation trace --exe "${lpr_compat}" \
+        --backend cuda --cases "${lpr_p}" --json "${lpr_out}/trace-cuda.json"; then
+        echo "the trace replays of P on cuda: FAILED"
+        lpr_ok=0
+      fi
+      if grep -q '^CMAKE_BUILD_TYPE:STRING=Release' "${build_dir}/CMakeCache.txt" &&
+        [ "${preset}" = "parity-cuda" ]; then
+        if ! heavy python3 parity/compare.py label_propagation damped --exe "${lpr_compat}" \
+          --config cuda-fused --cases "${lpr_p}" --json "${lpr_out}/damped-cuda-fused.json"; then
+          echo "the damped byte parity of P (cuda-fused): FAILED"
+          lpr_ok=0
+        fi
+      else
+        echo "the damped byte parity needs --preset parity-cuda: skipped on ${preset}"
+        lpr_partial=1
+      fi
+      if ! heavy python3 parity/compare.py label_propagation inplace --exe "${lpr_compat}" \
+        --cases 5k5,50k --json "${lpr_out}/inplace-cuda.json"; then
+        echo "the in_place cloud at 5k5 and 50k: FAILED"
+        lpr_ok=0
+      fi
+      if ! heavy python3 parity/compare.py label_propagation oracle-port --exe "${lpr_compat}" \
+        --replay "${lpr_replay}" --backend cuda --json "${lpr_out}/oracle-cuda.json"; then
+        echo "the harmonic oracle on C (cuda): FAILED"
+        lpr_ok=0
+      fi
+    else
+      echo "the label_propagation goldens are missing: the replays are skipped"
+      lpr_partial=1
+    fi
+    lpr_tmp="$(mktemp -d "${DYNG_SCRATCH}/runs/lp-sanitize.XXXXXX")"
+    lpr_run() {  # <tool> <size> <batches> <rule> [extra...]: one dyng-compat-dynlp run under a tool
+      local tool="$1" n="$2" b="$3" rule="$4"
+      shift 4
+      heavy "${sanitizer}" --tool "${tool}" --error-exitcode 1 "${lpr_compat}" --totalNodes "${n}" \
+        --numBatches "${b}" --avgDegree 5 --delta 0.0001 --seed 42 --update "${rule}" --quiet \
+        --noGraphFiles --backend cuda --output "${lpr_tmp}/out" "$@" >/dev/null
+    }
+    for rule in damped inplace; do
+      for size in "5000 5" "50000 10"; do
+        # shellcheck disable=SC2086
+        if ! lpr_run memcheck ${size} "${rule}" --noValidate; then
+          echo "memcheck dyng-compat-dynlp ${size} ${rule}: FAILED"
+          lpr_ok=0
+        fi
+      done
+      if ! lpr_run initcheck 5000 5 "${rule}" --noValidate ||
+        ! lpr_run initcheck 5000 5 "${rule}" --validate --check; then
+        echo "initcheck dyng-compat-dynlp 5k5 ${rule} (with and without --check): FAILED"
+        lpr_ok=0
+      fi
+      if ! lpr_run synccheck 5000 5 "${rule}" --noValidate; then
+        echo "synccheck dyng-compat-dynlp 5k5 ${rule} (the small-frontier block): FAILED"
+        lpr_ok=0
+      fi
+    done
+    rm -rf "${lpr_tmp}"
+    # The sweep that fails every device allocation in turn is left out (its correct handling is
+    # what the plain run checks; under memcheck it would take most of the step).
+    if ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 "${lpr_unit}" \
+      --gtest_brief=1 --gtest_filter='-LabelPropagationCuda.EachDeviceAllocationFailureKeepsTheGuarantee'; then
+      echo "memcheck ${lpr_unit} (the unit and input-contract tests): FAILED"
+      lpr_ok=0
+    fi
+    # The slotted rows' device apply (the overflow near the int32 limit, the poison; M10a review).
+    lpr_graph="${build_dir}/cpp/tests/dyng_graph_cuda_tests"
+    if [ ! -x "${lpr_graph}" ] || ! heavy "${sanitizer}" --tool memcheck --error-exitcode 1 \
+      "${lpr_graph}" --gtest_brief=1 --gtest_filter='SlottedCuda.*'; then
+      echo "memcheck ${lpr_graph} (the slotted device apply): FAILED"
+      lpr_ok=0
+    fi
+    if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all --error-exitcode 1 \
+      "${lpr_unit}" --gtest_brief=1 --gtest_filter='LabelPropagationCuda.HubGolden:LabelPropagation.*'; then
+      echo "racecheck ${lpr_unit} (the propagation tests): FAILED"
+      lpr_ok=0
+    fi
+  fi
+  if [ "${lpr_ok}" = 1 ] && [ "${lpr_partial}" = 1 ]; then
+    record "label_propagation (CUDA tests, kit, replays of P, in_place cloud, oracle; sanitizers)" partial
+  elif [ "${lpr_ok}" = 1 ]; then
+    record "label_propagation (CUDA tests, kit, replays of P, in_place cloud, oracle; sanitizers)" passed
+  else
+    record "label_propagation (CUDA tests, kit, replays of P, in_place cloud, oracle; sanitizers)" FAILED
+  fi
+fi
 
 # M11 slack_csr / hyper_sssp
 if ! skipped slack; then

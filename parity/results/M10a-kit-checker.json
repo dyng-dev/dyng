@@ -1,0 +1,79 @@
+{
+ "schema": 1,
+ "what": "M10a step 5 (criteria 14, 15): the original's checker oracles as GoogleTests (dyng_label_propagation_checker_tests on sequential, _cuda_tests on cuda; 5k5 and 50k at delta 1e-6, both schedules) with IrLP's class agreement with DynLP after the last batch (reported; within 0.5 pp), and the kit's CUDA executable in the DYNG_DEBUG_BUDGETS dev-cuda build (C8 on cuda); the final library's sources (72eb020), GPU 1",
+ "builds": {
+  "sequential": "build/dev (Debug, DYNG_DEBUG_BUDGETS)",
+  "cuda": "build/dev-cuda (Debug, DYNG_DEBUG_BUDGETS)"
+ },
+ "checker": {
+  "cuda": {
+   "tests": 4,
+   "failures": 0,
+   "rows": {
+    "Damped5k5": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.955137
+    },
+    "InPlace5k5": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.977568
+    },
+    "Damped50k": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.811448
+    },
+    "InPlace50k": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.930415
+    }
+   }
+  },
+  "sequential": {
+   "tests": 4,
+   "failures": 0,
+   "rows": {
+    "Damped5k5": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.955137
+    },
+    "InPlace5k5": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.977568
+    },
+    "Damped50k": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.811448
+    },
+    "InPlace50k": {
+     "result": "COMPLETED",
+     "status": "RUN",
+     "failures": 0,
+     "irlp_agreement_percent": 99.93266
+    }
+   }
+  }
+ },
+ "kit_cuda_devcuda": {
+  "summary": [
+   "[==========] 53 tests from 5 test suites ran. (265271 ms total)",
+   "[  PASSED  ] 45 tests.",
+   "[  SKIPPED ] 8 tests."
+  ],
+  "c8": "passed in all four typed cases (two offset types x two schedules)",
+  "skipped": "C4 (one engine per backend until M10b) and C5 (history_independent = false) of each typed case"
+ }
+}

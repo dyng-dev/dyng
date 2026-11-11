@@ -35,13 +35,17 @@
  *     static mix_type composition_mix(int step);           // C10
  *     static mix_type stale_mix();                         // C11
  *     static mix_type stream_mix(int step);                // C12
+ *     static batch_type stale_probe(const model_type&, std::mt19937_64&);  // optional, C11: a
+ *                                         // batch valid after the separate apply, where a batch
+ *                                         // cannot be given twice (the slotted axis, ADR 0076)
  *
  * The model is the kit's host copy of the container, from which every batch is generated (a
  * kit tests only what its generator makes: M6b). random_batch() applies the batch's deletions to
  * the model at once; observe() completes it with what only the container decides (a hypergraph's
  * inserted ids); inverse() builds the batch that undoes one (C5). The graph's specialization below
  * keeps the kit's behaviour of 0.1-0.2 exactly (generators.hpp); the hypergraph's is in
- * hypergraph_generators.hpp.
+ * hypergraph_generators.hpp, the float slotted axis of label_propagation (vertex batches,
+ * slotted_axis<graph_t>) in slotted_generators.hpp.
  */
 #pragma once
 

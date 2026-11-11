@@ -1,0 +1,1248 @@
+{
+ "schema": 1,
+ "what": "O's six pipeline TUs compiled with O's Makefile line and with dynG's FAST_MATH nvcc line under parity-cuda; every function's SASS (address comments removed) and resources compared (M10a step 1, ADR 0066)",
+ "date": "2026-10-29T03:50:52Z",
+ "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0",
+ "lines": {
+  "original": {
+   "dynamicGraph": "/usr/local/cuda-13.1/bin/nvcc -std=c++17 -arch=sm_86 -Iheaders -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp -O3 --use_fast_math -c src/dynamicGraph.cu -o <scratch>/objs/original/dynamicGraph.o",
+   "sparsifySubgraph": "/usr/local/cuda-13.1/bin/nvcc -std=c++17 -arch=sm_86 -Iheaders -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp -O3 --use_fast_math -c src/sparsifySubgraph.cu -o <scratch>/objs/original/sparsifySubgraph.o",
+   "connectedComponents": "/usr/local/cuda-13.1/bin/nvcc -std=c++17 -arch=sm_86 -Iheaders -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp -O3 --use_fast_math -c src/connectedComponents.cu -o <scratch>/objs/original/connectedComponents.o",
+   "labelInitialization": "/usr/local/cuda-13.1/bin/nvcc -std=c++17 -arch=sm_86 -Iheaders -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp -O3 --use_fast_math -c src/labelInitialization.cu -o <scratch>/objs/original/labelInitialization.o",
+   "iterativePropagation": "/usr/local/cuda-13.1/bin/nvcc -std=c++17 -arch=sm_86 -Iheaders -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp -O3 --use_fast_math -c src/iterativePropagation.cu -o <scratch>/objs/original/iterativePropagation.o",
+   "validation": "/usr/local/cuda-13.1/bin/nvcc -std=c++17 -arch=sm_86 -Iheaders -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp -O3 --use_fast_math -c src/validation.cu -o <scratch>/objs/original/validation.o"
+  },
+  "dyng": {
+   "dynamicGraph": "/usr/local/cuda-13.1/bin/nvcc -forward-unknown-to-host-compiler -I<scratch>/o-archive/headers -I<scratch>/src/cpp/include -I<scratch>/build/cpp/include -I<scratch>/src/cpp/src -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include/cccl -O3 -lineinfo -fmad=true -std=c++17 '--generate-code=arch=compute_86,code=[compute_86,sm_86]' -Xcompiler=-fPIC -Xcompiler=-Wall,-Wextra --extended-lambda --expt-relaxed-constexpr --use_fast_math -x cu -c <scratch>/o-archive/src/dynamicGraph.cu -o <scratch>/objs/dyng/dynamicGraph.o",
+   "sparsifySubgraph": "/usr/local/cuda-13.1/bin/nvcc -forward-unknown-to-host-compiler -I<scratch>/o-archive/headers -I<scratch>/src/cpp/include -I<scratch>/build/cpp/include -I<scratch>/src/cpp/src -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include/cccl -O3 -lineinfo -fmad=true -std=c++17 '--generate-code=arch=compute_86,code=[compute_86,sm_86]' -Xcompiler=-fPIC -Xcompiler=-Wall,-Wextra --extended-lambda --expt-relaxed-constexpr --use_fast_math -x cu -c <scratch>/o-archive/src/sparsifySubgraph.cu -o <scratch>/objs/dyng/sparsifySubgraph.o",
+   "connectedComponents": "/usr/local/cuda-13.1/bin/nvcc -forward-unknown-to-host-compiler -I<scratch>/o-archive/headers -I<scratch>/src/cpp/include -I<scratch>/build/cpp/include -I<scratch>/src/cpp/src -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include/cccl -O3 -lineinfo -fmad=true -std=c++17 '--generate-code=arch=compute_86,code=[compute_86,sm_86]' -Xcompiler=-fPIC -Xcompiler=-Wall,-Wextra --extended-lambda --expt-relaxed-constexpr --use_fast_math -x cu -c <scratch>/o-archive/src/connectedComponents.cu -o <scratch>/objs/dyng/connectedComponents.o",
+   "labelInitialization": "/usr/local/cuda-13.1/bin/nvcc -forward-unknown-to-host-compiler -I<scratch>/o-archive/headers -I<scratch>/src/cpp/include -I<scratch>/build/cpp/include -I<scratch>/src/cpp/src -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include/cccl -O3 -lineinfo -fmad=true -std=c++17 '--generate-code=arch=compute_86,code=[compute_86,sm_86]' -Xcompiler=-fPIC -Xcompiler=-Wall,-Wextra --extended-lambda --expt-relaxed-constexpr --use_fast_math -x cu -c <scratch>/o-archive/src/labelInitialization.cu -o <scratch>/objs/dyng/labelInitialization.o",
+   "iterativePropagation": "/usr/local/cuda-13.1/bin/nvcc -forward-unknown-to-host-compiler -I<scratch>/o-archive/headers -I<scratch>/src/cpp/include -I<scratch>/build/cpp/include -I<scratch>/src/cpp/src -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include/cccl -O3 -lineinfo -fmad=true -std=c++17 '--generate-code=arch=compute_86,code=[compute_86,sm_86]' -Xcompiler=-fPIC -Xcompiler=-Wall,-Wextra --extended-lambda --expt-relaxed-constexpr --use_fast_math -x cu -c <scratch>/o-archive/src/iterativePropagation.cu -o <scratch>/objs/dyng/iterativePropagation.o",
+   "validation": "/usr/local/cuda-13.1/bin/nvcc -forward-unknown-to-host-compiler -I<scratch>/o-archive/headers -I<scratch>/src/cpp/include -I<scratch>/build/cpp/include -I<scratch>/src/cpp/src -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include/cccl -O3 -lineinfo -fmad=true -std=c++17 '--generate-code=arch=compute_86,code=[compute_86,sm_86]' -Xcompiler=-fPIC -Xcompiler=-Wall,-Wextra --extended-lambda --expt-relaxed-constexpr --use_fast_math -x cu -c <scratch>/o-archive/src/validation.cu -o <scratch>/objs/dyng/validation.o"
+  }
+ },
+ "tus": {
+  "dynamicGraph": {
+   "functions": {
+    "_ZN3cub17CUB_300104_SM_8606detail10radix_sort29DeviceRadixSortOnesweepKernelINS1_5radix10policy_hubIiijE10Policy1000ELNS0_9SortOrderE0EiijiiNS1_21identity_decomposer_tEEEvPT5_SB_PT3_PKSC_PT1_PKSG_PT2_PKSK_T4_iiT6_": {
+     "identical": true,
+     "instructions": [
+      2824,
+      2824
+     ],
+     "sha256": [
+      "7a4155f5ead677f2839fdf120be440229607fbdfbbeaf38b88b2d243d348ee7c",
+      "7a4155f5ead677f2839fdf120be440229607fbdfbbeaf38b88b2d243d348ee7c"
+     ],
+     "resources": [
+      {
+       "REG": 80,
+       "STACK": 0,
+       "SHARED": 33280,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 80,
+       "STACK": 0,
+       "SHARED": 33280,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail10radix_sort30DeviceRadixSortHistogramKernelINS1_5radix10policy_hubIiijE10Policy1000ELNS0_9SortOrderE0EijNS1_21identity_decomposer_tEEEvPT2_PKT1_SA_iiT3_": {
+     "identical": true,
+     "instructions": [
+      488,
+      488
+     ],
+     "sha256": [
+      "883131bdfeb084fb4dfccbaadb8176fee5414dc805673b3c271144e515580d37",
+      "883131bdfeb084fb4dfccbaadb8176fee5414dc805673b3c271144e515580d37"
+     ],
+     "resources": [
+      {
+       "REG": 38,
+       "STACK": 0,
+       "SHARED": 4096,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 38,
+       "STACK": 0,
+       "SHARED": 4096,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail10radix_sort31DeviceRadixSortSingleTileKernelINS1_5radix10policy_hubIiijE10Policy1000ELNS0_9SortOrderE0EiijNS1_21identity_decomposer_tEEEvPKT1_PSA_PKT2_PSE_T3_iiT4_": {
+     "identical": true,
+     "instructions": [
+      856,
+      856
+     ],
+     "sha256": [
+      "1e22d98d742e83abd026cbe9234ddf49bdcecc229de3c38268a261b5a17cf4ea",
+      "1e22d98d742e83abd026cbe9234ddf49bdcecc229de3c38268a261b5a17cf4ea"
+     ],
+     "resources": [
+      {
+       "REG": 128,
+       "STACK": 0,
+       "SHARED": 33856,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 128,
+       "STACK": 0,
+       "SHARED": 33856,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail10radix_sort33DeviceRadixSortExclusiveSumKernelINS1_5radix10policy_hubIiijE10Policy1000EjEEvPT0_": {
+     "identical": true,
+     "instructions": [
+      120,
+      120
+     ],
+     "sha256": [
+      "be5bd721a7e875f84ccaa7f7b4a257f85df983e7ca769de489ba476fa883b80d",
+      "be5bd721a7e875f84ccaa7f7b4a257f85df983e7ca769de489ba476fa883b80d"
+     ],
+     "resources": [
+      {
+       "REG": 23,
+       "STACK": 0,
+       "SHARED": 1184,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 23,
+       "STACK": 0,
+       "SHARED": 1184,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": {
+     "identical": true,
+     "instructions": [
+      16,
+      16
+     ],
+     "sha256": [
+      "b52e4341213d3643cfec3a8f3ce16de3b3d5300729beb9ce5e5566c4d635a9da",
+      "b52e4341213d3643cfec3a8f3ce16de3b3d5300729beb9ce5e5566c4d635a9da"
+     ],
+     "resources": [
+      {
+       "REG": 4,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 4,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail11scan_by_key21DeviceScanByKeyKernelINS2_10policy_hubIPKiiiN4cuda3std3__44plusIvEEE10Policy1000ES6_N6thrust23THRUST_300104_SM_860_NS17constant_iteratorIiNSF_11use_defaultESH_EEPiNS0_24ReduceByKeyScanTileStateIiiLb1EEENS9_8equal_toIvEESB_ijiiEEvT0_PT9_T1_T2_T3_iT4_T5_T6_T7_": {
+     "identical": true,
+     "instructions": [
+      1760,
+      1760
+     ],
+     "sha256": [
+      "064fa6588ffbebec9e92a57ab5c00df42954c5940ca057634372cd2bbceec92d",
+      "064fa6588ffbebec9e92a57ab5c00df42954c5940ca057634372cd2bbceec92d"
+     ],
+     "resources": [
+      {
+       "REG": 48,
+       "STACK": 0,
+       "SHARED": 9232,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 48,
+       "STACK": 0,
+       "SHARED": 9232,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail11scan_by_key21DeviceScanByKeyKernelINS2_10policy_hubIPiiiN4cuda3std3__44plusIvEEE10Policy1000ES5_N6thrust23THRUST_300104_SM_860_NS17constant_iteratorIiNSE_11use_defaultESG_EES5_NS0_24ReduceByKeyScanTileStateIiiLb1EEENS8_8equal_toIvEESA_ijiiEEvT0_PT9_T1_T2_T3_iT4_T5_T6_T7_": {
+     "identical": true,
+     "instructions": [
+      1760,
+      1760
+     ],
+     "sha256": [
+      "064fa6588ffbebec9e92a57ab5c00df42954c5940ca057634372cd2bbceec92d",
+      "064fa6588ffbebec9e92a57ab5c00df42954c5940ca057634372cd2bbceec92d"
+     ],
+     "resources": [
+      {
+       "REG": 48,
+       "STACK": 0,
+       "SHARED": 9232,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 48,
+       "STACK": 0,
+       "SHARED": 9232,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail11scan_by_key25DeviceScanByKeyInitKernelINS0_24ReduceByKeyScanTileStateIiiLb1EEEPKijEEvT_T0_PN4cuda3std3__415iterator_traitsIS9_vE10value_typeET1_i": {
+     "identical": true,
+     "instructions": [
+      40,
+      40
+     ],
+     "sha256": [
+      "9e034539a2bab37fb1f89f3d25cf44b26d08f852c822edc1ef3b79e9d66f5372",
+      "9e034539a2bab37fb1f89f3d25cf44b26d08f852c822edc1ef3b79e9d66f5372"
+     ],
+     "resources": [
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail11scan_by_key25DeviceScanByKeyInitKernelINS0_24ReduceByKeyScanTileStateIiiLb1EEEPijEEvT_T0_PN4cuda3std3__415iterator_traitsIS8_vE10value_typeET1_i": {
+     "identical": true,
+     "instructions": [
+      40,
+      40
+     ],
+     "sha256": [
+      "9e034539a2bab37fb1f89f3d25cf44b26d08f852c822edc1ef3b79e9d66f5372",
+      "9e034539a2bab37fb1f89f3d25cf44b26d08f852c822edc1ef3b79e9d66f5372"
+     ],
+     "resources": [
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN48_GLOBAL__N__4b350404_15_dynamicGraph_cu_745b4c4912appendKernelEPKiS1_S1_iiS1_S1_PKfS1_S1_PiPfS4_": {
+     "identical": true,
+     "instructions": [
+      64,
+      64
+     ],
+     "sha256": [
+      "9abc9f2ebc2cc28ec4f26a6b03628ef0dc71ccf719f5c5efa68fc76b288f21fa",
+      "9abc9f2ebc2cc28ec4f26a6b03628ef0dc71ccf719f5c5efa68fc76b288f21fa"
+     ],
+     "resources": [
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN48_GLOBAL__N__4b350404_15_dynamicGraph_cu_745b4c4912insertKernelEPKiiPiS2_": {
+     "identical": true,
+     "instructions": [
+      40,
+      40
+     ],
+     "sha256": [
+      "ff0732c69e9b2b62dbb2f49f81740f9073bee99a257349b30269bb2b2b425441",
+      "ff0732c69e9b2b62dbb2f49f81740f9073bee99a257349b30269bb2b2b425441"
+     ],
+     "resources": [
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN48_GLOBAL__N__4b350404_15_dynamicGraph_cu_745b4c4915halfEdgesKernelEPKiS1_iS1_iPiS2_": {
+     "identical": true,
+     "instructions": [
+      48,
+      48
+     ],
+     "sha256": [
+      "11e22ecee4e1097a82f0df9bfcc9dd19fd78fa7b69e0285babd543c13255b0ca",
+      "11e22ecee4e1097a82f0df9bfcc9dd19fd78fa7b69e0285babd543c13255b0ca"
+     ],
+     "resources": [
+      {
+       "REG": 18,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 18,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN48_GLOBAL__N__4b350404_15_dynamicGraph_cu_745b4c4915setStatusKernelEPKiiiPi": {
+     "identical": true,
+     "instructions": [
+      24,
+      24
+     ],
+     "sha256": [
+      "1a0dcdf57a8443f60499d25cd3b4d9bc66ad9e7395c231e146338332cdc4a04d",
+      "1a0dcdf57a8443f60499d25cd3b4d9bc66ad9e7395c231e146338332cdc4a04d"
+     ],
+     "resources": [
+      {
+       "REG": 10,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 10,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN48_GLOBAL__N__4b350404_15_dynamicGraph_cu_745b4c4919advanceRowEndKernelEPKiS1_iiS1_Pi": {
+     "identical": true,
+     "instructions": [
+      48,
+      48
+     ],
+     "sha256": [
+      "cd1aeb1c1c5e43b28d55ecc6ea26f88a742b958c6545235d248c3fa6f5752e18",
+      "cd1aeb1c1c5e43b28d55ecc6ea26f88a742b958c6545235d248c3fa6f5752e18"
+     ],
+     "resources": [
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN48_GLOBAL__N__4b350404_15_dynamicGraph_cu_745b4c4920setGroundTruthKernelEPKiPKfiPiS4_": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "dd565af577a8e1f209afe1822318040fb0b72fbe502ee4a9ebdfbb6941f3bb80",
+      "dd565af577a8e1f209afe1822318040fb0b72fbe502ee4a9ebdfbb6941f3bb80"
+     ],
+     "resources": [
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    }
+   },
+   "count": 15
+  },
+  "sparsifySubgraph": {
+   "functions": {
+    "_Z18markInsertedKernelPKiiPiS1_i": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "adfa3727ff5f0f427cd72ed5334572b8e911cca6d0c8d6d02f6413a7ea5a0e27",
+      "adfa3727ff5f0f427cd72ed5334572b8e911cca6d0c8d6d02f6413a7ea5a0e27"
+     ],
+     "resources": [
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z19buildSubgraphKernelPKiS0_PKfiS0_S0_iPifS3_S3_S3_i": {
+     "identical": true,
+     "instructions": [
+      88,
+      88
+     ],
+     "sha256": [
+      "f603ced454e14b7286ec816240e9404a7c99e0ceabbb175c2103ec0fe25ca09f",
+      "f603ced454e14b7286ec816240e9404a7c99e0ceabbb175c2103ec0fe25ca09f"
+     ],
+     "resources": [
+      {
+       "REG": 19,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 19,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z19markDeletionsKernelPKiS0_S0_PiS0_ii": {
+     "identical": true,
+     "instructions": [
+      96,
+      96
+     ],
+     "sha256": [
+      "8eee6ef37e78fd0593a2c87abcfbabee69f5bd5649c0eb302322bd3865b7e697",
+      "8eee6ef37e78fd0593a2c87abcfbabee69f5bd5649c0eb302322bd3865b7e697"
+     ],
+     "resources": [
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    }
+   },
+   "count": 3
+  },
+  "connectedComponents": {
+   "functions": {
+    "_Z10hookKernelPKiS0_S0_PiS1_": {
+     "identical": true,
+     "instructions": [
+      48,
+      48
+     ],
+     "sha256": [
+      "34f7f947f1158c142a4e466f87ffc961a4f0f93a0efcdb45ffad000608b988e5",
+      "34f7f947f1158c142a4e466f87ffc961a4f0f93a0efcdb45ffad000608b988e5"
+     ],
+     "resources": [
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z14compressKernelPiPKii": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "03f0bd7080eb892f34ab20c0cdc2a9c8d99f910bc00601e7c37817464b67d86e",
+      "03f0bd7080eb892f34ab20c0cdc2a9c8d99f910bc00601e7c37817464b67d86e"
+     ],
+     "resources": [
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z15markRootsKernelPKiS0_iPi": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "d0edf15886bfddd4b2ba89c23e98883b0ab1b478dbd32aa53b6300eac7324fb3",
+      "d0edf15886bfddd4b2ba89c23e98883b0ab1b478dbd32aa53b6300eac7324fb3"
+     ],
+     "resources": [
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z16initParentKernelPiPKii": {
+     "identical": true,
+     "instructions": [
+      24,
+      24
+     ],
+     "sha256": [
+      "7588bea1ec64d5677c5c33cc08c564805543971a07afca1e0e51d6f527111e51",
+      "7588bea1ec64d5677c5c33cc08c564805543971a07afca1e0e51d6f527111e51"
+     ],
+     "resources": [
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z17numberRootsKernelPKiiS0_S0_PiS1_": {
+     "identical": true,
+     "instructions": [
+      40,
+      40
+     ],
+     "sha256": [
+      "5385884b13c8eb7bc90d31628a06db954cc9e82c1d1d1379ff95887d537b8fa4",
+      "5385884b13c8eb7bc90d31628a06db954cc9e82c1d1d1379ff95887d537b8fa4"
+     ],
+     "resources": [
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 14,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z24assignComponentIdsKernelPKiS0_PiS0_i": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "e4e4128324d1058f3e1acf2e6acc7a1da4ee8a9c6771877c061279fbc40bf880",
+      "e4e4128324d1058f3e1acf2e6acc7a1da4ee8a9c6771877c061279fbc40bf880"
+     ],
+     "resources": [
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 12,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": {
+     "identical": true,
+     "instructions": [
+      16,
+      16
+     ],
+     "sha256": [
+      "b52e4341213d3643cfec3a8f3ce16de3b3d5300729beb9ce5e5566c4d635a9da",
+      "b52e4341213d3643cfec3a8f3ce16de3b3d5300729beb9ce5e5566c4d635a9da"
+     ],
+     "resources": [
+      {
+       "REG": 4,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 4,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiijN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEjiLb0EiEEvT0_T1_T2_iT3_T4_T5_": {
+     "identical": true,
+     "instructions": [
+      1024,
+      1024
+     ],
+     "sha256": [
+      "9072ce0134e6b596265095760f9bd478835daddd6886d3da2b55e7ac6e9872a2",
+      "9072ce0134e6b596265095760f9bd478835daddd6886d3da2b55e7ac6e9872a2"
+     ],
+     "resources": [
+      {
+       "REG": 48,
+       "STACK": 0,
+       "SHARED": 7696,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 48,
+       "STACK": 0,
+       "SHARED": 7696,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "d498dc4b4bd443f40f2275b95454b9b04159ebbe0ed8f652a695a4ac324db54a",
+      "d498dc4b4bd443f40f2275b95454b9b04159ebbe0ed8f652a695a4ac324db54a"
+     ],
+     "resources": [
+      {
+       "REG": 10,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 10,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    }
+   },
+   "count": 9
+  },
+  "labelInitialization": {
+   "functions": {
+    "_Z22initializeLabelsKernelPfPKiS1_PKyS3_S1_i": {
+     "identical": true,
+     "instructions": [
+      176,
+      176
+     ],
+     "sha256": [
+      "4270989968aa512660039a6b6f0f954beb8f4fdbf3e549124996e5d2ededb621",
+      "4270989968aa512660039a6b6f0f954beb8f4fdbf3e549124996e5d2ededb621"
+     ],
+     "resources": [
+      {
+       "REG": 26,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 26,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z29computeSupernodeWeightsKernelPKiS0_S0_PKfS0_S0_S0_S0_iPyS3_": {
+     "identical": true,
+     "instructions": [
+      184,
+      184
+     ],
+     "sha256": [
+      "070d2d03a45e2f39200ba6f455e786f086d56adda701fce2036ffb422b18277f",
+      "070d2d03a45e2f39200ba6f455e786f086d56adda701fce2036ffb422b18277f"
+     ],
+     "resources": [
+      {
+       "REG": 19,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 19,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    }
+   },
+   "count": 2
+  },
+  "iterativePropagation": {
+   "functions": {
+    "_ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92018commitLabelsKernelEPfPKfPKii": {
+     "identical": true,
+     "instructions": [
+      24,
+      24
+     ],
+     "sha256": [
+      "1d4ed9298a74b0b27130b0e5aaec22d9e6022b1c79033480dcd8d7dc76f92da5",
+      "1d4ed9298a74b0b27130b0e5aaec22d9e6022b1c79033480dcd8d7dc76f92da5"
+     ],
+     "resources": [
+      {
+       "REG": 10,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 10,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92018initFrontierKernelEPKiNS_9GraphViewENS_8QueueOutEi": {
+     "identical": true,
+     "instructions": [
+      136,
+      136
+     ],
+     "sha256": [
+      "4b032b26c7e58cf3642fa6a89cc2647f25fc09dd7bfb8fc154aee4b2df0c07dd",
+      "4b032b26c7e58cf3642fa6a89cc2647f25fc09dd7bfb8fc154aee4b2df0c07dd"
+     ],
+     "resources": [
+      {
+       "REG": 20,
+       "STACK": 64,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 20,
+       "STACK": 64,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92019smallFrontierKernelENS_9GraphViewENS_9QueueSetsEiiiifiPx": {
+     "identical": true,
+     "instructions": [
+      2184,
+      2184
+     ],
+     "sha256": [
+      "f2e0613e8de4f826b4b124c7624f200cb5071720fbd54cf087e15862b51588d0",
+      "f2e0613e8de4f826b4b124c7624f200cb5071720fbd54cf087e15862b51588d0"
+     ],
+     "resources": [
+      {
+       "REG": 61,
+       "STACK": 168,
+       "SHARED": 160,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 61,
+       "STACK": 168,
+       "SHARED": 160,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92020propagateBlockKernelENS_9GraphViewEPKiPfiNS_8QueueOutEfi": {
+     "identical": true,
+     "instructions": [
+      528,
+      528
+     ],
+     "sha256": [
+      "ca49270726e11cb2661f764972ed7a0095da3e3258cde878eca032bd0f9fb0a3",
+      "ca49270726e11cb2661f764972ed7a0095da3e3258cde878eca032bd0f9fb0a3"
+     ],
+     "resources": [
+      {
+       "REG": 38,
+       "STACK": 64,
+       "SHARED": 36,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 38,
+       "STACK": 64,
+       "SHARED": 36,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92020propagateGroupKernelILi32EEEvNS_9GraphViewEPKiPfiNS_8QueueOutEfi": {
+     "identical": true,
+     "instructions": [
+      736,
+      736
+     ],
+     "sha256": [
+      "d9e5b424f88a5b6625cc0d12e95c67d2f7b9c0b6042ff493df9f45d139028b95",
+      "d9e5b424f88a5b6625cc0d12e95c67d2f7b9c0b6042ff493df9f45d139028b95"
+     ],
+     "resources": [
+      {
+       "REG": 30,
+       "STACK": 64,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 30,
+       "STACK": 64,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92020propagateGroupKernelILi8EEEvNS_9GraphViewEPKiPfiNS_8QueueOutEfi": {
+     "identical": true,
+     "instructions": [
+      712,
+      712
+     ],
+     "sha256": [
+      "f1f0191ce3d15386265874f1bc01184753b4659dfd95984f5fb5796dc1b96630",
+      "f1f0191ce3d15386265874f1bc01184753b4659dfd95984f5fb5796dc1b96630"
+     ],
+     "resources": [
+      {
+       "REG": 29,
+       "STACK": 64,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 29,
+       "STACK": 64,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92024enforceGroundTruthKernelEPfPKii": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "106c329cd013dd8b2d116509491217ddec9a4f3b561db68e5d25ef89de254294",
+      "106c329cd013dd8b2d116509491217ddec9a4f3b561db68e5d25ef89de254294"
+     ],
+     "resources": [
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    }
+   },
+   "count": 7
+  },
+  "validation": {
+   "functions": {
+    "_Z10irLPKernelPKiS0_PKfS2_PfS0_S0_iPif": {
+     "identical": true,
+     "instructions": [
+      128,
+      128
+     ],
+     "sha256": [
+      "a1a40da4a0ec3c88cb70afbeb42190146370c91c918f9261d8f1e55b9b4ba087",
+      "a1a40da4a0ec3c88cb70afbeb42190146370c91c918f9261d8f1e55b9b4ba087"
+     ],
+     "resources": [
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 2048,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 16,
+       "STACK": 0,
+       "SHARED": 2048,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    },
+    "_Z19irLPEnforceGTKernelPfPKii": {
+     "identical": true,
+     "instructions": [
+      32,
+      32
+     ],
+     "sha256": [
+      "106c329cd013dd8b2d116509491217ddec9a4f3b561db68e5d25ef89de254294",
+      "106c329cd013dd8b2d116509491217ddec9a4f3b561db68e5d25ef89de254294"
+     ],
+     "resources": [
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      },
+      {
+       "REG": 8,
+       "STACK": 0,
+       "SHARED": 0,
+       "LOCAL": 0,
+       "TEXTURE": 0,
+       "SURFACE": 0,
+       "SAMPLER": 0
+      }
+     ]
+    }
+   },
+   "count": 2
+  }
+ },
+ "identical": true,
+ "differ": [],
+ "negative_control": {
+  "what": "iterativePropagation.cu compiled with dynG's line minus --use_fast_math: the comparison must report a difference",
+  "identical": false,
+  "differ": [
+   "iterativePropagation: _ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92019smallFrontierKernelENS_9GraphViewENS_9QueueSetsEiiiifiPx",
+   "iterativePropagation: _ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92020propagateBlockKernelENS_9GraphViewEPKiPfiNS_8QueueOutEfi",
+   "iterativePropagation: _ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92020propagateGroupKernelILi32EEEvNS_9GraphViewEPKiPfiNS_8QueueOutEfi",
+   "iterativePropagation: _ZN56_GLOBAL__N__a0eeaf07_23_iterativePropagation_cu_df69a92020propagateGroupKernelILi8EEEvNS_9GraphViewEPKiPfiNS_8QueueOutEfi"
+  ],
+  "line": "/usr/local/cuda-13.1/bin/nvcc -forward-unknown-to-host-compiler -I<scratch>/o-archive/headers -I<scratch>/src/cpp/include -I<scratch>/build/cpp/include -I<scratch>/src/cpp/src -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include -isystem /usr/local/cuda-13.1/targets/x86_64-linux/include/cccl -O3 -lineinfo -fmad=true -std=c++17 '--generate-code=arch=compute_86,code=[compute_86,sm_86]' -Xcompiler=-fPIC -Xcompiler=-Wall,-Wextra --extended-lambda --expt-relaxed-constexpr -x cu -c <scratch>/o-archive/src/iterativePropagation.cu -o <scratch>/objs-neg/dyng/iterativePropagation.o  # NEGATIVE CONTROL: --use_fast_math removed"
+ },
+ "scratch": "m10-builds/sass-probe: a git archive of the branch's tree with the throw-away FAST_MATH target zz_probe (cmake --preset parity-cuda -DDYNG_BUILD_TESTS=OFF -DDYNG_BUILD_PARITY_TESTS=OFF), and a fresh git archive a276a3a; deleted afterwards"
+}

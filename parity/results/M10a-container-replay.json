@@ -1,0 +1,130 @@
+{
+ "cases": [
+  {
+   "case": "5k5_d1e-4_s42",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.008987183
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.169627375
+  },
+  {
+   "case": "500k_d1e-4_s42",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 2.353003444
+  },
+  {
+   "case": "5k5_d1e-6_s42",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.009347534
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.174950319
+  },
+  {
+   "case": "5k5_d1e-4_s1",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.034025483
+  },
+  {
+   "case": "5k5_d1e-4_s2",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.012349631
+  },
+  {
+   "case": "50k_d1e-4_s1",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.166073373
+  },
+  {
+   "case": "50k_d1e-4_s2",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.15753715
+  },
+  {
+   "case": "5m_d1e-4_s42",
+   "compared": 51,
+   "digest_mode": true,
+   "equal": true,
+   "inputs": "generated",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 49.400077145
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-10-29T08:48:24Z",
+ "equal": true,
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "the container replay (criterion 9): O's batches on graph::with_capacity, the host apply, against the trace golden and lp_host_model"
+}

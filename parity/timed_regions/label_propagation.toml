@@ -1,0 +1,196 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of label_propagation against LabelPropagation-CUDA@a276a3a (O) (PLAN Sections
+# 6.3 step 3, 6.4.7 and 8.6; ADR 0064; the author's decisions AD2-AD4 of 2026-10-28). Each timer
+# of the original -> the dynG stages or driver timers that match it. Written in M10a step 1,
+# BEFORE the first commit that creates anything under cpp/src/algorithms/label_propagation/,
+# cpp/include/dyng/label_propagation.hpp, cpp/src/graph/ or cpp/include/dyng/graph/ (PLAN 6.3:
+# "without this table '<= 1.05x of the paper-timed region' is not well defined"). parity/perf_ab.py
+# LOADS it (load_regions("dynlp_cuda", LP_REGION_MAP, ...)) and refuses a region whose original
+# report key it does not know, that names no port stage, or that has an unknown key;
+# parity/bench_suite.py reads the same rows (region_map("label_propagation", "cuda")). `gate` is
+# "compute" (<= 1.05x; <= 1.10x with at least 20 runs where O's median is below 10 ms),
+# "end_to_end" (<= 1.10x), "memory" (<= 1.05x, the device_memory row only) or "none" (reported):
+# PLAN 8.6's tolerances and no others.
+#
+# per_batch = true with first_batch = 0: one row per batch, "<name>[b0]", "<name>[b1]", ...: DynLP's
+# batch 0 (the 1 % ground truth and the edges among it) is an ordinary update, counted, timed and
+# consuming a propagation tag. The rows list b0..b10 (the 11 batches of 50M x 11); a case reads the
+# rows of its own batches b0..b(B-1). report_sum = true: the sum over the case's batches is the row
+# "<name>[sum]"; sum_gate = "compute" makes it the gated row (AD2), while the per-batch rows stay
+# reported (gate = "none").
+#
+# What O times (src/dynLP.cu runDynLP, lines 410-736): two CUDA events recorded on streamCompute,
+# batchStart at :418 (BEFORE the host net-effect pass of lines 435-479: the effective insertions
+# Ins \ Del, the host status, the id checks) and batchEnd at :642 (after Step 3, the iterative
+# propagation, which ends with the ground-truth enforcement kernel), cudaEventSynchronize(batchEnd),
+# cudaEventElapsedTime -> BatchResult::timeMs -> results.csv time_ms (utils.cu:265-300). Inside:
+# the transfers of the batch on streamTransfer from page-locked memory (:493-520, overlapped with
+# Step 1a through the events idsReady / edgesReady), b2 deletions + status (:530-546), b3 the edge
+# append (:556), and, only when numInserted > 0, b4 sparsify, b5 connected components, b6 label
+# initialization (:561-616; the --check copies at :584-598 and the --verbose count copy at :592-598
+# are inside the region, which is why timed rounds run with --quiet and without --check), then b7
+# propagation (:631). Outside: the evaluation (:661-716: the error flags and the labels back to the
+# host, the accuracy; eval_ms, host wall clock), --validate's IrLP snapshots, the setup before the
+# loop (:290-410: every device allocation for the largest batch, cudaHostRegister of every batch
+# vector at :217 via pinBatches, the workspaces) and the generation (main.cu, before runDynLP).
+#
+# The port (M10a steps 4-5): `dyng-compat-dynlp` (tools/compat/dynlp) with O's argv, the
+# parity-cuda preset, writing O's results.csv format: time_ms = the CUDA-event time bracketing each
+# public label_propagation::update() call, recorded on the resources' stream (O's own mechanism),
+# with the host wall time from the call to its return beside it (column host_ms, reported). The
+# parity flow: graph::with_capacity(stream.row_capacity), compute() on the empty capacity graph
+# (untimed setup: the workspaces reserved for the largest batch, result::reserve), then
+# update(b0)..update(b(B-1)) with the published tau. Its profiler stages (the sketch's names,
+# docs/design/sketches/label_propagation.md; recorded per stage under --sync-stages in the
+# diagnostic reading only): label_propagation.update > { .normalize, .commit (the status changes
+# and the edge append), .identify_affected (> .sparsify, .components), .seed, .loop, .finalize }.
+#
+# Scope rules (both sides; AD2, decided by the author on 2026-10-28; ADR 0064):
+#   - Generation is outside the region (O: main.cu before runDynLP; the port draws the stream with
+#     generators::legacy before its first timer).
+#   - The batch arrays are page-locked and the workspaces reserved for the largest batch BEFORE the
+#     timer: O does this in its setup; the port uses pinned_host arrays, compute() on the empty
+#     capacity graph and result::reserve.
+#   - Timed rounds run with --quiet --noValidate and without --check, --profile or --sync-stages.
+#   - The evaluation runs after the timer, every batch (O's eval_ms; the port's the same).
+#   - One process per case; tau is published (O's computeAvgEdgeWeight of the full graph).
+#   - CUDA_MODULE_LOADING=EAGER on both sides, and no OMP_* variables.
+#   - end_to_end uses bench/run.sh's argv (--quiet --noValidate); the graph files are written into
+#     a fresh per-run scratch directory on the same filesystem for both sides and deleted after the
+#     round; 50M runs with --noGraphFiles on both sides.
+# Gated (AD2): update[sum] on damped readings, end_to_end, device_memory. The in_place schedule is
+# reported (its iterations vary between runs). The clock per case and schedule is the recorded
+# 3-round boost probe's lock, else base; default clocks are recorded only (AD3; ADRs 0018, 0021).
+
+[reference.dynlp_cuda]
+repo = "LabelPropagation-CUDA"
+commit = "a276a3a"
+driver = "bin/dynLP of the UNPATCHED copy (its Makefile), O's argv --quiet --noValidate, results.csv"
+port_driver = "dyng-compat-dynlp (tools/compat/dynlp), parity-cuda preset, O's argv, results.csv in O's format"
+
+# The paper-timed region (PLAN 6.4.7: the sum of the per-batch time_ms; AD2), gated as the sum.
+[[reference.dynlp_cuda.region]]
+name = "update"
+per_objective = false
+per_batch = true
+first_batch = 0
+rows = ["update[b0]", "update[b1]", "update[b2]", "update[b3]", "update[b4]", "update[b5]", "update[b6]", "update[b7]", "update[b8]", "update[b9]", "update[b10]"]
+report_sum = true
+sum_gate = "compute"
+original = ["time_ms (CUDA events on streamCompute: batchStart before the host net-effect pass, batchEnd after propagation and GT enforcement)"]
+original_report = ["csv:time_ms"]
+port = ["label_propagation.update"]
+port_report = ["csv:time_ms"]
+gate = "none"
+note = """
+The gated row is update[sum]: O = the sum of csv:time_ms over b0..b(B-1); port = the sum of the
+CUDA-event time bracketing each public label_propagation::update() call on the resources' stream
+in dyng-compat-dynlp (O's own mechanism: an event recorded before the call's first work, one after
+its last, cudaEventElapsedTime), with the host wall time from the call to its return recorded
+beside it (csv:host_ms). <= 1.05x; <= 1.10x with at least 20 runs where O's median is below 10 ms
+(PLAN 8.6). The per-batch rows update[b0..] are reported. Both sides include the host work of a
+batch (O's net-effect pass is after batchStart; the port's Step 0 is inside update()) and the
+batch's host-to-device transfer from page-locked memory; neither includes the setup."""
+
+# The evaluation after every batch (O: the error flags and the labels to the host, the accuracy).
+[[reference.dynlp_cuda.region]]
+name = "eval"
+per_objective = false
+original = ["eval_ms (host wall clock: launchReadErrorFlags + the labels to the host + computeAccuracy), summed over the batches"]
+original_report = ["csv:eval_ms"]
+port = ["dyng-compat-dynlp evaluation (the labels to the host and the accuracy, after the update timer)"]
+port_report = ["csv:eval_ms"]
+gate = "none"
+note = "Reported. Outside the timed region on both sides (AD2: evaluation after the timer, every batch)."
+
+# The whole process (bench/run.sh's wall_s; PLAN 8.6 end to end, <= 1.10x).
+[[reference.dynlp_cuda.region]]
+name = "end_to_end"
+per_objective = false
+original = ["process wall time of bin/dynLP with bench/run.sh's argv (--quiet --noValidate), the graph files written"]
+original_report = ["process wall time"]
+port = ["process wall time of dyng-compat-dynlp with the same argv"]
+port_report = ["process wall time"]
+gate = "end_to_end"
+note = """
+The harness's clock around the process, as bench/run.sh's wall_s (date +%s.%N around the run):
+generation, the graph files written into a fresh per-run scratch directory on the same filesystem
+for both sides (deleted after the round; --noGraphFiles at 50M only, on both sides), the CUDA
+context, the setup, the batches, the evaluation, dynlp_labels.txt and results.csv. One process per
+case."""
+
+# The device memory (PLAN 8.6 <= 1.05x; GOVERNANCE D1).
+[[reference.dynlp_cuda.region]]
+name = "device_memory"
+per_objective = false
+original = ["the Nsight Systems peak of live device allocations (cudaMalloc + cudaMallocAsync, kind Device) of the whole process"]
+original_report = ["nsys:peak_live"]
+port = ["the same peak of dyng-compat-dynlp's whole process"]
+port_report = ["nsys:peak_live"]
+gate = "memory"
+note = """
+D1: read on GPU 1 under the shared lock with no foreign process (nvidia-smi before, during and
+after), in a GPU-1 quiet window (B5); one profiled process per side and case, the timed argv."""
+
+# --- Reported, never gated: the stages, from a separate diagnostic reading (O with --profile,
+# whose stage boundaries synchronize the device; the port with --sync-stages). ------------------
+
+[[reference.dynlp_cuda.region]]
+name = "stage.host_batch"
+per_objective = false
+original = ["b1.host.batchIds (the host net-effect pass: Ins \\ Del, the host status, the id checks)"]
+original_report = ["stages:b1.host.batchIds"]
+port = ["label_propagation.normalize"]
+gate = "none"
+
+[[reference.dynlp_cuda.region]]
+name = "stage.vertex_changes"
+per_objective = false
+original = ["b2.deletions+status (mark the neighbours of the deleted vertices, apply the status changes, mark the inserted)"]
+original_report = ["stages:b2.deletions+status"]
+port = ["label_propagation.commit"]
+gate = "none"
+note = "With stage.append_edges, the commit (the vertex changes and the edge append of graph::apply)."
+
+[[reference.dynlp_cuda.region]]
+name = "stage.append_edges"
+per_objective = false
+original = ["b3.appendEdges (the stable radix sort of the half-edges and the slot append)"]
+original_report = ["stages:b3.appendEdges"]
+port = ["label_propagation.commit"]
+gate = "none"
+note = "Read together with stage.vertex_changes against the port's commit (one port stage for both)."
+
+[[reference.dynlp_cuda.region]]
+name = "stage.sparsify"
+per_objective = false
+original = ["b4.sparsify (G': the new-to-new edges with w > tau; only when numInserted > 0)"]
+original_report = ["stages:b4.sparsify"]
+port = ["label_propagation.identify_affected.sparsify"]
+gate = "none"
+
+[[reference.dynlp_cuda.region]]
+name = "stage.components"
+per_objective = false
+original = ["b5.connectedComponents (Shiloach-Vishkin on G')"]
+original_report = ["stages:b5.connectedComponents"]
+port = ["label_propagation.identify_affected.components"]
+gate = "none"
+
+[[reference.dynlp_cuda.region]]
+name = "stage.label_init"
+per_objective = false
+original = ["b6.labelInit (the supernode weights W0 / W1 and the initial labels of Ins \\ Del)"]
+original_report = ["stages:b6.labelInit"]
+port = ["label_propagation.seed"]
+gate = "none"
+
+[[reference.dynlp_cuda.region]]
+name = "stage.propagation"
+per_objective = false
+original = ["b7.propagation (the iterative propagation and the ground-truth enforcement)"]
+original_report = ["stages:b7.propagation"]
+port = ["label_propagation.loop", "label_propagation.finalize"]
+gate = "none"

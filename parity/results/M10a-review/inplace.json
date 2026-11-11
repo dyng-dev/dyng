@@ -1,0 +1,708 @@
+{
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda"
+ },
+ "cases": [
+  {
+   "case": "5k5_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 146,
+    "mismatches": [
+     {
+      "batch": 0,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 1,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 2,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 3,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 4,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     }
+    ]
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     744.7,
+     478.5,
+     250.8,
+     170.5
+    ],
+    "iterations_lo": [
+     0,
+     609.3,
+     391.5,
+     198.9,
+     124.2
+    ],
+    "iterations_sum_hi": 1641.2,
+    "iterations_sum_lo": 1328.4
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 1488,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      677,
+      435,
+      225,
+      151
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 3,
+      "max": 0.0023210000000000175,
+      "mean": 0.00012813997308209912
+     },
+     "run": 0,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 1479,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      677,
+      435,
+      221,
+      146
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 2,
+      "max": 0.0021730000000000915,
+      "mean": 0.00013358950201884288
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 1471,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      677,
+      435,
+      226,
+      133
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 3,
+      "max": 0.0023009999999999975,
+      "mean": 0.00013223665320771685
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 12,
+    "t_max": 0.0069990000000000885,
+    "t_mean": 0.0004279650067294746
+   },
+   "vertices_compared": 4458,
+   "within": false
+  },
+  {
+   "case": "50k_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 291,
+    "mismatches": [
+     {
+      "batch": 0,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 1,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 2,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 3,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 4,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 5,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 6,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 7,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 8,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 9,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     }
+    ]
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     564.3,
+     1449.8,
+     1225.4,
+     656.7,
+     959.2,
+     258.5,
+     255.2,
+     104.5,
+     78.1
+    ],
+    "iterations_lo": [
+     0,
+     461.7,
+     1112.4,
+     927,
+     518.4,
+     369.9,
+     203.4,
+     201.6,
+     83.7,
+     51.3
+    ],
+    "iterations_sum_hi": 5437.3,
+    "iterations_sum_lo": 3977.1
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [
+       9
+      ],
+      "sum": 4868,
+      "sum_within": true,
+      "within": false
+     },
+     "iterations": [
+      0,
+      513,
+      1236,
+      1050,
+      571,
+      874,
+      231,
+      216,
+      89,
+      88
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 186,
+      "max": 0.003609,
+      "mean": 0.0002297184511784515
+     },
+     "run": 0,
+     "within": false
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 4509,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      513,
+      1305,
+      1099,
+      554,
+      413,
+      233,
+      236,
+      89,
+      67
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 136,
+      "max": 0.0018960000000000088,
+      "mean": 0.000182844354657688
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 4851,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      513,
+      1236,
+      1050,
+      540,
+      898,
+      227,
+      221,
+      95,
+      71
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 139,
+      "max": 0.003707,
+      "mean": 0.00019647625140291808
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 405,
+    "t_max": 0.00689699999999982,
+    "t_mean": 0.0005503162289562289
+   },
+   "vertices_compared": 44550,
+   "within": false
+  },
+  {
+   "case": "500k_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 291,
+    "mismatches": [
+     {
+      "batch": 0,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 1,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 2,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 3,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 4,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 5,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 6,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 7,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 8,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 9,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     }
+    ]
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     819.5,
+     1817.2,
+     1535.6,
+     1201.2,
+     652.3,
+     391.6,
+     503.8,
+     288.2,
+     158.4
+    ],
+    "iterations_lo": [
+     0,
+     670.5,
+     1486.8,
+     1256.4,
+     947.7,
+     529.2,
+     299.7,
+     359.1,
+     229.5,
+     82.8
+    ],
+    "iterations_sum_hi": 7320.5,
+    "iterations_sum_lo": 5887.8
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 6667,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      745,
+      1652,
+      1394,
+      1055,
+      595,
+      360,
+      465,
+      258,
+      143
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 1140,
+      "max": 0.408643,
+      "mean": 0.00015174336924803593
+     },
+     "run": 0,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 6634,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      745,
+      1652,
+      1396,
+      1053,
+      598,
+      359,
+      460,
+      263,
+      108
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 964,
+      "max": 0.40874099999999997,
+      "mean": 0.00013000640179573514
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 6657,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      745,
+      1652,
+      1396,
+      1053,
+      591,
+      356,
+      458,
+      261,
+      145
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 846,
+      "max": 0.40862099999999996,
+      "mean": 0.00011327827160493831
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 2997,
+    "t_max": 1.2280980000000001,
+    "t_mean": 0.0003922800875420878
+   },
+   "vertices_compared": 445500,
+   "within": false
+  },
+  {
+   "case": "5m_d1e-4_s42_inplace",
+   "deterministic_trace": {
+    "compared": 291,
+    "mismatches": [
+     {
+      "batch": 0,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 1,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 2,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 3,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 4,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 5,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 6,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 7,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 8,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     },
+     {
+      "batch": 9,
+      "detail": "port i32[1] df3f619804a9 vs golden i32[1] 67abdd721024",
+      "field": "propagation_begin.update_rule"
+     }
+    ]
+   },
+   "envelope": {
+    "iterations_hi": [
+     2,
+     1395.9,
+     1988.8,
+     1806.2,
+     1535.6,
+     1052.7,
+     1028.5,
+     722.7,
+     383.9,
+     419.1
+    ],
+    "iterations_lo": [
+     0,
+     1134.9,
+     1461.6,
+     1333.8,
+     1128.6,
+     806.4,
+     774,
+     554.4,
+     303.3,
+     333.9
+    ],
+    "iterations_sum_hi": 10140.9,
+    "iterations_sum_lo": 7964.1
+   },
+   "runs": [
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 8940,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      1261,
+      1670,
+      1489,
+      1335,
+      922,
+      919,
+      621,
+      344,
+      379
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 6755,
+      "max": 0.435334,
+      "mean": 8.302920134680137e-05
+     },
+     "run": 0,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 8999,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      1261,
+      1757,
+      1496,
+      1296,
+      902,
+      914,
+      659,
+      341,
+      373
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 6503,
+      "max": 0.435042,
+      "mean": 8.066103771043771e-05
+     },
+     "run": 1,
+     "within": true
+    },
+    {
+     "components_exact": true,
+     "iteration_check": {
+      "batches_outside": [],
+      "sum": 9219,
+      "sum_within": true,
+      "within": true
+     },
+     "iterations": [
+      0,
+      1261,
+      1677,
+      1642,
+      1388,
+      958,
+      935,
+      635,
+      345,
+      378
+     ],
+     "labels_within_every_reference": true,
+     "largest": {
+      "flips": 6570,
+      "max": 0.435357,
+      "mean": 8.035054365881031e-05
+     },
+     "run": 2,
+     "within": true
+    }
+   ],
+   "thresholds": {
+    "t_flips": 21525,
+    "t_max": 1.306071,
+    "t_mean": 0.0002672708942760942
+   },
+   "vertices_compared": 4455000,
+   "within": false
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-11-04T00:40:40Z",
+ "gpu": "GPU 1 (default clocks)",
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "/home/sskg8/Projects/dyng-work/m10-builds/run-clone/build/parity-cuda"
+  },
+  "commit": "0ce2052f67faf1159becabfce936ef36d2d40e0b",
+  "executable": "$DYNG_SCRATCH/wt-m10/build/parity-cuda/tools/compat/dyng-compat-dynlp",
+  "parity_cuda": true
+ },
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "CUDA in_place against the frozen calibration (AD5 as decided on 2026-10-28 and 2026-10-29; criterion 13): every port run against every one of the N GPU-1 reference runs within T_mean, T_max and T_flips over the vertices ACTIVE and not ground truth after the last batch, the per-batch iterations and their sum inside the frozen envelope, the components exact; the deterministic stages (components, G', the initial labels, the initial frontier) against the trace golden",
+ "within": false
+}

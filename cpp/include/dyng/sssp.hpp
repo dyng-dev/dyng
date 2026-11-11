@@ -288,6 +288,8 @@ class result {
    * @throws not_supported_error    if an array is in device memory and CUDA is not built.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error.
+   * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+   *         rows serve label_propagation; ADR 0070).
    * @sync
    * @guarantee Strong: `g` and the arrays are not modified, and nothing is kept if the call
    *            throws.
@@ -394,6 +396,8 @@ namespace dyng::sssp {
  *         of options::cuda_engine cannot run (engine::fused without cooperative launch).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync On cuda with the fused engine the stream is synchronized once (the control block of the
  *       kernel is read); with the operators engine (engine::operators, or engine::automatic on a
  *       device without cooperative launch) 2 + iterations + epochs times (once after the first
@@ -453,6 +457,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error (cuda backend; after the
  *         batch was applied, `r` is left unusable).
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync On cuda the stream is synchronized once per result with the fused engine (the kernel's
  *       control block is read), or 3 + iterations + epochs times per result with the operators
  *       engine (engine::operators, or engine::automatic on a device without cooperative launch:

@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from MOSP-OpenMP@c352151:src/csrGraph.cpp (the TextWriter class)
+// Derived from LabelPropagation-CUDA@a276a3a:src/utils.cu (TextWriter::putFixed6)
 /**
  * @file text_writer.hpp
  * @brief text_writer: a buffered text file writer with fast integer formatting.
  *
  * Straight port of MOSP's TextWriter (same bytes: std::to_chars decimal integers), changed to
  * throw io_error instead of reporting through ok()/close() return values. The parent directory
- * of the file is created if it does not exist (as the MOSP writers do).
+ * of the file is created if it does not exist (as the MOSP writers do). put_fixed6() adds
+ * LabelPropagation-CUDA's fixed 6-decimal float format (its TextWriter of the same design).
  */
 #pragma once
 
@@ -41,6 +43,20 @@ class text_writer {
   void put(std::int64_t value) {
     char digits[24];
     const auto result = std::to_chars(digits, digits + sizeof(digits), value);
+    buffer_.append(digits, result.ptr);
+    maybe_flush();
+  }
+
+  /**
+   * @brief Append a float in fixed notation with 6 decimals, exactly as LabelPropagation-CUDA's
+   *        TextWriter::putFixed6 (src/utils.cu): std::to_chars(double(x), chars_format::fixed, 6),
+   *        the bytes of iostream's `std::fixed << std::setprecision(6)` (correctly rounded).
+   * @param[in] value The value (finite or not: to_chars prints inf / nan as O does).
+   */
+  void put_fixed6(float value) {
+    char digits[64];  // |value| <= FLT_MAX: at most 39 integer digits, the point and 6 decimals
+    const auto result = std::to_chars(digits, digits + sizeof(digits), static_cast<double>(value),
+                                      std::chars_format::fixed, 6);
     buffer_.append(digits, result.ptr);
     maybe_flush();
   }

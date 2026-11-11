@@ -176,6 +176,39 @@ SYMBOLS = [
     "ensureScratchCapacity",
     "checkSubtreeAvail",
     "EscherError",
+    # LabelPropagation-CUDA@a276a3a, the generator, the writers and the checker's oracles (M10a)
+    "generateSparseGraph",
+    "generateBatches",
+    "edgeListToCSR",
+    "computeAvgEdgeWeight",
+    "writeGraphFiles",
+    "writeLabelsToFile",
+    "putFixed6",
+    "DynLPConfig",
+    # LabelPropagation-CUDA@a276a3a, the pipeline (M10a step 3 on)
+    "runDynLP",
+    "irLPKernel",
+    "launchAppendEdges",
+    "launchIterativePropagation",
+    "smallFrontierKernel",
+    "halfEdgesKernel",
+    "accumulateNeighbors",
+    "BatchData",
+    "DynLPChecker",
+    "harmonicSolution",
+    "checkLabels",
+    # LabelPropagation-CUDA@a276a3a, the fused CUDA engine (M10a step 4)
+    "markDeletionsKernel",
+    "buildSubgraphKernel",
+    "launchConnectedComponents",
+    "computeSupernodeWeightsKernel",
+    "launchLabelInitialization",
+    "appendToQueue",
+    "processVertexGroup",
+    "processVertexBlock",
+    "launchBinSweep",
+    "PropagationWorkspace",
+    "advanceRowEndKernel",
 ]
 
 RENAME_MAP = REPO / "parity" / "escher_port" / "rename_map.toml"
@@ -257,6 +290,10 @@ NOT_DERIVED = {
     "there)",
     "cpp/src/algorithms/triad_count/engine/exact.hpp": "new exact arithmetic (ADR 0057); names "
     "ESCHER-GPU's Choose3Op / Type2Op / Type3Op only to say what it replaces",
+    "cpp/include/dyng/label_propagation.hpp": "public API; documents the semantics the port "
+    "reproduces (label_propagation.cpp and problem.hpp carry the header)",
+    "cpp/src/algorithms/label_propagation/trace.hpp": "declares the stage trace in the format of "
+    "dynG's recorder (ADR 0065); no copied code",
 }
 
 

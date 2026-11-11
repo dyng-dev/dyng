@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file util_test.cpp
- * @brief The private text scanner, text writer and legacy random-number reproduction.
+ * @brief The private text scanner, text writer and legacy random-number reproduction, and
+ *        LabelPropagation-CUDA's text files (io/dynlp_text.hpp).
  */
+#include "io/dynlp_text.hpp"
 #include "support/data_paths.hpp"
 #include "util/parser.hpp"
 #include "util/rng.hpp"
@@ -177,6 +179,49 @@ TEST(TextWriter, WritesAndReportsErrors) {
   EXPECT_EQ(dyng::test::read_text(tmp.path("a/b/c.txt")), "-12 INF\n");
   EXPECT_THROW(dyng::detail::text_writer(tmp.path("a/b/c.txt/cannot")), dyng::io_error);
   EXPECT_THROW((void)dyng::detail::read_file(tmp.path("missing.txt")), dyng::io_error);
+}
+
+TEST(TextWriter, Fixed6AsLabelPropagationCuda) {
+  // O's putFixed6: to_chars(double(x), fixed, 6), correctly rounded from the float's double value.
+  dyng::test::temp_dir tmp;
+  {
+    dyng::detail::text_writer out(tmp.path("f.txt"));
+    for (const float x : {0.0F, 1.0F, 0.5F, 0.1F, 0.0000005F, 0.0000004F, 0.9999995F, 0.123456789F,
+                          0.010000001F, -0.25F, 12345.678F}) {
+      out.put_fixed6(x);
+      out.put_char('\n');
+    }
+    out.close();
+  }
+  // 0.0000005f is 4.99999987e-07 as a double: rounds down; 0.9999995f is 0.99999952316...: up.
+  EXPECT_EQ(dyng::test::read_text(tmp.path("f.txt")),
+            "0.000000\n1.000000\n0.500000\n0.100000\n0.000000\n0.000000\n1.000000\n0.123457\n"
+            "0.010000\n-0.250000\n12345.677734\n");
+}
+
+TEST(DynlpText, GraphAndLabelFilesInTheOriginalsBytes) {
+  dyng::test::temp_dir tmp;
+  const std::vector<std::int32_t> row_ptr = {0, 1, 3, 4};
+  const std::vector<std::int32_t> col_ind = {1, 0, 2, 1};
+  const std::vector<float> values = {0.75F, 0.75F, 0.0125F, 0.0125F};
+  const std::vector<std::int8_t> labels = {1, 0, 1};
+  dyng::detail::write_dynlp_graph_files<std::int32_t, std::int32_t>(
+      tmp.path("out/graph/csr"), row_ptr, col_ind, values, labels);
+  EXPECT_EQ(dyng::test::read_text(tmp.path("out/graph/csrRowPtr.txt")), "0\n1\n3\n4\n");
+  EXPECT_EQ(dyng::test::read_text(tmp.path("out/graph/csrColInd.txt")), "1\n0\n2\n1\n");
+  EXPECT_EQ(dyng::test::read_text(tmp.path("out/graph/csrValues.txt")),
+            "0.750000\n0.750000\n0.012500\n0.012500\n");
+  EXPECT_EQ(dyng::test::read_text(tmp.path("out/graph/csrTrueLabels.txt")), "0 1\n1 0\n2 1\n");
+  const std::vector<std::int64_t> wide(row_ptr.begin(), row_ptr.end());
+  dyng::detail::write_dynlp_graph_files<std::int32_t, std::int64_t>(tmp.path("w/csr"), wide,
+                                                                    col_ind, values, labels);
+  EXPECT_EQ(dyng::test::read_text(tmp.path("w/csrRowPtr.txt")), "0\n1\n3\n4\n");
+  EXPECT_THROW((dyng::detail::write_dynlp_graph_files<std::int32_t, std::int32_t>(
+                   tmp.path("x/csr"), row_ptr, col_ind, values, std::vector<std::int8_t>{1})),
+               dyng::invalid_argument_error);
+  dyng::detail::write_dynlp_labels(tmp.path("out/dynlp_labels.txt"), {0.0F, 1.0F, 0.3333333F});
+  EXPECT_EQ(dyng::test::read_text(tmp.path("out/dynlp_labels.txt")),
+            "0 0.000000\n1 1.000000\n2 0.333333\n");
 }
 
 TEST(LegacyUniformInt, DeterministicAndInRange) {

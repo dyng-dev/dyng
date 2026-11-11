@@ -1,0 +1,529 @@
+{
+ "schema": 2,
+ "what": "mutation checks of the golden parity (PLAN 8.4): label_propagation",
+ "date": "2026-11-04T17:41:35Z",
+ "commit": "107dfef16370bed900beaf28efea1b6bfd4373c3",
+ "goldens": {
+  "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
+  "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml",
+  "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the lockstep and graph-on-CBST tests (no golden corpus)",
+  "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
+  "triad_count": "triad_count's tests against the independent oracle (dyng::testing::triad_reference) on every backend (no golden corpus)",
+  "label_propagation": "label_propagation's tests against the independent oracles (dyng::testing::harmonic_solution, union_find, lp_host_model) and the original's damped counts and hub golden, on sequential and cuda"
+ },
+ "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst test executables, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "suite": "label_propagation",
+   "config": "cuda",
+   "build": "ok",
+   "replays": [
+    {
+     "suite": "label_propagation",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "tests": {
+      "dyng_label_propagation_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_label_propagation_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_label_propagation_checker_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_label_propagation_checker_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_label_propagation_conformance_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_label_propagation_conformance_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    }
+   ],
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "inplace_plain_jacobi",
+   "suite": "label_propagation",
+   "plan": "AD9 / PLAN 8.4: in_place as one sweep reading the previous labels (no half-sweeps, no damping)",
+   "defines": [
+    "DYNG_MUTATION_LP_INPLACE_PLAIN_JACOBI"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 14
+   },
+   "tests": {
+    "dyng_label_propagation_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.ASeedFreePairConverges"
+     ]
+    },
+    "dyng_label_propagation_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.ASeedFreePairConverges",
+      "LabelPropagationCuda.ComponentsEqualUnionFind",
+      "LabelPropagationCuda.DeterministicStagesEqualSequential",
+      "LabelPropagationCuda.EachDeviceAllocationFailureKeepsTheGuarantee",
+      "LabelPropagationCuda.HubGolden",
+      "LabelPropagationCuda.OriginalInputContractThroughUpdate",
+      "LabelPropagationCuda.OutOfMemoryUnderALimitWithoutALeak",
+      "LabelPropagationCuda.ResultsMoveBetweenTheBackends",
+      "LabelPropagationCuda.UpdatesAfterReserveAllocateOnlyInTheFirstBatches"
+     ]
+    },
+    "dyng_label_propagation_checker_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.InPlace50k"
+     ]
+    },
+    "dyng_label_propagation_checker_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.InPlace50k"
+     ]
+    },
+    "dyng_label_propagation_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "label_propagation/conformance/slotted_v32_e32_float.C9_StatsAreSane",
+      "label_propagation/conformance/slotted_v32_e64_float.C9_StatsAreSane"
+     ]
+    },
+    "dyng_label_propagation_conformance_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "damped_no_damping",
+   "suite": "label_propagation",
+   "plan": "AD9 / PLAN 8.4: damped without the damping, F' = the average",
+   "defines": [
+    "DYNG_MUTATION_LP_DAMPED_NO_DAMPING"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 11
+   },
+   "tests": {
+    "dyng_label_propagation_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.ASeedFreePairConverges",
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream"
+     ]
+    },
+    "dyng_label_propagation_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.ASeedFreePairConverges",
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream",
+      "LabelPropagationCuda.HubGolden"
+     ]
+    },
+    "dyng_label_propagation_checker_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k"
+     ]
+    },
+    "dyng_label_propagation_checker_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k"
+     ]
+    },
+    "dyng_label_propagation_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C9_StatsAreSane",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C9_StatsAreSane"
+     ]
+    },
+    "dyng_label_propagation_conformance_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "lp_d_a_unfiltered_components",
+   "suite": "label_propagation",
+   "plan": "AD9 / O's D-a (5dddc4e): the components over the unfiltered new edges",
+   "defines": [
+    "DYNG_MUTATION_LP_D_A_UNFILTERED_COMPONENTS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 22
+   },
+   "tests": {
+    "dyng_label_propagation_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.AnEdgeOfWeightTauIsNotInGPrime",
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.DampedStreamMeetsTheOracle",
+      "LabelPropagation.InPlaceStreamMeetsTheOracle",
+      "LabelPropagation.OtherSeedsAndSixtyFourBitOffsets",
+      "LabelPropagation.TheDefaultThresholdIsTheAverageLiveWeight",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream"
+     ]
+    },
+    "dyng_label_propagation_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.AnEdgeOfWeightTauIsNotInGPrime",
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.DampedStreamMeetsTheOracle",
+      "LabelPropagation.InPlaceStreamMeetsTheOracle",
+      "LabelPropagation.OtherSeedsAndSixtyFourBitOffsets",
+      "LabelPropagation.TheDefaultThresholdIsTheAverageLiveWeight",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream"
+     ]
+    },
+    "dyng_label_propagation_checker_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k",
+      "LabelPropagationChecker.Damped5k5",
+      "LabelPropagationChecker.InPlace50k",
+      "LabelPropagationChecker.InPlace5k5"
+     ]
+    },
+    "dyng_label_propagation_checker_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k",
+      "LabelPropagationChecker.Damped5k5",
+      "LabelPropagationChecker.InPlace50k",
+      "LabelPropagationChecker.InPlace5k5"
+     ]
+    },
+    "dyng_label_propagation_conformance_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_label_propagation_conformance_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "lp_d_b_affected_too_small",
+   "suite": "label_propagation",
+   "plan": "AD9 / O's D-b (4a8a631): the present endpoints of new edges not marked",
+   "defines": [
+    "DYNG_MUTATION_LP_D_B_AFFECTED_TOO_SMALL"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 28
+   },
+   "tests": {
+    "dyng_label_propagation_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.DampedStreamMeetsTheOracle",
+      "LabelPropagation.EdgeOnlyBatchMarksItsEndpoints",
+      "LabelPropagation.InPlaceStreamMeetsTheOracle",
+      "LabelPropagation.OtherSeedsAndSixtyFourBitOffsets",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream"
+     ]
+    },
+    "dyng_label_propagation_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.DampedStreamMeetsTheOracle",
+      "LabelPropagation.EdgeOnlyBatchMarksItsEndpoints",
+      "LabelPropagation.InPlaceStreamMeetsTheOracle",
+      "LabelPropagation.OtherSeedsAndSixtyFourBitOffsets",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream"
+     ]
+    },
+    "dyng_label_propagation_checker_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k",
+      "LabelPropagationChecker.Damped5k5",
+      "LabelPropagationChecker.InPlace50k",
+      "LabelPropagationChecker.InPlace5k5"
+     ]
+    },
+    "dyng_label_propagation_checker_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k",
+      "LabelPropagationChecker.Damped5k5",
+      "LabelPropagationChecker.InPlace50k",
+      "LabelPropagationChecker.InPlace5k5"
+     ]
+    },
+    "dyng_label_propagation_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "label_propagation/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle"
+     ]
+    },
+    "dyng_label_propagation_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "label_propagation/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "lp_d_c_stale_buffer",
+   "suite": "label_propagation",
+   "plan": "AD9 / O's D-c (8419483): the damped commit leaves non-updated entries two iterations old",
+   "defines": [
+    "DYNG_MUTATION_LP_D_C_STALE_BUFFER"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 5
+   },
+   "tests": {
+    "dyng_label_propagation_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream"
+     ]
+    },
+    "dyng_label_propagation_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream",
+      "LabelPropagationCuda.HubGolden"
+     ]
+    },
+    "dyng_label_propagation_checker_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_label_propagation_checker_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_label_propagation_conformance_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_label_propagation_conformance_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "lp_d_e_resurrected",
+   "suite": "label_propagation",
+   "plan": "AD9 / O's D-e (a38ce8c): an id inserted and deleted in one batch re-activated",
+   "defines": [
+    "DYNG_MUTATION_LP_D_E_RESURRECTED"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 57
+   },
+   "tests": {
+    "dyng_label_propagation_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.DampedStreamMeetsTheOracle",
+      "LabelPropagation.InPlaceStreamMeetsTheOracle",
+      "LabelPropagation.InsertedAndDeletedInOneBatchEndsDeleted",
+      "LabelPropagation.OtherSeedsAndSixtyFourBitOffsets",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream"
+     ]
+    },
+    "dyng_label_propagation_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagation.CompositionAndClone",
+      "LabelPropagation.ComputeIsIrLP",
+      "LabelPropagation.DampedIterationsAreTheOriginals",
+      "LabelPropagation.DampedStreamMeetsTheOracle",
+      "LabelPropagation.InPlaceStreamMeetsTheOracle",
+      "LabelPropagation.InsertedAndDeletedInOneBatchEndsDeleted",
+      "LabelPropagation.OnLimit",
+      "LabelPropagation.OtherSeedsAndSixtyFourBitOffsets",
+      "LabelPropagation.RunToRunBitsOfBothSchedules",
+      "LabelPropagation.TheDefaultThresholdIsTheAverageLiveWeight",
+      "LabelPropagation.TheLabelBitsOfTheFiveThousandVertexStream",
+      "LabelPropagationCuda.DeterministicStagesEqualSequential",
+      "LabelPropagationCuda.EachDeviceAllocationFailureKeepsTheGuarantee",
+      "LabelPropagationCuda.OriginalInputContractThroughUpdate",
+      "LabelPropagationCuda.OutOfMemoryUnderALimitWithoutALeak",
+      "LabelPropagationCuda.ResultsMoveBetweenTheBackends",
+      "LabelPropagationCuda.UpdatesAfterReserveAllocateOnlyInTheFirstBatches"
+     ]
+    },
+    "dyng_label_propagation_checker_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k",
+      "LabelPropagationChecker.Damped5k5",
+      "LabelPropagationChecker.InPlace50k",
+      "LabelPropagationChecker.InPlace5k5"
+     ]
+    },
+    "dyng_label_propagation_checker_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationChecker.Damped50k",
+      "LabelPropagationChecker.Damped5k5",
+      "LabelPropagationChecker.InPlace50k",
+      "LabelPropagationChecker.InPlace5k5"
+     ]
+    },
+    "dyng_label_propagation_conformance_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationKitGenerators.EveryMixMakesWhatItsNamePromises",
+      "label_propagation/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation/conformance/slotted_v32_e32_float.C9_StatsAreSane",
+      "label_propagation/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation/conformance/slotted_v32_e64_float.C9_StatsAreSane",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C9_StatsAreSane",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C9_StatsAreSane"
+     ]
+    },
+    "dyng_label_propagation_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "LabelPropagationKitGenerators.EveryMixMakesWhatItsNamePromises",
+      "label_propagation/conformance/slotted_v32_e32_float.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates",
+      "label_propagation/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation/conformance/slotted_v32_e32_float.C3_BackendsAgree",
+      "label_propagation/conformance/slotted_v32_e32_float.C9_StatsAreSane",
+      "label_propagation/conformance/slotted_v32_e64_float.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates",
+      "label_propagation/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation/conformance/slotted_v32_e64_float.C3_BackendsAgree",
+      "label_propagation/conformance/slotted_v32_e64_float.C9_StatsAreSane",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C3_BackendsAgree",
+      "label_propagation_damped/conformance/slotted_v32_e32_float.C9_StatsAreSane",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C2_UpdateChainsEqualTheOracle",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C3_BackendsAgree",
+      "label_propagation_damped/conformance/slotted_v32_e64_float.C9_StatsAreSane"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}

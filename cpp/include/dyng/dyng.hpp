@@ -37,6 +37,7 @@
 #include <dyng/dynamic_bfs.hpp>
 #include <dyng/generators/hypergraphs.hpp>
 #include <dyng/generators/legacy.hpp>
+#include <dyng/generators/vertex_arrival.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>
 #include <dyng/graph/edge_batch.hpp>
@@ -57,6 +58,7 @@
 #include <dyng/io/hypergraph_io.hpp>
 #include <dyng/io/matrix_market.hpp>
 #include <dyng/io/result_io.hpp>
+#include <dyng/label_propagation.hpp>
 #include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
 #include <dyng/triad_count.hpp>

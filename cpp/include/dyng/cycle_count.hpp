@@ -431,6 +431,8 @@ namespace dyng::cycle_count {
  *         device sums wrap at 2^64 as the original's do).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync The histogram is complete on return (a host array on every backend).
  * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms on every backend and thread count.
@@ -489,6 +491,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *         the limit of the backend's 32-bit change ids (nothing is changed).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
+ * @throws not_supported_error    if `g` does not have row_layout::compact (slotted and slack
+ *         rows serve label_propagation; ADR 0070).
  * @sync The graph and the histogram are updated on return.
  * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms and counters on every backend and thread count.

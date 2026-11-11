@@ -35,11 +35,14 @@
  *
  *     static ::testing::AssertionResult compare(const snapshot&, const snapshot&);  // default ==;
  *                                                     // required for determinism::tolerance
- *     template <typename graph_t> static snapshot oracle_of(const graph_t&);  // an independent
- *                                                     // host oracle (dyng::testing), checked in C2
+ *     template <typename graph_t>                    // an independent host oracle
+ *     static snapshot oracle_of(const resources&, const graph_t&);  // (dyng::testing), checked
+ *                                                    // in C2
  *     static std::vector<graph_properties> extra_properties();  // more presets for C2 (e.g. MOSP's)
  *     template <typename graph_t>                    // oracle_kind::reference only: the converged
- *     static ::testing::AssertionResult near_reference(const graph_t&, const snapshot&);
+ *     static ::testing::AssertionResult near_reference(const resources&, const graph_t&,
+ *                                                      const snapshot&);  // reference and its
+ *                                                    // tolerance (C2 and C8)
  *     static constexpr int num_weights;              // weight columns of the kit's graphs (default
  *                                                    // 1; C7 uses num_weights + 1, C10 the larger
  *                                                    // of a pair; mosp: K)
@@ -47,6 +50,19 @@
  *                                                    // one-argument form: a budget that depends on
  *                                                    // the engine that ran (stats::engine_used) and
  *                                                    // its counters, or run_dependent_budget
+ *     template <typename graph_t>                    // the key of the container axis the kit
+ *     using container_axis = ...;                    // reads graph_t through (default graph_t;
+ *                                                    // label_propagation: slotted_axis<graph_t>,
+ *                                                    // conformance/slotted_generators.hpp)
+ *     static constexpr bool affected_deterministic;  // false: stats::affected is no deterministic
+ *                                                    // counter (C3, C6, C10 leave it out; AD20)
+ *     static ::testing::AssertionResult compare_across_backends(const snapshot&,
+ *                                                               const snapshot&);  // C3, C12: a
+ *                                                    // weaker level across backends than per
+ *                                                    // backend (default: compare / ==)
+ *     static std::vector<std::int64_t> deterministic_across_backends(const stats&);  // C3: the
+ *                                                    // counters the backends agree on (default:
+ *                                                    // deterministic() and affected)
  *
  * C8 runs with engine::automatic and, where a backend has a second engine, with
  * engine::operators (on a device without cooperative launch engine::automatic runs that engine).

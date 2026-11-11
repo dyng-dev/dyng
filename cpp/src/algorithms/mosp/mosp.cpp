@@ -156,6 +156,7 @@ resolved_options resolve_options(const mosp::options& opt, int num_weights, cons
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void expect_graph(const graph<vertex_t, edge_t, weight_t>& g, const char* what) {
+  expect_compact_layout(g.properties(), what);  // AD11: compact rows only (ADR 0070)
   DYNG_EXPECTS(g.has_transposed(), what,
                ": mosp needs the in-edges (its sssp updates pull); build the graph with "
                "graph_properties::store_transposed = true");
@@ -463,6 +464,7 @@ class mosp_problem final : public update_participant<vertex_t, edge_t, weight_t>
   /// @copydoc update_participant::before_apply
   void before_apply(const resources& res, const graph_type& g, const batch_type& batch) override {
     const framework::budget_scope half;
+    expect_compact_layout(g.properties(), "mosp::update");  // AD11 (ADR 0070), before anything
     expect_supported_backend(res, "mosp::update");
     expect_not_poisoned(*state_, "mosp::update");
     framework::expect_current_result("mosp::update", state_->version, state_->graph_state, g);

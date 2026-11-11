@@ -247,7 +247,8 @@ struct stats_of {
  *         array must be copied to the host and the copy policy is copy_policy::error.
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
  *         result (vertex operations before 0.4), or a batch array is in device memory and CUDA
- *         is not built.
+ *         is not built; for a result of an algorithm that reads compact rows only (every
+ *         algorithm of 0.1-0.3) when `g` does not have row_layout::compact (ADR 0070).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws error                  any other exception of an algorithm's own update() (for example
  *         cycle_count's internal_error or capacity_error, a cuda_error); the first one is rethrown.
@@ -313,7 +314,8 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  *         host and the copy policy is copy_policy::error.
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
  *         result (vertex operations before 0.4), or a batch array is in device memory and CUDA
- *         is not built.
+ *         is not built; for a result of an algorithm that reads compact rows only (every
+ *         algorithm of 0.1-0.3) when `g` does not have row_layout::compact (ADR 0070).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws error                  any other exception of an algorithm's own update() (for example
  *         cycle_count's internal_error or capacity_error, a cuda_error); the first one is rethrown.

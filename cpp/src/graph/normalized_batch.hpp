@@ -92,6 +92,15 @@ struct normalized_batch {
   mutable buffer<unsigned char> apply_degree;     ///< degrees (bytes, read as the unsigned edge_t)
   mutable buffer<unsigned char> apply_scan_temp;  ///< CUB scratch of the degree scan
 
+  /// Step 0 of batch_semantics::as_net_effect (vertex batches on slotted rows; ADR 0069): the
+  /// batch validated against G_t (normalize_vertex_batch) and its net effect on the vertex set.
+  /// Valid while `vertex_step` (set for this batch and `state_id`); the vectors keep their
+  /// capacity when the object is reused.
+  bool vertex_step = false;
+  std::vector<vertex_t> inserted_vertices;   ///< Ins_eff = Ins \ Del, in list order
+  std::vector<std::int8_t> inserted_labels;  ///< the seed label of each (-1: none)
+  std::vector<vertex_t> deleted_vertices;    ///< Del_eff = Del ∩ V_t, in list order
+
   /**
    * @brief The memory held (for workspace reports).
    * @return Bytes of the vectors' capacity and of the device and staging buffers.
@@ -103,7 +112,10 @@ struct normalized_batch {
            sort_counters.capacity() * sizeof(std::uint32_t) + present.capacity() +
            (device_lists.size() + staging.size()) * sizeof(std::uint32_t) +
            deletion_owner.size() * sizeof(int) + device_present.size() + present_staging.size() +
-           apply_rows.size() * sizeof(std::uint32_t) + apply_degree.size() + apply_scan_temp.size();
+           apply_rows.size() * sizeof(std::uint32_t) + apply_degree.size() +
+           apply_scan_temp.size() +
+           (inserted_vertices.capacity() + deleted_vertices.capacity()) * sizeof(vertex_t) +
+           inserted_labels.capacity();
   }
 };
 

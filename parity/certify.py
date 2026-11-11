@@ -201,6 +201,7 @@ EQUIVALENCE_TARGETS = [
     "dyng-compat-mosp",
     "dyng-compat-cycle-enum",
     # M10 label_propagation
+    "dyng-compat-dynlp",
     # M11 slack_csr / hyper_sssp
     "dyng-compat-hsosp",
     "dyng-compat-escher",
@@ -210,6 +211,7 @@ EQUIVALENCE_FILES = [
     "tools/compat/dyng-compat-mosp",
     "tools/compat/dyng-compat-cycle-enum",
     # M10 label_propagation
+    "tools/compat/dyng-compat-dynlp",
     # M11 slack_csr / hyper_sssp
     "tools/compat/dyng-compat-hsosp",
     "tools/compat/dyng-compat-escher",
@@ -290,6 +292,32 @@ HYPERGRAPH_ID_SINCE = (0, 3)
 # REQUIRED_REPLAYS: a 0.1 or 0.2 certificate lists the set without requiring it.
 TRIAD_REPLAYS_SINCE = (0, 3)
 TRIAD_MODES = ("by_key", "by_content")
+# M10 label_propagation
+# LabelPropagation-CUDA's golden kinds (M10a step 5, ADR 0078): from the 0.4 series (the
+# TRIAD_REPLAYS_SINCE precedent; label_propagation is part of 0.4.0, Appendix F) a certificate
+# needs each set replayed on the backends below (`compare.py label_propagation <kind> --json` and
+# `compare.py label_propagation certificate`: config "<backend>:lp/<kind>"): the generator on
+# sequential, the stage trace on sequential and cuda, damped byte parity and the hub golden on the
+# fused engine from a parity-cuda build only (the record's build is checked), IrLP and the
+# in_place distribution on cuda, and the harmonic oracle on sequential and cuda (C at delta 1e-6
+# in CI, L at delta 1e-4 as the release replay: the set's coverage table). The calibrated kinds
+# (inplace, oracle) pass only with the tolerance recomputed from the committed calibration record
+# (frozen_tolerance_problems). A 0.3 or older certificate lists the sets without a verdict.
+LABEL_PROPAGATION_REPLAYS_SINCE = (0, 4)
+LABEL_PROPAGATION_REPLAYS = {
+    "label_propagation_generator": ["sequential"],
+    "label_propagation_trace": ["sequential", "cuda"],
+    "label_propagation_damped": ["cuda-fused"],
+    "label_propagation_hub": ["cuda-fused"],
+    "label_propagation_irlp": ["cuda"],
+    "label_propagation_inplace": ["cuda"],
+    "label_propagation_oracle": ["sequential", "cuda"],
+}
+LABEL_PROPAGATION_PARITY_CUDA = ("label_propagation_damped", "label_propagation_hub")
+# The cases a set without a coverage table needs on each of its backends (M10a review): its
+# [sets.<name>.cases] table, the in_place thresholds' cases, or these (the hub golden has none).
+LABEL_PROPAGATION_FIXED_CASES = {"label_propagation_hub": ["hub"]}
+LABEL_PROPAGATION_CALIBRATED = ("label_propagation_inplace", "label_propagation_oracle")
 # The features of a hypergraph-id config that count as an id replay.
 HYPERGRAPH_ID_MODES = {
     "ids": ("by_id", "both"),
@@ -324,6 +352,10 @@ REQUIRED_SUITES = {
     "ipdps26_escher": {"algorithm": "triad_count", "since": (0, 3)},
     "tkde26_escher_plus": {"algorithm": "triad_count", "since": (0, 3)},
     # M10 label_propagation
+    # label_propagation against LabelPropagation-CUDA (M10a; 0.4, AD2-AD4): update[sum],
+    # end_to_end and the device memory of every gate case on the damped schedule, and AD4's 50m
+    # release-only reading when its release gate state is "gated" (missing_gates).
+    "ics26_dynlp": {"algorithm": "label_propagation", "since": (0, 4)},
     # M11 slack_csr / hyper_sssp
     # hyper_sssp against MOSP_ESCHER (M11a; 0.4, HD3-HD6): the per-batch timing gates of the 16
     # paper configurations, end to end, and the memory gates (the nsys peak, D1; graph_mb's scope).
@@ -383,6 +415,7 @@ GPU_LOCAL_STEPS = {
     ],
     (0, 4): [
         # M10 label_propagation
+        "label_propagation (CUDA tests, kit, replays of P, in_place cloud, oracle; sanitizers)",
         # M11 slack_csr / hyper_sssp
         "slack_csr sanitizers (all four tools; a forced-overflow session)",
         "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
@@ -840,6 +873,8 @@ def set_algorithm(name: str, spec: dict) -> str:
     if kind == "cbst_trace":
         return "cbst"
     # M10 label_propagation
+    if kind.startswith("label_propagation_"):  # M10a's sets (ADR 0065)
+        return "label_propagation"
     # M11 slack_csr / hyper_sssp
     if kind == "hyper_sssp":
         return "hyper_sssp"
@@ -890,7 +925,7 @@ def golden_suites(
             matrix, compared, failed = replay_matrix(record)
             goldens = record.get("goldens", {})
             ok = bool(record.get("passed")) and failed == 0
-            if "manifest_sha256" not in spec:
+            if "manifest_sha256" not in spec and "coverage" not in spec:
                 replayed = sorted(record.get("cases", []))
                 if replayed != sorted(cases):
                     problems.append(
@@ -898,7 +933,10 @@ def golden_suites(
                         f"{len(cases)} cases of goldens.toml's [sets.{name}]"
                     )
                     ok = False
-            elif goldens.get("manifest_sha256") != spec["manifest_sha256"]:
+            elif (
+                "manifest_sha256" in spec
+                and goldens.get("manifest_sha256") != spec["manifest_sha256"]
+            ):
                 problems.append(
                     f"{rep['file']}: replayed manifest {goldens.get('manifest_sha256')} "
                     f"is not goldens.toml's {spec['manifest_sha256']}"
@@ -947,6 +985,19 @@ def golden_suites(
             out.append(entry)
             continue
         # M10 label_propagation
+        if entry["kind"].startswith("label_propagation_"):
+            # LabelPropagation-CUDA's goldens (M10a, ADRs 0065, 0078): required from the 0.4
+            # series; a 0.3 or older certificate lists them without a verdict (None, which the
+            # golden_parity verdict skips) unless a replay record is there.
+            lp_required = series is None or series >= LABEL_PROPAGATION_REPLAYS_SINCE
+            if not lp_required and not entry["replays"]:
+                entry["passed"] = None
+                entry["required"] = "from 0.4 on (the label_propagation replays of M10a)"
+                out.append(entry)
+                continue
+            label_propagation_replays(name, spec, entry, problems)
+            out.append(entry)
+            continue
         # M11 slack_csr / hyper_sssp
         hsosp_required = entry["kind"] == "hyper_sssp" and (
             series is None or series >= HYPER_SSSP_REPLAYS_SINCE
@@ -1039,6 +1090,186 @@ def golden_suites(
                         )
                         entry["passed"] = False
         out.append(entry)
+    return out
+
+
+def label_propagation_replays(name: str, spec: dict, entry: dict, problems: list[str]) -> None:
+    """The verdict of a label_propagation golden set (M10a step 5, ADR 0078): passed replays on
+    every backend of LABEL_PROPAGATION_REPLAYS (the config's backend: "cuda-fused" counts only as
+    itself), the fused-engine kinds from a parity-cuda build, the set's coverage table (the
+    oracle: C on every backend, L on cuda) covered by passed cases, and for the calibrated kinds
+    the frozen tolerance (frozen_tolerance_problems)."""
+    wanted = LABEL_PROPAGATION_REPLAYS.get(name, [])
+    entry["required_backends"] = wanted
+    ok = bool(entry["replays"]) and all(r["passed"] for r in entry["replays"])
+    have: dict[str, set[str]] = {}
+    for r in entry["replays"]:
+        for c in r["configs"]:
+            backend = c.split(":", 1)[0]
+            if (
+                name in LABEL_PROPAGATION_PARITY_CUDA
+                and (r.get("build") or {}).get("preset") != "parity-cuda"
+            ):
+                problems.append(
+                    f"golden set {name}: {r['record']} is not from a parity-cuda build (the fused "
+                    "engine's byte parity is the parity-cuda preset's, AD6)"
+                )
+                ok = False
+                continue
+            if r["passed"]:
+                cases = {case for case, row in r["matrix"].items() if row.get(c) == "equal"}
+                have.setdefault(backend, set()).update(cases)
+    missing = [b for b in wanted if b not in have]
+    if missing:
+        problems.append(
+            f"golden set {name}: no passed replay on {', '.join(missing)} (compare.py "
+            "label_propagation <kind> --json, then compare.py label_propagation certificate)"
+        )
+        ok = False
+    coverage = spec.get("coverage") or {
+        backend: label_propagation_cases(name, spec) for backend in wanted
+    }
+    for backend, cases in sorted(coverage.items()):
+        if not cases:
+            problems.append(f"golden set {name}: goldens.toml lists no case for {backend}")
+            ok = False
+            continue
+        absent = sorted(set(cases) - have.get(backend, set()))
+        if absent:
+            problems.append(
+                f"golden set {name}: {len(absent)} of the {len(cases)} cases "
+                f"{'its coverage table gives' if spec.get('coverage') else 'of the set need'} "
+                f"{backend} have no passed replay (first: {absent[0]}; a replay of a subset "
+                "certifies nothing of the rest)"
+            )
+            ok = False
+    if name in LABEL_PROPAGATION_CALIBRATED:
+        before = len(problems)
+        problems += frozen_tolerance_problems(name, spec, entry)
+        ok = ok and len(problems) == before
+    if name == "label_propagation_damped":
+        before = len(problems)
+        problems += original_value_set_problems(name, entry)
+        ok = ok and len(problems) == before
+    entry["passed"] = ok
+
+
+def label_propagation_cases(name: str, spec: dict) -> list[str]:
+    """The cases of a label_propagation set that every backend of LABEL_PROPAGATION_REPLAYS must
+    replay when the set has no coverage table (M10a review: the whole set, never a subset): the
+    in_place thresholds' cases (the calibrated cases; the set's delta 1e-6 runs feed the class
+    margin, not a replay), else the set's [sets.<name>.cases] table, else
+    LABEL_PROPAGATION_FIXED_CASES."""
+    if name == "label_propagation_inplace":
+        return sorted(spec.get("thresholds") or {})
+    if spec.get("cases"):
+        return sorted(spec["cases"])
+    return list(LABEL_PROPAGATION_FIXED_CASES.get(name, []))
+
+
+def original_value_set_problems(name: str, entry: dict) -> list[str]:
+    """The damped replay's non-deterministic counters (ADR 0100; the author's decision of
+    2026-11-05): connected_components.hook_rounds may differ from the golden only by a value the
+    original's own runs produce for that case and batch. The committed evidence record
+    (label_propagation_port.ORIGINAL_VALUES_RECORD) must be derived from its committed twin
+    records; a replay that applied a rule (its tolerance) must name that record by its SHA-256 and
+    those fields alone, and every difference it accepted must have both values in the evidence's
+    set of the case and batch. A replay without a rule compared every field exactly."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import label_propagation_port as lpp
+
+    own = lpp.original_values_problems()
+    if own:
+        return [f"golden set {name}: {p}" for p in own]
+    record = lpp.ORIGINAL_VALUES_RECORD
+    sha = hashlib.sha256(record.read_bytes()).hexdigest()
+    sets = json.loads(record.read_text()).get("cases") or {}
+    fields = sorted(f"{t}.{n}" for t, n in lpp.ORIGINAL_VALUE_FIELDS)
+    entry["original_value_sets"] = {
+        "record": record.relative_to(REPO).as_posix(), "sha256": sha, "fields": fields,
+    }  # fmt: skip
+    out = []
+    for r in entry["replays"]:
+        tol = r.get("tolerance")
+        if tol is None:
+            continue
+        rule = tol.get("original_value_sets") if isinstance(tol, dict) else None
+        if not isinstance(rule, dict) or set(tol) != {"original_value_sets"}:
+            out.append(f"golden set {name}: {r['record']} applied a tolerance other than the "
+                       f"original's value sets of ADR 0100 ({sorted(tol, key=str)})")  # fmt: skip
+            continue
+        if rule.get("sha256") != sha or sorted(rule.get("fields") or []) != fields:
+            out.append(f"golden set {name}: {r['record']} applied value sets that are not the "
+                       f"committed {record.name} for {fields}")  # fmt: skip
+        for a in rule.get("accepted") or []:
+            allowed = (sets.get(a.get("case")) or {}).get("values", {}).get(str(a.get("batch")))
+            if (
+                a.get("field") not in fields
+                or allowed is None
+                or a.get("port") not in allowed
+                or a.get("golden") not in allowed
+            ):
+                out.append(
+                    f"golden set {name}: {r['record']} accepted {a.get('field')} = "
+                    f"{a.get('port')} (golden {a.get('golden')}) at {a.get('case')} batch "
+                    f"{a.get('batch')}, which the original's own runs do not produce "
+                    f"({allowed or 'no recorded values'})"
+                )
+    return out
+
+
+def frozen_tolerance_problems(name: str, spec: dict, entry: dict) -> list[str]:
+    """The calibrated kinds' check (M10a step 5; AD5, AD7): an approximate replay passes only if
+    the tolerance it applied is the one recomputed from the committed calibration record, whose
+    SHA-256 parity/goldens.toml freezes. inplace: per case T_mean, T_max and T_flips (k x the
+    largest pairwise value of the reference runs, with the floors) and the iteration envelope,
+    from parity/results/M10a-inplace-calibration.json, equal to the frozen thresholds; oracle:
+    the bound factor 2000 (x delta), k = 3 and the class margin m of
+    parity/results/M10a-class-margin.json."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import label_propagation_goldens as lpg
+
+    out = []
+    if name == "label_propagation_inplace":
+        record = REPO / "parity" / "results" / "M10a-inplace-calibration.json"
+        if hashlib.sha256(record.read_bytes()).hexdigest() != spec.get("calibration_sha256"):
+            return [f"golden set {name}: {record.name} is not the calibration goldens.toml froze"]
+        cal = json.loads(record.read_text())
+        rule = spec.get("rule") or {}
+        if {k: cal["rule"].get(k) for k in ("k", "floor_mean", "floor_max")} != {
+            k: rule.get(k) for k in ("k", "floor_mean", "floor_max")
+        }:
+            out.append(f"golden set {name}: the calibration's rule is not goldens.toml's")
+        want = {}
+        for case, t in lpg.recompute_thresholds(cal).items():
+            want[case] = {**t, **lpg.envelope_of(cal["cases"][case])}
+            frozen = (spec.get("thresholds") or {}).get(case) or {}
+            if any(frozen.get(k) != v for k, v in want[case].items()):
+                out.append(f"golden set {name}: {case}: goldens.toml's thresholds are not the "
+                           "calibration's")  # fmt: skip
+    else:
+        record = REPO / spec.get("class_margin_record", "parity/results/M10a-class-margin.json")
+        if hashlib.sha256(record.read_bytes()).hexdigest() != spec.get("class_margin_sha256"):
+            return [f"golden set {name}: {record.name} is not the class margin goldens.toml froze"]
+        m = json.loads(record.read_text())["m"]
+        want = {"bound_factor": spec.get("bound_factor"), "class_margin_m": m,
+                "class_margin_k": spec.get("class_margin_k")}  # fmt: skip
+        if want["bound_factor"] != 2000 or want["class_margin_k"] != 3:
+            out.append(f"golden set {name}: AD7's bound is 2000 delta and the class rule 3m")
+    entry["frozen_tolerance"] = want
+    for r in entry["replays"]:
+        got = r.get("tolerance")
+        if name == "label_propagation_inplace":
+            bad = [c for c, t in (got or {}).items() if want.get(c) != t]
+            if not got or bad:
+                out.append(
+                    f"golden set {name}: {r['record']} applied a tolerance that is not the "
+                    f"calibration's ({', '.join(bad) or 'none recorded'})"
+                )
+        elif got != want:
+            out.append(
+                f"golden set {name}: {r['record']} applied {got}, the calibration's is {want}"
+            )
     return out
 
 
@@ -1153,15 +1384,18 @@ def suite_coverage(doc: dict, where: str) -> list[str]:
     suite = bench_suite.load_suite(path)
     if suite.get("suite") != doc.get("suite") or suite.get("algorithm") != doc.get("algorithm"):
         out.append(f"{where}: names suite {doc.get('suite')}, the file is {suite.get('suite')}")
-    planned = [
-        (j["reading"], j["dataset"])
-        for j in bench_suite.plan(suite, records=Path("records"), build_root=Path("build"))
-    ]
+    jobs = bench_suite.plan(
+        suite, records=Path("records"), build_root=Path("build"), release_only=True
+    )
+    planned = [(j["reading"], j["dataset"]) for j in jobs]
+    # A release-only reading (label_propagation's 50m gate of AD4) may be absent: missing_gates
+    # requires its row where the release needs it.
+    optional = {(j["reading"], j["dataset"]) for j in jobs if j.get("release_only")}
     got = [(r.get("reading"), r.get("dataset")) for r in doc.get("readings", [])]
     for key in planned:
         label = key[0] + (f"/{key[1]}" if key[1] else "")
         n = got.count(key)
-        if n == 0:
+        if n == 0 and key not in optional:
             out.append(f"{where}: the planned reading {label} is missing")
         elif n > 1:
             out.append(f"{where}: the reading {label} appears {n} times")
@@ -1256,13 +1490,18 @@ def in_paths(path: str, paths: list[str]) -> bool:
     return any(path == p or path.startswith(p.rstrip("/") + "/") or p == "." for p in paths)
 
 
-def missing_gates(suite_file: Path, gate_table: list[dict]) -> list[str]:
+def missing_gates(
+    suite_file: Path, gate_table: list[dict], version: str = "", dry: bool = False
+) -> list[str]:
     """The gated metrics of a suite file (metric x backend, gate other than "none") that no gated
-    row of a summary's gate table reads: "<metric> (<backend>)"."""
+    row of a summary's gate table reads: "<metric> (<backend>)". label_propagation's suite is
+    read per gate case (lp_missing_gates)."""
     sys.path.insert(0, str(REPO / "parity"))
     import bench_suite
 
     suite = bench_suite.load_suite(suite_file)
+    if suite.get("algorithm") == "label_propagation":
+        return lp_missing_gates(suite, gate_table, version, dry)
     read = {(row.get("backend"), REGION_SUFFIX.sub("", row["region"])) for row in gate_table}
     exact = {(row.get("backend"), row["region"]) for row in gate_table}
     out = []
@@ -1274,6 +1513,51 @@ def missing_gates(suite_file: Path, gate_table: list[dict]) -> list[str]:
             have = exact if REGION_SUFFIX.search(name) else read
             if (backend, name) not in have:
                 out.append(f"{name} ({backend})")
+    return out
+
+
+def lp_release_gates(suite: dict) -> list[dict]:
+    """The release-only readings of a label_propagation suite (AD4's 50m gate) with their state
+    and reason."""
+    return [
+        {
+            "reading": r["name"],
+            "cases": r.get("cases", []),
+            "state": (r.get("release_gate") or {}).get("state"),
+            "reason": (r.get("release_gate") or {}).get("reason"),
+        }
+        for r in suite.get("readings", [])
+        if r.get("release_only")
+    ]
+
+
+def lp_release_required(gate: dict, version: str, dry: bool) -> bool:
+    """Whether a certificate must hold a release-only reading's row: a write (not a dry run) of
+    the 0.4 series or later, when the reading's release gate state is "gated" (AD4)."""
+    series = release_series(version)
+    return gate["state"] == "gated" and not dry and (series is None or series >= (0, 4))
+
+
+def lp_missing_gates(suite: dict, gate_table: list[dict], version: str, dry: bool) -> list[str]:
+    """label_propagation's gated rows (M10a step 5; AD2, AD4): update[sum] and end_to_end of every
+    case of every gated damped run reading, device_memory of every case of the gated memory
+    reading (rows "<case>/damped"), and AD4's 50m update[sum] when the release-only reading is
+    required (lp_release_required): "<row> (<case>)"."""
+    have = {(row.get("case"), row.get("region")) for row in gate_table}
+    out = []
+    for r in suite.get("readings", []):
+        if not r.get("gated"):
+            continue
+        rows = ["update[sum]", "end_to_end"] if r.get("kind") == "run" else ["device_memory"]
+        if r.get("release_only"):
+            gate = next(g for g in lp_release_gates(suite) if g["reading"] == r["name"])
+            if not lp_release_required(gate, version, dry):
+                continue
+            rows = ["update[sum]"]
+        for case in r.get("cases", []):
+            for row in rows:
+                if (f"{case}/damped", row) not in have:
+                    out.append(f"{row} ({case})")
     return out
 
 
@@ -1322,7 +1606,13 @@ def record_region(record: dict | None, region: dict) -> dict | None:
         original = bench_suite.peak_mib(result.get("original"))
         port = bench_suite.peak_mib(result.get(side))
         return None if original is None or port is None else {"original": original, "port": port}
-    for reg in result.get("regions", []) or []:
+    regions = result.get("regions") or []
+    if isinstance(regions, dict):  # label_propagation's records: {row: medians} (M10a)
+        reg = regions.get(region["region"])
+        if not isinstance(reg, dict):
+            return None
+        return {"original": reg.get("original_median_ms"), "port": reg.get("port_median_ms")}
+    for reg in regions:
         if reg.get("region") == region["region"]:
             return {"original": reg.get("original_ms"), "port": reg.get("port_ms")}
     return None
@@ -1360,6 +1650,37 @@ def recheck_triad_readings(
             for row in rows:
                 if (key, row) not in present:
                     problems.append(f"{where}: the summary has no gated row {row} of {key}")
+
+
+def recheck_lp_readings(
+    doc: dict, name: str, results: Path, suite: dict, problems: list[str]
+) -> None:
+    """label_propagation's readings checked against their compacted records with bench_suite's
+    record rules (check_lp_record: the command and case, a parity-cuda port, the rounds against
+    AD3's, the medians recomputed from the samples with one sample per round, the guard, the
+    reading's clock lock; the memory readings counted, with nvidia-smi before, during and after,
+    no foreign process and the side's own process seen), the recheck_triad_readings precedent
+    (M10a review: the rules ran only when bench_suite built the summary, so a stale or
+    hand-assembled summary passed)."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import bench_suite
+
+    jobs = {
+        (j["reading"], j["dataset"]): j
+        for j in bench_suite.plan(
+            suite, records=Path("records"), build_root=Path("build"), release_only=True
+        )
+    }
+    readings = {r["name"]: r for r in suite.get("readings", [])}
+    for summary in doc.get("readings", []):
+        job = jobs.get((summary.get("reading"), summary.get("dataset")))
+        reading = readings.get(summary.get("reading"))
+        rec = summary.get("record")
+        if job is None or reading is None or not rec or not (results / rec).is_file():
+            continue  # suite_coverage reports a reading without its record or plan
+        record = json.loads((results / rec).read_text())
+        where = f"{name}: {summary['reading']} ({rec})"
+        bench_suite.check_lp_record(job, reading, record, where, problems)
 
 
 def recheck_hsosp_readings(
@@ -1476,6 +1797,8 @@ def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> d
             out[id(region)] = {"ratio": ratio, "gate": gate, "within_gate": within}
     if doc.get("algorithm") == "triad_count" and rel and (REPO / rel).is_file():
         recheck_triad_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
+    if doc.get("algorithm") == "label_propagation" and rel and (REPO / rel).is_file():
+        recheck_lp_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
     if doc.get("algorithm") == "hyper_sssp" and rel and (REPO / rel).is_file():
         recheck_hsosp_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
     verdict = doc.get("verdict") or {}
@@ -1491,7 +1814,9 @@ def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> d
     return out
 
 
-def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
+def performance(
+    results: Path, head: str, problems: list[str], version: str = "", dry: bool = False
+) -> list[dict]:
     suites = []
     for path in sorted(results.glob("*.json")):
         if path.name in ("parity.json", "checks.json", "equivalence.json") or path.name.startswith(
@@ -1573,14 +1898,34 @@ def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
                 elif "gate" in region:
                     recorded.append(row)
         rel = doc.get("suite_file")
+        release_only = []
         if rel and (REPO / rel).is_file():
-            missing = missing_gates(REPO / rel, gates)
+            sys.path.insert(0, str(REPO / "parity"))
+            import bench_suite
+
+            suite_doc = bench_suite.load_suite(REPO / rel)
+            for error in bench_suite.validate(suite_doc):
+                problems.append(f"{path.name}: the suite file is not valid: {error}")
+                ok = False
+            missing = missing_gates(REPO / rel, gates, version, dry)
             if missing:
                 problems.append(
                     f"{path.name}: no gated reading of {', '.join(missing)} (every gated metric "
                     "of the suite must be read)"
                 )
                 ok = False
+            for gate in lp_release_gates(suite_doc):
+                release_only.append(
+                    gate
+                    | {
+                        "required": lp_release_required(gate, version, dry),
+                        "status": "outside this dry run (pending R040)"
+                        if dry
+                        else "gated at the release"
+                        if gate["state"] == "gated"
+                        else f"recorded only: {gate['reason']}",
+                    }
+                )
         suites.append(
             {
                 "suite": doc["suite"],
@@ -1618,6 +1963,7 @@ def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
                 "ratio_range": verdict.get("ratio_range"),
                 "gate_table": gates,
                 "recorded_not_gated": recorded,
+                "release_only": release_only,
                 "passed": ok,
             }
         )
@@ -2283,9 +2629,14 @@ def cmd_write(args: argparse.Namespace) -> int:
     if dirty and not args.allow_dirty:
         problems.append("the release tree is dirty (commit first, or --allow-dirty for a draft)")
     goldens = golden_suites(results, head, problems, args.version, only=dry)
-    perf = performance(results, head, problems)
+    perf = performance(results, head, problems, args.version, bool(dry))
     if dry:
         perf = [s for s in perf if s["algorithm"] == dry]
+        outside += [
+            f"release-only reading {g['reading']} of {s['suite']} ({g['state']}; pending R040)"
+            for s in perf
+            for g in s.get("release_only", [])
+        ]
     if not perf:
         problems.append("no performance-suite summary (parity/bench_suite.py run)")
     present = {s["suite"]: s for s in perf}

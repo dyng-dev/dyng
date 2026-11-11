@@ -1,0 +1,5309 @@
+{
+ "cases": {
+  "500k_d1e-4_s42_inplace": {
+   "batches": 10,
+   "components": [
+    4942,
+    43976,
+    45504,
+    46088,
+    46579,
+    46626,
+    46865,
+    46791,
+    46897,
+    47076
+   ],
+   "gpu0_cross_check": [
+    {
+     "flips": 1065,
+     "gpu0": 0,
+     "gpu1": 0,
+     "max": 0.00481699999999996,
+     "mean": 0.00014173344781144784,
+     "within": true
+    },
+    {
+     "flips": 985,
+     "gpu0": 0,
+     "gpu1": 1,
+     "max": 0.0049439999999999484,
+     "mean": 0.00013200570370370371,
+     "within": true
+    },
+    {
+     "flips": 556,
+     "gpu0": 0,
+     "gpu1": 2,
+     "max": 0.022944999999999993,
+     "mean": 7.6992785634119e-05,
+     "within": true
+    },
+    {
+     "flips": 781,
+     "gpu0": 0,
+     "gpu1": 3,
+     "max": 0.022944999999999993,
+     "mean": 0.00010535003367003367,
+     "within": true
+    },
+    {
+     "flips": 772,
+     "gpu0": 0,
+     "gpu1": 4,
+     "max": 0.022944999999999993,
+     "mean": 0.00010253017957351293,
+     "within": true
+    },
+    {
+     "flips": 762,
+     "gpu0": 0,
+     "gpu1": 5,
+     "max": 0.022944999999999993,
+     "mean": 0.00010258209427609427,
+     "within": true
+    },
+    {
+     "flips": 592,
+     "gpu0": 0,
+     "gpu1": 6,
+     "max": 0.050629000000000035,
+     "mean": 7.885989898989903e-05,
+     "within": true
+    },
+    {
+     "flips": 634,
+     "gpu0": 0,
+     "gpu1": 7,
+     "max": 0.40903799999999996,
+     "mean": 8.557906172839503e-05,
+     "within": true
+    },
+    {
+     "flips": 612,
+     "gpu0": 0,
+     "gpu1": 8,
+     "max": 0.050629000000000035,
+     "mean": 8.778723456790128e-05,
+     "within": true
+    },
+    {
+     "flips": 680,
+     "gpu0": 0,
+     "gpu1": 9,
+     "max": 0.050629000000000035,
+     "mean": 9.578524354657694e-05,
+     "within": true
+    },
+    {
+     "flips": 617,
+     "gpu0": 1,
+     "gpu1": 0,
+     "max": 0.050436999999999954,
+     "mean": 8.115079236812572e-05,
+     "within": true
+    },
+    {
+     "flips": 571,
+     "gpu0": 1,
+     "gpu1": 1,
+     "max": 0.05048699999999995,
+     "mean": 7.78082334455668e-05,
+     "within": true
+    },
+    {
+     "flips": 790,
+     "gpu0": 1,
+     "gpu1": 2,
+     "max": 0.05069400000000002,
+     "mean": 0.00010908395735129077,
+     "within": true
+    },
+    {
+     "flips": 563,
+     "gpu0": 1,
+     "gpu1": 3,
+     "max": 0.05063200000000001,
+     "mean": 7.624882379349046e-05,
+     "within": true
+    },
+    {
+     "flips": 562,
+     "gpu0": 1,
+     "gpu1": 4,
+     "max": 0.05061800000000005,
+     "mean": 7.730945005611671e-05,
+     "within": true
+    },
+    {
+     "flips": 558,
+     "gpu0": 1,
+     "gpu1": 5,
+     "max": 0.05055100000000001,
+     "mean": 7.712951290684624e-05,
+     "within": true
+    },
+    {
+     "flips": 774,
+     "gpu0": 1,
+     "gpu1": 6,
+     "max": 0.004909000000000052,
+     "mean": 0.00010315053198653199,
+     "within": true
+    },
+    {
+     "flips": 672,
+     "gpu0": 1,
+     "gpu1": 7,
+     "max": 0.409306,
+     "mean": 9.189952188552188e-05,
+     "within": true
+    },
+    {
+     "flips": 632,
+     "gpu0": 1,
+     "gpu1": 8,
+     "max": 0.023255000000000026,
+     "mean": 8.710002244668914e-05,
+     "within": true
+    },
+    {
+     "flips": 602,
+     "gpu0": 1,
+     "gpu1": 9,
+     "max": 0.005152000000000045,
+     "mean": 8.203526150392815e-05,
+     "within": true
+    },
+    {
+     "flips": 713,
+     "gpu0": 2,
+     "gpu1": 0,
+     "max": 0.050436999999999954,
+     "mean": 9.720902356902359e-05,
+     "within": true
+    },
+    {
+     "flips": 661,
+     "gpu0": 2,
+     "gpu1": 1,
+     "max": 0.05048699999999995,
+     "mean": 9.073538047138045e-05,
+     "within": true
+    },
+    {
+     "flips": 648,
+     "gpu0": 2,
+     "gpu1": 2,
+     "max": 0.05069400000000002,
+     "mean": 8.774660157126826e-05,
+     "within": true
+    },
+    {
+     "flips": 571,
+     "gpu0": 2,
+     "gpu1": 3,
+     "max": 0.05063200000000001,
+     "mean": 7.768293827160495e-05,
+     "within": true
+    },
+    {
+     "flips": 552,
+     "gpu0": 2,
+     "gpu1": 4,
+     "max": 0.05061800000000005,
+     "mean": 7.709142536475873e-05,
+     "within": true
+    },
+    {
+     "flips": 546,
+     "gpu0": 2,
+     "gpu1": 5,
+     "max": 0.05055100000000001,
+     "mean": 7.700109988776655e-05,
+     "within": true
+    },
+    {
+     "flips": 612,
+     "gpu0": 2,
+     "gpu1": 6,
+     "max": 0.022872000000000003,
+     "mean": 8.497830751964075e-05,
+     "within": true
+    },
+    {
+     "flips": 598,
+     "gpu0": 2,
+     "gpu1": 7,
+     "max": 0.409367,
+     "mean": 7.955051627384953e-05,
+     "within": true
+    },
+    {
+     "flips": 268,
+     "gpu0": 2,
+     "gpu1": 8,
+     "max": 0.008303000000000005,
+     "mean": 3.376185858585868e-05,
+     "within": true
+    },
+    {
+     "flips": 534,
+     "gpu0": 2,
+     "gpu1": 9,
+     "max": 0.022872000000000003,
+     "mean": 7.709127497194166e-05,
+     "within": true
+    }
+   ],
+   "iterations": {
+    "per_batch": [
+     {
+      "batch": 0,
+      "max": 0,
+      "median": 0.0,
+      "min": 0
+     },
+     {
+      "batch": 1,
+      "max": 745,
+      "median": 745.0,
+      "min": 745
+     },
+     {
+      "batch": 2,
+      "max": 1652,
+      "median": 1652.0,
+      "min": 1652
+     },
+     {
+      "batch": 3,
+      "max": 1396,
+      "median": 1396.0,
+      "min": 1396
+     },
+     {
+      "batch": 4,
+      "max": 1092,
+      "median": 1092.0,
+      "min": 1053
+     },
+     {
+      "batch": 5,
+      "max": 593,
+      "median": 591.0,
+      "min": 588
+     },
+     {
+      "batch": 6,
+      "max": 356,
+      "median": 337.0,
+      "min": 333
+     },
+     {
+      "batch": 7,
+      "max": 458,
+      "median": 440.0,
+      "min": 399
+     },
+     {
+      "batch": 8,
+      "max": 262,
+      "median": 257.0,
+      "min": 255
+     },
+     {
+      "batch": 9,
+      "max": 144,
+      "median": 141.5,
+      "min": 92
+     }
+    ],
+    "sum_max": 6655,
+    "sum_median": 6648.5,
+    "sum_min": 6542
+   },
+   "largest": {
+    "flips": 999,
+    "max": 0.409366,
+    "mean": 0.00013076002918069592
+   },
+   "n": 500000,
+   "pairs": [
+    {
+     "a": 0,
+     "b": 1,
+     "flips": 252,
+     "max": 0.002918000000000087,
+     "mean": 3.26250819304152e-05
+    },
+    {
+     "a": 0,
+     "b": 2,
+     "flips": 999,
+     "max": 0.023204999999999976,
+     "mean": 0.00013076002918069592
+    },
+    {
+     "a": 0,
+     "b": 3,
+     "flips": 664,
+     "max": 0.023204999999999976,
+     "mean": 8.696163636363642e-05
+    },
+    {
+     "a": 0,
+     "b": 4,
+     "flips": 645,
+     "max": 0.023204999999999976,
+     "mean": 8.907670033670039e-05
+    },
+    {
+     "a": 0,
+     "b": 5,
+     "flips": 661,
+     "max": 0.023204999999999976,
+     "mean": 8.915562738496074e-05
+    },
+    {
+     "a": 0,
+     "b": 6,
+     "flips": 925,
+     "max": 0.050436999999999954,
+     "mean": 0.00012520483501683504
+    },
+    {
+     "a": 0,
+     "b": 7,
+     "flips": 845,
+     "max": 0.40915599999999996,
+     "mean": 0.00011096323456790125
+    },
+    {
+     "a": 0,
+     "b": 8,
+     "flips": 793,
+     "max": 0.050436999999999954,
+     "mean": 0.00010520247362514034
+    },
+    {
+     "a": 0,
+     "b": 9,
+     "flips": 733,
+     "max": 0.050436999999999954,
+     "mean": 9.678764758698093e-05
+    },
+    {
+     "a": 1,
+     "b": 2,
+     "flips": 911,
+     "max": 0.023121999999999976,
+     "mean": 0.0001216552255892256
+    },
+    {
+     "a": 1,
+     "b": 3,
+     "flips": 616,
+     "max": 0.023121999999999976,
+     "mean": 8.204985634118972e-05
+    },
+    {
+     "a": 1,
+     "b": 4,
+     "flips": 587,
+     "max": 0.023121999999999976,
+     "mean": 8.36802154882155e-05
+    },
+    {
+     "a": 1,
+     "b": 5,
+     "flips": 613,
+     "max": 0.023121999999999976,
+     "mean": 8.380074074074071e-05
+    },
+    {
+     "a": 1,
+     "b": 6,
+     "flips": 839,
+     "max": 0.05048699999999995,
+     "mean": 0.00011645584287317627
+    },
+    {
+     "a": 1,
+     "b": 7,
+     "flips": 761,
+     "max": 0.409033,
+     "mean": 0.00010310000673400669
+    },
+    {
+     "a": 1,
+     "b": 8,
+     "flips": 723,
+     "max": 0.05048699999999995,
+     "mean": 9.778477665544336e-05
+    },
+    {
+     "a": 1,
+     "b": 9,
+     "flips": 679,
+     "max": 0.05048699999999995,
+     "mean": 9.032855443322113e-05
+    },
+    {
+     "a": 2,
+     "b": 3,
+     "flips": 727,
+     "max": 0.0048839999999999995,
+     "mean": 9.670308866442208e-05
+    },
+    {
+     "a": 2,
+     "b": 4,
+     "flips": 690,
+     "max": 0.0049060000000000215,
+     "mean": 9.423102356902359e-05
+    },
+    {
+     "a": 2,
+     "b": 5,
+     "flips": 688,
+     "max": 0.0049340000000000495,
+     "mean": 9.405467340067351e-05
+    },
+    {
+     "a": 2,
+     "b": 6,
+     "flips": 534,
+     "max": 0.05069400000000002,
+     "mean": 7.477997530864195e-05
+    },
+    {
+     "a": 2,
+     "b": 7,
+     "flips": 608,
+     "max": 0.40898399999999996,
+     "mean": 8.082874971941634e-05
+    },
+    {
+     "a": 2,
+     "b": 8,
+     "flips": 626,
+     "max": 0.05069400000000002,
+     "mean": 8.234270931537597e-05
+    },
+    {
+     "a": 2,
+     "b": 9,
+     "flips": 660,
+     "max": 0.05069400000000002,
+     "mean": 8.893888664422005e-05
+    },
+    {
+     "a": 3,
+     "b": 4,
+     "flips": 221,
+     "max": 0.0016880000000000228,
+     "mean": 3.079937822671152e-05
+    },
+    {
+     "a": 3,
+     "b": 5,
+     "flips": 219,
+     "max": 0.0016890000000000516,
+     "mean": 3.103395061728396e-05
+    },
+    {
+     "a": 3,
+     "b": 6,
+     "flips": 695,
+     "max": 0.05063200000000001,
+     "mean": 9.166727497194172e-05
+    },
+    {
+     "a": 3,
+     "b": 7,
+     "flips": 359,
+     "max": 0.409366,
+     "mean": 4.823586980920312e-05
+    },
+    {
+     "a": 3,
+     "b": 8,
+     "flips": 623,
+     "max": 0.05063200000000001,
+     "mean": 8.071153086419758e-05
+    },
+    {
+     "a": 3,
+     "b": 9,
+     "flips": 561,
+     "max": 0.05063200000000001,
+     "mean": 7.671457239057246e-05
+    },
+    {
+     "a": 4,
+     "b": 5,
+     "flips": 202,
+     "max": 0.0011839999999999629,
+     "mean": 3.0514294051627357e-05
+    },
+    {
+     "a": 4,
+     "b": 6,
+     "flips": 664,
+     "max": 0.05061800000000005,
+     "mean": 8.940977328844005e-05
+    },
+    {
+     "a": 4,
+     "b": 7,
+     "flips": 354,
+     "max": 0.408823,
+     "mean": 4.49810796857464e-05
+    },
+    {
+     "a": 4,
+     "b": 8,
+     "flips": 598,
+     "max": 0.05061800000000005,
+     "mean": 7.958919416386093e-05
+    },
+    {
+     "a": 4,
+     "b": 9,
+     "flips": 554,
+     "max": 0.05061800000000005,
+     "mean": 7.60269607182941e-05
+    },
+    {
+     "a": 5,
+     "b": 6,
+     "flips": 658,
+     "max": 0.05055100000000001,
+     "mean": 8.923305948372618e-05
+    },
+    {
+     "a": 5,
+     "b": 7,
+     "flips": 338,
+     "max": 0.40921599999999997,
+     "mean": 4.520024915824916e-05
+    },
+    {
+     "a": 5,
+     "b": 8,
+     "flips": 586,
+     "max": 0.05055100000000001,
+     "mean": 7.942096969696973e-05
+    },
+    {
+     "a": 5,
+     "b": 9,
+     "flips": 556,
+     "max": 0.05055100000000001,
+     "mean": 7.593409427609432e-05
+    },
+    {
+     "a": 6,
+     "b": 7,
+     "flips": 604,
+     "max": 0.408895,
+     "mean": 7.840853647586982e-05
+    },
+    {
+     "a": 6,
+     "b": 8,
+     "flips": 610,
+     "max": 0.023255000000000026,
+     "mean": 8.007588327721658e-05
+    },
+    {
+     "a": 6,
+     "b": 9,
+     "flips": 618,
+     "max": 0.00344899999999998,
+     "mean": 8.435466891133564e-05
+    },
+    {
+     "a": 7,
+     "b": 8,
+     "flips": 590,
+     "max": 0.408877,
+     "mean": 7.742886868686866e-05
+    },
+    {
+     "a": 7,
+     "b": 9,
+     "flips": 590,
+     "max": 0.40881599999999996,
+     "mean": 7.875829854096522e-05
+    },
+    {
+     "a": 8,
+     "b": 9,
+     "flips": 568,
+     "max": 0.023255000000000026,
+     "mean": 7.774957800224472e-05
+    }
+   ],
+   "reference_iteration_self_check": [
+    {
+     "batches_outside": [],
+     "gpu1_run": 0,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 1,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [
+      9
+     ],
+     "gpu1_run": 2,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 3,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 4,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 5,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [
+      9
+     ],
+     "gpu1_run": 6,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 7,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 8,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [
+      9
+     ],
+     "gpu1_run": 9,
+     "sum_within": true
+    }
+   ],
+   "runs": {
+    "gpu0": [
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:36Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "8eb9a24cd241a4b4b29450b79a455605b9034e074fd1f768a4e199442e8760a3",
+      "results_sha256": "c4dc32385ffb22824f0f65cb74a9f7b695bada05a3b114d2f557cd9883c781c1",
+      "run": 0,
+      "seconds": 0.910742,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:38Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "169702a82087a0b66e202c2d5b7b8e71d89312fae1d37ea8699ccb212928d934",
+      "results_sha256": "d0d6ffa5cd0e660ab585e7fadb3ddd12356f49824c2df70b7370c84544f44e43",
+      "run": 1,
+      "seconds": 0.889555,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:39Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "9d31d84d89996c3c7d4d046ed01aa30cc3b106cf55def0158303fabded4838d3",
+      "results_sha256": "33f259aa376232d32fc93aa32e747a09be00e9c9f3226e91610dc0598d497a91",
+      "run": 2,
+      "seconds": 0.904208,
+      "tag": "gpu0"
+     }
+    ],
+    "gpu1": [
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:13Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "0f1c4f20fe08fe67f6f512591b154cf6597e474c5cd93efcabf765c3557b2138",
+      "results_sha256": "e21e6e1d4286d81548c812d0606d08c6b4b24aec1e69a4b56c2f51957812196b",
+      "run": 0,
+      "seconds": 0.840409,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:15Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "d93e8d5d15afa918c4db68465e1988f218b3c25f2ca277f859a9ee51cb9f1fce",
+      "results_sha256": "8af6fffe19f9de30cd58b89d55d6d345e03cfe8c929bd21023695b79d8a6316e",
+      "run": 1,
+      "seconds": 0.813926,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:16Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "88bb7de3f9c2f900ede631d5e27253497e7bde4706331220f5d056c02d0d1f5b",
+      "results_sha256": "45e0ef1dd62c18f20eb86c994e69ea040f453e36ce54e8c83546f4d43f4bd523",
+      "run": 2,
+      "seconds": 0.801093,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:17Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "ae91a8bf644cdcbe8c61f359a6b008fc83853998065c4c033a501045f70bba69",
+      "results_sha256": "4e8ef4ca631c8d3e3172e2e99d13575428e6997c13cb2a4b81aae9119b341bf9",
+      "run": 3,
+      "seconds": 0.811112,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:18Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "c3f2a97c57525ac9e96fe9af00cd03dc02b766d2cdc73f8299e3fb0bd44ce5a2",
+      "results_sha256": "44296cda69557ac039d894fcff23d1d492fdc81848fb9c45186fa665151197c6",
+      "run": 4,
+      "seconds": 0.803641,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:20Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "c50066977ec1a307dec7279a89c43b9f3b228e4d25a64ae63304990a6cb4c1c2",
+      "results_sha256": "c2516f3207a13fe7f9e05eb62320a097acaf448233af41a9a0d14eca97ebfbc9",
+      "run": 5,
+      "seconds": 0.810366,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:21Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "ba36918025f125db99d3edc3a5ff53b388d71681437a3ae025a4cf5ae5376a8f",
+      "results_sha256": "457dd023d97f23057ab73340d739f5d6b4f69bd663080bea7db5da0dffd4c8fc",
+      "run": 6,
+      "seconds": 0.79977,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:22Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "8346e05914663eab0ed5c0a7dad198b5ec9735588fab0ca0b86f7a43aacd24db",
+      "results_sha256": "bbc418feb4cc405f7d8dba70b563d195e62fbf925588ce92f2cfa5d8ec70ca7f",
+      "run": 7,
+      "seconds": 0.811546,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:24Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "9a5c710b452472f50304dd71a3e2dbd6f2edf340113c1128040449ae2b069cf0",
+      "results_sha256": "f033149fcc93cd9e78f1927eee874b562569aa4c8ec2adb47ff7fed1d4d50d85",
+      "run": 8,
+      "seconds": 0.807193,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "500000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "500k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:25Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "6e3d089d0b6bbdde5017fb760f66732caf78e1ef7d4522a001551a180e7b0d8b",
+      "results_sha256": "8c4992450412235828bfb28da5449c0d41d368083c3b4466ee0d80d73f16345e",
+      "run": 9,
+      "seconds": 0.806612,
+      "tag": "gpu1"
+     }
+    ]
+   },
+   "thresholds": {
+    "t_flips": 2997,
+    "t_max": 1.2280980000000001,
+    "t_mean": 0.0003922800875420878
+   },
+   "vertices_compared": 445500
+  },
+  "50k_d1e-4_s42_inplace": {
+   "batches": 10,
+   "components": [
+    497,
+    4391,
+    4551,
+    4589,
+    4663,
+    4636,
+    4664,
+    4677,
+    4700,
+    4719
+   ],
+   "gpu0_cross_check": [
+    {
+     "flips": 88,
+     "gpu0": 0,
+     "gpu1": 0,
+     "max": 0.0028210000000000734,
+     "mean": 0.00011691979797979805,
+     "within": true
+    },
+    {
+     "flips": 142,
+     "gpu0": 0,
+     "gpu1": 1,
+     "max": 0.003707000000000016,
+     "mean": 0.00019323054994388315,
+     "within": true
+    },
+    {
+     "flips": 59,
+     "gpu0": 0,
+     "gpu1": 2,
+     "max": 0.0035410000000000164,
+     "mean": 7.587409652076318e-05,
+     "within": true
+    },
+    {
+     "flips": 87,
+     "gpu0": 0,
+     "gpu1": 3,
+     "max": 0.003143000000000007,
+     "mean": 0.000124168529741863,
+     "within": true
+    },
+    {
+     "flips": 54,
+     "gpu0": 0,
+     "gpu1": 4,
+     "max": 0.003178000000000014,
+     "mean": 7.218390572390581e-05,
+     "within": true
+    },
+    {
+     "flips": 105,
+     "gpu0": 0,
+     "gpu1": 5,
+     "max": 0.003906000000000076,
+     "mean": 0.00014164278338944995,
+     "within": true
+    },
+    {
+     "flips": 97,
+     "gpu0": 0,
+     "gpu1": 6,
+     "max": 0.004489000000000076,
+     "mean": 0.00012998691358024676,
+     "within": true
+    },
+    {
+     "flips": 51,
+     "gpu0": 0,
+     "gpu1": 7,
+     "max": 0.004913000000000056,
+     "mean": 7.112006734006734e-05,
+     "within": true
+    },
+    {
+     "flips": 77,
+     "gpu0": 0,
+     "gpu1": 8,
+     "max": 0.003821999999999992,
+     "mean": 0.00011777629629629629,
+     "within": true
+    },
+    {
+     "flips": 88,
+     "gpu0": 0,
+     "gpu1": 9,
+     "max": 0.004079000000000055,
+     "mean": 0.00012323728395061725,
+     "within": true
+    },
+    {
+     "flips": 68,
+     "gpu0": 1,
+     "gpu1": 0,
+     "max": 0.0010600000000000054,
+     "mean": 7.672320987654329e-05,
+     "within": true
+    },
+    {
+     "flips": 114,
+     "gpu0": 1,
+     "gpu1": 1,
+     "max": 0.00166299999999997,
+     "mean": 0.00014854650953984258,
+     "within": true
+    },
+    {
+     "flips": 69,
+     "gpu0": 1,
+     "gpu1": 2,
+     "max": 0.0018700000000000383,
+     "mean": 9.513995510662179e-05,
+     "within": true
+    },
+    {
+     "flips": 65,
+     "gpu0": 1,
+     "gpu1": 3,
+     "max": 0.0014290000000000136,
+     "mean": 8.464933782267077e-05,
+     "within": true
+    },
+    {
+     "flips": 74,
+     "gpu0": 1,
+     "gpu1": 4,
+     "max": 0.0021599999999999397,
+     "mean": 9.97735353535354e-05,
+     "within": true
+    },
+    {
+     "flips": 73,
+     "gpu0": 1,
+     "gpu1": 5,
+     "max": 0.001503000000000032,
+     "mean": 0.00010894487093153763,
+     "within": true
+    },
+    {
+     "flips": 65,
+     "gpu0": 1,
+     "gpu1": 6,
+     "max": 0.0009649999999999936,
+     "mean": 8.716303030303006e-05,
+     "within": true
+    },
+    {
+     "flips": 81,
+     "gpu0": 1,
+     "gpu1": 7,
+     "max": 0.0019179999999999753,
+     "mean": 9.732298540965204e-05,
+     "within": true
+    },
+    {
+     "flips": 55,
+     "gpu0": 1,
+     "gpu1": 8,
+     "max": 0.0012400000000000189,
+     "mean": 7.819016835016849e-05,
+     "within": true
+    },
+    {
+     "flips": 64,
+     "gpu0": 1,
+     "gpu1": 9,
+     "max": 0.0010999999999999899,
+     "mean": 8.315095398428697e-05,
+     "within": true
+    },
+    {
+     "flips": 128,
+     "gpu0": 2,
+     "gpu1": 0,
+     "max": 0.0015359999999999818,
+     "mean": 0.0001440287542087544,
+     "within": true
+    },
+    {
+     "flips": 84,
+     "gpu0": 2,
+     "gpu1": 1,
+     "max": 0.00164299999999995,
+     "mean": 9.710426487093139e-05,
+     "within": true
+    },
+    {
+     "flips": 161,
+     "gpu0": 2,
+     "gpu1": 2,
+     "max": 0.0018500000000000183,
+     "mean": 0.00018997510662177364,
+     "within": true
+    },
+    {
+     "flips": 123,
+     "gpu0": 2,
+     "gpu1": 3,
+     "max": 0.0011739999999999529,
+     "mean": 0.0001371660606060608,
+     "within": true
+    },
+    {
+     "flips": 166,
+     "gpu0": 2,
+     "gpu1": 4,
+     "max": 0.0021399999999999197,
+     "mean": 0.0002022938945005614,
+     "within": true
+    },
+    {
+     "flips": 117,
+     "gpu0": 2,
+     "gpu1": 5,
+     "max": 0.0016979999999999773,
+     "mean": 0.00012265836139169477,
+     "within": true
+    },
+    {
+     "flips": 117,
+     "gpu0": 2,
+     "gpu1": 6,
+     "max": 0.0013150000000000106,
+     "mean": 0.00013096446689113357,
+     "within": true
+    },
+    {
+     "flips": 167,
+     "gpu0": 2,
+     "gpu1": 7,
+     "max": 0.0018979999999999553,
+     "mean": 0.00019560648709315395,
+     "within": true
+    },
+    {
+     "flips": 131,
+     "gpu0": 2,
+     "gpu1": 8,
+     "max": 0.0013769999999999616,
+     "mean": 0.0001442032772166106,
+     "within": true
+    },
+    {
+     "flips": 116,
+     "gpu0": 2,
+     "gpu1": 9,
+     "max": 0.0012899999999999578,
+     "mean": 0.00013645322109988797,
+     "within": true
+    }
+   ],
+   "iterations": {
+    "per_batch": [
+     {
+      "batch": 0,
+      "max": 0,
+      "median": 0.0,
+      "min": 0
+     },
+     {
+      "batch": 1,
+      "max": 513,
+      "median": 513.0,
+      "min": 513
+     },
+     {
+      "batch": 2,
+      "max": 1318,
+      "median": 1236.0,
+      "min": 1236
+     },
+     {
+      "batch": 3,
+      "max": 1114,
+      "median": 1109.0,
+      "min": 1030
+     },
+     {
+      "batch": 4,
+      "max": 597,
+      "median": 586.5,
+      "min": 576
+     },
+     {
+      "batch": 5,
+      "max": 872,
+      "median": 871.0,
+      "min": 411
+     },
+     {
+      "batch": 6,
+      "max": 235,
+      "median": 226.0,
+      "min": 226
+     },
+     {
+      "batch": 7,
+      "max": 232,
+      "median": 230.0,
+      "min": 224
+     },
+     {
+      "batch": 8,
+      "max": 95,
+      "median": 94.0,
+      "min": 93
+     },
+     {
+      "batch": 9,
+      "max": 71,
+      "median": 60.0,
+      "min": 57
+     }
+    ],
+    "sum_max": 4943,
+    "sum_median": 4931.0,
+    "sum_min": 4419
+   },
+   "largest": {
+    "flips": 135,
+    "max": 0.00229899999999994,
+    "mean": 0.00018343874298540965
+   },
+   "n": 50000,
+   "pairs": [
+    {
+     "a": 0,
+     "b": 1,
+     "flips": 102,
+     "max": 0.0018019999999999703,
+     "mean": 0.00013157418630751978
+    },
+    {
+     "a": 0,
+     "b": 2,
+     "flips": 83,
+     "max": 0.002071000000000045,
+     "mean": 0.00010488682379349059
+    },
+    {
+     "a": 0,
+     "b": 3,
+     "flips": 53,
+     "max": 0.001568999999999987,
+     "mean": 7.676455667789016e-05
+    },
+    {
+     "a": 0,
+     "b": 4,
+     "flips": 76,
+     "max": 0.00229899999999994,
+     "mean": 0.00011153400673400694
+    },
+    {
+     "a": 0,
+     "b": 5,
+     "flips": 69,
+     "max": 0.0018000000000000238,
+     "mean": 9.910462401795738e-05
+    },
+    {
+     "a": 0,
+     "b": 6,
+     "flips": 55,
+     "max": 0.0016680000000000028,
+     "mean": 7.835353535353544e-05
+    },
+    {
+     "a": 0,
+     "b": 7,
+     "flips": 81,
+     "max": 0.0020919999999999828,
+     "mean": 0.0001073083277216613
+    },
+    {
+     "a": 0,
+     "b": 8,
+     "flips": 55,
+     "max": 0.0011780000000000124,
+     "mean": 7.310641975308646e-05
+    },
+    {
+     "a": 0,
+     "b": 9,
+     "flips": 52,
+     "max": 0.0012579999999999814,
+     "mean": 7.495973063973079e-05
+    },
+    {
+     "a": 1,
+     "b": 2,
+     "flips": 135,
+     "max": 0.0014149999999999996,
+     "mean": 0.0001721832098765433
+    },
+    {
+     "a": 1,
+     "b": 3,
+     "flips": 99,
+     "max": 0.0015100000000000113,
+     "mean": 0.00012501164983164955
+    },
+    {
+     "a": 1,
+     "b": 4,
+     "flips": 134,
+     "max": 0.0015199999999999658,
+     "mean": 0.00018343874298540965
+    },
+    {
+     "a": 1,
+     "b": 5,
+     "flips": 97,
+     "max": 0.0019790000000000085,
+     "mean": 0.0001101268911335576
+    },
+    {
+     "a": 1,
+     "b": 6,
+     "flips": 85,
+     "max": 0.0013560000000000239,
+     "mean": 0.00012001898989898977
+    },
+    {
+     "a": 1,
+     "b": 7,
+     "flips": 135,
+     "max": 0.0012060000000000404,
+     "mean": 0.00017717041526374859
+    },
+    {
+     "a": 1,
+     "b": 8,
+     "flips": 103,
+     "max": 0.001707000000000014,
+     "mean": 0.00013075719416386062
+    },
+    {
+     "a": 1,
+     "b": 9,
+     "flips": 94,
+     "max": 0.0013539999999999663,
+     "mean": 0.00012386509539842882
+    },
+    {
+     "a": 2,
+     "b": 3,
+     "flips": 80,
+     "max": 0.001759000000000066,
+     "mean": 0.00010973313131313117
+    },
+    {
+     "a": 2,
+     "b": 4,
+     "flips": 41,
+     "max": 0.0009089999999999376,
+     "mean": 7.18497418630752e-05
+    },
+    {
+     "a": 2,
+     "b": 5,
+     "flips": 88,
+     "max": 0.001792999999999989,
+     "mean": 0.00012515023569023605
+    },
+    {
+     "a": 2,
+     "b": 6,
+     "flips": 82,
+     "max": 0.001563000000000092,
+     "mean": 0.00011489274971941623
+    },
+    {
+     "a": 2,
+     "b": 7,
+     "flips": 40,
+     "max": 0.0013720000000000399,
+     "mean": 7.045270482603851e-05
+    },
+    {
+     "a": 2,
+     "b": 8,
+     "flips": 64,
+     "max": 0.0019140000000000823,
+     "mean": 0.0001045219079685746
+    },
+    {
+     "a": 2,
+     "b": 9,
+     "flips": 69,
+     "max": 0.0015610000000000346,
+     "mean": 0.0001101491358024693
+    },
+    {
+     "a": 3,
+     "b": 4,
+     "flips": 73,
+     "max": 0.002006999999999981,
+     "mean": 0.00011782583613916953
+    },
+    {
+     "a": 3,
+     "b": 5,
+     "flips": 62,
+     "max": 0.0017309999999999826,
+     "mean": 9.625292929292947e-05
+    },
+    {
+     "a": 3,
+     "b": 6,
+     "flips": 44,
+     "max": 0.0013480000000000159,
+     "mean": 7.581973063973059e-05
+    },
+    {
+     "a": 3,
+     "b": 7,
+     "flips": 80,
+     "max": 0.0017700000000000493,
+     "mean": 0.00011372136924803593
+    },
+    {
+     "a": 3,
+     "b": 8,
+     "flips": 56,
+     "max": 0.0014099999999999668,
+     "mean": 7.651569023569009e-05
+    },
+    {
+     "a": 3,
+     "b": 9,
+     "flips": 45,
+     "max": 0.001322999999999963,
+     "mean": 7.436940516273846e-05
+    },
+    {
+     "a": 4,
+     "b": 5,
+     "flips": 85,
+     "max": 0.0017099999999999893,
+     "mean": 0.00013333061728395076
+    },
+    {
+     "a": 4,
+     "b": 6,
+     "flips": 85,
+     "max": 0.0018529999999999935,
+     "mean": 0.0001232780695847362
+    },
+    {
+     "a": 4,
+     "b": 7,
+     "flips": 45,
+     "max": 0.001735000000000042,
+     "mean": 6.874217732884394e-05
+    },
+    {
+     "a": 4,
+     "b": 8,
+     "flips": 65,
+     "max": 0.0022039999999999837,
+     "mean": 0.00011137209876543218
+    },
+    {
+     "a": 4,
+     "b": 9,
+     "flips": 70,
+     "max": 0.001850999999999936,
+     "mean": 0.00011694841750841757
+    },
+    {
+     "a": 5,
+     "b": 6,
+     "flips": 68,
+     "max": 0.0012720000000000509,
+     "mean": 9.47643771043769e-05
+    },
+    {
+     "a": 5,
+     "b": 7,
+     "flips": 90,
+     "max": 0.001613000000000031,
+     "mean": 0.00012805052749719425
+    },
+    {
+     "a": 5,
+     "b": 8,
+     "flips": 70,
+     "max": 0.001574999999999993,
+     "mean": 9.84399102132437e-05
+    },
+    {
+     "a": 5,
+     "b": 9,
+     "flips": 65,
+     "max": 0.0011940000000000284,
+     "mean": 9.547755331088662e-05
+    },
+    {
+     "a": 6,
+     "b": 7,
+     "flips": 88,
+     "max": 0.001611000000000029,
+     "mean": 0.0001183007856341191
+    },
+    {
+     "a": 6,
+     "b": 8,
+     "flips": 58,
+     "max": 0.0011529999999999596,
+     "mean": 7.805393939393937e-05
+    },
+    {
+     "a": 6,
+     "b": 9,
+     "flips": 35,
+     "max": 0.0011869999999999936,
+     "mean": 7.529459034792368e-05
+    },
+    {
+     "a": 7,
+     "b": 8,
+     "flips": 70,
+     "max": 0.0019620000000000193,
+     "mean": 0.00010743813692480344
+    },
+    {
+     "a": 7,
+     "b": 9,
+     "flips": 81,
+     "max": 0.0016089999999999716,
+     "mean": 0.00011281135802469148
+    },
+    {
+     "a": 8,
+     "b": 9,
+     "flips": 51,
+     "max": 0.0010609999999999786,
+     "mean": 7.342246913580223e-05
+    }
+   ],
+   "reference_iteration_self_check": [
+    {
+     "batches_outside": [],
+     "gpu1_run": 0,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [
+      9
+     ],
+     "gpu1_run": 1,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 2,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 3,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 4,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [
+      5
+     ],
+     "gpu1_run": 5,
+     "sum_within": false
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 6,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 7,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 8,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 9,
+     "sum_within": true
+    }
+   ],
+   "runs": {
+    "gpu0": [
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:34Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "53f36f7d1ab82290ece9834843d82ffc3f10701d409b1700cdcd77ac795227cc",
+      "results_sha256": "9de66e7c39ae2053a2d344e2da86b25b0008c8d910ca3a9202c2055317150200",
+      "run": 0,
+      "seconds": 0.415649,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:35Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "355ea7359b50b6611297b2c8eab6306c0cef8954e876d144a1659e937a6f1923",
+      "results_sha256": "1960a76b293da5124b0b9b5045ac95cc68dc7b4fccfd183ef034b985e3cb6b99",
+      "run": 1,
+      "seconds": 0.420887,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:35Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "26fe052d18d9ad7c36d1cd0dd0fdf55e612016369d88dd8508ad1bcbb46c31ec",
+      "results_sha256": "1694d32326c798e8f0ed15903c1daa702459e808e5fcda39dd7ed99f381e9c00",
+      "run": 2,
+      "seconds": 0.423493,
+      "tag": "gpu0"
+     }
+    ],
+    "gpu1": [
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:08Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "ea0c67d502680597cca359d544468a5b10f1fb76bb3a572e224b9bf3243d828e",
+      "results_sha256": "4a6c5e385b734ba879ac4a5e37443941b14005d2bab90b5c8650432392f8fdcf",
+      "run": 0,
+      "seconds": 0.364354,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:08Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "a26d791db999b8a894816beff398a5ab5838370c77ae654418b56886edd6be21",
+      "results_sha256": "c92f6b06594ec36572e9caa8dc5256bc08d45bcc12739eef86d3076c5c53ac46",
+      "run": 1,
+      "seconds": 0.370097,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:09Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "e5442b688763a973bb588f0994bd12a5213880e1dff039c2ae8c5f183d3d94aa",
+      "results_sha256": "ad776da8a98f04dc96650b0c64234d6cc7beae944ad5feb85462896d17ec752f",
+      "run": 2,
+      "seconds": 0.368475,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:09Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "8107609e75a3905604716cb313f866ef6175ff0bd1ea1de20e0d57b939ff87ed",
+      "results_sha256": "f8a2857494adc4185205372b003e46ff5ab52734b380bc529ecb4cd843e6a609",
+      "run": 3,
+      "seconds": 0.371439,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:09Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "3ee06e3017517e5901034d73f850cc5c6347641cf248677aafda0eb9c2982ba3",
+      "results_sha256": "b06a87a09d81becf219d1d847392eee569c2fccdd8bffe71b416998630519403",
+      "run": 4,
+      "seconds": 0.370996,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:10Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "c68ce667818684ab80b60d9163f36e60801c0d3a578db23727e92f7fa552a971",
+      "results_sha256": "0ba17817a04f56eea9c326746a1ac9acfa5c75ae9cfefb5b22fabbeabf999488",
+      "run": 5,
+      "seconds": 0.367095,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:10Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "f8ea2fd3183c7376c5ad153d7c70901a8f82f8e0e119065f6a0c9f70ecf3b78c",
+      "results_sha256": "967d2bd3675c0a4fb2b451ad7a57a067c5823a1b08cb92d03faebfb6c588a54d",
+      "run": 6,
+      "seconds": 0.369764,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:11Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "35c79e1cdc5555ee2f386576b212d5b8a0af6a5817526bcfcb99286a3c0de35c",
+      "results_sha256": "81d6657720a50fe6138eaf216911ac04af7b7113740677f8741297a113dd4375",
+      "run": 7,
+      "seconds": 0.366238,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:11Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "e1c681716d0a445096ee91bc057c437ca7ab77d3f48f3611ac99f463e4d08fa0",
+      "results_sha256": "abfee7d283be38b25bac9098de2bfa43d9c3cbf8169d8c1f0048b36fb66839ac",
+      "run": 8,
+      "seconds": 0.366609,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "50000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "50k_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:12Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "9cfc5ec32ec8e47784454fc7e72976681080262c5bdec13f1f9fd4b0ab4705ca",
+      "results_sha256": "13dc42c451b1430996f1b31bddb15b6007d23c900f0bee1b072ac0674a75adfd",
+      "run": 9,
+      "seconds": 0.369536,
+      "tag": "gpu1"
+     }
+    ]
+   },
+   "thresholds": {
+    "t_flips": 405,
+    "t_max": 0.00689699999999982,
+    "t_mean": 0.0005503162289562289
+   },
+   "vertices_compared": 44550
+  },
+  "5k5_d1e-4_s42_inplace": {
+   "batches": 5,
+   "components": [
+    50,
+    829,
+    850,
+    836,
+    858
+   ],
+   "gpu0_cross_check": [
+    {
+     "flips": 0,
+     "gpu0": 0,
+     "gpu1": 0,
+     "max": 0.0023239999999999927,
+     "mean": 0.00012992664872139902,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 0,
+     "gpu1": 1,
+     "max": 0.001346999999999987,
+     "mean": 0.00010774921489457136,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 0,
+     "gpu1": 2,
+     "max": 0.0014240000000000919,
+     "mean": 0.00011857559443696738,
+     "within": true
+    },
+    {
+     "flips": 2,
+     "gpu0": 0,
+     "gpu1": 3,
+     "max": 0.0016169999999999796,
+     "mean": 0.00012088672050246628,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 0,
+     "gpu1": 4,
+     "max": 0.0013560000000000239,
+     "mean": 0.00011296814715118937,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 0,
+     "gpu1": 5,
+     "max": 0.0023209999999999065,
+     "mean": 0.0001283512786002686,
+     "within": true
+    },
+    {
+     "flips": 2,
+     "gpu0": 0,
+     "gpu1": 6,
+     "max": 0.0013930000000000886,
+     "mean": 0.00010598676536563536,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 0,
+     "gpu1": 7,
+     "max": 0.001354999999999995,
+     "mean": 0.00011084768954688154,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 0,
+     "gpu1": 8,
+     "max": 0.0014010000000000966,
+     "mean": 0.00012342059219380916,
+     "within": true
+    },
+    {
+     "flips": 3,
+     "gpu0": 0,
+     "gpu1": 9,
+     "max": 0.0013499999999999623,
+     "mean": 0.00011148362494392155,
+     "within": true
+    },
+    {
+     "flips": 2,
+     "gpu0": 1,
+     "gpu1": 0,
+     "max": 0.0022540000000000893,
+     "mean": 0.00013895065051592717,
+     "within": true
+    },
+    {
+     "flips": 3,
+     "gpu0": 1,
+     "gpu1": 1,
+     "max": 0.0011939999999999729,
+     "mean": 0.00012134253028263831,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 1,
+     "gpu1": 2,
+     "max": 0.0013859999999999983,
+     "mean": 0.00012177231942575246,
+     "within": true
+    },
+    {
+     "flips": 2,
+     "gpu0": 1,
+     "gpu1": 3,
+     "max": 0.0016969999999999485,
+     "mean": 0.0001221215791834912,
+     "within": true
+    },
+    {
+     "flips": 3,
+     "gpu0": 1,
+     "gpu1": 4,
+     "max": 0.0011859999999999649,
+     "mean": 0.00012209712875729063,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 1,
+     "gpu1": 5,
+     "max": 0.002251000000000003,
+     "mean": 0.00013110385823239114,
+     "within": true
+    },
+    {
+     "flips": 2,
+     "gpu0": 1,
+     "gpu1": 6,
+     "max": 0.0011879999999999669,
+     "mean": 0.00011974876626289892,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 1,
+     "gpu1": 7,
+     "max": 0.0013909999999999756,
+     "mean": 0.00012498026020637065,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 1,
+     "gpu1": 8,
+     "max": 0.0015439999999999898,
+     "mean": 0.0001256805742485419,
+     "within": true
+    },
+    {
+     "flips": 3,
+     "gpu0": 1,
+     "gpu1": 9,
+     "max": 0.0012959999999999638,
+     "mean": 0.00011937348586810233,
+     "within": true
+    },
+    {
+     "flips": 2,
+     "gpu0": 2,
+     "gpu1": 0,
+     "max": 0.0022400000000000198,
+     "mean": 0.00014182503364737524,
+     "within": true
+    },
+    {
+     "flips": 3,
+     "gpu0": 2,
+     "gpu1": 1,
+     "max": 0.0011929999999999996,
+     "mean": 0.00012606482727680536,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 2,
+     "gpu1": 2,
+     "max": 0.001363000000000003,
+     "mean": 0.00012156594885598907,
+     "within": true
+    },
+    {
+     "flips": 0,
+     "gpu0": 2,
+     "gpu1": 3,
+     "max": 0.001715000000000022,
+     "mean": 0.00011888829071332344,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 2,
+     "gpu1": 4,
+     "max": 0.0012510000000000021,
+     "mean": 0.00013082256617317174,
+     "within": true
+    },
+    {
+     "flips": 3,
+     "gpu0": 2,
+     "gpu1": 5,
+     "max": 0.0022369999999999335,
+     "mean": 0.0001345946612830867,
+     "within": true
+    },
+    {
+     "flips": 0,
+     "gpu0": 2,
+     "gpu1": 6,
+     "max": 0.0015140000000000153,
+     "mean": 0.00012101704800358902,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 2,
+     "gpu1": 7,
+     "max": 0.0012990000000000501,
+     "mean": 0.00012280035890533772,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 2,
+     "gpu1": 8,
+     "max": 0.0014410000000000256,
+     "mean": 0.00012405293853746122,
+     "within": true
+    },
+    {
+     "flips": 1,
+     "gpu0": 2,
+     "gpu1": 9,
+     "max": 0.0014900000000001024,
+     "mean": 0.00011287460744728574,
+     "within": true
+    }
+   ],
+   "iterations": {
+    "per_batch": [
+     {
+      "batch": 0,
+      "max": 0,
+      "median": 0.0,
+      "min": 0
+     },
+     {
+      "batch": 1,
+      "max": 677,
+      "median": 677.0,
+      "min": 677
+     },
+     {
+      "batch": 2,
+      "max": 435,
+      "median": 435.0,
+      "min": 435
+     },
+     {
+      "batch": 3,
+      "max": 228,
+      "median": 225.0,
+      "min": 221
+     },
+     {
+      "batch": 4,
+      "max": 155,
+      "median": 145.5,
+      "min": 138
+     }
+    ],
+    "sum_max": 1492,
+    "sum_median": 1481.5,
+    "sum_min": 1476
+   },
+   "largest": {
+    "flips": 4,
+    "max": 0.0023330000000000295,
+    "mean": 0.0001426550022431582
+   },
+   "n": 5000,
+   "pairs": [
+    {
+     "a": 0,
+     "b": 1,
+     "flips": 1,
+     "max": 0.002327000000000079,
+     "mean": 0.00012436899955136908
+    },
+    {
+     "a": 0,
+     "b": 2,
+     "flips": 1,
+     "max": 0.002099000000000073,
+     "mean": 0.0001214430237774789
+    },
+    {
+     "a": 0,
+     "b": 3,
+     "flips": 2,
+     "max": 0.0018569999999999975,
+     "mean": 0.0001426550022431582
+    },
+    {
+     "a": 0,
+     "b": 4,
+     "flips": 1,
+     "max": 0.0023250000000000215,
+     "mean": 0.00012718416330192905
+    },
+    {
+     "a": 0,
+     "b": 5,
+     "flips": 1,
+     "max": 0.001646999999999954,
+     "mean": 0.00012515903992821895
+    },
+    {
+     "a": 0,
+     "b": 6,
+     "flips": 2,
+     "max": 0.0023279999999999967,
+     "mean": 0.00013558097801704785
+    },
+    {
+     "a": 0,
+     "b": 7,
+     "flips": 1,
+     "max": 0.0023330000000000295,
+     "mean": 0.00012403544190219747
+    },
+    {
+     "a": 0,
+     "b": 8,
+     "flips": 1,
+     "max": 0.0022500000000000853,
+     "mean": 0.00012605428443248037
+    },
+    {
+     "a": 0,
+     "b": 9,
+     "flips": 3,
+     "max": 0.0023290000000000255,
+     "mean": 0.00013448070883804387
+    },
+    {
+     "a": 1,
+     "b": 2,
+     "flips": 2,
+     "max": 0.0014290000000000136,
+     "mean": 0.0001241484970838941
+    },
+    {
+     "a": 1,
+     "b": 3,
+     "flips": 3,
+     "max": 0.0020719999999999628,
+     "mean": 0.00012949910273665302
+    },
+    {
+     "a": 1,
+     "b": 4,
+     "flips": 2,
+     "max": 0.0013609999999999456,
+     "mean": 0.00011003050695379072
+    },
+    {
+     "a": 1,
+     "b": 5,
+     "flips": 2,
+     "max": 0.0023239999999999927,
+     "mean": 0.00012502781516375003
+    },
+    {
+     "a": 1,
+     "b": 6,
+     "flips": 3,
+     "max": 0.0013980000000000103,
+     "mean": 0.00011421018393898566
+    },
+    {
+     "a": 1,
+     "b": 7,
+     "flips": 2,
+     "max": 0.0011309999999999931,
+     "mean": 0.00010800336473754975
+    },
+    {
+     "a": 1,
+     "b": 8,
+     "flips": 2,
+     "max": 0.0014040000000000719,
+     "mean": 0.0001240742485419484
+    },
+    {
+     "a": 1,
+     "b": 9,
+     "flips": 4,
+     "max": 0.0013219999999999343,
+     "mean": 0.00011208838043965905
+    },
+    {
+     "a": 2,
+     "b": 3,
+     "flips": 1,
+     "max": 0.001711000000000018,
+     "mean": 0.00011950269179004117
+    },
+    {
+     "a": 2,
+     "b": 4,
+     "flips": 2,
+     "max": 0.0011140000000000039,
+     "mean": 0.00011947061462539349
+    },
+    {
+     "a": 2,
+     "b": 5,
+     "flips": 2,
+     "max": 0.0020959999999999868,
+     "mean": 0.00012075325257963094
+    },
+    {
+     "a": 2,
+     "b": 6,
+     "flips": 1,
+     "max": 0.0013379999999999503,
+     "mean": 0.00012200874831763265
+    },
+    {
+     "a": 2,
+     "b": 7,
+     "flips": 0,
+     "max": 0.001435000000000075,
+     "mean": 0.0001229131897711971
+    },
+    {
+     "a": 2,
+     "b": 8,
+     "flips": 0,
+     "max": 0.0014460000000000583,
+     "mean": 0.00012190062808434312
+    },
+    {
+     "a": 2,
+     "b": 9,
+     "flips": 2,
+     "max": 0.001431000000000071,
+     "mean": 0.0001202440556303279
+    },
+    {
+     "a": 3,
+     "b": 4,
+     "flips": 1,
+     "max": 0.0016039999999999388,
+     "mean": 0.00013117967698519483
+    },
+    {
+     "a": 3,
+     "b": 5,
+     "flips": 3,
+     "max": 0.0018539999999999113,
+     "mean": 0.00013283692238671993
+    },
+    {
+     "a": 3,
+     "b": 6,
+     "flips": 0,
+     "max": 0.0016100000000000003,
+     "mean": 0.0001180201884253036
+    },
+    {
+     "a": 3,
+     "b": 7,
+     "flips": 1,
+     "max": 0.0016049999999999676,
+     "mean": 0.0001244051144010766
+    },
+    {
+     "a": 3,
+     "b": 8,
+     "flips": 1,
+     "max": 0.0016899999999999693,
+     "mean": 0.0001281399730820992
+    },
+    {
+     "a": 3,
+     "b": 9,
+     "flips": 1,
+     "max": 0.0021400000000000308,
+     "mean": 0.00011824203678779797
+    },
+    {
+     "a": 4,
+     "b": 5,
+     "flips": 2,
+     "max": 0.0023219999999999352,
+     "mean": 0.0001246307761327949
+    },
+    {
+     "a": 4,
+     "b": 6,
+     "flips": 1,
+     "max": 0.0012119999999999909,
+     "mean": 0.00011032862270076404
+    },
+    {
+     "a": 4,
+     "b": 7,
+     "flips": 2,
+     "max": 0.001367000000000007,
+     "mean": 0.0001171025123373706
+    },
+    {
+     "a": 4,
+     "b": 8,
+     "flips": 2,
+     "max": 0.0016639999999999988,
+     "mean": 0.00012218999551368451
+    },
+    {
+     "a": 4,
+     "b": 9,
+     "flips": 2,
+     "max": 0.001363000000000003,
+     "mean": 0.000122607447285778
+    },
+    {
+     "a": 5,
+     "b": 6,
+     "flips": 3,
+     "max": 0.0023249999999999105,
+     "mean": 0.00013274450426200044
+    },
+    {
+     "a": 5,
+     "b": 7,
+     "flips": 2,
+     "max": 0.0023299999999999432,
+     "mean": 0.00012508681022880213
+    },
+    {
+     "a": 5,
+     "b": 8,
+     "flips": 2,
+     "max": 0.002246999999999999,
+     "mean": 0.00012317608793180817
+    },
+    {
+     "a": 5,
+     "b": 9,
+     "flips": 4,
+     "max": 0.0023259999999999392,
+     "mean": 0.00013298160610139103
+    },
+    {
+     "a": 6,
+     "b": 7,
+     "flips": 1,
+     "max": 0.0014040000000000719,
+     "mean": 0.00011255136832660347
+    },
+    {
+     "a": 6,
+     "b": 8,
+     "flips": 1,
+     "max": 0.0015319999999999778,
+     "mean": 0.00012563840287124417
+    },
+    {
+     "a": 6,
+     "b": 9,
+     "flips": 1,
+     "max": 0.0014000000000000679,
+     "mean": 0.00011289255271422294
+    },
+    {
+     "a": 7,
+     "b": 8,
+     "flips": 0,
+     "max": 0.001399000000000039,
+     "mean": 0.00011918528488111247
+    },
+    {
+     "a": 7,
+     "b": 9,
+     "flips": 2,
+     "max": 0.001318999999999959,
+     "mean": 0.00011782974427994586
+    },
+    {
+     "a": 8,
+     "b": 9,
+     "flips": 2,
+     "max": 0.0015080000000000648,
+     "mean": 0.00012738918797667125
+    }
+   ],
+   "reference_iteration_self_check": [
+    {
+     "batches_outside": [],
+     "gpu1_run": 0,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 1,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 2,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 3,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 4,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 5,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 6,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 7,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 8,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 9,
+     "sum_within": true
+    }
+   ],
+   "runs": {
+    "gpu0": [
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:33Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "690015ba7e581ceafe183566fd6f328f2644cef1d6f1d0fa2089ff139da4f588",
+      "results_sha256": "9f566fd32c6dd287953ae8219d978360b14bf514c965420d26ee6ae031dbd2b9",
+      "run": 0,
+      "seconds": 0.303172,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:33Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "c95c4ca4ddaf857b8f53286bc50dd3f482070ae830e5b78b128291c15b576637",
+      "results_sha256": "3a6318793a0368366513ae5314ef93044c1105b409add48aa93de54ccf15df47",
+      "run": 1,
+      "seconds": 0.31334,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:33Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "7203fc52fa9f0916d16be54e08347839a101e0504cc3e19c18556341f59fac46",
+      "results_sha256": "90cd691d243a56d2a182f62fc330a6058257c3ce4e48229be2c8f76fd0bb99fb",
+      "run": 2,
+      "seconds": 0.30849,
+      "tag": "gpu0"
+     }
+    ],
+    "gpu1": [
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:04Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "fdc1325ae551e583733654bee68e08865736755f19fe4dc6a7a6f7df103fa337",
+      "results_sha256": "e4a5b9481fccfc9181c1efd02bda3cd281558251e9158dbda367e97738a7b563",
+      "run": 0,
+      "seconds": 0.40457,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:04Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "99eca0e0786d1c9ef4c407cdd0f4ca756ce76409eb604e012cbe670446106781",
+      "results_sha256": "b0bd25b79c3ceddfe121d66af6cd0e07f9a1a9749357d8d713e2a45d005e9acc",
+      "run": 1,
+      "seconds": 0.283714,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:05Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "fb26cbfa15e97f507a2ea2ca3280e163a26f733e4817c18b83f3ef691b24239c",
+      "results_sha256": "d872a263926d42d7ef797215e4ed53202ff45b098c3943fec7d7de6e439c290b",
+      "run": 2,
+      "seconds": 0.280502,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:05Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "c1ea4d01baf86c5ba0112207968e781eeab5c5c2b71f8895943d69bb613dde05",
+      "results_sha256": "24e084c4dd4442f4d153288eeee53e5213bf884d600364f7c8dc94834b5e6006",
+      "run": 3,
+      "seconds": 0.28555,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:05Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "c3dfe94ef520e6de3ac4995dab0c3383bbf597336a087c60b590cc57d43ee35b",
+      "results_sha256": "48164ef57c0cb49b32f2c7f90367be26fcba0e2c9ccf3da6f6004312ea565579",
+      "run": 4,
+      "seconds": 0.285745,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:06Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "af20d21a6e98eebb2074041194440d6979e6e9c7f25c7139ab14daff6a5030ad",
+      "results_sha256": "49a72171cb28ef325f0976a65ccc0f4a8dcb792730ca2a00e67a67c0f0702119",
+      "run": 5,
+      "seconds": 0.282524,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:06Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "2d2d3d140c410f7d7132d86017594415f18e0d6acbd86eccd82188cf6f2762c2",
+      "results_sha256": "d4073ef43535dd8e1a26cb4c96c79ceb2d8244d774d086e15da54af3508f3af0",
+      "run": 6,
+      "seconds": 0.286185,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:06Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "be6053d7e0f72388291e7cf41e01a1482d016b1c4420131632ab1181a76abc5a",
+      "results_sha256": "f7baf90bb5a5828fd3b7406b46995619820c27b235375d744c9474ccfc977148",
+      "run": 7,
+      "seconds": 0.278745,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:07Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "00cea1e33be74450d4ee87613b952758cea86436f75aa7b50a911a756368a210",
+      "results_sha256": "e98ac3461c2f836cb308272a97be9080f6f44ca6a8cc209174ad7a15243ff563",
+      "run": 8,
+      "seconds": 0.286051,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000",
+       "--numBatches",
+       "5",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5k5_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:07Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "3479b0d4f92e1531a5ec5aae612a94e957d339c1efa7282818fa32a48b012031",
+      "results_sha256": "8d6e1ff4fc78e5cb30f5ef48ae225105669e432b703add6689cd5032ec9d9276",
+      "run": 9,
+      "seconds": 0.285396,
+      "tag": "gpu1"
+     }
+    ]
+   },
+   "thresholds": {
+    "t_flips": 12,
+    "t_max": 0.0069990000000000885,
+    "t_mean": 0.0004279650067294746
+   },
+   "vertices_compared": 4458
+  },
+  "5m_d1e-4_s42_inplace": {
+   "batches": 10,
+   "components": [
+    49376,
+    438347,
+    455279,
+    461973,
+    465267,
+    466599,
+    468342,
+    469007,
+    469755,
+    469656
+   ],
+   "gpu0_cross_check": [
+    {
+     "flips": 6225,
+     "gpu0": 0,
+     "gpu1": 0,
+     "max": 0.410782,
+     "mean": 7.764553557800224e-05,
+     "within": true
+    },
+    {
+     "flips": 6196,
+     "gpu0": 0,
+     "gpu1": 1,
+     "max": 0.377568,
+     "mean": 7.729562244668908e-05,
+     "within": true
+    },
+    {
+     "flips": 6178,
+     "gpu0": 0,
+     "gpu1": 2,
+     "max": 0.323678,
+     "mean": 7.673673378226713e-05,
+     "within": true
+    },
+    {
+     "flips": 6140,
+     "gpu0": 0,
+     "gpu1": 3,
+     "max": 0.435184,
+     "mean": 7.732039461279461e-05,
+     "within": true
+    },
+    {
+     "flips": 6170,
+     "gpu0": 0,
+     "gpu1": 4,
+     "max": 0.410782,
+     "mean": 7.704189494949497e-05,
+     "within": true
+    },
+    {
+     "flips": 6681,
+     "gpu0": 0,
+     "gpu1": 5,
+     "max": 0.435184,
+     "mean": 8.304018540965207e-05,
+     "within": true
+    },
+    {
+     "flips": 6069,
+     "gpu0": 0,
+     "gpu1": 6,
+     "max": 0.435184,
+     "mean": 7.735760583613915e-05,
+     "within": true
+    },
+    {
+     "flips": 6518,
+     "gpu0": 0,
+     "gpu1": 7,
+     "max": 0.435184,
+     "mean": 8.064919057239056e-05,
+     "within": true
+    },
+    {
+     "flips": 6424,
+     "gpu0": 0,
+     "gpu1": 8,
+     "max": 0.435184,
+     "mean": 7.875362401795735e-05,
+     "within": true
+    },
+    {
+     "flips": 6260,
+     "gpu0": 0,
+     "gpu1": 9,
+     "max": 0.410782,
+     "mean": 7.793461818181817e-05,
+     "within": true
+    },
+    {
+     "flips": 6258,
+     "gpu0": 1,
+     "gpu1": 0,
+     "max": 0.435291,
+     "mean": 7.814455645342312e-05,
+     "within": true
+    },
+    {
+     "flips": 6129,
+     "gpu0": 1,
+     "gpu1": 1,
+     "max": 0.435357,
+     "mean": 7.765590662177328e-05,
+     "within": true
+    },
+    {
+     "flips": 6279,
+     "gpu0": 1,
+     "gpu1": 2,
+     "max": 0.434693,
+     "mean": 7.832739191919191e-05,
+     "within": true
+    },
+    {
+     "flips": 6165,
+     "gpu0": 1,
+     "gpu1": 3,
+     "max": 0.324149,
+     "mean": 7.653077216610551e-05,
+     "within": true
+    },
+    {
+     "flips": 6239,
+     "gpu0": 1,
+     "gpu1": 4,
+     "max": 0.435066,
+     "mean": 7.797242918069584e-05,
+     "within": true
+    },
+    {
+     "flips": 6604,
+     "gpu0": 1,
+     "gpu1": 5,
+     "max": 0.41115999999999997,
+     "mean": 8.233259393939395e-05,
+     "within": true
+    },
+    {
+     "flips": 2060,
+     "gpu0": 1,
+     "gpu1": 6,
+     "max": 0.297627,
+     "mean": 2.5704245566778876e-05,
+     "within": true
+    },
+    {
+     "flips": 6491,
+     "gpu0": 1,
+     "gpu1": 7,
+     "max": 0.41115999999999997,
+     "mean": 8.047139349046015e-05,
+     "within": true
+    },
+    {
+     "flips": 6277,
+     "gpu0": 1,
+     "gpu1": 8,
+     "max": 0.377546,
+     "mean": 7.856650033670031e-05,
+     "within": true
+    },
+    {
+     "flips": 6247,
+     "gpu0": 1,
+     "gpu1": 9,
+     "max": 0.434869,
+     "mean": 7.894186172839508e-05,
+     "within": true
+    },
+    {
+     "flips": 6108,
+     "gpu0": 2,
+     "gpu1": 0,
+     "max": 0.410968,
+     "mean": 7.667409943883276e-05,
+     "within": true
+    },
+    {
+     "flips": 6167,
+     "gpu0": 2,
+     "gpu1": 1,
+     "max": 0.377568,
+     "mean": 7.717442424242422e-05,
+     "within": true
+    },
+    {
+     "flips": 6123,
+     "gpu0": 2,
+     "gpu1": 2,
+     "max": 0.323678,
+     "mean": 7.723744893378224e-05,
+     "within": true
+    },
+    {
+     "flips": 6173,
+     "gpu0": 2,
+     "gpu1": 3,
+     "max": 0.435238,
+     "mean": 7.759826531986532e-05,
+     "within": true
+    },
+    {
+     "flips": 6127,
+     "gpu0": 2,
+     "gpu1": 4,
+     "max": 0.410968,
+     "mean": 7.721060246913579e-05,
+     "within": true
+    },
+    {
+     "flips": 6502,
+     "gpu0": 2,
+     "gpu1": 5,
+     "max": 0.435238,
+     "mean": 8.10441391694725e-05,
+     "within": true
+    },
+    {
+     "flips": 6092,
+     "gpu0": 2,
+     "gpu1": 6,
+     "max": 0.435238,
+     "mean": 7.731577463524127e-05,
+     "within": true
+    },
+    {
+     "flips": 6365,
+     "gpu0": 2,
+     "gpu1": 7,
+     "max": 0.435238,
+     "mean": 7.891723411896743e-05,
+     "within": true
+    },
+    {
+     "flips": 6343,
+     "gpu0": 2,
+     "gpu1": 8,
+     "max": 0.435238,
+     "mean": 7.965413176206509e-05,
+     "within": true
+    },
+    {
+     "flips": 6291,
+     "gpu0": 2,
+     "gpu1": 9,
+     "max": 0.410968,
+     "mean": 7.951926374859708e-05,
+     "within": true
+    }
+   ],
+   "iterations": {
+    "per_batch": [
+     {
+      "batch": 0,
+      "max": 0,
+      "median": 0.0,
+      "min": 0
+     },
+     {
+      "batch": 1,
+      "max": 1269,
+      "median": 1261.0,
+      "min": 1261
+     },
+     {
+      "batch": 2,
+      "max": 1808,
+      "median": 1677.0,
+      "min": 1624
+     },
+     {
+      "batch": 3,
+      "max": 1642,
+      "median": 1515.0,
+      "min": 1482
+     },
+     {
+      "batch": 4,
+      "max": 1396,
+      "median": 1335.0,
+      "min": 1254
+     },
+     {
+      "batch": 5,
+      "max": 957,
+      "median": 927.5,
+      "min": 896
+     },
+     {
+      "batch": 6,
+      "max": 935,
+      "median": 909.0,
+      "min": 860
+     },
+     {
+      "batch": 7,
+      "max": 657,
+      "median": 628.0,
+      "min": 616
+     },
+     {
+      "batch": 8,
+      "max": 349,
+      "median": 345.5,
+      "min": 337
+     },
+     {
+      "batch": 9,
+      "max": 381,
+      "median": 376.0,
+      "min": 371
+     }
+    ],
+    "sum_max": 9219,
+    "sum_median": 9000.0,
+    "sum_min": 8849
+   },
+   "largest": {
+    "flips": 7175,
+    "max": 0.435357,
+    "mean": 8.909029809203141e-05
+   },
+   "n": 5000000,
+   "pairs": [
+    {
+     "a": 0,
+     "b": 1,
+     "flips": 5959,
+     "max": 0.410621,
+     "mean": 7.552582109988774e-05
+    },
+    {
+     "a": 0,
+     "b": 2,
+     "flips": 6137,
+     "max": 0.41106,
+     "mean": 7.717943254769922e-05
+    },
+    {
+     "a": 0,
+     "b": 3,
+     "flips": 6233,
+     "max": 0.435291,
+     "mean": 7.76917595959596e-05
+    },
+    {
+     "a": 0,
+     "b": 4,
+     "flips": 6141,
+     "max": 0.378607,
+     "mean": 7.715856498316498e-05
+    },
+    {
+     "a": 0,
+     "b": 5,
+     "flips": 6342,
+     "max": 0.435291,
+     "mean": 7.943304938271605e-05
+    },
+    {
+     "a": 0,
+     "b": 6,
+     "flips": 6258,
+     "max": 0.435291,
+     "mean": 7.789742828282829e-05
+    },
+    {
+     "a": 0,
+     "b": 7,
+     "flips": 6279,
+     "max": 0.435291,
+     "mean": 7.782192974186305e-05
+    },
+    {
+     "a": 0,
+     "b": 8,
+     "flips": 6431,
+     "max": 0.435291,
+     "mean": 8.114476632996632e-05
+    },
+    {
+     "a": 0,
+     "b": 9,
+     "flips": 6463,
+     "max": 0.18683300000000003,
+     "mean": 8.007560336700337e-05
+    },
+    {
+     "a": 1,
+     "b": 2,
+     "flips": 6238,
+     "max": 0.377568,
+     "mean": 7.696495510662178e-05
+    },
+    {
+     "a": 1,
+     "b": 3,
+     "flips": 6230,
+     "max": 0.435357,
+     "mean": 7.749519999999999e-05
+    },
+    {
+     "a": 1,
+     "b": 4,
+     "flips": 6190,
+     "max": 0.410621,
+     "mean": 7.704860650953984e-05
+    },
+    {
+     "a": 1,
+     "b": 5,
+     "flips": 6543,
+     "max": 0.435357,
+     "mean": 8.100094006734004e-05
+    },
+    {
+     "a": 1,
+     "b": 6,
+     "flips": 6151,
+     "max": 0.435357,
+     "mean": 7.75375609427609e-05
+    },
+    {
+     "a": 1,
+     "b": 7,
+     "flips": 6356,
+     "max": 0.435357,
+     "mean": 7.89771367003367e-05
+    },
+    {
+     "a": 1,
+     "b": 8,
+     "flips": 6420,
+     "max": 0.435357,
+     "mean": 7.996530347923679e-05
+    },
+    {
+     "a": 1,
+     "b": 9,
+     "flips": 6168,
+     "max": 0.410621,
+     "mean": 7.806040852974185e-05
+    },
+    {
+     "a": 2,
+     "b": 3,
+     "flips": 6350,
+     "max": 0.434693,
+     "mean": 7.814998765432096e-05
+    },
+    {
+     "a": 2,
+     "b": 4,
+     "flips": 6154,
+     "max": 0.41106,
+     "mean": 7.692348664421995e-05
+    },
+    {
+     "a": 2,
+     "b": 5,
+     "flips": 6455,
+     "max": 0.434693,
+     "mean": 7.992157822671154e-05
+    },
+    {
+     "a": 2,
+     "b": 6,
+     "flips": 6301,
+     "max": 0.434693,
+     "mean": 7.798991447811444e-05
+    },
+    {
+     "a": 2,
+     "b": 7,
+     "flips": 6358,
+     "max": 0.434693,
+     "mean": 7.856463771043771e-05
+    },
+    {
+     "a": 2,
+     "b": 8,
+     "flips": 6478,
+     "max": 0.434693,
+     "mean": 8.088093827160493e-05
+    },
+    {
+     "a": 2,
+     "b": 9,
+     "flips": 6476,
+     "max": 0.41106,
+     "mean": 8.08555342312009e-05
+    },
+    {
+     "a": 3,
+     "b": 4,
+     "flips": 6258,
+     "max": 0.435066,
+     "mean": 7.739195780022445e-05
+    },
+    {
+     "a": 3,
+     "b": 5,
+     "flips": 6701,
+     "max": 0.411429,
+     "mean": 8.227201346801346e-05
+    },
+    {
+     "a": 3,
+     "b": 6,
+     "flips": 6213,
+     "max": 0.324207,
+     "mean": 7.66225674523008e-05
+    },
+    {
+     "a": 3,
+     "b": 7,
+     "flips": 6484,
+     "max": 0.411429,
+     "mean": 8.005286599326597e-05
+    },
+    {
+     "a": 3,
+     "b": 8,
+     "flips": 6350,
+     "max": 0.377546,
+     "mean": 7.859049180695847e-05
+    },
+    {
+     "a": 3,
+     "b": 9,
+     "flips": 6254,
+     "max": 0.434869,
+     "mean": 7.86827115600449e-05
+    },
+    {
+     "a": 4,
+     "b": 5,
+     "flips": 6501,
+     "max": 0.435066,
+     "mean": 8.076518024691356e-05
+    },
+    {
+     "a": 4,
+     "b": 6,
+     "flips": 6181,
+     "max": 0.435066,
+     "mean": 7.776827564534232e-05
+    },
+    {
+     "a": 4,
+     "b": 7,
+     "flips": 6510,
+     "max": 0.435066,
+     "mean": 7.890909674523009e-05
+    },
+    {
+     "a": 4,
+     "b": 8,
+     "flips": 6388,
+     "max": 0.435066,
+     "mean": 7.939044017957352e-05
+    },
+    {
+     "a": 4,
+     "b": 9,
+     "flips": 6424,
+     "max": 0.378607,
+     "mean": 7.923170729517394e-05
+    },
+    {
+     "a": 5,
+     "b": 6,
+     "flips": 6690,
+     "max": 0.411279,
+     "mean": 8.206706038159371e-05
+    },
+    {
+     "a": 5,
+     "b": 7,
+     "flips": 6205,
+     "max": 0.128936,
+     "mean": 7.61470096520763e-05
+    },
+    {
+     "a": 5,
+     "b": 8,
+     "flips": 7099,
+     "max": 0.41107499999999997,
+     "mean": 8.823454882154879e-05
+    },
+    {
+     "a": 5,
+     "b": 9,
+     "flips": 7175,
+     "max": 0.434869,
+     "mean": 8.909029809203141e-05
+    },
+    {
+     "a": 6,
+     "b": 7,
+     "flips": 6481,
+     "max": 0.411279,
+     "mean": 8.025271111111111e-05
+    },
+    {
+     "a": 6,
+     "b": 8,
+     "flips": 6351,
+     "max": 0.377546,
+     "mean": 7.85402139169472e-05
+    },
+    {
+     "a": 6,
+     "b": 9,
+     "flips": 6323,
+     "max": 0.434869,
+     "mean": 7.888811717171713e-05
+    },
+    {
+     "a": 7,
+     "b": 8,
+     "flips": 7000,
+     "max": 0.41107499999999997,
+     "mean": 8.500794769921435e-05
+    },
+    {
+     "a": 7,
+     "b": 9,
+     "flips": 6992,
+     "max": 0.434869,
+     "mean": 8.565257328843997e-05
+    },
+    {
+     "a": 8,
+     "b": 9,
+     "flips": 6222,
+     "max": 0.434869,
+     "mean": 7.734347138047138e-05
+    }
+   ],
+   "reference_iteration_self_check": [
+    {
+     "batches_outside": [],
+     "gpu1_run": 0,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 1,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 2,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 3,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 4,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 5,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 6,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 7,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 8,
+     "sum_within": true
+    },
+    {
+     "batches_outside": [],
+     "gpu1_run": 9,
+     "sum_within": true
+    }
+   ],
+   "runs": {
+    "gpu0": [
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:55:51Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "54c1149c9c4b27006fabe25e10a1621912f4211283ef9a662c42404098e1d05f",
+      "results_sha256": "fb07b2a006b125c7822b043830349ca79d8bf0de05945e95a9ea1648696fa5f8",
+      "run": 0,
+      "seconds": 6.400811,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:56:03Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "093f7a97831e2e2a381fc072fcf7afb0213d9817f3f2b5c33666ec89ae253914",
+      "results_sha256": "09abc30a6ed02961edb940d69ad73e47bddf6535982e0cdedf9c3a394159b18e",
+      "run": 1,
+      "seconds": 6.39218,
+      "tag": "gpu0"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "before": {
+        "memory_mhz": 405,
+        "pstate": "P8",
+        "sm_mhz": 210
+       },
+       "check": "every busy GPU sample of every accepted round at the locked clocks",
+       "control": "base",
+       "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+       "locked": {
+        "memory_mhz": 7601,
+        "pstate": "P2",
+        "sm_mhz": 1170
+       },
+       "tool": "Version 2025.4.1.0 (build 37053803) (public-release)"
+      },
+      "date": "2026-10-29T03:56:15Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 0,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-c8f1454c-ae9c-f9ee-1002-0d11da716b01"
+      },
+      "labels_sha256": "924cb0cfb582182eba757e1a2fe6ad310e8edebc381165c5535ba29bc0ce9b87",
+      "results_sha256": "5b10e1f05a74840de844c24c0b1b3f512e694d3a59fe542704755c24cb5a4694",
+      "run": 2,
+      "seconds": 6.466511,
+      "tag": "gpu0"
+     }
+    ],
+    "gpu1": [
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:36Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "0a71a5727dd775a880cef194d00beb1e322bcbe727b1000a4f5ec6c2f5c47a9c",
+      "results_sha256": "45ea6e89b60499d6460f69af4e4c195a7df80190289c14f901fbf161f61c54bc",
+      "run": 0,
+      "seconds": 6.056864,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:53:48Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "6210b7417ed5d1f55b293091be445e90b711aa96df0e943d8bad5f8bb6f7d801",
+      "results_sha256": "be45270e97361973e19615788dbb43efd11875b7b602c3a4f391b7acbf904153",
+      "run": 1,
+      "seconds": 6.315673,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:54:02Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "b66b4ba711af2f09ae9d5aae8cf1b92d2a83116ce8e2fb134bba7b2070f6272b",
+      "results_sha256": "c5ab0fdb85b6e67bb3617e2a68088dc25b76b5c0a4cf31a0e787de741e448094",
+      "run": 2,
+      "seconds": 7.461292,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:54:15Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "1e72f6205deac3a63463745fd8baac135655dd1ffc18891ab30c8d7965146f93",
+      "results_sha256": "0f0e5effa76e27755d52df76dc89e79fbfd5326e141f2a5f6b71f34cd148fe10",
+      "run": 3,
+      "seconds": 6.825963,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:54:27Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "0df2704097cc06475d7b4eeade46ae55202e3d522469d152346d8e7b6913f465",
+      "results_sha256": "4de5ab59bccb80adcc99b50aa74ea47b93e9e4c7dda341568f0a41e52e227908",
+      "run": 4,
+      "seconds": 6.466312,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:54:38Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "2717fd107986917526ed8363ba212c27048885a8b6f1c6cc642a91d08982fc45",
+      "results_sha256": "b4043b52b392ccd70ed901ac4fe02eb7a75b8a92b119cb799a1f9100e2117668",
+      "run": 5,
+      "seconds": 6.115438,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:54:51Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "1152b31b9b00b5bc87d09f14afc1723a945fe312effaa0f5f3716289145ce314",
+      "results_sha256": "d5551dfe89e3747b196d3efc4de8cb8d3549b662b93d64bc3214487fa6c3e334",
+      "run": 6,
+      "seconds": 6.487814,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:55:03Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "24b493de899e9d76c88936f8dedad9ee5b2c7e656d3a6a2473afa2e417736c96",
+      "results_sha256": "07642ae6defc1d6498de37ad1c19e6233d4aa8bbeafca54848988a2d4b837689",
+      "run": 7,
+      "seconds": 6.474951,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:55:15Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "ec049e4d6308d2bc60176df5616c807309dcad41076de04bb95bd0968e5ff1fb",
+      "results_sha256": "30b10b44e5b0cef7b05bc588d31800f3856eba00bec8785650b91b2a70ab15fe",
+      "run": 8,
+      "seconds": 6.157487,
+      "tag": "gpu1"
+     },
+     {
+      "argv": [
+       "--totalNodes",
+       "5000000",
+       "--numBatches",
+       "10",
+       "--avgDegree",
+       "5",
+       "--delta",
+       "0.0001",
+       "--seed",
+       "42",
+       "--update",
+       "inplace",
+       "--quiet",
+       "--noValidate",
+       "--noGraphFiles",
+       "--output",
+       "<out>"
+      ],
+      "case": "5m_d1e-4_s42_inplace",
+      "clocks": {
+       "control": "none",
+       "note": "default GPU clocks (DVFS), as measured"
+      },
+      "date": "2026-10-29T03:55:26Z",
+      "delta": "0.0001",
+      "gpu": {
+       "driver": "590.48.01",
+       "index": 1,
+       "name": "NVIDIA RTX A5000",
+       "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+      },
+      "labels_sha256": "34945c6b7ff05d1e049c9c91ba5677c5c6b87308557f4f94e975c14eb17e9cc7",
+      "results_sha256": "e51f67f591c0cd7b64b2eb1d95fae04c43b943059b7003e9d8d62274b55a0d64",
+      "run": 9,
+      "seconds": 6.076346,
+      "tag": "gpu1"
+     }
+    ]
+   },
+   "thresholds": {
+    "t_flips": 21525,
+    "t_max": 1.306071,
+    "t_mean": 0.0002672708942760942
+   },
+   "vertices_compared": 4455000
+  }
+ },
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-10-29T04:24:20Z",
+ "gpu0_outside": [
+  {
+   "case": "50k_d1e-4_s42_inplace",
+   "gpu0_run": 2,
+   "iteration_sum_within": true,
+   "iterations_within": false,
+   "labels_within": true
+  },
+  {
+   "case": "500k_d1e-4_s42_inplace",
+   "gpu0_run": 0,
+   "iteration_sum_within": true,
+   "iterations_within": false,
+   "labels_within": true
+  },
+  {
+   "case": "500k_d1e-4_s42_inplace",
+   "gpu0_run": 2,
+   "iteration_sum_within": true,
+   "iterations_within": false,
+   "labels_within": true
+  }
+ ],
+ "harness_commit": "9ed2deb1116c51913732a2b67afd2afd3ecd8c30+dirty",
+ "reference": "LabelPropagation-CUDA",
+ "rule": {
+  "cases": [
+   "5k5",
+   "50k",
+   "500k",
+   "5m"
+  ],
+  "floor_max": 1e-06,
+  "floor_mean": 1e-06,
+  "iterations_floor": 2,
+  "iterations_rel": 0.1,
+  "k": 3,
+  "n_gpu0": 3,
+  "n_gpu1": 10,
+  "tight_cases": [
+   "5k5",
+   "50k"
+  ],
+  "tight_runs": 3
+ },
+ "schema": 1,
+ "tight": {
+  "50k_d1e-6_s42_inplace": {
+   "components": [
+    497,
+    4391,
+    4551,
+    4589,
+    4663,
+    4636,
+    4664,
+    4677,
+    4700,
+    4719
+   ],
+   "runs": [
+    {
+     "argv": [
+      "--totalNodes",
+      "50000",
+      "--numBatches",
+      "10",
+      "--avgDegree",
+      "5",
+      "--delta",
+      "0.000001",
+      "--seed",
+      "42",
+      "--update",
+      "inplace",
+      "--quiet",
+      "--noValidate",
+      "--noGraphFiles",
+      "--output",
+      "<out>"
+     ],
+     "case": "50k_d1e-6_s42_inplace",
+     "clocks": {
+      "control": "none",
+      "note": "default GPU clocks (DVFS), as measured"
+     },
+     "date": "2026-10-29T03:55:28Z",
+     "delta": "0.000001",
+     "gpu": {
+      "driver": "590.48.01",
+      "index": 1,
+      "name": "NVIDIA RTX A5000",
+      "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+     },
+     "labels_sha256": "90e3894b5315ee995bbe15598d76a8e276adfdb38c47cf3b2a5a31b0281fd391",
+     "results_sha256": "2677a550b16611cb70f7b9b4020851c65c9ea3053cb8d30aadf0d615a0d418e0",
+     "run": 0,
+     "seconds": 0.606405,
+     "tag": "gpu1"
+    },
+    {
+     "argv": [
+      "--totalNodes",
+      "50000",
+      "--numBatches",
+      "10",
+      "--avgDegree",
+      "5",
+      "--delta",
+      "0.000001",
+      "--seed",
+      "42",
+      "--update",
+      "inplace",
+      "--quiet",
+      "--noValidate",
+      "--noGraphFiles",
+      "--output",
+      "<out>"
+     ],
+     "case": "50k_d1e-6_s42_inplace",
+     "clocks": {
+      "control": "none",
+      "note": "default GPU clocks (DVFS), as measured"
+     },
+     "date": "2026-10-29T03:55:29Z",
+     "delta": "0.000001",
+     "gpu": {
+      "driver": "590.48.01",
+      "index": 1,
+      "name": "NVIDIA RTX A5000",
+      "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+     },
+     "labels_sha256": "e2d309562dbdeebc0e0b247d70605b7807d638bbdf7accddab2193b402ce425c",
+     "results_sha256": "ef974e4a484a3db7cffb13d44310c5fc1278e7be4cc8ab510d4710c8d2728c9f",
+     "run": 1,
+     "seconds": 0.605112,
+     "tag": "gpu1"
+    },
+    {
+     "argv": [
+      "--totalNodes",
+      "50000",
+      "--numBatches",
+      "10",
+      "--avgDegree",
+      "5",
+      "--delta",
+      "0.000001",
+      "--seed",
+      "42",
+      "--update",
+      "inplace",
+      "--quiet",
+      "--noValidate",
+      "--noGraphFiles",
+      "--output",
+      "<out>"
+     ],
+     "case": "50k_d1e-6_s42_inplace",
+     "clocks": {
+      "control": "none",
+      "note": "default GPU clocks (DVFS), as measured"
+     },
+     "date": "2026-10-29T03:55:30Z",
+     "delta": "0.000001",
+     "gpu": {
+      "driver": "590.48.01",
+      "index": 1,
+      "name": "NVIDIA RTX A5000",
+      "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+     },
+     "labels_sha256": "4ef34b95d8d5afef840b17fa3be9dc7555ad8dc02aa5922335e39487ffc7c609",
+     "results_sha256": "4fa3d5867dc491efd22df0492b2382bf52d9f0c8d3af09f86532c8fdb67a8ca7",
+     "run": 2,
+     "seconds": 0.597337,
+     "tag": "gpu1"
+    }
+   ]
+  },
+  "5k5_d1e-6_s42_inplace": {
+   "components": [
+    50,
+    829,
+    850,
+    836,
+    858
+   ],
+   "runs": [
+    {
+     "argv": [
+      "--totalNodes",
+      "5000",
+      "--numBatches",
+      "5",
+      "--avgDegree",
+      "5",
+      "--delta",
+      "0.000001",
+      "--seed",
+      "42",
+      "--update",
+      "inplace",
+      "--quiet",
+      "--noValidate",
+      "--noGraphFiles",
+      "--output",
+      "<out>"
+     ],
+     "case": "5k5_d1e-6_s42_inplace",
+     "clocks": {
+      "control": "none",
+      "note": "default GPU clocks (DVFS), as measured"
+     },
+     "date": "2026-10-29T03:55:27Z",
+     "delta": "0.000001",
+     "gpu": {
+      "driver": "590.48.01",
+      "index": 1,
+      "name": "NVIDIA RTX A5000",
+      "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+     },
+     "labels_sha256": "fbe031a76ddaca9106bded403d94c3ed2075e695e8b774fbcddbca2173bacf41",
+     "results_sha256": "3a02ae029759780f11cdcaff4e0edd6bc50304cf3e85c33bb02c2f13e0085782",
+     "run": 0,
+     "seconds": 0.435102,
+     "tag": "gpu1"
+    },
+    {
+     "argv": [
+      "--totalNodes",
+      "5000",
+      "--numBatches",
+      "5",
+      "--avgDegree",
+      "5",
+      "--delta",
+      "0.000001",
+      "--seed",
+      "42",
+      "--update",
+      "inplace",
+      "--quiet",
+      "--noValidate",
+      "--noGraphFiles",
+      "--output",
+      "<out>"
+     ],
+     "case": "5k5_d1e-6_s42_inplace",
+     "clocks": {
+      "control": "none",
+      "note": "default GPU clocks (DVFS), as measured"
+     },
+     "date": "2026-10-29T03:55:27Z",
+     "delta": "0.000001",
+     "gpu": {
+      "driver": "590.48.01",
+      "index": 1,
+      "name": "NVIDIA RTX A5000",
+      "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+     },
+     "labels_sha256": "215d9b31485a9f0a08ef0ec5852dce76d038887b5bf090d767ebedbe431a5b5f",
+     "results_sha256": "a8c8c6a9c5b989eb64e0663ed85e35d9156d86816b3fce5b347fe8f8959f6a85",
+     "run": 1,
+     "seconds": 0.36093,
+     "tag": "gpu1"
+    },
+    {
+     "argv": [
+      "--totalNodes",
+      "5000",
+      "--numBatches",
+      "5",
+      "--avgDegree",
+      "5",
+      "--delta",
+      "0.000001",
+      "--seed",
+      "42",
+      "--update",
+      "inplace",
+      "--quiet",
+      "--noValidate",
+      "--noGraphFiles",
+      "--output",
+      "<out>"
+     ],
+     "case": "5k5_d1e-6_s42_inplace",
+     "clocks": {
+      "control": "none",
+      "note": "default GPU clocks (DVFS), as measured"
+     },
+     "date": "2026-10-29T03:55:28Z",
+     "delta": "0.000001",
+     "gpu": {
+      "driver": "590.48.01",
+      "index": 1,
+      "name": "NVIDIA RTX A5000",
+      "uuid": "GPU-e145f857-c145-9a57-bf52-723eb3016d9a"
+     },
+     "labels_sha256": "88223f0c90f56fe9e5971b9716dd640c28bd3db0962acc3b94828313ff82a55d",
+     "results_sha256": "6e1bad9ec0c9de49fc8f31bd4ce3a038afd1719b19775106fffd2a1c4a0c8eb3",
+     "run": 2,
+     "seconds": 0.36494,
+     "tag": "gpu1"
+    }
+   ]
+  }
+ },
+ "toolchain": "the unpatched copy built by its Makefile (CUDA 13.1 nvcc, sm_86, -O3 --use_fast_math, g++ 12.2; parity/references.toml)",
+ "vertices": "ACTIVE and not ground truth after the last batch (O's host status of the batches; the classes of the 6-decimal label files, >= 0.5)",
+ "what": "the in_place calibration of LabelPropagation-CUDA@a276a3a (AD5, decided by the author on 2026-10-28): every pair of the N reference runs per case"
+}

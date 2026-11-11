@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The label_propagation manifest (PLAN Section 4.8). scripts/regen.py reads it (the algorithm
+# tables, the CODEOWNERS block and the registries; `python3 scripts/regen.py` after an edit); CMake
+# does not. The backends are the ones label_propagation accepts (ADR 0070: any other raises
+# not_supported_error naming them): sequential and cuda (the fused engine, M10a step 4); there is no
+# OpenMP backend in 0.4 (AD19). maturity: experimental until the freeze of M10b (stable at 0.4.0 only on the author's
+# confirmation, AD15).
+name        = "label_propagation"
+title       = "Dynamic label propagation"
+computes    = "binary harmonic label propagation under vertex batches"
+paper       = "DynLP (ICS 2026)"
+since       = "0.4"
+family      = "fixed_point"
+container   = "graph"
+tier        = "custom_engine"
+maturity    = "experimental"
+backends    = ["sequential", "cuda"]
+determinism = "tolerance"               # in_place (the published rule); damped is bitwise per backend and build
+oracle      = "reference"               # the converged harmonic solution (testing::harmonic_solution)
+graph_requirements = { directed = false, weights = "float", layout = "slotted (update); compact or slotted (compute)", semantics = "net_effect" }
+cite        = ["dynlp2026"]
+maintainers = ["SMShovan"]
+python      = false   # true once python/dyng/<name>.py and its bindings exist (PLAN 4.8, file 17; M10b)
+origin      = [ { repo = "LabelPropagation-CUDA", commit = "a276a3a", paths = ["src/dynLP.cu", "src/dynamicGraph.cu", "src/sparsifySubgraph.cu", "src/connectedComponents.cu",
+                                                                  "src/labelInitialization.cu", "src/iterativePropagation.cu", "src/validation.cu", "src/utils.cu", "src/main.cu"] } ]
+
+[performance]
+compute_tolerance    = 1.05
+end_to_end_tolerance = 1.10
