@@ -13,8 +13,10 @@
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace dyng::detail {
 
@@ -97,28 +99,37 @@ void check_hyperedge_batch_arrays(const hyperedge_batch_view<vertex_t, weight_t>
 }
 
 /**
- * @brief Check an edge batch for a batch file: host memory, no vertex operations (0.4),
- *        consistent sizes, ids >= 0.
+ * @brief Check an edge batch for a batch file: host memory, consistent sizes, ids >= 0, finite
+ *        float weights (0.4), and the vertex operations (0.4) where the file can hold them.
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Weight type.
- * @param[in] batch The batch.
- * @param[in] who   The writer's name, for the message.
- * @param[in] index The batch's index, for the message.
+ * @param[in] batch          The batch.
+ * @param[in] who            The writer's name, for the message.
+ * @param[in] index          The batch's index, for the message.
+ * @param[in] vertex_records Whether the file holds vertex operations (`.dgt`, and `.dgb` with
+ *                           batch_file_flags::vertex_records): inserted and deleted ids >= 0,
+ *                           no labels or one per inserted vertex, each -1, 0 or 1. Without it a
+ *                           batch with vertex operations is refused.
  * @throws invalid_argument_error if a check fails.
  */
 template <typename vertex_t, typename weight_t>
 void check_edge_batch_arrays(const edge_batch_view<vertex_t, weight_t>& batch, const char* who,
-                             std::size_t index) {
+                             std::size_t index, bool vertex_records = false) {
   const std::size_t n = batch.insert_src.size();
-  DYNG_EXPECTS(batch.insert_vertices.empty() && batch.delete_vertices.empty(), who, ": batch ",
-               index, " has vertex operations, which the batch files of this release do not hold");
+  DYNG_EXPECTS(vertex_records || (batch.insert_vertices.empty() && batch.delete_vertices.empty() &&
+                                  batch.insert_vertex_labels.empty()),
+               who, ": batch ", index,
+               " has vertex operations, which this file cannot hold (a .dgb file holds them only "
+               "with batch_file_flags::vertex_records)");
   DYNG_EXPECTS(batch.num_weights >= 0 && batch.insert_dst.size() == n &&
                    batch.insert_weights.size() == n * static_cast<std::size_t>(batch.num_weights) &&
                    batch.delete_dst.size() == batch.delete_src.size(),
                who, ": the arrays of batch ", index, " disagree in size");
   DYNG_EXPECTS(host_readable(batch.insert_src) && host_readable(batch.insert_dst) &&
                    host_readable(batch.insert_weights) && host_readable(batch.delete_src) &&
-                   host_readable(batch.delete_dst),
+                   host_readable(batch.delete_dst) && host_readable(batch.insert_vertices) &&
+                   host_readable(batch.insert_vertex_labels) &&
+                   host_readable(batch.delete_vertices),
                who, ": batch ", index, " must be in host-accessible memory");
   for (std::size_t i = 0; i < n; ++i) {
     DYNG_EXPECTS(batch.insert_src[i] >= 0 && batch.insert_dst[i] >= 0, who, ": batch ", index,
@@ -127,6 +138,29 @@ void check_edge_batch_arrays(const edge_batch_view<vertex_t, weight_t>& batch, c
   for (std::size_t i = 0; i < batch.delete_src.size(); ++i) {
     DYNG_EXPECTS(batch.delete_src[i] >= 0 && batch.delete_dst[i] >= 0, who, ": batch ", index,
                  " has a negative vertex id");
+  }
+  if constexpr (std::is_floating_point_v<weight_t>) {
+    for (std::size_t i = 0; i < batch.insert_weights.size(); ++i) {
+      DYNG_EXPECTS(std::isfinite(batch.insert_weights[i]), who, ": weight ", i, " of batch ", index,
+                   " is not finite (a float weight must be finite to read back)");
+    }
+  }
+  DYNG_EXPECTS(batch.insert_vertex_labels.empty() ||
+                   batch.insert_vertex_labels.size() == batch.insert_vertices.size(),
+               who, ": batch ", index, " has ", batch.insert_vertex_labels.size(), " labels for ",
+               batch.insert_vertices.size(), " inserted vertices");
+  for (std::size_t i = 0; i < batch.insert_vertices.size(); ++i) {
+    DYNG_EXPECTS(batch.insert_vertices[i] >= 0, who, ": batch ", index,
+                 " inserts a negative vertex id");
+  }
+  for (std::size_t i = 0; i < batch.delete_vertices.size(); ++i) {
+    DYNG_EXPECTS(batch.delete_vertices[i] >= 0, who, ": batch ", index,
+                 " deletes a negative vertex id");
+  }
+  for (std::size_t i = 0; i < batch.insert_vertex_labels.size(); ++i) {
+    const std::int8_t label = batch.insert_vertex_labels[i];
+    DYNG_EXPECTS(label >= -1 && label <= 1, who, ": batch ", index, " has the seed label ",
+                 static_cast<int>(label), " (a seed label is -1, 0 or 1)");
   }
 }
 

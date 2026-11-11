@@ -14,8 +14,8 @@
  *   - Values.txt: one weight per line, `std::to_chars(double(w), fixed, 6)`;
  *   - TrueLabels.txt: `i class` per vertex (class 0 or 1);
  *   - dynlp_labels.txt: `i label` per vertex, the label as Values.txt prints a weight.
- * Every line ends with '\n'. The public io::write_labels arrives in M10b (AD13 D2); these are the
- * writers the compat tool and the parity tests use.
+ * Every line ends with '\n'. dynlp_labels.txt is written by the public io::write_labels (AD13
+ * D2); the graph files are the compat tool's and the parity tests'.
  */
 #pragma once
 

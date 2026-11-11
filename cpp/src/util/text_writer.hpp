@@ -62,6 +62,18 @@ class text_writer {
   }
 
   /**
+   * @brief Append a float as the shortest decimal that reads back as the same float
+   *        (std::to_chars(float), the default format; 0.4: float weights).
+   * @param[in] value The value (finite: the writers check it).
+   */
+  void put_shortest(float value) {
+    char digits[32];  // the shortest form of a float has at most 9 significant digits + exponent
+    const auto result = std::to_chars(digits, digits + sizeof(digits), value);
+    buffer_.append(digits, result.ptr);
+    maybe_flush();
+  }
+
+  /**
    * @brief Append text.
    * @param[in] text The characters.
    */

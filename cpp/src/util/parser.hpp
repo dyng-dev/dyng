@@ -17,6 +17,7 @@
 #include <dyng/core/error.hpp>
 
 #include <charconv>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -319,6 +320,31 @@ int_t parse_integer(const text_scanner& scanner, const token& at, std::int64_t m
                          std::to_string(minimum) + ", " + std::to_string(maximum) + "]");
   }
   return static_cast<int_t>(value);
+}
+
+/**
+ * @brief Parse a token as a finite float (0.4: the float weights of the batch files): exactly one
+ *        decimal floating-point number as std::from_chars reads it (general format), rounded to
+ *        the nearest float; throws io_error at the token if not.
+ *
+ * NaN, infinities and values outside the float range (std::errc::result_out_of_range) are
+ * refused.
+ * @param[in] scanner The scanner (for the error location).
+ * @param[in] at      The token.
+ * @param[in] what    What the value is ("weight"), for the message.
+ * @return The value.
+ * @throws io_error if the token is not a finite decimal number in the range of a float.
+ */
+inline float parse_finite_float(const text_scanner& scanner, const token& at, const char* what) {
+  float value = 0.0F;
+  const char* first = at.text.data();
+  const char* last = first + at.text.size();
+  const auto result = std::from_chars(first, last, value);
+  if (at.text.empty() || result.ec != std::errc() || result.ptr != last || !std::isfinite(value)) {
+    scanner.fail(at, std::string("invalid ") + what + " " + quoted_token(at.text) +
+                         " (expected a finite decimal number in the range of a float)");
+  }
+  return value;
 }
 
 /**

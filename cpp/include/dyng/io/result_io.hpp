@@ -6,7 +6,8 @@
  *        SSSP-tree files ("v p", p = -1 for none) and path-cost files ("v c1 .. cK") of MOSP, and
  *        cycle histograms in the CSV of
  *        CycleEnumeration-GPU ("# cycle_size, num_of_cycles" ... "Total, N"), and triad bins
- *        (dyng::triad_count) as a JSON document of dynG's own (format "dyng.triad_bins").
+ *        (dyng::triad_count) as a JSON document of dynG's own (format "dyng.triad_bins"), and
+ *        label files ("v label", 6 decimals) of LabelPropagation-CUDA (dyng::label_propagation).
  * @ingroup io
  */
 #pragma once
@@ -106,6 +107,47 @@ template <typename distance_t>
 template <typename vertex_t>
 [[nodiscard]] std::vector<vertex_t> read_parents(const std::string& path,
                                                  std::int64_t num_vertices);
+
+/**
+ * @brief Write labels, one line "v label" per vertex with the label in fixed notation with 6
+ *        decimals (0.4).
+ *
+ * Byte-identical to LabelPropagation-CUDA\@a276a3a's writeLabelsToFile() (its
+ * `dynlp_labels.txt`; src/utils.cu): the vertex as a decimal integer, one space, then the label
+ * as `std::to_chars(double(label), std::chars_format::fixed, 6)` (correctly rounded, the bytes
+ * of `printf("%.6f")`: 0 is "0.000000", 1 "1.000000", 0.5 "0.500000"), and '\n'. A non-finite
+ * label is written as to_chars writes it ("nan", "-nan", "inf", "-inf").
+ *
+ * @param[in] path   The file (parent directories are created).
+ * @param[in] labels One label per vertex (host memory), for example
+ *                   label_propagation::result::labels().
+ * @throws io_error               if the file cannot be written.
+ * @throws invalid_argument_error if `labels` is not host-accessible.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @ingroup io
+ */
+void write_labels(const std::string& path, array_view<const float> labels);
+
+/**
+ * @brief Read a label file: one line "v label" per vertex, each vertex exactly once (0.4).
+ *
+ * The format of write_labels(); the label is any decimal floating-point token std::from_chars
+ * reads as a float (also "nan" and "inf"), rounded to the nearest float. A label written with 6
+ * decimals reads back as the float nearest to its decimal, which is not in general the float that
+ * was written (compare files, or labels within 5e-7 plus half a float ulp).
+ *
+ * @param[in] path         The file.
+ * @param[in] num_vertices Number of vertices (>= 0).
+ * @return The labels, indexed by vertex.
+ * @throws io_error               if the file is missing or malformed (with path, line and column):
+ *                                a vertex out of [0, num_vertices) or listed twice, a missing
+ *                                vertex, a token that is not a number, a label outside the float
+ *                                range, a line without exactly two tokens.
+ * @throws invalid_argument_error if num_vertices is negative.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @ingroup io
+ */
+[[nodiscard]] std::vector<float> read_labels(const std::string& path, std::int64_t num_vertices);
 
 /**
  * @brief Write a cycle histogram as CycleEnumeration-GPU's CSV (CycleHistogram::to_csv()).

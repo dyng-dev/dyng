@@ -200,6 +200,26 @@ Before 0.1.0 anything may change.
   engines); the hub golden holds on it; the mutation CTests
   `label_propagation.mutation.cuda_operators.<name>` run the mutants on its own cases.
 
+- M10b step 2 (api-change, additive, the frozen `io/` headers; AD13 decided by the author on
+  2026-10-28, ADRs 0105 and 0106): **the batch files of vertex batches and float graphs, and
+  label files.** `.dgt` (still `%dgt 1`) reads and writes the graph operations `+v u [label]` and
+  `-v u` (`edge_batch::insert_vertex` / `delete_vertex`; a hypergraph file refuses them) and,
+  for `read_batches<V, float>` / `write_batches<V, float>`, float weight tokens (finite; NaN and
+  infinities refused; written in their shortest round-trip form); integer graphs still refuse a
+  non-integer token. `.dgb` (still version 1) gains `batch_dtype::float32 = 3` (a graph file's
+  weight byte only) and `batch_file_flags::vertex_records = 16` (bit 4, graph files only; a
+  48-byte count block and the inserted vertices, their int8 seed labels and the deleted vertices
+  after the 0.3 arrays); `batch_file_flags::known_graph` is now `vertex_records` (it was 0;
+  `known` stays the union); the header is checked per kind; `write_binary_batches` sets the flag
+  only when a batch has a vertex operation, and `batch_writer` raises `invalid_argument_error` for
+  a vertex batch in a file opened without it. Files of 0.3 read and are written byte for byte as
+  before; a reader of 0.3 refuses the additions with an `io_error`. `read_edge_list<V, float>` /
+  `write_edge_list<V, float>` read and write float weight columns (the integer paths unchanged).
+  New: `io::write_labels(path, labels)` (LabelPropagation-CUDA's `dynlp_labels.txt` bytes,
+  `"%.6f"`) and `io::read_labels(path, num_vertices)`; `dyng-compat-dynlp` writes its label files
+  with it. The fuzz targets cover the new syntax (`docs/api/file_formats.md`, "Vertex batches and
+  float weights" and "Labels").
+
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
 - Added: `dyng::testing::hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`

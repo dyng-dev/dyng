@@ -58,6 +58,7 @@
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/graph/graph_view.hpp>
+#include <dyng/io/result_io.hpp>
 #include <dyng/label_propagation.hpp>
 #include <dyng/testing/harmonic_solution.hpp>
 
@@ -366,20 +367,16 @@ bool ensure_directory(const std::string& dir) {
   return true;
 }
 
-/// writeLabelsToFile: "i label" with the label in fixed, 6 decimals.
+/// writeLabelsToFile: "i label" with the label in fixed, 6 decimals (dyng::io::write_labels, the
+/// original's bytes; AD13 D2). A file that cannot be written prints the original's message.
 bool write_labels(const std::string& path, const float* labels, std::size_t n) {
-  text_writer file(path);
-  if (!file.ok()) {
+  try {
+    dyng::io::write_labels(path, dyng::array_view<const float>(labels, n));
+  } catch (const dyng::io_error&) {
     std::cout << "Error: Could not open file for writing: " << path << "\n";
     return false;
   }
-  for (std::size_t i = 0; i < n; ++i) {
-    file.put_int(static_cast<long long>(i));
-    file.put_char(' ');
-    file.put_fixed6(labels[i]);
-    file.put_char('\n');
-  }
-  return file.close();
+  return true;
 }
 
 /// generateSparseGraph's text files (writeGraphFiles).

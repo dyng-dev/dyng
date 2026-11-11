@@ -3,9 +3,10 @@
 // Derived from MOSP-CUDA@e220ee2:src/csrGraph.cu (readDistances, readParents, writeDistances,
 // writeParents) and src/mosp.cu (writeCosts)
 // Derived from CycleEnumeration-GPU@0a976ad:src/core/histogram.cpp (CycleHistogram::to_csv)
+// Derived from LabelPropagation-CUDA@a276a3a:src/utils.cu (writeLabelsToFile)
 /**
  * @file result_io.cpp
- * @brief Distance and SSSP-tree files in the MOSP formats.
+ * @brief Distance and SSSP-tree files in the MOSP formats, cycle histograms and label files.
  */
 #include "io/io_instantiate.hpp"
 #include "util/allocation.hpp"
@@ -280,6 +281,55 @@ DYNG_FOR_EACH_DISTANCE_TYPE(DYNG_INSTANTIATE_DISTANCE_IO)
 DYNG_FOR_EACH_VERTEX_TYPE(DYNG_INSTANTIATE_PARENT_IO)
 #undef DYNG_INSTANTIATE_DISTANCE_IO
 #undef DYNG_INSTANTIATE_PARENT_IO
+
+namespace {
+
+/// Parse a float label token at `p` in one pass (std::from_chars, general format: also "nan" and
+/// "inf"); the token must end right after the number. A value outside the float range
+/// (std::errc::result_out_of_range) is refused.
+inline const char* parse_token_float(const char* p, const char* end, float& value) noexcept {
+  const auto result = std::from_chars(p, end, value);
+  if (result.ec != std::errc() ||
+      (result.ptr < end && !is_blank(*result.ptr) && *result.ptr != '\n')) {
+    return nullptr;
+  }
+  return result.ptr;
+}
+
+}  // namespace
+
+void write_labels(const std::string& path, array_view<const float> labels) try {
+  expect_host_array(labels, "write_labels");
+  detail::text_writer out(path);
+  for (std::size_t v = 0; v < labels.size(); ++v) {
+    out.put(static_cast<std::int64_t>(v));
+    out.put_char(' ');
+    out.put_fixed6(labels[v]);
+    out.put_char('\n');
+  }
+  out.close();
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_labels (", path, ")")
+
+std::vector<float> read_labels(const std::string& path, std::int64_t num_vertices) try {
+  return read_vertex_values<float>(
+      path, num_vertices, 0.0F,
+      [](const detail::text_scanner& scanner, const detail::token& tok) {
+        float value = 0.0F;
+        const char* first = tok.text.data();
+        const char* last = first + tok.text.size();
+        const char* p = parse_token_float(first, last, value);
+        if (p != last) {
+          scanner.fail(tok, "the label '" + std::string(tok.text) +
+                                "' is not a decimal number in the range of a float");
+        }
+        return value;
+      },
+      [](const char* p, const char* end, float& value) -> const char* {
+        return parse_token_float(p, end, value);
+      });
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_labels (", path, ", ", num_vertices, " vertices)")
 
 namespace {
 

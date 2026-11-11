@@ -20,5 +20,11 @@
   X(std::int32_t, ::dyng::unweighted)           \
   X(std::int64_t, ::dyng::unweighted)
 
+/// Calls `X(vertex_t, weight_t)` once per instantiated (vertex, float) combination (0.4: the
+/// float graphs of label_propagation).
+#define DYNG_FOR_EACH_VERTEX_TYPE_FLOAT(X) \
+  X(std::int32_t, float)                   \
+  X(std::int64_t, float)
+
 /// Calls `X(distance_t)` once per instantiated distance type.
 #define DYNG_FOR_EACH_DISTANCE_TYPE(X) X(std::int64_t)

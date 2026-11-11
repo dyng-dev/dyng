@@ -109,7 +109,8 @@ TEST_F(BatchText, RejectsMalformedFiles) {
       {"-e 0 1 2\n", -1, 1},            // extra token
       {"+e 0 9 1\n", -1, 1},            // id out of range (n = 4)
       {"+e 0 x 1\n", -1, 1},            // not an integer
-      {"+v 3 1\n", -1, 1},              // vertex operations: 0.4
+      {"+v 4 1\n", -1, 1},              // a vertex id out of range (n = 4; 0.4: '+v' is read)
+      {"+v 3 2\n", -1, 1},              // a seed label outside {-1, 0, 1}
       {"-h 4\n", -1, 1},                // hyperedge operations: read_hyperedge_batches()
       {"+i 4 1\n", -1, 1},              // incidence edits: read_hyperedge_batches()
       {"%dgt 1 hypergraph\n", -1, 1},   // a hypergraph file
@@ -163,10 +164,15 @@ TEST_F(BatchText, WriterRejectsMixedWeightCountsAndVertexOperations) {
   EXPECT_THROW((dyng::io::write_batches<std::int32_t, std::int32_t>(tmp_.path("m.dgt"),
                                                                     {one.view(), two.view()})),
                dyng::invalid_argument_error);
+  // 0.4 (AD13): vertex operations are written ('+v', '-v'); a malformed one is refused.
   auto v = one.view();
   const std::int32_t vertex = 3;
   v.insert_vertices = dyng::host_view(&vertex, 1);
-  EXPECT_THROW((dyng::io::write_batches<std::int32_t, std::int32_t>(tmp_.path("v.dgt"), {v})),
+  EXPECT_NO_THROW((dyng::io::write_batches<std::int32_t, std::int32_t>(tmp_.path("v.dgt"), {v})));
+  EXPECT_EQ(read_text(tmp_.path("v.dgt")), "%dgt 1\n%batch 0\n+v 3\n+e 0 1 1\n");
+  const std::int32_t negative = -3;
+  v.insert_vertices = dyng::host_view(&negative, 1);
+  EXPECT_THROW((dyng::io::write_batches<std::int32_t, std::int32_t>(tmp_.path("n.dgt"), {v})),
                dyng::invalid_argument_error);
 }
 
