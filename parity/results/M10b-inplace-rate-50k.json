@@ -1,0 +1,1140 @@
+{
+ "what": "fresh in_place runs at 50k (GPU 1) against the frozen envelope; evidence only (M10b step 1: the STOP of two 50k port runs outside the envelope, batches 6 and 8, and 9)",
+ "envelope": {
+  "iterations_lo": [
+   0,
+   461.7,
+   1112.4,
+   927,
+   518.4,
+   369.9,
+   203.4,
+   201.6,
+   83.7,
+   51.3
+  ],
+  "iterations_hi": [
+   2,
+   564.3,
+   1449.8,
+   1225.4,
+   656.7,
+   959.2,
+   258.5,
+   255.2,
+   104.5,
+   78.1
+  ],
+  "iterations_sum_lo": 3977.1,
+  "iterations_sum_hi": 5437.3
+ },
+ "summary": {
+  "original": {
+   "runs": 30,
+   "outside": 0,
+   "outside_batches": []
+  },
+  "port": {
+   "runs": 30,
+   "outside": 2,
+   "outside_batches": [
+    [
+     9
+    ],
+    [
+     6
+    ]
+   ]
+  }
+ },
+ "runs": {
+  "original": [
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1030,
+     588,
+     872,
+     226,
+     230,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1109,
+     591,
+     865,
+     231,
+     232,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     872,
+     229,
+     225,
+     97,
+     59
+    ],
+    "batches_outside": [],
+    "sum": 4980,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1109,
+     591,
+     865,
+     231,
+     232,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1290,
+     1079,
+     582,
+     857,
+     226,
+     230,
+     94,
+     61
+    ],
+    "batches_outside": [],
+    "sum": 4932,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     865,
+     231,
+     232,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     577,
+     871,
+     226,
+     230,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     872,
+     226,
+     230,
+     94,
+     65
+    ],
+    "batches_outside": [],
+    "sum": 4936,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     872,
+     226,
+     230,
+     93,
+     61
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1109,
+     591,
+     865,
+     231,
+     232,
+     93,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4927,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1030,
+     588,
+     872,
+     226,
+     230,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     413,
+     233,
+     236,
+     89,
+     59
+    ],
+    "batches_outside": [],
+    "sum": 4501,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     408,
+     233,
+     240,
+     101,
+     65
+    ],
+    "batches_outside": [],
+    "sum": 4518,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1238,
+     1112,
+     586,
+     872,
+     226,
+     230,
+     93,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4927,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1050,
+     540,
+     898,
+     238,
+     226,
+     90,
+     61
+    ],
+    "batches_outside": [],
+    "sum": 4852,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     576,
+     867,
+     231,
+     230,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     408,
+     232,
+     241,
+     90,
+     71
+    ],
+    "batches_outside": [],
+    "sum": 4513,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1030,
+     588,
+     872,
+     226,
+     230,
+     93,
+     59
+    ],
+    "batches_outside": [],
+    "sum": 4929,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     872,
+     214,
+     231,
+     96,
+     63
+    ],
+    "batches_outside": [],
+    "sum": 4974,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1087,
+     566,
+     408,
+     232,
+     240,
+     89,
+     68
+    ],
+    "batches_outside": [],
+    "sum": 4508,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     872,
+     214,
+     231,
+     96,
+     59
+    ],
+    "batches_outside": [],
+    "sum": 4970,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1050,
+     540,
+     898,
+     238,
+     226,
+     90,
+     63
+    ],
+    "batches_outside": [],
+    "sum": 4854,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     572,
+     403,
+     232,
+     237,
+     86,
+     70
+    ],
+    "batches_outside": [],
+    "sum": 4473,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1030,
+     588,
+     867,
+     231,
+     230,
+     93,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4927,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     872,
+     226,
+     230,
+     94,
+     66
+    ],
+    "batches_outside": [],
+    "sum": 4937,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     872,
+     226,
+     230,
+     91,
+     64
+    ],
+    "batches_outside": [],
+    "sum": 4932,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     574,
+     874,
+     226,
+     230,
+     95,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4932,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1290,
+     1079,
+     582,
+     857,
+     226,
+     230,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     408,
+     232,
+     240,
+     98,
+     58
+    ],
+    "batches_outside": [],
+    "sum": 4507,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     865,
+     231,
+     232,
+     102,
+     58
+    ],
+    "batches_outside": [],
+    "sum": 4937,
+    "sum_within": true,
+    "within": true
+   }
+  ],
+  "port": [
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     577,
+     871,
+     226,
+     230,
+     94,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1030,
+     588,
+     863,
+     233,
+     232,
+     95,
+     65
+    ],
+    "batches_outside": [],
+    "sum": 4937,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     576,
+     872,
+     226,
+     230,
+     95,
+     61
+    ],
+    "batches_outside": [],
+    "sum": 4933,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     872,
+     214,
+     231,
+     99,
+     59
+    ],
+    "batches_outside": [],
+    "sum": 4973,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     872,
+     214,
+     231,
+     99,
+     64
+    ],
+    "batches_outside": [],
+    "sum": 4978,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     599,
+     477,
+     232,
+     230,
+     87,
+     58
+    ],
+    "batches_outside": [],
+    "sum": 4600,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1120,
+     581,
+     871,
+     226,
+     230,
+     93,
+     61
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     576,
+     865,
+     231,
+     232,
+     93,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4927,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     873,
+     228,
+     225,
+     97,
+     60
+    ],
+    "batches_outside": [],
+    "sum": 4981,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1030,
+     589,
+     864,
+     233,
+     230,
+     93,
+     56
+    ],
+    "batches_outside": [],
+    "sum": 4926,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     587,
+     871,
+     226,
+     230,
+     91,
+     80
+    ],
+    "batches_outside": [
+     9
+    ],
+    "sum": 4948,
+    "sum_within": true,
+    "within": false
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1243,
+     1135,
+     559,
+     864,
+     233,
+     230,
+     93,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4927,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1263,
+     1097,
+     577,
+     871,
+     226,
+     230,
+     93,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4927,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     413,
+     233,
+     236,
+     89,
+     59
+    ],
+    "batches_outside": [],
+    "sum": 4501,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     413,
+     228,
+     240,
+     90,
+     73
+    ],
+    "batches_outside": [],
+    "sum": 4515,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     865,
+     231,
+     232,
+     95,
+     68
+    ],
+    "batches_outside": [],
+    "sum": 4940,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     408,
+     232,
+     242,
+     89,
+     62
+    ],
+    "batches_outside": [],
+    "sum": 4504,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     408,
+     232,
+     242,
+     88,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4498,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1030,
+     588,
+     865,
+     231,
+     232,
+     94,
+     61
+    ],
+    "batches_outside": [],
+    "sum": 4932,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     865,
+     233,
+     230,
+     94,
+     62
+    ],
+    "batches_outside": [],
+    "sum": 4933,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1238,
+     1112,
+     586,
+     872,
+     226,
+     230,
+     95,
+     71
+    ],
+    "batches_outside": [],
+    "sum": 4943,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     415,
+     231,
+     236,
+     90,
+     65
+    ],
+    "batches_outside": [],
+    "sum": 4508,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     872,
+     214,
+     227,
+     98,
+     55
+    ],
+    "batches_outside": [],
+    "sum": 4964,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     408,
+     232,
+     241,
+     92,
+     65
+    ],
+    "batches_outside": [],
+    "sum": 4509,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1099,
+     554,
+     413,
+     265,
+     240,
+     88,
+     73
+    ],
+    "batches_outside": [
+     6
+    ],
+    "sum": 4550,
+    "sum_within": true,
+    "within": false
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1114,
+     586,
+     872,
+     226,
+     230,
+     93,
+     61
+    ],
+    "batches_outside": [],
+    "sum": 4931,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1318,
+     1029,
+     638,
+     872,
+     229,
+     225,
+     97,
+     74
+    ],
+    "batches_outside": [],
+    "sum": 4995,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1236,
+     1050,
+     540,
+     898,
+     238,
+     216,
+     89,
+     71
+    ],
+    "batches_outside": [],
+    "sum": 4851,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1238,
+     1112,
+     587,
+     871,
+     226,
+     230,
+     93,
+     57
+    ],
+    "batches_outside": [],
+    "sum": 4927,
+    "sum_within": true,
+    "within": true
+   },
+   {
+    "iterations": [
+     0,
+     513,
+     1305,
+     1105,
+     554,
+     412,
+     228,
+     236,
+     89,
+     65
+    ],
+    "batches_outside": [],
+    "sum": 4507,
+    "sum_within": true,
+    "within": true
+   }
+  ]
+ }
+}

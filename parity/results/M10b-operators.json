@@ -1,0 +1,337 @@
+{
+ "bound": {
+  "bound": 0.125,
+  "c": 1048576,
+  "epsilon": 1.1920928955078125e-07,
+  "record": "parity/results/M10b-calibration.json"
+ },
+ "cases": [
+  {
+   "case": "5k5_d1e-4_s42",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 0.7,
+   "within": true
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 0.6,
+   "within": true
+  },
+  {
+   "case": "500k_d1e-4_s42",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 1.7,
+   "within": true
+  },
+  {
+   "case": "5k5_d1e-6_s42",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 1.1,
+   "within": true
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 1.9,
+   "within": true
+  },
+  {
+   "case": "5k5_d1e-4_s1",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 0.4,
+   "within": true
+  },
+  {
+   "case": "5k5_d1e-4_s2",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 0.4,
+   "within": true
+  },
+  {
+   "case": "50k_d1e-4_s1",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 0.6,
+   "within": true
+  },
+  {
+   "case": "50k_d1e-4_s2",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "first_divergence": null,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 0.6,
+   "within": true
+  },
+  {
+   "bits_identical_by_digest": true,
+   "case": "5m_d1e-4_s42",
+   "count_mismatches": [],
+   "counts_identical": true,
+   "equal": true,
+   "labels_txt_equal": true,
+   "max_df": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max_df_over_eps": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over": [],
+   "seconds": 11.0,
+   "within": true
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-11-11T16:24:57Z",
+ "equal": true,
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "build/parity-cuda"
+  },
+  "commit": "100dbb2dd832269661c8ee42706641fde6616453",
+  "executable": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+  "parity_cuda": true
+ },
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "the operators engine against the fused engine's damped bits on P+ (AD6; M10b criterion 2): per batch max |dF| <= c x eps with identical iterations, components and frontier_visits"
+}
