@@ -112,9 +112,12 @@ struct options {
   std::int64_t max_iterations = 100000;
   on_limit on_iteration_limit = on_limit::report;  ///< see on_limit
   schedule update_schedule = schedule::in_place;   ///< the published rule by default
-  /** @brief The CUDA engine: engine::automatic or engine::fused (the verbatim port of the
-   *         original's pipeline, bitwise the original's damped labels; ADR 0075); engine::operators
-   *         arrives in M10b (not_supported_error until then). Ignored on the host backends. */
+  /** @brief The CUDA engine of update(): engine::automatic or engine::fused (the verbatim port
+   *         of the original's pipeline, bitwise the original's damped labels; ADR 0075), or
+   *         engine::operators (the framework's hooks written with label_propagation's operators,
+   *         schedule::damped only, the fused engine's bits; ADR 0101; not_supported_error for an
+   *         update under schedule::in_place). compute() is IrLP on every engine. Ignored on the
+   *         host backends. */
   engine cuda_engine = engine::automatic;
 };
 

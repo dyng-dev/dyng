@@ -80,8 +80,14 @@ runs (AD5), and both schedules and IrLP meet the harmonic oracle. The graph's ro
 device (ADR 0074): a batch crosses PCIe once, and the host copy of the rows is downloaded only when
 something reads it. The engine runs on the resources' one stream (the library creates none; AD21);
 the original's overlap of the edge copy with its first kernels, which the single stream gives up,
-was worth 0.03 % of its update time. `options::cuda_engine = engine::operators` (the refactored
-engine) arrives in M10b.
+was worth 0.03 % of its update time. `options::cuda_engine = engine::operators` selects the
+operators engine (ADR 0101): the same steps written with label_propagation's operators
+(`binned_frontier`, `neighbor_reduce`, `connected_components`; ADR 0102), one kernel per phase and
+no persistent kernel, for `damped` only. It keeps the fused engine's lane mappings, fused
+multiply-adds and division, so its labels are the fused engine's bits with the same per-batch
+counts on the whole corpus (AD6's bound c·ε, c = 2^20 calibrated first, is met at 0). It is
+slower than the fused engine and never chosen by `engine::automatic`; `compute()` is IrLP on
+every engine.
 
 ## 5. Performance notes
 

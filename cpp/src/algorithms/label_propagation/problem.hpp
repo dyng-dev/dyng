@@ -35,6 +35,7 @@
 #pragma once
 
 #include "algorithms/label_propagation/fused.hpp"
+#include "algorithms/label_propagation/operators_engine.hpp"
 #include "framework/budgets.hpp"
 #include "framework/composition.hpp"
 #include "framework/context.hpp"
@@ -312,8 +313,9 @@ class label_propagation_problem final
 
   // ---- the engines ----
 
-  /// The engine of the call: options::cuda_engine on CUDA (the fused engine; there is no
-  /// operators engine on CUDA before M10b), the host engine (operators) elsewhere.
+  /// The engine of the call: on CUDA options::cuda_engine for update() (engine::automatic is the
+  /// fused engine; engine::operators the Tier A hooks with the operators of operators/, ADR
+  /// 0101) and the fused engine's IrLP for compute(); the host engine (operators) elsewhere.
   [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
   /// Whether the fused engine runs here: on CUDA.
   [[nodiscard]] bool fused_available(framework::context& ctx) const noexcept {
@@ -334,7 +336,8 @@ class label_propagation_problem final
   // ---- Step 1b ----
 
   /// label_propagation.identify_affected: V_aff on G_{t+1}, the batch's seeds, G' and its
-  /// components (sub-stages sparsify and components).
+  /// components (sub-stages sparsify and components on the host; on CUDA the operators engine's,
+  /// operators_engine.hpp).
   void identify_affected(framework::context& ctx, new_graph g, const applied& applied,
                          frontier_type& frontier);
   /// label_propagation.seed: the supernode initialization of the inserted vertices.
@@ -355,6 +358,8 @@ class label_propagation_problem final
   void seed_static(framework::context& ctx, new_graph g, frontier_type& f);
 
  private:
+  /// The CUDA engines' inputs of this update (the batch's seeds join the host copy of the seeds).
+  lp_cuda::batch_args cuda_batch(const container_type& graph, const applied& applied);
   /// The workspace, leased and sized for `g` (and the batch of this update).
   label_propagation_workspace& workspace(framework::context& ctx, const container_type& g,
                                          std::size_t vertices, std::size_t edges);
@@ -364,7 +369,11 @@ class label_propagation_problem final
   bool computing_ = false;
   std::optional<workspace_pool::lease<label_propagation_workspace>> ws_;
   std::optional<workspace_pool::lease<lp_cuda::workspace>> cuda_ws_;  ///< the fused engine's
-  std::int64_t cuda_syncs_ = -1;  ///< the fused engine's host synchronizations (-1: unchecked)
+  std::int64_t cuda_syncs_ = -1;  ///< a CUDA engine's host synchronizations (-1: unchecked)
+  std::optional<workspace_pool::lease<lp_cuda::operators_workspace>> ops_ws_;  ///< operators
+  lp_cuda::operators_batch ops_{};         ///< the operators engine's update so far
+  lp_cuda::batch_args cuda_args_{};        ///< its inputs
+  const container_type* graph_ = nullptr;  ///< G_{t+1} (the operators engine's finalize)
   const edge_batch_view<vertex_t, weight_t>* batch_ = nullptr;  ///< the requested batch
   const applied* applied_ = nullptr;                            ///< what the commit did
   float tau_ = 0.5F;                                            ///< tau of this update

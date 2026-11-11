@@ -147,7 +147,11 @@
 #              input-contract tests and on the slotted device apply's tests (the overflow near the
 #              int32 limit), initcheck at 5k5 with and without --check, racecheck on the
 #              propagation tests (the hub golden and the hand cases) and synccheck on the
-#              persistent small-frontier block (the 5k5 runs, whose tail iterations run it)
+#              persistent small-frontier block (the 5k5 runs, whose tail iterations run it); since
+#              M10b (ADR 0101) also the operators engine: its operator tests
+#              (dyng_label_propagation_operators_cuda_tests), its replay of P (operators: AD6's
+#              c x eps and identical counts), memcheck at 50k, initcheck and synccheck at 5k5, and
+#              racecheck on its hub golden
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -633,6 +637,7 @@ if ! skipped label_propagation; then
   lpr_unit="${lpr_dir}/dyng_label_propagation_cuda_tests"
   lpr_checker="${lpr_dir}/dyng_label_propagation_checker_cuda_tests"
   lpr_kit="${build_dir}/cpp/tests/dyng_label_propagation_conformance_cuda_tests"
+  lpr_ops="${lpr_dir}/dyng_label_propagation_operators_cuda_tests"
   lpr_compat="${build_dir}/tools/compat/dyng-compat-dynlp"
   lpr_replay="${build_dir}/cpp/tests/dyng_lp_replay"
   lpr_p="5k5_d1e-4_s42,50k_d1e-4_s42,500k_d1e-4_s42,5k5_d1e-6_s42,50k_d1e-6_s42"
@@ -640,11 +645,12 @@ if ! skipped label_propagation; then
   lpr_out="${DYNG_GPU_RESULTS:-${build_dir}/label_propagation-records}"
   mkdir -p "${lpr_out}"
   if [ -z "${sanitizer}" ] || [ ! -x "${lpr_unit}" ] || [ ! -x "${lpr_checker}" ] ||
-    [ ! -x "${lpr_kit}" ] || [ ! -x "${lpr_compat}" ] || [ ! -x "${lpr_replay}" ]; then
+    [ ! -x "${lpr_kit}" ] || [ ! -x "${lpr_ops}" ] || [ ! -x "${lpr_compat}" ] ||
+    [ ! -x "${lpr_replay}" ]; then
     echo "compute-sanitizer or a label_propagation executable missing"
     lpr_ok=0
   else
-    for exe in "${lpr_unit}" "${lpr_checker}" "${lpr_kit}"; do
+    for exe in "${lpr_unit}" "${lpr_checker}" "${lpr_kit}" "${lpr_ops}"; do
       if ! heavy "${exe}" --gtest_brief=1; then
         echo "$(basename "${exe}"): FAILED"
         lpr_ok=0
@@ -662,6 +668,12 @@ if ! skipped label_propagation; then
         if ! heavy python3 parity/compare.py label_propagation damped --exe "${lpr_compat}" \
           --config cuda-fused --cases "${lpr_p}" --json "${lpr_out}/damped-cuda-fused.json"; then
           echo "the damped byte parity of P (cuda-fused): FAILED"
+          lpr_ok=0
+        fi
+        # The operators engine within AD6's frozen c x eps, its counts identical (M10b, ADR 0101).
+        if ! heavy python3 parity/compare.py label_propagation operators --exe "${lpr_compat}" \
+          --cases "${lpr_p}" --json "${lpr_out}/operators-cuda.json"; then
+          echo "the operators engine against the fused engine's bits on P: FAILED"
           lpr_ok=0
         fi
       else
@@ -708,6 +720,13 @@ if ! skipped label_propagation; then
         lpr_ok=0
       fi
     done
+    # The operators engine (damped only; M10b, ADR 0101).
+    if ! lpr_run memcheck 50000 10 damped --noValidate --cuda-engine operators ||
+      ! lpr_run initcheck 5000 5 damped --noValidate --cuda-engine operators ||
+      ! lpr_run synccheck 5000 5 damped --noValidate --cuda-engine operators; then
+      echo "memcheck / initcheck / synccheck dyng-compat-dynlp --cuda-engine operators: FAILED"
+      lpr_ok=0
+    fi
     rm -rf "${lpr_tmp}"
     # The sweep that fails every device allocation in turn is left out (its correct handling is
     # what the plain run checks; under memcheck it would take most of the step).
@@ -724,7 +743,8 @@ if ! skipped label_propagation; then
       lpr_ok=0
     fi
     if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all --error-exitcode 1 \
-      "${lpr_unit}" --gtest_brief=1 --gtest_filter='LabelPropagationCuda.HubGolden:LabelPropagation.*'; then
+      "${lpr_unit}" --gtest_brief=1 \
+      --gtest_filter='LabelPropagationCuda.HubGolden:LabelPropagationCuda.OperatorsEngineHubGolden:LabelPropagation.*'; then
       echo "racecheck ${lpr_unit} (the propagation tests): FAILED"
       lpr_ok=0
     fi

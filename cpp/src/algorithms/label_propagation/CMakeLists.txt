@@ -20,6 +20,7 @@ dyng_add_algorithm(
   propagation.cu
   irlp.cu
   cuda.cu
+  operators_engine.cu
   FAST_MATH
 )
 if(TARGET dyng_label_propagation)
