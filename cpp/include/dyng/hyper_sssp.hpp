@@ -367,7 +367,11 @@ class result {
    *
    * The copy belongs to the backend of `res` (its arrays are copied between host and device memory
    * as needed): this is how a result moves between sequential and cuda, with its hypergraph
-   * (hypergraph::to_backend()).
+   * (hypergraph::to_backend()). The copy matches the moved hypergraph at once (update() accepts
+   * it), but distance_to() and vertex_distances() keep reading the hypergraph this result matches
+   * until the copy's first update(), which links the copy to the hypergraph it is given: once that
+   * hypergraph is destroyed or changed they throw stale_result_error, so update the copy on the
+   * moved hypergraph first (an empty batch is enough) when the original may go.
    * @param[in] res Execution resources of the copy (sequential or cuda).
    * @return The copy.
    * @throws invalid_argument_error for a moved-from result.

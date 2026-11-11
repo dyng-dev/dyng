@@ -323,6 +323,21 @@ def test_clone_copy_pickle_repr_and_citation() -> None:
     with pytest.raises(TypeError, match="pickled"):
         pickle.dumps(sp)
     assert "dyng.hyper_sssp.Result(source=2" in repr(sp)
+    # A clone moved with its hypergraph: the readers read the original until the copy's first
+    # update on the moved hypergraph (an empty batch is enough) links it there.
+    moved = hg.to_backend(SEQ)
+    m = sp.clone(SEQ)
+    assert m.distance_to(0) == sp.distance_to(0)
+    want = sp.vertex_distances().tolist()
+    del hg, sp, c
+    import gc
+
+    gc.collect()
+    with pytest.raises(dyng.StaleResultError, match="update"):
+        m.distance_to(0)
+    dyng.hyper_sssp.update(moved, dyng.HyperedgeBatch(), m)
+    assert m.vertex_distances().tolist() == want
+    check(moved, m)
     assert "hsosp2026" in dyng.citation("hyper_sssp")
     info = {a.name: a for a in dyng.algorithms()}["hyper_sssp"]
     assert info.container == "hypergraph" and info.backends == ("sequential", "cuda")

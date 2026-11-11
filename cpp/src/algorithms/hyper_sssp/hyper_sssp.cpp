@@ -204,8 +204,11 @@ std::int64_t checked_weights(const hypergraph<vertex_t, weight_t>& h, const char
 const impl_t& matched_graph(const hyper_sssp_state& st, const char* what) {
   const std::shared_ptr<const int> alive = st.graph_alive.lock();
   if (!alive || st.graph_impl == nullptr) {
-    throw stale_result_error(
-        concat_message("dyng: ", what, ": the hypergraph this result matches no longer exists"));
+    throw stale_result_error(concat_message(
+        "dyng: ", what,
+        ": the hypergraph this result matches no longer exists (a result cloned with its "
+        "hypergraph moved by to_backend() reads the moved hypergraph after one update() on it; "
+        "an empty batch is enough)"));
   }
   const auto& impl = *static_cast<const impl_t*>(st.graph_impl);
   if (impl.version != st.version || impl.state_id != st.graph_state) {

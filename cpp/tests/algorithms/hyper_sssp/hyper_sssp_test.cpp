@@ -670,6 +670,32 @@ TEST_P(HyperSssp, TurningValidateInputsOnLaterKeepsTheResultExact) {
   }
 }
 
+TEST_P(HyperSssp, AMovedCloneReadsItsHypergraphAfterOneUpdate) {
+  // M11b review: clone() keeps the link to the hypergraph the source result matches (its readers
+  // read that hypergraph, whose contents the moved copy shares); once that hypergraph is gone or
+  // changed, distance_to() and vertex_distances() throw stale_result_error until an update() of
+  // the clone on the moved hypergraph (an empty batch is enough) links it there.
+  const resources r = res();
+  const resources seq = resources::sequential();
+  std::optional<whgraph> h(path());
+  const result_t sp = hs::compute(r, *h, 0, opts());
+  whgraph moved = h->to_backend(seq);
+  result_t c = sp.clone(seq);
+  EXPECT_EQ(c.distance_to(9), sp.distance_to(9));  // the source hypergraph still exists
+  h.reset();
+  try {
+    (void)c.distance_to(9);
+    ADD_FAILURE() << "read a hypergraph that no longer exists";
+  } catch (const dyng::stale_result_error& e) {
+    EXPECT_NE(std::string(e.what()).find("update()"), std::string::npos) << e.what();
+  }
+  EXPECT_THROW((void)c.vertex_distances(), dyng::stale_result_error);
+  (void)hs::update(seq, moved, wbatch{}.view(), c);
+  EXPECT_EQ(c.distance_to(9), 1 + 2 + 3 + 4);
+  EXPECT_EQ(c.vertex_distances().size(), 12U);
+  EXPECT_TRUE(matches_oracle(seq, moved, c, 0, true));
+}
+
 std::string config_name(const ::testing::TestParamInfo<config>& info) {
   std::string name(dyng::to_string(info.param.b));
   if (info.param.b == backend::cuda && info.param.e == dyng::engine::operators) {

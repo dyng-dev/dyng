@@ -331,7 +331,14 @@ class Result:
     def clone(self, resources: Resources | None = None) -> Result:
         """A deep copy (arrays, options, version, the engine's state) for ``resources``
         (sequential or cuda): how a result moves between backends, with its hypergraph
-        (:meth:`dyng.Hypergraph.to_backend`)."""
+        (:meth:`dyng.Hypergraph.to_backend`).
+
+        The copy matches the moved hypergraph at once (:func:`update` accepts it), but
+        :meth:`distance_to` and :meth:`vertex_distances` keep reading the hypergraph this result
+        matches until the copy's first :func:`update`, which links it to the hypergraph it is
+        given. Once the original hypergraph is gone or changed they raise
+        :class:`~dyng.StaleResultError`, so update the copy on the moved hypergraph first (an
+        empty :class:`~dyng.HyperedgeBatch` is enough) when the original may go."""
         res = resolve(resources, self._resources)
         out = object.__new__(Result)
         out._native = self._native.clone(res._native)
