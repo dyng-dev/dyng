@@ -220,6 +220,14 @@ Before 0.1.0 anything may change.
   with it. The fuzz targets cover the new syntax (`docs/api/file_formats.md`, "Vertex batches and
   float weights" and "Labels").
 
+- M10b step 2 (api-change, additive, `<dyng/generators/vertex_arrival.hpp>`; ADR 0107):
+  **`generators::generate_vertex_arrival_stream(res, opt)`**, the library's vertex-arrival
+  stream: the legacy generator's structure (graph model, batches, published threshold) with
+  library-owned draws (`std::mt19937_64` with the library's bounded integers, shuffle and floats),
+  bit-exact per (seed, major version) with every compiler, standard library and thread count
+  (committed digests in the CPU suites); the same `vertex_arrival_options` (the `seed` field's
+  documentation names both seedings) and `vertex_arrival_stream`. The legacy stream is unchanged.
+
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
 - Added: `dyng::testing::hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`

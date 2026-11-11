@@ -91,6 +91,7 @@ dyng_add_test(
   NAME dyng_generators_tests
   SOURCES generators/legacy_test.cpp generators/cycle_enum_batch_test.cpp
           generators/hypergraph_generators_test.cpp generators/vertex_arrival_test.cpp
+          generators/library_vertex_arrival_test.cpp
   LABELS cpu generators
 )
 # The DynLP twins of libstdc++'s draws are compared with std:: in this file: neither side may be

@@ -90,23 +90,66 @@ class edge_set {
   std::size_t mask_ = 0;
 };
 
-void check_options(const generators::vertex_arrival_options& opt) {
+void check_options(const generators::vertex_arrival_options& opt, const char* who) {
   DYNG_EXPECTS(
-      opt.total_vertices > 1 && opt.total_vertices <= std::numeric_limits<std::int32_t>::max(),
-      "dynlp_vertex_arrival_stream: total_vertices must be in [2, 2^31 - 1], got ",
-      opt.total_vertices);
-  DYNG_EXPECTS(opt.average_degree > 0,
-               "dynlp_vertex_arrival_stream: average_degree must be positive, got ",
+      opt.total_vertices > 1 && opt.total_vertices <= std::numeric_limits<std::int32_t>::max(), who,
+      ": total_vertices must be in [2, 2^31 - 1], got ", opt.total_vertices);
+  DYNG_EXPECTS(opt.average_degree > 0, who, ": average_degree must be positive, got ",
                opt.average_degree);
-  DYNG_EXPECTS(opt.num_batches > 0,
-               "dynlp_vertex_arrival_stream: num_batches must be positive, got ", opt.num_batches);
-  DYNG_EXPECTS(opt.ground_truth_fraction >= 0.0F && opt.ground_truth_fraction <= 1.0F,
-               "dynlp_vertex_arrival_stream: ground_truth_fraction must be in [0, 1], got ",
-               opt.ground_truth_fraction);
-  DYNG_EXPECTS(opt.deleted_fraction >= 0.0F && opt.deleted_fraction <= 1.0F,
-               "dynlp_vertex_arrival_stream: deleted_fraction must be in [0, 1], got ",
-               opt.deleted_fraction);
+  DYNG_EXPECTS(opt.num_batches > 0, who, ": num_batches must be positive, got ", opt.num_batches);
+  DYNG_EXPECTS(opt.ground_truth_fraction >= 0.0F && opt.ground_truth_fraction <= 1.0F, who,
+               ": ground_truth_fraction must be in [0, 1], got ", opt.ground_truth_fraction);
+  DYNG_EXPECTS(opt.deleted_fraction >= 0.0F && opt.deleted_fraction <= 1.0F, who,
+               ": deleted_fraction must be in [0, 1], got ", opt.deleted_fraction);
 }
+
+/// The draws of the legacy stream: std::mt19937 with libstdc++ 12's algorithms on top of it
+/// (util/rng.hpp's twins; ADR 0067).
+struct legacy_draws {
+  std::mt19937 engine;
+  explicit legacy_draws(std::uint32_t seed) : engine(seed) {}
+  template <typename value_t>
+  void shuffle(std::vector<value_t>& v) {
+    legacy_shuffle32(v, engine);
+  }
+  std::int64_t uniform_int(std::int64_t lo, std::int64_t hi) {
+    return legacy_uniform_int(engine, lo, hi);
+  }
+  float uniform_float(float lo, float hi) {
+    return legacy_uniform_real_float(engine, lo, hi);
+  }
+};
+
+/// The draws of the library's stream (ADR 0107): std::mt19937_64 (specified by the C++ standard)
+/// with the library's own algorithms on top of it, so the stream is the same with every compiler
+/// and standard library: a uniform integer is Lemire's multiply-and-reject on 128-bit products
+/// (legacy_uniform_int64, the library's implementation), a shuffle is a Fisher-Yates pass from the
+/// front with one such draw per position, and a uniform float in [lo, hi] is
+/// float(double(lo) + double(hi - lo) * k / 2^24) for the top 24 bits k of one engine call (the
+/// product of two 24-bit significands is exact in double, so a contracted fused multiply-add gives
+/// the same value).
+struct library_draws {
+  std::mt19937_64 engine;
+  explicit library_draws(std::uint64_t seed) : engine(seed) {}
+  template <typename value_t>
+  void shuffle(std::vector<value_t>& v) {
+    const auto n = static_cast<std::int64_t>(v.size());
+    for (std::int64_t i = 0; i + 1 < n; ++i) {
+      const auto j = static_cast<std::size_t>(uniform_int(i, n - 1));
+      std::swap(v[static_cast<std::size_t>(i)], v[j]);
+    }
+  }
+  std::int64_t uniform_int(std::int64_t lo, std::int64_t hi) {
+    const std::uint64_t width = static_cast<std::uint64_t>(hi) - static_cast<std::uint64_t>(lo);
+    return static_cast<std::int64_t>(static_cast<std::uint64_t>(lo) +
+                                     legacy_uniform_int64(engine, 0, width));
+  }
+  float uniform_float(float lo, float hi) {
+    const auto k = static_cast<double>(engine() >> 40U);  // 24 bits
+    const double u = k * (1.0 / 16777216.0);
+    return static_cast<float>(static_cast<double>(lo) + static_cast<double>(hi - lo) * u);
+  }
+};
 
 /// The original's int(count * fraction): the count converted to float, one float product.
 std::int64_t scaled_count(std::size_t count, float fraction) {
@@ -114,18 +157,18 @@ std::int64_t scaled_count(std::size_t count, float fraction) {
   return static_cast<std::int64_t>(product);
 }
 
-/// generateSparseGraph: the true labels, the edge list (with weights) and the CSR.
-void generate_graph(const generators::vertex_arrival_options& opt, int threads,
+/// generateSparseGraph: the true labels, the edge list (with weights) and the CSR (the draws of
+/// `rng`: the legacy stream's or the library's).
+template <typename draws_t>
+void generate_graph(const generators::vertex_arrival_options& opt, int threads, draws_t& rng,
                     dynlp_legacy_output& out) {
   const auto n = static_cast<std::int32_t>(opt.total_vertices);
   std::int64_t target = static_cast<std::int64_t>(n) * opt.average_degree / 2;
   if (target < static_cast<std::int64_t>(n) - 1) {
     target = n - 1;  // at least the spanning tree
   }
-  DYNG_EXPECTS(2 * target <= std::int64_t{2147483647}, "dynlp_vertex_arrival_stream: ", 2 * target,
+  DYNG_EXPECTS(2 * target <= std::int64_t{2147483647}, "the vertex-arrival generator: ", 2 * target,
                " directed edges exceed the original's 32-bit CSR offsets (at most 2147483647)");
-
-  std::mt19937 rng(opt.seed);
 
   // Step 1: balanced classes, shuffled.
   std::vector<float>& labels = out.true_labels;
@@ -133,12 +176,12 @@ void generate_graph(const generators::vertex_arrival_options& opt, int threads,
   for (std::int32_t i = 0; i < n; ++i) {
     labels[static_cast<std::size_t>(i)] = i < n / 2 ? 0.0F : 1.0F;
   }
-  legacy_shuffle32(labels, rng);
+  rng.shuffle(labels);
 
   // Step 2: the random spanning tree through a shuffled permutation.
   std::vector<std::int32_t> perm(static_cast<std::size_t>(n));
   std::iota(perm.begin(), perm.end(), 0);
-  legacy_shuffle32(perm, rng);
+  rng.shuffle(perm);
 
   edge_set seen(target);
   std::vector<std::pair<std::int32_t, std::int32_t>> edges;
@@ -147,8 +190,8 @@ void generate_graph(const generators::vertex_arrival_options& opt, int threads,
   weights.reserve(static_cast<std::size_t>(target));
   const auto weight_of = [&](std::int32_t u, std::int32_t v) {
     return labels[static_cast<std::size_t>(u)] == labels[static_cast<std::size_t>(v)]
-               ? legacy_uniform_real_float(rng, 0.5F, 1.0F)
-               : legacy_uniform_real_float(rng, 0.01F, 0.5F);
+               ? rng.uniform_float(0.5F, 1.0F)
+               : rng.uniform_float(0.01F, 0.5F);
   };
   for (std::int32_t i = 0; i + 1 < n; ++i) {
     const std::int32_t u =
@@ -168,8 +211,8 @@ void generate_graph(const generators::vertex_arrival_options& opt, int threads,
   std::int64_t attempts = 0;
   const std::int64_t max_attempts = target * 10;
   while (static_cast<std::int64_t>(edges.size()) < target && attempts < max_attempts) {
-    const auto u = static_cast<std::int32_t>(legacy_uniform_int(rng, 0, n - 1));
-    const auto v = static_cast<std::int32_t>(legacy_uniform_int(rng, 0, n - 1));
+    const auto u = static_cast<std::int32_t>(rng.uniform_int(0, n - 1));
+    const auto v = static_cast<std::int32_t>(rng.uniform_int(0, n - 1));
     if (u == v) {
       ++attempts;
       continue;
@@ -275,14 +318,14 @@ void generate_graph(const generators::vertex_arrival_options& opt, int threads,
   }
 }
 
-/// generateBatches: phases A (vertices), B (edges) and C (deletions).
-void generate_batches(const generators::vertex_arrival_options& opt, int threads,
+/// generateBatches: phases A (vertices), B (edges) and C (deletions) (the draws of `rng`).
+template <typename draws_t>
+void generate_batches(const generators::vertex_arrival_options& opt, int threads, draws_t& rng,
                       dynlp_legacy_output& out) {
   const std::int32_t n = out.num_nodes;
   const auto un = static_cast<std::size_t>(n);
   const std::int32_t num_batches = opt.num_batches;
   const std::vector<float>& labels = out.true_labels;
-  std::mt19937 rng(static_cast<std::uint32_t>(opt.seed + 12345U));
 
   // Phase A: the initial ground truth (b0), then the remaining vertices.
   std::vector<std::int32_t> class0;
@@ -290,8 +333,8 @@ void generate_batches(const generators::vertex_arrival_options& opt, int threads
   for (std::int32_t i = 0; i < n; ++i) {
     (labels[static_cast<std::size_t>(i)] < 0.5F ? class0 : class1).push_back(i);
   }
-  legacy_shuffle32(class0, rng);
-  legacy_shuffle32(class1, rng);
+  rng.shuffle(class0);
+  rng.shuffle(class1);
   const std::int64_t num_initial_gt =
       std::max<std::int64_t>(2, scaled_count(un, opt.ground_truth_fraction));
   const std::int64_t per_class = num_initial_gt / 2;
@@ -318,7 +361,7 @@ void generate_batches(const generators::vertex_arrival_options& opt, int threads
       remaining.push_back(i);
     }
   }
-  legacy_shuffle32(remaining, rng);
+  rng.shuffle(remaining);
   const auto num_remaining = static_cast<std::int64_t>(remaining.size());
   const std::int64_t spread = std::max<std::int64_t>(1, num_batches - 1);
   const std::int64_t per_batch = num_remaining / spread;
@@ -334,7 +377,7 @@ void generate_batches(const generators::vertex_arrival_options& opt, int threads
     const std::int64_t num_gt =
         std::max<std::int64_t>(1, scaled_count(batch.inserted.size(), opt.ground_truth_fraction));
     shuffled = batch.inserted;
-    legacy_shuffle32(shuffled, rng);
+    rng.shuffle(shuffled);
     for (std::int64_t j = 0; j < num_gt && j < static_cast<std::int64_t>(shuffled.size()); ++j) {
       const std::int32_t v = shuffled[static_cast<std::size_t>(j)];
       batch.gt_ids.push_back(v);
@@ -460,7 +503,7 @@ void generate_batches(const generators::vertex_arrival_options& opt, int threads
     num_delete = std::min<std::int64_t>(num_delete, static_cast<std::int64_t>(active.size()));
     if (num_delete > 0) {
       candidates = active;
-      legacy_shuffle32(candidates, rng);
+      rng.shuffle(candidates);
       for (std::int64_t j = 0; j < num_delete; ++j) {
         const std::int32_t v = candidates[static_cast<std::size_t>(j)];
         batch.deleted.push_back(v);
@@ -497,15 +540,33 @@ float average_edge_weight(const dynlp_legacy_output& out) {
 
 dynlp_legacy_output dynlp_legacy_generate(const generators::vertex_arrival_options& opt,
                                           int threads) try {
-  check_options(opt);
+  check_options(opt, "dynlp_vertex_arrival_stream");
   dynlp_legacy_output out;
   const int t = std::max(threads, 1);
-  generate_graph(opt, t, out);
-  generate_batches(opt, t, out);
+  legacy_draws graph_draws(opt.seed);
+  generate_graph(opt, t, graph_draws, out);
+  legacy_draws batch_draws(static_cast<std::uint32_t>(opt.seed + 12345U));
+  generate_batches(opt, t, batch_draws, out);
   out.tau = average_edge_weight(out);
   return out;
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("generators::legacy::dynlp_vertex_arrival_stream")
+
+dynlp_legacy_output vertex_arrival_generate(const generators::vertex_arrival_options& opt,
+                                            int threads) try {
+  check_options(opt, "generate_vertex_arrival_stream");
+  dynlp_legacy_output out;
+  const int t = std::max(threads, 1);
+  // Two engines, as the legacy stream has: the graph's from the seed, the batches' from the seed
+  // plus the golden-ratio constant (both std::mt19937_64).
+  library_draws graph_draws(static_cast<std::uint64_t>(opt.seed));
+  generate_graph(opt, t, graph_draws, out);
+  library_draws batch_draws(static_cast<std::uint64_t>(opt.seed) + 0x9E3779B97F4A7C15ULL);
+  generate_batches(opt, t, batch_draws, out);
+  out.tau = average_edge_weight(out);
+  return out;
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("generators::generate_vertex_arrival_stream")
 
 bool dynlp_draws_match_standard_library() try {
 #if defined(__GLIBCXX__)
@@ -541,12 +602,12 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("generators::legacy::standard_library_matches_
 
 namespace dyng::generators::legacy {
 
+namespace {
+
+/// The public stream of the generators' arrays: one label per arrival (the ground-truth class,
+/// or -1), the capacities, the threshold.
 template <typename vertex_t, typename edge_t>
-vertex_arrival_stream<vertex_t, edge_t> dynlp_vertex_arrival_stream(
-    const resources& res, const vertex_arrival_options& opt) try {
-  static_assert(sizeof(vertex_t) == 4, "dynlp_vertex_arrival_stream: 32-bit vertex ids");
-  detail::dynlp_legacy_output raw =
-      detail::dynlp_legacy_generate(opt, detail::resources_access::host_threads(res));
+vertex_arrival_stream<vertex_t, edge_t> to_stream(detail::dynlp_legacy_output&& raw) {
   vertex_arrival_stream<vertex_t, edge_t> s;
   const auto n = static_cast<std::size_t>(raw.num_nodes);
   s.graph.num_weights = 1;
@@ -574,7 +635,7 @@ vertex_arrival_stream<vertex_t, edge_t> dynlp_vertex_arrival_stream(
     for (std::size_t i = 0; i < in.gt_ids.size(); ++i) {
       const std::int64_t p = position[static_cast<std::size_t>(in.gt_ids[i])];
       if (p < 0) {
-        DYNG_FAIL("dynlp_vertex_arrival_stream: a ground-truth vertex that does not arrive");
+        DYNG_FAIL("vertex-arrival generator: a ground-truth vertex that does not arrive");
       }
       // setGroundTruthKernel: class = label < 0.5f ? 0 : 1.
       batch.insert_vertex_labels[static_cast<std::size_t>(p)] = in.gt_labels[i] < 0.5F ? 0 : 1;
@@ -593,6 +654,16 @@ vertex_arrival_stream<vertex_t, edge_t> dynlp_vertex_arrival_stream(
   }
   return s;
 }
+
+}  // namespace
+
+template <typename vertex_t, typename edge_t>
+vertex_arrival_stream<vertex_t, edge_t> dynlp_vertex_arrival_stream(
+    const resources& res, const vertex_arrival_options& opt) try {
+  static_assert(sizeof(vertex_t) == 4, "dynlp_vertex_arrival_stream: 32-bit vertex ids");
+  return to_stream<vertex_t, edge_t>(
+      detail::dynlp_legacy_generate(opt, detail::resources_access::host_threads(res)));
+}
 DYNG_TRANSLATE_ALLOCATION_FAILURE("generators::legacy::dynlp_vertex_arrival_stream")
 
 template vertex_arrival_stream<std::int32_t, std::int32_t>
@@ -603,3 +674,23 @@ dynlp_vertex_arrival_stream<std::int32_t, std::int64_t>(const resources&,
                                                         const vertex_arrival_options&);
 
 }  // namespace dyng::generators::legacy
+
+namespace dyng::generators {
+
+template <typename vertex_t, typename edge_t>
+vertex_arrival_stream<vertex_t, edge_t> generate_vertex_arrival_stream(
+    const resources& res, const vertex_arrival_options& opt) try {
+  static_assert(sizeof(vertex_t) == 4, "generate_vertex_arrival_stream: 32-bit vertex ids");
+  return legacy::to_stream<vertex_t, edge_t>(
+      detail::vertex_arrival_generate(opt, detail::resources_access::host_threads(res)));
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("generators::generate_vertex_arrival_stream")
+
+template vertex_arrival_stream<std::int32_t, std::int32_t>
+generate_vertex_arrival_stream<std::int32_t, std::int32_t>(const resources&,
+                                                           const vertex_arrival_options&);
+template vertex_arrival_stream<std::int32_t, std::int64_t>
+generate_vertex_arrival_stream<std::int32_t, std::int64_t>(const resources&,
+                                                           const vertex_arrival_options&);
+
+}  // namespace dyng::generators
