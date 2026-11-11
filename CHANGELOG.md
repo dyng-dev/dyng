@@ -66,8 +66,7 @@ Before 0.1.0 anything may change.
   with headroom, swap-remove deletions, appended insertions, relocations, a rebuild when the tail
   is full) kept from every batch's pair delta, computed inside the commit from the incidence
   changes, exact and independent of the order of the operations (ADR 0086). `h2h()` sorts each
-  row on request; `overlaps` is empty. The Python layer refuses slack_csr storage until M11b
-  (`NotSupportedError`).
+  row on request; `overlaps` is empty. (From Python since M11b, below.)
 - Added (api-change: documented behaviour of `apply()`): **incidence edits** on slack_csr storage
   (`hyperedge_batch::delete_incidence` / `insert_incidence`): applied after the batch's
   deletions and before its insertions, in MOSP_ESCHER's order, an edit that cannot apply skipped
@@ -187,6 +186,49 @@ Before 0.1.0 anything may change.
   (ADR 0024's A/B of the two engines) and `memory --port-arg`; the mutation twins of sites #1 and
   #2 in the shared engine and sssp's "skipped subtree invalidation" against hyper_sssp's suite
   (`parity/mutate.py`); `ci/gpu_local.sh`'s hyper_sssp step on both CUDA engines.
+- Changed (api-change: the freeze; ADR 0096): **`<dyng/hyper_sssp.hpp>` is frozen** (the API
+  baseline lists it as frozen, `ci/doxygen_coverage.py` holds it to the freeze's rules) and its
+  manifest says maturity `stable`, so the algorithm tables and the registry say `stable`: **stable
+  from 0.4.0 only on the author's confirmation** (HD17, pending; without it the release says
+  `experimental` and the header stays frozen). The API review changed documentation only: both
+  CUDA engines' limits on `fallback_reason::distance_width` and `invalidation_depth`, the
+  thread-safety rule of `distance_to()` and `vertex_distances()` (they fill caches and read the
+  hypergraph: they may not overlap another call on the result or a change of the hypergraph),
+  `engine::operators`' static solve, `update()`'s `@sync`. No signature changed.
+- Added (api-change: Python): **`dyng.hyper_sssp`** (ADR 0097): `compute(hypergraph, source, *,
+  options, resources, **kwargs)`, `update()`, `Options`, `BudgetAction`, `FallbackReason`,
+  `INFINITE_DISTANCE`, `Stats` (with `fallback_used`, `fallback_reason`, `relaxations` and the
+  line-graph counters) and `Result` (`hyperedge_distances` / `hyperedge_parents` as read-only
+  `dyng.Array`s, `distance_to()`, `vertex_distances()`, `source`, `options`, `set_options()`,
+  `graph_version`, `space`, `clone()`); errors mapped as for sssp, openmp resources refused with
+  the fix `dyng.Resources("sequential")` (HD14); `dyng.update()` over a hypergraph takes
+  hyper_sssp results, several at once; `dyng.citation("hyper_sssp")`;
+  `dyng.testing.hyper_sssp_reference()` and `check_hyper_sssp_tree()`. Frozen with the header.
+- Changed (api-change: Python, the 0.3 refusals lifted): `dyng.HypergraphProperties(storage=
+  "slack_csr", line_graph="slack_csr")` (and `"automatic"`) build a slack_csr hypergraph, and
+  `dyng.HyperedgeBatch`'s `delete_incidences=` / `insert_incidences=` apply on it (escher storage
+  still raises `NotSupportedError`); added the batch properties `delete_incidences`,
+  `insert_incidences` and `num_incidence_edits`; `dyng.io` reads and writes the `.dgt` and `.dgb`
+  incidence edits (`BatchFileHeader.incidence_edits`; `write_binary_batches` sets the flag only
+  when a batch has an edit); `dyng.generators.random_hyperedge_batch` takes the seven incidence
+  mixes; `dyng.testing`'s hypergraph model and Hypothesis strategies (`max_incidence_edits`) draw
+  and apply incidence edits.
+- Added (api-change: the command line): **`dyng hyper_sssp compute|update`** (ADR 0097): the
+  option fields as flags (`--work-budget`, `--max-iterations`, `--on-budget`, `--cuda-engine`,
+  `--validate-inputs`), a weighted `.hg` input on slack_csr storage (`--random-weights`,
+  `--read-options hsosp`), `--source`, `.dgt` / `.dgb` batches with incidence edits, the distances
+  and parents by hyperedge id in sssp's file formats (`--out`, `--vertex-distances`),
+  `--compare-recompute`; the sequential backend by default.
+- Documentation: `docs/algorithms/hyper_sssp.md` in the ten sections of the algorithm pages
+  (Differences from the paper: MOSP_ESCHER's README items 1-7 and the speedups that do not
+  reproduce, 0.08-1.28 against the paper's 1.3-12.1; Paper vs fixed code, HD19: S1, S3, S4, S5,
+  P3; Mapping from the original code; the gate table; the O12 decision); the tutorial
+  `docs/tutorials/shortest_hyperpaths.md` (C++ and Python, quoted from tested code); the examples
+  `examples/cpp/hyper_sssp_update.cpp` and `examples/python/hyper_sssp.py` (run against the
+  installed package and the oracle-derived expected output); `docs/history/mosp_escher.md`; the
+  concepts page's storages, incidence edits and ids with edits; the sketch marked frozen.
+- Packaging: the plugin smoke test runs hyper_sssp compute and update on the GPU (both engines)
+  and on the CPU wheel's sequential backend.
 
 ## [0.3.0] - 2026-10-29
 
