@@ -145,8 +145,10 @@ enum class fallback_reason : std::uint8_t {
 struct options {
   /// The work budget of an update, as a multiple of the live line-graph entries (MOSP_ESCHER's
   /// UpdateConfig::workBudget): before each push round (cuda) or expansion (sequential), an update
-  /// whose relaxations exceed work_budget x max(1, live entries) takes the on_budget action. 0
-  /// acts after any work; +infinity never. Finite, or +infinity, and >= 0.
+  /// whose relaxations exceed work_budget x max(1, live entries) takes the on_budget action. The
+  /// work before the first check (the invalidation, the seed's pulls and offers) is never refused:
+  /// an update whose work all lies in its seed completes even at 0, and 0 acts at the first push
+  /// round or expansion; +infinity never acts. Finite, or +infinity, and >= 0.
   double work_budget = 1.0;
   /// The push rounds an update may run before the on_budget action (MOSP_ESCHER's
   /// maxIterations; cuda only: the host engine has no rounds). Also the floor of the recompute's

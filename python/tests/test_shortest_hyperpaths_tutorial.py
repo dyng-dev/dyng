@@ -52,7 +52,7 @@ def test_the_tutorial() -> None:
     assert d[6] == 6 + 2 + 5  # w(3) + w(7) + w(6): every hyperedge entered costs its weight
     # [tutorial: path end]
     # [tutorial: budget]
-    sp.set_options(work_budget=0.0)  # fall back to a recompute after any work
+    sp.set_options(work_budget=0.0)  # recompute at the first push round or expansion
     shortcut = dyng.HyperedgeBatch(insert_hyperedges=[[0, 9]], insert_weights=[1])
     st = dyng.hyper_sssp.update(hg, shortcut, sp)
     assert st.fallback_used and st.fallback_reason == "work_budget"

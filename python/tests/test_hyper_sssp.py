@@ -244,6 +244,26 @@ def test_the_work_budget_falls_back_or_raises() -> None:
     check(hg, dyng.hyper_sssp.compute(hg, 0))
 
 
+def test_the_budget_counts_from_the_first_check_and_in_live_entries() -> None:
+    # The work before the first check (the invalidation, the seed's pulls) is never refused: a
+    # deletion whose invalidated hyperedges find no other way completes even at budget 0.
+    hg = slack([[0, 1, 2], [2, 3], [3, 4], [4, 5]], [4, 2, 3, 1])
+    sp = dyng.hyper_sssp.compute(hg, 0, work_budget=0.0, on_budget="error")
+    st = dyng.hyper_sssp.update(hg, dyng.HyperedgeBatch(delete_hyperedges=[1]), sp)
+    assert not st.fallback_used and st.fallback_reason == "none" and st.invalidated == 3
+    check(hg, sp)
+    # The budget is a multiple of the line graph's live entries, len(h2h().col_ind) (the
+    # tutorial's tuning advice): the error names that count (of the line graph after the batch,
+    # since the budget is counted after the commit, which the hypergraph keeps).
+    hg = slack(LISTS, WEIGHTS)
+    sp = dyng.hyper_sssp.compute(hg, 0, work_budget=0.0, on_budget="error")
+    with pytest.raises(dyng.ConvergenceError) as e:
+        dyng.hyper_sssp.update(
+            hg, dyng.HyperedgeBatch(insert_hyperedges=[[0, 5]], insert_weights=[1]), sp
+        )
+    assert hg.version == 1 and f" x {len(hg.h2h().col_ind)} live entries" in str(e.value)
+
+
 # -- requirements and errors ------------------------------------------------------------------
 
 

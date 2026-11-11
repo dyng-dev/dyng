@@ -94,7 +94,7 @@ in 0.4, so the two algorithms do not share a hypergraph.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `work_budget` | 1.0 | before each push round (cuda) or expansion (sequential), an update whose relaxations exceed `work_budget` x max(1, the line graph's live entries) takes the `on_budget` action; 0 acts after any work, +infinity never (MOSP_ESCHER's `workBudget`) |
+| `work_budget` | 1.0 | before each push round (cuda) or expansion (sequential), an update whose relaxations exceed `work_budget` x max(1, the line graph's live entries) takes the `on_budget` action; the work before the first check (the invalidation, the seed's pulls and offers) is never refused, so 0 acts at the first push round or expansion (an update whose work all lies in its seed completes even at 0), +infinity never (MOSP_ESCHER's `workBudget`) |
 | `max_iterations` | 4096 | push rounds before the `on_budget` action (cuda; MOSP_ESCHER's `maxIterations`); also the floor of the recompute's round cap |
 | `on_budget` | `budget_action::recompute` | `recompute` falls back to a recompute (exact); `error` throws `convergence_error` after the commit (the result is poisoned) |
 | `cuda_engine` | `engine::automatic` | `automatic` and `fused`: MOSP_ESCHER's kernels; `operators`: the shared sssp engine (the same results) |

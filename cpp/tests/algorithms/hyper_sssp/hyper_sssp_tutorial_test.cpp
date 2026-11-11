@@ -64,7 +64,7 @@ TEST(HyperSsspTutorial, BatchVertexDistancesPathBudgetAndOracle) {
   // [tutorial: path end]
   // [tutorial: budget]
   hs::options o = r.get_options();
-  o.work_budget = 0.0;  // fall back to a recompute after any work
+  o.work_budget = 0.0;  // recompute at the first push round or expansion
   r.set_options(o);
   dyng::hyperedge_batch<std::int32_t, std::int32_t> shortcut;
   shortcut.insert_hyperedge({0, 9}, /*weight=*/1);

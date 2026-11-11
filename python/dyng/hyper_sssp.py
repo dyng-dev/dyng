@@ -105,8 +105,11 @@ class Options:
         work_budget: The work budget of an update, a multiple of the live line-graph entries
             (MOSP_ESCHER's ``workBudget``): an update whose relaxations exceed
             ``work_budget * max(1, live entries)`` before a push round (cuda) or an expansion
-            (sequential) takes the ``on_budget`` action. 0 acts after any work; ``float("inf")``
-            never. Tune it from :attr:`Stats.relaxations`.
+            (sequential) takes the ``on_budget`` action. The work before the first check (the
+            invalidation, the seed's pulls and offers) is never refused: an update whose work
+            all lies in its seed completes even at 0, and 0 acts at the first push round or
+            expansion; ``float("inf")`` never acts. Tune it from :attr:`Stats.relaxations`
+            divided by the live line-graph entries (``len(hypergraph.h2h().col_ind)``).
         max_iterations: Push rounds an update may run before the ``on_budget`` action
             (MOSP_ESCHER's ``maxIterations``; cuda only). At least 1.
         on_budget: ``"recompute"`` (fall back to a recompute: exact) or ``"error"`` (raise
@@ -177,7 +180,8 @@ class Stats:
         line_graph_deletions: Line-graph pairs the batch removed.
         invalidated: Hyperedges in invalidated subtrees.
         relaxations: The relaxations the work budget counted (the neighbours read by the pulls
-            and pushes): the quantity to tune ``Options.work_budget`` from.
+            and pushes): the quantity to tune ``Options.work_budget`` from, divided by the
+            line graph's live entries.
         fallback_reason: Why the update fell back (``"none"`` if it did not).
     """
 

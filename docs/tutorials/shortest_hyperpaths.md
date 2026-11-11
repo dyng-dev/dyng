@@ -186,12 +186,15 @@ A shortest hyperpath is the chain of parents back to a hyperedge that holds the 
 
 An update rebuilds the paths through what the batch changed; when a batch changes much of the
 hypergraph, recomputing is cheaper. `stats::relaxations` counts the work an update did (the
-neighbours its pulls and pushes read), and `options::work_budget` caps it: before each round, an
-update whose relaxations exceed `work_budget` times the line graph's live entries recomputes
-from scratch (`stats::fallback_used`, `fallback_reason == work_budget`), or raises
-`convergence_error` under `on_budget = budget_action::error`. The result is exact either way:
+neighbours its pulls and pushes read), and `options::work_budget` caps it: before each push round
+(cuda) or expansion (sequential), an update whose relaxations exceed `work_budget` times the line
+graph's live entries recomputes from scratch (`stats::fallback_used`,
+`fallback_reason == work_budget`), or raises `convergence_error` under
+`on_budget = budget_action::error`. The work before the first check (the invalidation and the
+seed's pulls) is never refused, so even a budget of 0 lets an update whose work all lies in its
+seed complete; 0 acts at the first push round or expansion. The result is exact either way:
 
-% quote: cpp/tests/algorithms/hyper_sssp/hyper_sssp_tutorial_test.cpp#budget 704e9c4fa322
+% quote: cpp/tests/algorithms/hyper_sssp/hyper_sssp_tutorial_test.cpp#budget 72860df1978e
 ```{literalinclude} ../../cpp/tests/algorithms/hyper_sssp/hyper_sssp_tutorial_test.cpp
 :language: cpp
 :start-after: "// [tutorial: budget]"
@@ -199,9 +202,12 @@ from scratch (`stats::fallback_used`, `fallback_reason == work_budget`), or rais
 ```
 
 To tune it, run your batches with `work_budget = std::numeric_limits<double>::infinity()` (never
-fall back), time the updates and a `compute()`, and set the budget near the relaxations of the
-batch size where the update stops being faster than the recompute. The default 1.0 is
-MOSP_ESCHER's. On cuda, a batch close to its budget may fall back in one run and not in another
+fall back), time the updates and a `compute()`, and find the batch size where the update stops
+being faster than the recompute. The budget is a multiple of the line graph's live entries, not a
+count of relaxations: set it near that batch's `stats::relaxations` divided by the live entries,
+which is the size of the line graph's column array (`hg.h2h().num_entries()` in C++,
+`len(hg.h2h().col_ind)` in Python). The default 1.0, MOSP_ESCHER's, means about one pass over the
+line graph. On cuda, a batch close to its budget may fall back in one run and not in another
 (the relaxations of a parallel round depend on the schedule); the results are the same.
 
 ## 8. Check against the oracle
@@ -273,7 +279,7 @@ prints the nine lines above, byte for byte. The rest, from
 :end-before: "# [tutorial: path end]"
 ```
 
-% quote: python/tests/test_shortest_hyperpaths_tutorial.py#budget b73cdaa484f2
+% quote: python/tests/test_shortest_hyperpaths_tutorial.py#budget 0d80f5ae2848
 ```{literalinclude} ../../python/tests/test_shortest_hyperpaths_tutorial.py
 :language: python
 :start-after: "# [tutorial: budget]"
