@@ -204,3 +204,57 @@ def test_the_triad_count_examples_fit_plan_9_6() -> None:
     # PLAN 9.6: one runnable example per algorithm, at most 60 lines.
     for path in (REPO / "examples" / "cpp" / "triad_count_update.cpp", EXAMPLES / "triad_count.py"):
         assert len(path.read_text().splitlines()) <= 60, path
+
+
+# --- hyper_sssp (0.4) --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("backend", ["sequential", "cuda"])
+def test_hyper_sssp_prints_the_expected_distances(backend: str) -> None:
+    # examples/data/hyper_sssp_update.expected.txt: the oracle's distances and parents
+    # (test_the_hyper_sssp_expected_output_is_the_oracle); examples/cpp/hyper_sssp_update.cpp
+    # prints the same bytes (CTest example.hyper_sssp_update.*, and ci/cmake_consumer.sh against
+    # the installed package). Explicit resources: hyper_sssp has no OpenMP backend in 0.4 (HD14).
+    if backend == "cuda" and not dyng.config()["backends"]["cuda"]:
+        pytest.skip("needs a CUDA plugin module and a visible CUDA device")
+    data = REPO / "examples" / "data"
+    out = _run(
+        EXAMPLES / "hyper_sssp.py", data / "hyper_sssp.hg", data / "hyper_sssp.dgt", backend
+    ).stdout
+    assert out == (data / "hyper_sssp_update.expected.txt").read_text()
+
+
+def test_the_hyper_sssp_expected_output_is_the_oracle() -> None:
+    # Each "from s:" line of the expected output is dyng.testing.hyper_sssp_reference (MOSP_ESCHER's
+    # test oracle, sharing no code with hyper_sssp) on the hypergraph after that batch, and its
+    # "vertex 11" the minimum of D(h) over the hyperedges of vertex 11 (HD11).
+    seq = dyng.Resources.sequential()
+    data = REPO / "examples" / "data"
+    expected = (data / "hyper_sssp_update.expected.txt").read_text().splitlines()
+    hg = dyng.io.read_hypergraph(
+        data / "hyper_sssp.hg", weighted=True, storage="slack_csr", resources=seq
+    )
+    batches = dyng.io.read_hyperedge_batches(data / "hyper_sssp.dgt", weighted=True)
+    lines = [f"{hg.num_hyperedges} hyperedges, {hg.num_vertices} vertices"]
+
+    def show(source: int) -> str:
+        d, p = dyng.testing.hyper_sssp_reference(hg, source)
+        reached = "".join(
+            f" {h}:{d[h]}/{p[h]}" for h in range(d.size) if d[h] < dyng.hyper_sssp.INFINITE_DISTANCE
+        )
+        v2h = hg.v2h()
+        to11 = min(int(d[h]) for h in v2h.col_ind[v2h.row_ptr[11] : v2h.row_ptr[12]])
+        return f"  from {source}:{reached} | vertex 11: {to11}"
+
+    lines += [show(0), show(9)]
+    for i, b in enumerate(batches):
+        hg.apply(b)
+        assert expected[len(lines)].startswith(f"batch {i}: ")
+        lines += [expected[len(lines)], show(0), show(9)]
+    assert lines == expected
+
+
+def test_the_hyper_sssp_examples_fit_plan_9_6() -> None:
+    # PLAN 9.6: one runnable example per algorithm, at most 60 lines.
+    for path in (REPO / "examples" / "cpp" / "hyper_sssp_update.cpp", EXAMPLES / "hyper_sssp.py"):
+        assert len(path.read_text().splitlines()) <= 60, path

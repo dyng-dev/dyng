@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+# A small weighted hypergraph for the hyper_sssp examples and the "Shortest hyperpaths" tutorial:
+# one hyperedge per line, vertex ids 1..12 (1-based, as MOSP_ESCHER's files), '; w' the weight
+# (the cost of entering the hyperedge). Hyperedge i (0-based) is the i-th line.
+1 2 3 ; 4
+3 4 ; 2
+4 5 6 ; 7
+2 7 ; 9
+7 8 ; 3
+6 8 9 ; 1
+9 10 ; 5
+10 11 12 ; 2
+5 12 ; 8
