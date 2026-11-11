@@ -38,7 +38,11 @@
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_scan.cuh>
 #include <cuda_runtime.h>
+#if CCCL_VERSION >= 3001000
+#include <cuda/iterator>
+#else
 #include <thrust/iterator/constant_iterator.h>
+#endif
 
 #include <algorithm>
 #include <cstddef>
@@ -52,6 +56,14 @@ namespace dyng::detail {
 namespace {
 
 constexpr int threads_per_block = 256;  // the original's THREADS
+
+// The ones the rank scan sums: cuda::constant_iterator from CCCL 3.1, where later toolkits
+// deprecate thrust::constant_iterator in its favour.
+#if CCCL_VERSION >= 3001000
+using ones_iterator = ::cuda::constant_iterator<std::int32_t>;
+#else
+using ones_iterator = thrust::constant_iterator<std::int32_t>;
+#endif
 
 constexpr std::int32_t status_active = 0;    // vertex_status::active
 constexpr std::int32_t status_deleted = 1;   // vertex_status::deleted
@@ -264,8 +276,8 @@ std::size_t append_temp_bytes(int half_edges, int key_bits) {
   DYNG_CUDA_TRY(
       cub::DeviceRadixSort::SortPairs(nullptr, sort_bytes, keys, ids, half_edges, 0, key_bits));
   DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSumByKey(
-      nullptr, scan_bytes, static_cast<const std::int32_t*>(nullptr),
-      thrust::constant_iterator<std::int32_t>(1), static_cast<std::int32_t*>(nullptr), half_edges));
+      nullptr, scan_bytes, static_cast<const std::int32_t*>(nullptr), ones_iterator(1),
+      static_cast<std::int32_t*>(nullptr), half_edges));
   return std::max(sort_bytes, scan_bytes);
 }
 
@@ -590,9 +602,9 @@ void apply_vertex_batch_device(const resources& res,
     const std::int32_t* sorted_ids = ids.Current();
     std::int32_t* rank = keys.Alternate();  // free after the sort
     bytes = g.temp.size();
-    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSumByKey(
-        g.temp.data(), bytes, sorted_keys, thrust::constant_iterator<std::int32_t>(1), rank,
-        half_edges, ::cuda::std::equal_to<>(), stream));
+    DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSumByKey(g.temp.data(), bytes, sorted_keys,
+                                                     ones_iterator(1), rank, half_edges,
+                                                     ::cuda::std::equal_to<>(), stream));
     append_kernel<<<blocks_for(half_edges), threads_per_block, 0, stream>>>(
         sorted_keys, sorted_ids, rank, half_edges, n, g.edge_src.data(), g.edge_dst.data(),
         g.edge_weight.data(), g.num_weights, g.row_ptr.data(), g.row_end.data(), g.col_ind.data(),
