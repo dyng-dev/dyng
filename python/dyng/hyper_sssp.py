@@ -269,8 +269,8 @@ class Result:
 
     @property
     def hyperedge_parents(self) -> Array:
-        """The canonical parent of every hyperedge id (int32): -1 for a hyperedge reached
-        directly from the source vertex, and for dead or unreachable ids."""
+        """The canonical parent of every hyperedge id, int32, and -1 for a hyperedge reached
+        directly from the source vertex and for dead or unreachable ids."""
         return self._array(self._native.hyperedge_parents, "hyperedge_parents")
 
     def distance_to(self, target: int) -> int:
