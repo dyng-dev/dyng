@@ -48,7 +48,7 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "title": "Dynamic single-source shortest hyperpaths",
         "since": "0.4",
         "container": "hypergraph",
-        "maturity": "experimental",
+        "maturity": "stable",
         "python": "yes",
     },
     "triad_count": {

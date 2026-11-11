@@ -6,8 +6,8 @@
  *        hypergraph, kept exact under hyperedge and incidence batches.
  * @ingroup hyper_sssp
  *
- * Draft for 0.4 (M11a): tracked by the API snapshot, frozen at the end of M11b, stable at 0.4.0
- * only on the author's confirmation (HD17; ADR 0090).
+ * New in 0.4: drafted in M11a (ADR 0090), reviewed and frozen at the end of M11b (ADR 0096; the
+ * API snapshot lists it as frozen), stable from 0.4.0 only on the author's confirmation (HD17).
  */
 #pragma once
 
@@ -108,9 +108,11 @@ enum class fallback_reason : std::uint8_t {
   none,                ///< no fallback
   work_budget,         ///< the relaxations exceeded options::work_budget x the live entries
   iterations,          ///< the push rounds reached options::max_iterations (cuda)
-  distance_width,      ///< a distance did not fit the engine's 32-bit packed word (cuda)
-  invalidation_depth,  ///< the pointer jumping of the invalidation needed more than 64 rounds
-                       ///< (cuda)
+  distance_width,      ///< a distance did not fit the engine's packed word (cuda; engine::fused:
+                       ///< 32 bits; engine::operators: the bits next to the parent's, see the
+                       ///< work budget of @ref hyper_sssp)
+  invalidation_depth,  ///< the pointer jumping of the invalidation did not end within its rounds
+                       ///< (cuda; engine::fused: 64; engine::operators: ceil(log2 n) + 1)
 };
 
 /**
@@ -239,9 +241,12 @@ namespace dyng::hyper_sssp {
  * for the cuda backend), its options, the hypergraph version it matches, and on cuda the engine's
  * device state (MOSP_ESCHER's HsospState: the packed words, the invalidation and frontier arrays).
  *
- * **Thread safety.** A result is not thread-safe: its accessors may run concurrently with each
- * other, but not with an update() of it (or a dyng::update() that includes it), which must also
- * not overlap another call on its hypergraph.
+ * **Thread safety.** A result is not thread-safe. Its accessors may run concurrently with each
+ * other, except distance_to() and vertex_distances(): they fill caches of the result (the vertex
+ * distances, and on cuda a host copy of the hyperedge distances) on their first call per
+ * hypergraph version, and read the hypergraph, so neither may overlap another call on the result
+ * or a change of its hypergraph. No call may overlap an update() of the result (or a
+ * dyng::update() that includes it), which must also not overlap another call on its hypergraph.
  *
  * @tparam vertex_t   Vertex id type (int32_t).
  * @tparam distance_t Distance type: std::int64_t, the only width (another value fails to compile).
@@ -423,8 +428,9 @@ namespace dyng::hyper_sssp {
  * Every hyperedge that contains `source` starts at its own weight with parent -1; then rounds of
  * pulls (every candidate takes its best (distance, lowest id) neighbour) and collections (the
  * neighbours of the improved hyperedges become the next candidates) run until nothing improves:
- * MOSP_ESCHER's hsospRecompute on cuda (one warp per candidate) and emulateSospRecompute on
- * sequential. Both give the canonical tree.
+ * MOSP_ESCHER's hsospRecompute on cuda under engine::fused (one warp per candidate) and
+ * emulateSospRecompute on sequential; engine::operators solves it with sssp's near-far loop over
+ * the line graph (node weights). All give the canonical tree.
  *
  * @tparam vertex_t Vertex id type (int32_t).
  * @tparam weight_t Hyperedge weight type (int32_t).
@@ -440,8 +446,8 @@ namespace dyng::hyper_sssp {
  *         (store_v2h = false), `h` belongs to another backend than `res`, or `h` was poisoned by a
  *         failed apply().
  * @throws not_supported_error    if the backend of `res` is openmp (hyper_sssp runs on
- *         sequential and cuda in 0.4; use dyng::resources::sequential()) or not built, `h` is
- *         not slack_csr storage with its line graph (line_graph_policy::none or sorted_merge).
+ *         sequential and cuda in 0.4; use dyng::resources::sequential()) or not built, or `h` is
+ *         not slack_csr storage with its line graph (escher storage, or line_graph_policy::none).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
  * @sync On cuda the stream is synchronized once per round of the recompute.
@@ -491,8 +497,9 @@ template <typename vertex_t, typename weight_t>
  * @throws out_of_memory_error    if host or device memory cannot be allocated (before the commit:
  *         nothing is changed; inside it: `h` is poisoned; after it: `r` is poisoned).
  * @throws cuda_error             if the CUDA runtime reports an error.
- * @sync On cuda the stream is synchronized once per pointer-jumping round and once per push round
- *       (the engine reads its counters), plus the commit's own synchronizations.
+ * @sync On cuda the stream is synchronized once per push round (the engine reads its counters)
+ *       and, under engine::fused, once per pointer-jumping round, plus the commit's own
+ *       synchronizations.
  * @backends sequential, cuda
  * @determinism Bit-exact across backends and runs (distances, parents, `invalidated`, the line
  *              graph counts); fallback_used, fallback_reason, relaxations and iterations are

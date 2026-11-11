@@ -734,7 +734,7 @@
       [[nodiscard]] edge_t num_edges() const noexcept
       [[nodiscard]] int num_weights() const noexcept
 
-[dyng/hyper_sssp.hpp] tracked
+[dyng/hyper_sssp.hpp] frozen
   enum class dyng::hyper_sssp::budget_action : std::uint8_t { recompute, error }
   enum class dyng::hyper_sssp::fallback_reason : std::uint8_t { none, work_budget, iterations, distance_width, invalidation_depth }
   [[nodiscard]] std::string_view dyng::hyper_sssp::to_string(budget_action a) noexcept

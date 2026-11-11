@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 """The Python half of the API check (ci/api_check.sh: griffe) covers dyng.mosp, frozen in 0.2
-(ADR 0035), and dyng.triad_count, frozen in 0.3 (ADR 0060): a deliberate change of a signature,
-default or public name of either is a breaking change.
+(ADR 0035), dyng.triad_count, frozen in 0.3 (ADR 0060), and dyng.hyper_sssp, frozen at the end
+of M11b (ADR 0096): a deliberate change of a signature, default or public name of any of them is
+a breaking change.
 
 griffe compares two static copies of the typed layer python/dyng here (ci/api_check.sh compares
 the working tree with a base revision of the history); nothing is built or imported.
@@ -121,3 +122,36 @@ def test_a_removed_triad_count_result_accessor_is_breaking(tmp_path: Path) -> No
         return text.replace("    def total(self) -> int:", "    def _total(self) -> int:")
 
     assert _in_triad_count(_breakages(tmp_path, edit, "triad_count"))
+
+
+# --- dyng.hyper_sssp (frozen at the end of M11b, ADR 0096) ----------------------------------------
+
+
+def _in_hyper_sssp(breakages: list) -> list[str]:
+    return [b.explain() for b in breakages if b.obj.path.startswith("dyng.hyper_sssp")]
+
+
+def test_a_renamed_parameter_of_hyper_sssp_update_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace(
+            "def update(\n    hypergraph: Hypergraph,\n    batch: HyperedgeBatch,",
+            "def update(\n    hg: Hypergraph,\n    batch: HyperedgeBatch,",
+        )
+
+    assert _in_hyper_sssp(_breakages(tmp_path, edit, "hyper_sssp"))
+
+
+def test_a_changed_default_of_hyper_sssp_options_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace("    work_budget: float = 1.0\n", "    work_budget: float = 2.0\n")
+
+    assert _in_hyper_sssp(_breakages(tmp_path, edit, "hyper_sssp"))
+
+
+def test_a_removed_hyper_sssp_result_accessor_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace(
+            "    def vertex_distances(self) -> Array:", "    def _vertex_distances(self) -> Array:"
+        )
+
+    assert _in_hyper_sssp(_breakages(tmp_path, edit, "hyper_sssp"))
