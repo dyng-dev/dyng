@@ -97,7 +97,7 @@ def test_device_labels_are_zero_copy_and_copy_on_write(
     for b in stream.batches[:2]:
         dyng.label_propagation.update(g, b, r)
     a = r.labels
-    assert a.device == "cuda" and a.dtype == np.float32 and a.shape == (5000,)
+    assert a.device == "cuda:0" and a.dtype == np.float32 and a.shape == (5000,)
     ptr = int(a.__cuda_array_interface__["data"][0])
     assert a.__cuda_array_interface__["data"][1] is True  # read-only
     torch = pytest.importorskip("torch")
