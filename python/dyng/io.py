@@ -574,10 +574,13 @@ def write_batches(path: PathLike, batches: Iterable[EdgeBatch]) -> None:
     """Write batches as a ``.dgt`` batch text file (read back by :func:`read_batches`).
 
     Writes ``%dgt 1``, then per batch ``%batch <i>``, its deletions (``-e u v``) and its
-    insertions (``+e u v w1 .. wK``). Every batch with insertions must have the same K.
+    insertions (``+e u v w1 .. wK``); a batch's vertex operations (0.4, label_propagation's vertex
+    batches) as ``+v u [label]`` and ``-v u`` lines (:doc:`/api/file_formats`), which
+    :func:`read_batches` does not return yet (it raises :class:`~dyng.NotSupportedError`). Every
+    batch with insertions must have the same K.
 
     Raises:
-        InvalidArgumentError: a batch has vertex operations (0.4) or a different K.
+        InvalidArgumentError: a batch has a different K.
     """
     gtype = _dtypes.GraphType(_dtypes.INT64, _dtypes.INT64, True)
     native_batches = []

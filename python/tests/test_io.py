@@ -175,8 +175,10 @@ def test_batch_text_errors_carry_the_location(tmp_path: Path) -> None:
     with pytest.raises(dyng.FileFormatError):
         dyng.io.read_batches(path, num_weights=1)
     assert dyng.io.read_batches(path)[0].num_weights == 0  # K taken from the file
-    with pytest.raises(dyng.InvalidArgumentError, match="vertex operations"):
-        dyng.io.write_batches(tmp_path / "v.dgt", [dyng.EdgeBatch(insert_vertices=[3])])
+    # 0.4 (AD13): vertex operations are written as '+v' / '-v' lines; the reader refuses them
+    # (test_vertex_operations_and_float_weights_are_refused_not_dropped).
+    dyng.io.write_batches(tmp_path / "v.dgt", [dyng.EdgeBatch(insert_vertices=[3])])
+    assert (tmp_path / "v.dgt").read_text().splitlines() == ["%dgt 1", "%batch 0", "+v 3"]
 
 
 def _dgb_graph_file(weight_code: int, flags: int, vertices: bool) -> bytes:
