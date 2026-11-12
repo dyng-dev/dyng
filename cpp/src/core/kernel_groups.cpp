@@ -112,26 +112,6 @@ record_t* as_record(void** handle) noexcept {
   return reinterpret_cast<record_t*>(handle);
 }
 
-// The kernels of the loaded groups by device name (kernel_group::ensure_for()'s redirections).
-// Never destroyed, as the groups. The names point into the fat binaries' static data.
-struct kernel_names {
-  std::mutex mutex;
-  std::unordered_map<std::string_view, const void*> host_function;
-};
-
-kernel_names& loaded_kernels() noexcept {
-  static auto* names = new kernel_names;
-  return *names;
-}
-
-// A loaded group's kernel of this device name, or nullptr.
-const void* loaded_kernel(const char* device_name) noexcept {
-  kernel_names& names = loaded_kernels();
-  const std::lock_guard<std::mutex> lock(names.mutex);
-  const auto it = names.host_function.find(device_name);
-  return it == names.host_function.end() ? nullptr : it->second;
-}
-
 }  // namespace
 
 void kernel_group::record_function(void** handle, const char* host_function, char* device_function,
@@ -172,6 +152,30 @@ void kernel_group::record_managed_variable(void** handle, void** host_variable_a
 void kernel_group::record_end(void** /*handle*/) noexcept {}
 
 #if DYNG_HAS_CUDA
+
+namespace {
+
+// The kernels of the loaded groups by device name (kernel_group::ensure_for()'s redirections).
+// Never destroyed, as the groups. The names point into the fat binaries' static data.
+struct kernel_names {
+  std::mutex mutex;
+  std::unordered_map<std::string_view, const void*> host_function;
+};
+
+kernel_names& loaded_kernels() noexcept {
+  static auto* names = new kernel_names;
+  return *names;
+}
+
+// A loaded group's kernel of this device name, or nullptr.
+const void* loaded_kernel(const char* device_name) noexcept {
+  kernel_names& names = loaded_kernels();
+  const std::lock_guard<std::mutex> lock(names.mutex);
+  const auto it = names.host_function.find(device_name);
+  return it == names.host_function.end() ? nullptr : it->second;
+}
+
+}  // namespace
 
 int kernel_group::ensure() noexcept {
   if (loaded_.load(std::memory_order_acquire)) {
@@ -299,6 +303,9 @@ int kernel_group::ensure() noexcept {
 }
 
 int kernel_group::ensure_for(const void** /*host_function*/) noexcept {
+  // Without CUDA there is no kernel to redirect (the memo is used by the CUDA build only).
+  static_cast<void>(redirected_);
+  static_cast<void>(redirections_);
   return ensure();
 }
 
