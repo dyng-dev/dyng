@@ -160,31 +160,37 @@ std::array<int, lp_cuda::num_degree_bins> graph_bin_capacities(
 
 /// Slack rows (ADR 0103): the queues' capacities a batch needs, from the length every row has
 /// after it (its entries before the batch plus its appends; a compaction only shortens rows). A
-/// vertex's bin is its row's length when it is queued, so these bound every bin.
+/// vertex's bin is its row's length when it is queued, so these bound every bin. The per-vertex
+/// scratch lives in the leased workspace (`len`, `active`), so the steady state allocates nothing
+/// (invariant I9); growing it is a reservation.
 template <typename vertex_t, typename edge_t>
 std::array<int, lp_cuda::num_degree_bins> slack_bins_after(
     const graph_impl<vertex_t, edge_t, float>& gi, const edge_batch_view<vertex_t, float>& batch,
-    const normalized_batch<vertex_t>& step0) {
+    const normalized_batch<vertex_t>& step0, std::vector<std::int64_t>& len,
+    std::vector<std::uint8_t>& active) {
   const auto& slots = gi.host_storage();
   const auto& rows = gi.slotted;
   const auto n = static_cast<std::size_t>(step0.vertices_after);
-  std::vector<std::int64_t> len(n, 0);
-  std::vector<vertex_status> after(rows.status);
-  after.resize(n, vertex_status::inactive);
+  if (len.capacity() < n || active.capacity() < n) {
+    note_reservation();  // invariant I9: the workspace's host scratch grows
+  }
+  len.assign(n, 0);
+  active.assign(n, 0);
   for (std::size_t v = 0; v < rows.row_end.size(); ++v) {
     len[v] =
         static_cast<std::int64_t>(rows.row_end[v]) - static_cast<std::int64_t>(slots.row_ptr[v]);
+    active[v] = rows.status[v] == vertex_status::active ? 1 : 0;
   }
   for (const vertex_t v : batch.delete_vertices) {
-    after[static_cast<std::size_t>(v)] = vertex_status::deleted;
+    active[static_cast<std::size_t>(v)] = 0;
   }
   for (const vertex_t v : step0.inserted_vertices) {
-    after[static_cast<std::size_t>(v)] = vertex_status::active;
+    active[static_cast<std::size_t>(v)] = 1;
   }
   for (std::size_t e = 0; e < batch.insert_src.size(); ++e) {
     const auto u = static_cast<std::size_t>(batch.insert_src[e]);
     const auto v = static_cast<std::size_t>(batch.insert_dst[e]);
-    if (after[u] == vertex_status::active && after[v] == vertex_status::active) {
+    if (active[u] != 0 && active[v] != 0) {
       ++len[u];
       ++len[v];
     }
@@ -457,11 +463,21 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::before_apply(
       cuda_ws_.emplace(ctx.lease_workspace<lp_cuda::workspace>());
     }
     if (graph_access::impl(graph).is_slack()) {
-      // Slack rows (ADR 0103): the queues sized for the rows' lengths after this batch.
-      const auto bins = slack_bins_after(graph_access::impl(graph), batch.edges, step0);
+      // Slack rows (ADR 0103): the queues sized for the rows' lengths after this batch, outside
+      // the kernels; a capacity that grows takes headroom (x 1.5, at most the vertex count), so a
+      // stream whose rows keep growing re-sizes its queues O(log) times, not in every batch.
+      lp_cuda::workspace& ws = cuda_ws_->get();
+      const auto bins = slack_bins_after(graph_access::impl(graph), batch.edges, step0,
+                                         ws.slack_length, ws.slack_active);
+      const auto n = static_cast<std::int64_t>(step0.vertices_after);
       for (int b = 0; b < lp_cuda::num_degree_bins; ++b) {
-        state_->cuda->capacity[b] = std::max(state_->cuda->capacity[b], bins[b]);
-        state_->bin_capacity[b] = std::max(state_->bin_capacity[b], bins[b]);
+        int& cap = state_->cuda->capacity[b];
+        if (bins[b] > cap) {
+          const std::int64_t grown = std::max<std::int64_t>(
+              bins[b], static_cast<std::int64_t>(cap) + static_cast<std::int64_t>(cap) / 2);
+          cap = static_cast<int>(std::min(grown, n));
+        }
+        state_->bin_capacity[b] = std::max(state_->bin_capacity[b], cap);
       }
     }
     tau_before_apply(graph, step0);
