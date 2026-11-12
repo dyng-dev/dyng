@@ -14,6 +14,9 @@ PLAN 6.4.7, 8.6; ADRs 0018, 0021, 0024, 0064; the author's decisions AD2-AD4, B5
     parity/perf_ab.py label_propagation run      --exe <dyng-compat-dynlp> ...   (M10a step 4)
     parity/perf_ab.py label_propagation kernels  --exe <dyng-compat-dynlp> ...   (M10a step 5)
     parity/perf_ab.py label_propagation engines  --exe <dyng-compat-dynlp> ...   (M10b)
+    parity/perf_ab.py label_propagation ab --side LABEL=EXE[:ARGS] --side ... [--layouts 17]
+                      [--cross LABEL,...] (M10b: dynG against dynG, ADR 0024; and the slack
+                      and streaming report)
 
 (or `parity/label_propagation_perf.py <command> ...`). A case is one of CASES (O's argv
 '--totalNodes N --numBatches B --avgDegree 5 --delta 0.0001 --seed 42'); a schedule is damped or
@@ -67,6 +70,14 @@ flagged), `kernels` since step 5, `engines` in M10b:
   engines  the port's fused against its operators engine (AD6; ADR 0101; reported): A/B/A/B at
            the recorded lock per case, damped only, the guard on both engines' counts and label
            bytes (equal to each other), and the largest distance of their label bits in ulps
+  ab       dyng-compat-dynlp builds or modes against each other (M10b; ADR 0024's dynG-against-
+           dynG reading: the rounds cycle through --layouts heap layouts, the --output path 8
+           characters longer per layout, the same on every side; A/B/A/B in every round at the
+           recorded lock per case): `--side A=<exe>` `--side B=<exe>` read the LP slotted path of
+           an earlier build against this one (the bar 1.02 on update[sum], ab_modes.py for a
+           bimodal region), `--side slack=<exe>:--layout slack` the streaming mode (reported).
+           The guard: every side's per-batch counts and label bytes (damped) are its first
+           round's, and the sides named by --cross equal the first side's.
 """
 
 from __future__ import annotations
@@ -865,7 +876,7 @@ def memory(args: argparse.Namespace) -> int:
         if args.exe is None:
             raise SystemExit("memory --side port needs --exe <dyng-compat-dynlp>")
         exe = port_exe(args.exe)
-        extra = ["--backend", "cuda"]
+        extra = ["--backend", "cuda", *args.port_args.split()]
     else:
         exe = original_exe()
         extra = []
@@ -878,7 +889,7 @@ def memory(args: argparse.Namespace) -> int:
     try:
         for case in args.cases:
             for schedule in args.schedules:
-                key = f"{case}/{schedule}/{args.side}"
+                key = f"{case}/{schedule}/{args.label or args.side}"
                 if args.skip_existing and results.get(key, {}).get("counted"):
                     print(f"{key}: skipped (counted in {args.json})")
                     continue
@@ -1261,6 +1272,216 @@ def write_engines(args, old: dict, results: dict, started: str, exe: Path) -> No
             "directory) + --backend cuda --cuda-engine <engine>",
             "clocks": "the lock the baseline recorded per case (ADRs 0018, 0021)",
             "statistic": "median; ratio = engine / " + args.engines[0],
+            "contamination_monitor": "contaminated rounds repeated (perf_ab.MachineMonitor)",
+        },
+        "driver": perf_ab.driver_versions(),
+        "results": dict(sorted(results.items())),
+    }
+    args.json.parent.mkdir(parents=True, exist_ok=True)
+    tmp = args.json.with_suffix(".tmp")
+    tmp.write_text(json.dumps(doc, indent=1) + "\n")
+    tmp.replace(args.json)
+    print(f"wrote {args.json}", flush=True)
+
+
+# --- dynG against dynG (ab; ADR 0024) ------------------------------------------------------------
+
+
+def parse_side(text: str) -> dict:
+    """`LABEL=EXE[:ARG ARG ...]`: a side of the ab reading."""
+    if "=" not in text:
+        raise SystemExit(f"--side {text}: expected LABEL=EXE[:ARGS]")
+    label, rest = text.split("=", 1)
+    exe, _, extra = rest.partition(":")
+    return {"label": label, "exe": port_exe(Path(exe)), "extra": extra.split()}
+
+
+def sides_guard(sides: list[dict], cross: list[str], first: dict, now: dict) -> list[str]:
+    """Damped: every side's per-batch counts and label bytes are its first round's; the sides
+    in `cross` equal the first side's (the same algorithm on the same stream)."""
+    bad = []
+    for sd in sides:
+        label = sd["label"]
+        bad += [f"{label}: {x}" for x in guard("damped", first[label], now[label])]
+    ref = sides[0]["label"]
+    for label in cross:
+        if now[label]["labels_sha256"] != now[ref]["labels_sha256"]:
+            bad.append(f"{label}'s dynlp_labels.txt differs from {ref}'s")
+        for k, (x, y) in enumerate(zip(now[ref]["batches"], now[label]["batches"], strict=True)):
+            for c in ("iterations", "components", "frontier_visits"):
+                if x[c] != y[c]:
+                    bad.append(f"batch {k} {c}: {label} {y[c]} != {ref} {x[c]}")
+    return bad
+
+
+def sides_reading(
+    args, sides: list[dict], case: str, env: dict, work: Path, mode: str, rounds: int
+) -> dict:
+    """`rounds` accepted rounds at `mode`, A/B/A/B (one process per side per round), round r in
+    heap layout r mod --layouts (its --output path 8 * (r mod layouts) characters longer, the
+    same on every side; ADR 0024); a contaminated round is repeated (at most 2 x rounds)."""
+    clocks = perf_ab.ClockLock(args.gpu, mode)
+    key = f"{case}/damped"
+    labels = [sd["label"] for sd in sides]
+    acc: dict = {x: [] for x in labels}
+    layout_of: list[int] = []
+    first: dict = {}
+    windows, rejected = [], []
+    with clocks:
+        allowed = {clocks.pid} if clocks.pid else None
+        with Monitor(
+            args.gpu, args.max_foreign_cpu, allowed_pids=allowed, locked=clocks.locked
+        ) as monitor:
+            r = 0
+            attempt = 0
+            while r < rounds:
+                layout = r % args.layouts
+                lay = work / ("L" + "x" * (8 * layout))
+                lay.mkdir(parents=True, exist_ok=True)
+                now_: dict = {}
+                win: dict = {}
+                for sd in sides:
+                    now_[sd["label"]], win[sd["label"]] = port_round(
+                        monitor, sd["exe"], case, "damped", env, lay, attempt, extra=sd["extra"]
+                    )
+                attempt += 1
+                first = first or now_
+                bad = sides_guard(sides, args.cross, first, now_)
+                if bad:
+                    raise SystemExit(f"STOP: {key} round {r + 1}: the guard failed: {bad[:5]}")
+                reasons = [f"{x}: {y}" for x in labels for y in win[x].get("reasons", [])]
+                if reasons:
+                    rejected.append({"before_round": r + 1, "reasons": reasons})
+                    print(f"{key}: round {r + 1} rejected ({'; '.join(reasons)})", flush=True)
+                    if len(rejected) > 2 * rounds:
+                        raise SystemExit(f"{key}: {len(rejected)} rounds rejected; giving up")
+                    continue
+                r += 1
+                for x in labels:
+                    acc[x].append(now_[x])
+                layout_of.append(layout)
+                windows.append(win)
+                print(
+                    f"{key} {mode} {r}/{rounds} (layout {layout}): update[sum] "
+                    + ", ".join(f"{x} {now_[x]['update_sum_ms']:.2f} ms" for x in labels),
+                    flush=True,
+                )
+    rows = {x: summarize_rows(acc[x]) for x in labels}
+    for x in labels:
+        rows[x]["update_host[sum]"] = describe([y["update_host_sum_ms"] for y in acc[x]])
+    ref = labels[0]
+    regions = {}
+    for name, row in rows[ref].items():
+        regions[name] = {f"{x}_median_ms": rows[x][name]["median"] for x in labels}
+        for x in labels[1:]:
+            regions[name][f"{x}_over_{ref}"] = (
+                rows[x][name]["median"] / row["median"] if row["median"] else None
+            )
+        regions[name]["sides"] = {x: rows[x][name] for x in labels}
+    return {
+        "clocks": clocks.record,
+        "rounds": len(acc[ref]),
+        "layouts": args.layouts,
+        "complete": len(acc[ref]) >= rounds,
+        "regions": regions,
+        # ADR 0024: every sample with its layout, for ab_modes.py and the per-layout ratios.
+        "samples": {
+            x: {
+                "update[sum]": [y["update_sum_ms"] for y in acc[x]],
+                "update_host[sum]": [y["update_host_sum_ms"] for y in acc[x]],
+                "end_to_end": [y["end_to_end_ms"] for y in acc[x]],
+            }
+            for x in labels
+        },
+        "layout_of_round": layout_of,
+        "guard": {
+            "rounds_checked": len(acc[ref]) + len(rejected),
+            "passed": True,
+            "rule": "every side's per-batch counts and label bytes equal its first round's; the "
+            "--cross sides equal the first side's",
+            "cross": args.cross,
+        },
+        "monitor": {"rounds": windows, "rejected": rejected},
+        "rejected": rejected,
+    }
+
+
+def sides_cmd(args: argparse.Namespace) -> int:
+    """perf_ab.py label_propagation ab: dyng-compat-dynlp sides against each other (ADR 0024)."""
+    sides = [parse_side(x) for x in args.side]
+    if len(sides) < 2:
+        raise SystemExit("ab: at least two --side")
+    for label in args.cross:
+        if label not in [sd["label"] for sd in sides[1:]]:
+            raise SystemExit(f"--cross {label}: not a side after the first")
+    env = clean_env(args.gpu)
+    (perf_ab.SCRATCH / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="lp-ab-", dir=perf_ab.SCRATCH / "runs"))
+    old = load_record(args.json)
+    results: dict = dict(old.get("results", {}))
+    started = now()
+    try:
+        with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for case in args.cases:
+                key = f"{case}/damped"
+                lock = (
+                    recorded_lock(args.baseline, key)
+                    if args.lock_clocks == "recorded"
+                    else args.lock_clocks
+                )
+                rounds = args.rounds or 3 * args.layouts
+                rd = sides_reading(args, sides, case, env, work, lock, rounds)
+                results[key] = {
+                    "case": case,
+                    "schedule": "damped",
+                    "sides": [
+                        {
+                            "label": sd["label"],
+                            "binary": perf_ab.portable_path(sd["exe"]),
+                            "extra": sd["extra"],
+                            "port": port_record(sd["exe"]),
+                        }
+                        for sd in sides
+                    ],
+                    "lock": {"lock": lock, "source": args.lock_clocks},
+                    **rd,
+                }
+                write_sides(args, old, results, started)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    for key, res in results.items():
+        u = res["regions"]["update[sum]"]
+        ref = res["sides"][0]["label"]
+        ratios = ", ".join(
+            f"{sd['label']}/{ref} {u[sd['label'] + '_over_' + ref]:.3f}" for sd in res["sides"][1:]
+        )
+        print(f"{key} ({res['lock']['lock']}, {res['rounds']} rounds): update[sum] {ratios}")
+    return 0
+
+
+def write_sides(args, old: dict, results: dict, started: str) -> None:
+    if not args.json:
+        return
+    doc = {
+        "schema": 1,
+        "algorithm": "label_propagation",
+        "command": "ab",
+        "what": args.what
+        or "dyng-compat-dynlp sides against each other (ADR 0024: dynG against dynG, heap "
+        "layouts): update[sum], end_to_end and the per-batch times at the recorded lock",
+        "date": old.get("date", started),
+        "date_end": now(),
+        "protocol": {
+            "gpu": args.gpu,
+            "lock": perf_ab.LOCK_STATUS,
+            "order": "A/B/A/B: in every round one process per side, the same session",
+            "layouts": f"round r in heap layout r mod {args.layouts} (the --output path 8 * "
+            "layout characters longer, the same on every side; ADR 0024)",
+            "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+            "argv": "bench/run.sh's (--quiet --noValidate; files in a fresh per-round scratch "
+            "directory) + --backend cuda + the side's own arguments",
+            "clocks": "the lock the baseline recorded per case (ADRs 0018, 0021)",
+            "statistic": "median; ratio = side / first side; ab_modes.py for bimodal regions",
             "contamination_monitor": "contaminated rounds repeated (perf_ab.MachineMonitor)",
         },
         "driver": perf_ab.driver_versions(),
@@ -1771,6 +1992,10 @@ def parser() -> argparse.ArgumentParser:
     common(m, 1)
     m.add_argument("--side", choices=["original", "port", "both"], default="original")
     m.add_argument("--exe", type=Path, help="--side port: dyng-compat-dynlp")
+    m.add_argument(
+        "--port-args", default="", help="--side port: more arguments (M10b: '--layout slack')"
+    )
+    m.add_argument("--label", default="", help="the result key's last part (default: the side)")
     m.add_argument("--skip-existing", action="store_true")
     for name, what in [
         ("run", "the A/B gates against O (the port side: M10a steps 4-5)"),
@@ -1802,6 +2027,23 @@ def parser() -> argparse.ArgumentParser:
             r.set_defaults(schedules=["damped"])  # the operators engine runs damped only
         if name == "kernels":
             r.add_argument("--launches", type=int, default=NCU_LAUNCHES)
+    a = sub.add_parser("ab", help="dyng-compat-dynlp sides against each other (ADR 0024)")
+    a.add_argument(
+        "--side", action="append", required=True, help="LABEL=EXE[:ARGS] (the first: the reference)"
+    )
+    a.add_argument("--cross", default="", type=lambda s: [x for x in s.split(",") if x])
+    a.add_argument("--layouts", type=int, default=17)
+    a.add_argument("--what", default="")
+    common(a, 0, "50k,500k")
+    timed(a)
+    a.add_argument(
+        "--lock-clocks",
+        choices=["recorded", "boost", "base", "none"],
+        default="recorded",
+        help="recorded: the baseline's lock per case",
+    )
+    a.add_argument("--baseline", type=Path, help="the baseline record 'recorded' reads")
+    a.set_defaults(schedules=["damped"])
     return ap
 
 
@@ -1826,6 +2068,7 @@ def main(argv: list[str] | None = None) -> int:
         "run": run_gates,
         "kernels": kernels,
         "engines": engines_cmd,
+        "ab": sides_cmd,
     }[args.command](args)
 
 
