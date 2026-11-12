@@ -54,7 +54,21 @@ if(TARGET dyng_label_propagation)
                      --noGraphFiles --update damped --backend sequential --output
                      ${CMAKE_CURRENT_BINARY_DIR}/out/compat_dynlp.small)
     set_tests_properties(compat_dynlp.small PROPERTIES LABELS "cpu;label_propagation;compat")
-    foreach(_refused "tau0;--tau;0" "taunan;--tau;nan" "maxiter0;--maxIter;0")
+    # The original's complete flag set (src/utils.cu parseArguments; M10b step 3): every flag of
+    # the original at once, with a negative --tau (the original's automatic threshold).
+    set(_out "${CMAKE_CURRENT_BINARY_DIR}/out/compat_dynlp.original_flags")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/out")
+    add_test(
+      NAME compat_dynlp.original_flags
+      COMMAND
+        sh -c
+        "\"$0\" --totalNodes 300 --numBatches 2 --avgDegree 3 --tau -1 --delta 0.001 --maxIter 500 --update damped --gtFraction 0.01 --seed 3 --output \"$1\" --validate --noValidate --noGraphFiles --verbose --quiet --profile --check --backend sequential > \"$1.log\" && grep -q 'Auto tau (average edge weight): 0[.]' \"$1.log\" && grep -q 'all oracle checks passed' \"$1.log\""
+        $<TARGET_FILE:dyng-compat-dynlp> "${_out}"
+    )
+    set_tests_properties(compat_dynlp.original_flags PROPERTIES LABELS
+                         "cpu;label_propagation;compat")
+    foreach(_refused "tau0;--tau;0" "taunan;--tau;nan" "maxiter0;--maxIter;0"
+                     "maxiterneg;--maxIter;-3")
       list(GET _refused 0 _name)
       list(GET _refused 1 _flag)
       list(GET _refused 2 _value)
