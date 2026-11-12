@@ -253,6 +253,10 @@ result run through it.
 - The combined graph is rebuilt and solved from scratch at every update (as in the originals);
   its size is at most K n edges, and with 32-bit edge offsets K n must fit them.
 - The path costs are computed on the host.
+- **Host memory exhaustion** is `out_of_memory_error` with the guarantee of the call's
+  documentation, also inside the OpenMP regions of the K sssp runs, which ended the process with
+  `std::terminate` before 0.4 ({doc}`ADR 0094
+  <../adr/0094-sssp-openmp-regions-carry-allocation-failures>`).
 
 ## 7. Differences from the paper
 

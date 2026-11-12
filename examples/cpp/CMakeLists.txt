@@ -198,6 +198,44 @@ if(TARGET dyng_triad_count)
   endif()
 endif()
 
+# hyper_sssp (0.4): left out of a subset build without it (DYNG_ALGORITHMS). The program the
+# "Shortest hyperpaths" tutorial quotes; its output on examples/data/hyper_sssp.{hg,dgt} is
+# examples/data/hyper_sssp_update.expected.txt (equal to the oracle testing::hyper_sssp_reference,
+# and to examples/python/hyper_sssp.py's output) on both of its backends, sequential and cuda.
+if(TARGET dyng_hyper_sssp)
+  add_executable(dyng_example_hyper_sssp_update hyper_sssp_update.cpp)
+  target_link_libraries(dyng_example_hyper_sssp_update PRIVATE dyng::dyng)
+  target_compile_features(dyng_example_hyper_sssp_update PRIVATE cxx_std_17)
+  set_target_properties(dyng_example_hyper_sssp_update PROPERTIES OUTPUT_NAME hyper_sssp_update)
+  dyng_set_warnings(dyng_example_hyper_sssp_update)
+  dyng_enable_sanitizers(dyng_example_hyper_sssp_update)
+  if(DYNG_BUILD_TESTS)
+    set(_data "${PROJECT_SOURCE_DIR}/examples/data")
+    set(_backends sequential)
+    if(DYNG_ENABLE_CUDA)
+      list(APPEND _backends cuda)
+    endif()
+    foreach(_backend IN LISTS _backends)
+      add_test(
+        NAME example.hyper_sssp_update.${_backend}
+        COMMAND
+          ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:dyng_example_hyper_sssp_update>"
+          "-DARGS=${_data}/hyper_sssp.hg|${_data}/hyper_sssp.dgt|${_backend}"
+          "-DEXPECTED=${_data}/hyper_sssp_update.expected.txt" -P
+          "${CMAKE_CURRENT_SOURCE_DIR}/compare_output.cmake"
+      )
+      if(_backend STREQUAL "cuda")
+        set(_labels "gpu;hyper_sssp;examples")
+      else()
+        set(_labels "cpu;hyper_sssp;examples")
+      endif()
+      set_tests_properties(example.hyper_sssp_update.${_backend} PROPERTIES
+                           LABELS "${_labels}" SKIP_RETURN_CODE 77
+                           ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
+    endforeach()
+  endif()
+endif()
+
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_doc_snippet.cmake")
 dyng_extract_doc_snippet(
   "${PROJECT_SOURCE_DIR}/README.md" quickstart-cpp

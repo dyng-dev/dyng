@@ -127,12 +127,7 @@ void expect_options(const hyper_sssp::options& opt, bool on_cuda, const char* wh
                    opt.cuda_engine == engine::operators,
                what, ": options::cuda_engine holds the invalid value ",
                static_cast<int>(opt.cuda_engine));
-  if (on_cuda && opt.cuda_engine == engine::operators) {
-    throw not_supported_error(concat_message(
-        "dyng: ", what,
-        ": hyper_sssp has no operators engine in this release (the shared sssp engine arrives in "
-        "M11b); use engine::automatic or engine::fused (MOSP_ESCHER's kernels)"));
-  }
+  (void)on_cuda;  // every engine runs on cuda (M11b: engine::operators, the shared sssp engine)
 }
 
 /// MOSP_ESCHER's block-size check of hsospUpdate and hsospRecompute (both entry points, before
@@ -209,8 +204,11 @@ std::int64_t checked_weights(const hypergraph<vertex_t, weight_t>& h, const char
 const impl_t& matched_graph(const hyper_sssp_state& st, const char* what) {
   const std::shared_ptr<const int> alive = st.graph_alive.lock();
   if (!alive || st.graph_impl == nullptr) {
-    throw stale_result_error(
-        concat_message("dyng: ", what, ": the hypergraph this result matches no longer exists"));
+    throw stale_result_error(concat_message(
+        "dyng: ", what,
+        ": the hypergraph this result matches no longer exists (a result cloned with its "
+        "hypergraph moved by to_backend() reads the moved hypergraph after one update() on it; "
+        "an empty batch is enough)"));
   }
   const auto& impl = *static_cast<const impl_t*>(st.graph_impl);
   if (impl.version != st.version || impl.state_id != st.graph_state) {
@@ -275,7 +273,8 @@ void hyper_sssp_cuda_reserve(const resources& /*res*/, hyper_sssp_state& /*st*/,
 hyper_sssp_engine_counters hyper_sssp_cuda_recompute(const resources& /*res*/,
                                                      hyper_sssp_state& /*st*/,
                                                      const hyper_sssp_graph& /*g*/,
-                                                     const hyper_sssp_budget& /*budget*/) {
+                                                     const hyper_sssp_budget& /*budget*/,
+                                                     hyper_sssp_workspace* /*ws*/) {
   no_cuda();
 }
 hyper_sssp_engine_counters hyper_sssp_cuda_update(const resources& /*res*/,
@@ -309,6 +308,23 @@ void hyper_sssp_cuda_set_holds(const resources& /*res*/, hyper_sssp_state& /*st*
 std::int64_t hyper_sssp_cuda_bytes(const hyper_sssp_state& /*st*/) noexcept {
   return 0;
 }
+void hyper_sssp_operators_scratch_deleter::operator()(
+    hyper_ops::device_scratch* /*s*/) const noexcept {}
+std::int64_t hyper_sssp_operators_bytes(const hyper_sssp_state& /*st*/) noexcept {
+  return 0;
+}
+hyper_sssp_cuda_operators_engine::hyper_sssp_cuda_operators_engine(
+    const resources& res, hyper_sssp_state& st, const hyper_sssp_graph& g,
+    const hyper_sssp_batch* b, const hyper_sssp_budget& budget, std::int64_t /*max_weight*/,
+    hyper_sssp_workspace* /*ws*/)
+    : res_(res), st_(st), g_(g), b_(b), budget_(budget) {
+  no_cuda();
+}
+void hyper_sssp_cuda_operators_engine::identify_affected() {}
+void hyper_sssp_cuda_operators_engine::seed() {}
+void hyper_sssp_cuda_operators_engine::reset() {}
+void hyper_sssp_cuda_operators_engine::loop() {}
+void hyper_sssp_cuda_operators_engine::finalize() {}
 #endif
 
 // ------------------------------------------------------------------------------------------------
@@ -374,6 +390,13 @@ framework::budget hyper_sssp_problem<vertex_t, weight_t>::algorithm_budget(
   // state's fills, the copy of the old one and the release of the old one's pinned counters;
   // asked after the phase, so the counters are this update's).
   const hyper_sssp_engine_counters& c = counters_;
+  if (c.engine_used == engine::operators) {
+    // The shared engine counts its own synchronizations (the fallback's included: a shared
+    // compute's, or the ported recompute's below); a growth of the device state's three.
+    std::int64_t syncs = c.host_syncs + 3;
+    if (c.fallback && !state_->ops_knobs.shared_compute) syncs += 2 + 2 * c.fallback_iterations;
+    return framework::budget::steady_state(syncs);
+  }
   std::int64_t syncs = c.jump_rounds + 2 + c.iterations + 1 + 3;
   if (c.fallback) syncs += 2 + 2 * c.fallback_iterations;
   return framework::budget::steady_state(syncs);
@@ -382,7 +405,22 @@ framework::budget hyper_sssp_problem<vertex_t, weight_t>::algorithm_budget(
 template <typename vertex_t, typename weight_t>
 engine hyper_sssp_problem<vertex_t, weight_t>::select_engine(
     framework::context& ctx) const noexcept {
-  return ctx.on_cuda() ? engine::fused : engine::operators;
+  // cuda: MOSP_ESCHER's kernels (engine::fused, the as-is engine, which engine::automatic keeps:
+  // HD13's rule, ADR 0095) or the shared sssp engine (engine::operators); the host engine is
+  // Tier A.
+  if (!ctx.on_cuda()) return engine::operators;
+  return state_->opt.cuda_engine == engine::operators ? engine::operators : engine::fused;
+}
+
+template <typename vertex_t, typename weight_t>
+std::int64_t hyper_sssp_problem<vertex_t, weight_t>::weight_bound() const noexcept {
+  // The running maximum bounds the live weights only while every compute() and update() since
+  // the result's compute() checked them: an update under validate_inputs = false, or a result
+  // whose compute() ran without it (result::set_options() can turn it on later), has no bound.
+  if (!state_->opt.validate_inputs || !state_->max_weight_known) {
+    return std::numeric_limits<std::int32_t>::max();
+  }
+  return std::max(state_->max_weight, computing_ ? std::int64_t{0} : pending_max_);
 }
 
 template <typename vertex_t, typename weight_t>
@@ -488,6 +526,9 @@ void hyper_sssp_problem<vertex_t, weight_t>::resume(framework::context& ctx, new
     }
   }
   state_->invalidate_caches();
+  if (ctx.on_cuda() && ctx.chosen_engine() == engine::operators) {
+    ops_.emplace(ctx.res(), *state_, graph_, &batch_, budget_of(), weight_bound());
+  }
 }
 
 template <typename vertex_t, typename weight_t>
@@ -500,7 +541,11 @@ template <typename vertex_t, typename weight_t>
 void hyper_sssp_problem<vertex_t, weight_t>::end_update(framework::context& /*ctx*/, new_graph g,
                                                         const stats_type& /*stats*/) {
   link(*state_, g.get());
-  if (state_->opt.validate_inputs) state_->max_weight = pending_max_;
+  if (state_->opt.validate_inputs) {
+    state_->max_weight = pending_max_;
+  } else {
+    state_->max_weight_known = false;  // the batch's weights were not checked
+  }
   state_->last = counters_;
   ws_.reset();
 }
@@ -527,6 +572,10 @@ void hyper_sssp_problem<vertex_t, weight_t>::identify_affected(framework::contex
                                                                new_graph /*g*/,
                                                                const applied& /*applied*/,
                                                                frontier_type& /*f*/) {
+  if (ops_) {
+    ops_->identify_affected();
+    return;
+  }
   hyper_sssp_workspace& ws = ws_->get();
   hyper_sssp_host_identify(graph_, batch_, state_->dist, state_->parent, ws);
   counters_.seed_count = ws.invalidated;
@@ -535,12 +584,25 @@ void hyper_sssp_problem<vertex_t, weight_t>::identify_affected(framework::contex
 template <typename vertex_t, typename weight_t>
 void hyper_sssp_problem<vertex_t, weight_t>::seed(framework::context& /*ctx*/, new_graph /*g*/,
                                                   frontier_type& /*f*/) {
+  if (ops_) {
+    ops_->seed();
+    return;
+  }
   hyper_sssp_host_seed(graph_, batch_, state_->dist, state_->parent, ws_->get());
 }
 
 template <typename vertex_t, typename weight_t>
-void hyper_sssp_problem<vertex_t, weight_t>::loop(framework::context& /*ctx*/, new_graph /*g*/,
+void hyper_sssp_problem<vertex_t, weight_t>::loop(framework::context& ctx, new_graph /*g*/,
                                                   frontier_type& /*in*/, frontier_type& /*out*/) {
+  if (ctx.on_cuda()) {
+    if (computing_) {
+      counters_ = cuda_operators_solve(ctx);  // compute() on the shared engine
+      return;
+    }
+    ops_->loop();
+    counters_ = ops_->counters();
+    return;
+  }
   if (computing_) {
     // compute(): emulateSospRecompute, its round cap max(max_iterations, n + 1) (hsospRecompute).
     const std::int64_t cap = std::max(state_->opt.max_iterations, graph_.rows.num_nodes + 1);
@@ -558,7 +620,26 @@ void hyper_sssp_problem<vertex_t, weight_t>::loop(framework::context& /*ctx*/, n
 
 template <typename vertex_t, typename weight_t>
 bool hyper_sssp_problem<vertex_t, weight_t>::over_budget(framework::context& /*ctx*/) {
-  if (computing_ || !ws_->get().over_budget) return false;
+  if (computing_) return false;
+  if (ops_) {
+    // The shared engine stopped for one of MOSP_ESCHER's triggers (operators.cu).
+    if (!ops_->spent()) return false;
+    const hyper_sssp::fallback_reason why = ops_->reason();
+    counters_.reason = why;
+    const bool budget = why == hyper_sssp::fallback_reason::work_budget ||
+                        why == hyper_sssp::fallback_reason::iterations;
+    if (budget && state_->opt.on_budget == hyper_sssp::budget_action::error) {
+      throw convergence_error(concat_message(
+          "dyng: hyper_sssp::update: the update exceeded its ",
+          why == hyper_sssp::fallback_reason::iterations
+              ? "iteration budget (options::max_iterations push rounds)"
+              : "work budget (options::work_budget x the live entries)",
+          " under budget_action::error; the hypergraph holds the batch and the result is "
+          "poisoned: recompute it"));
+    }
+    return true;
+  }
+  if (!ws_->get().over_budget) return false;
   if (state_->opt.on_budget == hyper_sssp::budget_action::error) {
     throw convergence_error(concat_message(
         "dyng: hyper_sssp::update: the update exceeded its work budget (", ws_->get().work,
@@ -572,8 +653,21 @@ bool hyper_sssp_problem<vertex_t, weight_t>::over_budget(framework::context& /*c
 }
 
 template <typename vertex_t, typename weight_t>
-void hyper_sssp_problem<vertex_t, weight_t>::recompute(framework::context& /*ctx*/, new_graph /*g*/,
+void hyper_sssp_problem<vertex_t, weight_t>::recompute(framework::context& ctx, new_graph /*g*/,
                                                        stats_type& stats) {
+  if (ops_) {
+    // The fallback: a recompute from scratch (the shared compute or the ported one).
+    const hyper_sssp::fallback_reason why = counters_.reason;
+    const std::int64_t syncs = counters_.host_syncs;
+    const hyper_sssp_engine_counters solve = cuda_operators_solve(ctx);
+    counters_.fallback = true;
+    counters_.reason = why;
+    counters_.fallback_iterations = solve.iterations;
+    counters_.max_frontier = std::max(counters_.max_frontier, solve.max_frontier);
+    counters_.host_syncs = syncs + std::max<std::int64_t>(solve.host_syncs, 0);
+    fill_stats(counters_, stats);
+    return;
+  }
   const std::int64_t cap = std::max(state_->opt.max_iterations, graph_.rows.num_nodes + 1);
   const std::int64_t rounds =
       hyper_sssp_host_recompute(graph_, state_->dist, state_->parent, cap, ws_->get());
@@ -586,7 +680,31 @@ template <typename vertex_t, typename weight_t>
 void hyper_sssp_problem<vertex_t, weight_t>::finalize(framework::context& /*ctx*/,
                                                       stats_type& stats) {
   if (computing_) return;
+  if (ops_) {
+    ops_->finalize();
+    counters_ = ops_->counters();
+  }
   fill_stats(counters_, stats);
+}
+
+template <typename vertex_t, typename weight_t>
+hyper_sssp_engine_counters hyper_sssp_problem<vertex_t, weight_t>::cuda_operators_solve(
+    framework::context& ctx) {
+  hyper_sssp_cuda_operators_engine solve(ctx.res(), *state_, graph_, nullptr, budget_of(),
+                                         weight_bound(), ws_ ? &ws_->get() : nullptr);
+  if (state_->ops_knobs.shared_compute && solve.packed()) {
+    solve.reset();
+    solve.loop();
+    solve.finalize();
+    return solve.counters();
+  }
+  // The ported recompute (hsospRecompute; ADR 0095: kept for static when the shared compute
+  // reads slower, and for distance-only words).
+  hyper_sssp_engine_counters c = hyper_sssp_cuda_recompute(ctx.res(), *state_, graph_, budget_of(),
+                                                           ws_ ? &ws_->get() : nullptr);
+  c.engine_used = engine::operators;
+  c.host_syncs = solve.counters().host_syncs;
+  return c;
 }
 
 template <typename vertex_t, typename weight_t>
@@ -673,7 +791,10 @@ std::unique_ptr<hyper_sssp_state> new_state(const resources& res,
   st->block_size = block_size;
   st->home = res.get_backend();
   st->device = res.get_backend() == backend::cuda ? res.device() : -1;
-  if (opt.validate_inputs) st->max_weight = checked_weights(h, what);
+  if (opt.validate_inputs) {
+    st->max_weight = checked_weights(h, what);
+    st->max_weight_known = true;
+  }
   return st;
 }
 
@@ -717,7 +838,8 @@ namespace hyper_sssp_virtual {
 hyper_sssp::result<std::int32_t> compute(const resources& res,
                                          const hypergraph<std::int32_t, std::int32_t>& h,
                                          const hyper_sssp_endpoints& endpoints,
-                                         const hyper_sssp::options& opt, int block_size) try {
+                                         const hyper_sssp::options& opt, int block_size,
+                                         const hyper_sssp_operators_knobs& knobs) try {
   constexpr const char* what = "hyper_sssp::compute (virtual endpoints)";
   DYNG_EXPECTS(
       endpoints.source_hyperedge >= 0 && endpoints.source_hyperedge < h.hyperedge_id_bound(), what,
@@ -726,6 +848,7 @@ hyper_sssp::result<std::int32_t> compute(const resources& res,
   auto st = new_state(res, h, opt, block_size, what);
   st->endpoints = endpoints;
   st->endpoints.source_vertex = -1;
+  st->ops_knobs = knobs;
   run_compute(res, h, *st);
   return hyper_sssp_access::make(std::move(st));
 }
@@ -735,7 +858,8 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("hyper_sssp::compute (", h.hyperedge_id_bound(
 hyper_sssp::result<std::int32_t> allocate(const resources& res,
                                           const hypergraph<std::int32_t, std::int32_t>& h,
                                           const hyper_sssp_endpoints& endpoints,
-                                          const hyper_sssp::options& opt, int block_size) try {
+                                          const hyper_sssp::options& opt, int block_size,
+                                          const hyper_sssp_operators_knobs& knobs) try {
   constexpr const char* what = "hyper_sssp::allocate (virtual endpoints)";
   DYNG_EXPECTS(
       endpoints.source_hyperedge >= 0 && endpoints.source_hyperedge < h.hyperedge_id_bound(), what,
@@ -744,6 +868,7 @@ hyper_sssp::result<std::int32_t> allocate(const resources& res,
   auto st = new_state(res, h, opt, block_size, what);
   st->endpoints = endpoints;
   st->endpoints.source_vertex = -1;
+  st->ops_knobs = knobs;
   // The arrays of the store's node capacity (as compute() sizes them), nothing computed.
   const hyper::slack_row_view rows = slack_of(h, what).rows();
   const auto capacity = static_cast<std::size_t>(std::max(rows.num_nodes, rows.node_capacity));
@@ -780,6 +905,42 @@ void recompute(const resources& res, const hypergraph<std::int32_t, std::int32_t
 
 void set_block_size(hyper_sssp::result<std::int32_t>& r, int block_size) {
   hyper_sssp_access::state(r).block_size = block_size;
+}
+
+void set_operators_knobs(hyper_sssp::result<std::int32_t>& r,
+                         const hyper_sssp_operators_knobs& knobs) {
+  hyper_sssp_access::state(r).ops_knobs = knobs;
+}
+
+bool parse_operators_knobs(const std::string& text, hyper_sssp_operators_knobs& out) {
+  hyper_sssp_operators_knobs k = out;
+  std::size_t at = 0;
+  while (at < text.size()) {
+    const std::size_t end = std::min(text.find(',', at), text.size());
+    const std::string item = text.substr(at, end - at);
+    const std::size_t eq = item.find('=');
+    if (eq == std::string::npos || eq + 1 >= item.size()) return false;
+    const std::string key = item.substr(0, eq);
+    const std::string value = item.substr(eq + 1);
+    if (value.find_first_not_of("0123456789") != std::string::npos) return false;
+    const long long v = std::stoll(value);
+    if (key == "warp") {
+      k.warp_rows = v != 0;
+    } else if (key == "delta") {
+      k.delta = v;
+    } else if (key == "shared_compute") {
+      k.shared_compute = v != 0;
+    } else if (key == "seed_pairs") {
+      k.seed_pairs = v != 0;
+    } else if (key == "compute_delta") {
+      k.compute_delta = v;
+    } else {
+      return false;
+    }
+    at = end + 1;
+  }
+  out = k;
+  return true;
 }
 
 const hyper_sssp_engine_counters& last_counters(const hyper_sssp::result<std::int32_t>& r) {
@@ -933,12 +1094,14 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
   copy->opt = st.opt;
   copy->endpoints = st.endpoints;
   copy->block_size = st.block_size;
+  copy->ops_knobs = st.ops_knobs;
   copy->home = res.get_backend();
   copy->device = copy->home == backend::cuda ? res.device() : -1;
   copy->n = st.n;
   copy->version = st.version;
   copy->graph_state = st.graph_state;
   copy->max_weight = st.max_weight;
+  copy->max_weight_known = st.max_weight_known;
   copy->graph_alive = st.graph_alive;
   copy->graph_impl = st.graph_impl;
   copy->last = st.last;

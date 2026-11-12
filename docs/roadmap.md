@@ -115,7 +115,24 @@ Deferred beyond 0.3.0:
   `datasets/preprocess/knn_graph.py` and the tutorial {doc}`tutorials/streaming_label_propagation`;
   `stable` from 0.4.0 on the author's confirmation at the release. An OpenMP backend stays open to
   contributors (0.5 or later, if contributed).
-- `hyper_sssp` (H-SOSP): shortest hyperpaths, on the shared shortest-path engine.
+- `hyper_sssp` (H-SOSP): shortest hyperpaths, with MOSP_ESCHER's kernels as the default CUDA
+  engine and the shared shortest-path engine selectable (`engine::operators`; it gives the same
+  results, and the gates kept the as-is kernels as the default: ADR 0095). On the sequential and
+  CUDA backends (no OpenMP backend in 0.4: HD14), from C++, Python (`dyng.hyper_sssp`) and the
+  command line (`dyng hyper_sssp`).
+- The hypergraph's `slack_csr` storage and incidence edits (HD9): MOSP_ESCHER's slack CSR line
+  graph on every backend, the incidence edits (`+i` / `-i` in `.dgt`, the `.dgb` flag
+  `incidence_edits`) on `slack_csr` storage only; `escher` storage refuses them, `triad_count`
+  refuses `slack_csr` storage, and `overlaps` stays empty.
+- Deferred beyond 0.4.0 (M11; HD5, HD9, HD14): MOSP_ESCHER's legacy H-SOSP batch generator (0.4's
+  parity and gates replay MOSP_ESCHER's exported batches); incidence edits on `escher` storage and
+  `triad_count` on `slack_csr` storage (their composition); the line graph's `overlaps`; an
+  OpenMP backend of `hyper_sssp`.
+- After 0.4.0 (from M11b's shared engine, ADR 0095): the shared engine's two located update
+  costs (the bounded pointer-jumping rounds and the two seed launches on large line graphs);
+  an as-is update with the shared static solve (0.69-0.74 of the ported recompute); and the
+  rename-only move of `invalidate_subtree` and `packed_min` into `cpp/src/operators/` (two users
+  now), with its own SASS record.
 - conda-forge packages; aarch64 wheels.
 
 ## Towards 1.0

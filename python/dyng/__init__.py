@@ -20,11 +20,11 @@ The algorithms are :mod:`dyng.sssp` (dynamic single-source shortest paths) and
 :mod:`dyng.cycle_count` (exact directed simple-cycle histograms) since 0.1, :mod:`dyng.mosp`
 (dynamic multi-objective shortest paths) since 0.2, :mod:`dyng.triad_count` (exact hypergraph
 triad counts) since 0.3, and :mod:`dyng.label_propagation` (dynamic label propagation under
-vertex batches, on float32 graphs) since 0.4; :func:`update` updates several results of a graph
-or a hypergraph with one batch. Backends: ``Resources("sequential")`` and
-``Resources("openmp")`` in this wheel, and ``Resources.cuda()`` with a CUDA plugin wheel
-(``pip install "dyng[cu13]"`` or ``"dyng[cu12]"``); label_propagation runs on sequential and
-cuda. Cite with :func:`citation`.
+vertex batches, on float32 graphs) and :mod:`dyng.hyper_sssp` (dynamic shortest hyperpaths) since
+0.4; :func:`update` updates several results of a graph or a hypergraph with one batch. Backends:
+``Resources("sequential")`` and ``Resources("openmp")`` in this wheel, and ``Resources.cuda()``
+with a CUDA plugin wheel (``pip install "dyng[cu13]"`` or ``"dyng[cu12]"``); label_propagation
+runs on sequential and cuda. Cite with :func:`citation`.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from . import (  # noqa: E402  (after the core names)
     cycle_count,
     dynamic_bfs,
     generators,
+    hyper_sssp,
     io,
     label_propagation,
     mosp,
@@ -124,6 +125,7 @@ __all__ = [
     "mosp",
     "label_propagation",
     "triad_count",
+    "hyper_sssp",
     "dynamic_bfs",
     "triangle_delta",
     # modules

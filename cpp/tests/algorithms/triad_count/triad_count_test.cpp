@@ -477,13 +477,21 @@ TEST_P(TriadCount, SlackCsrStorageIsRefused) {
           << e.what();
     }
   }
-  // A result of an escher hypergraph refuses the slack_csr one before anything changes.
+  // A result of an escher hypergraph refuses the slack_csr one before anything changes, with the
+  // storage's not_supported_error (checked before the result's identity: no result can match a
+  // slack_csr hypergraph).
   const hgraph escher = make(res(), 13, hand_rows);
   tc::result r = tc::compute(res(), escher);
   const counts before = counts_of(r);
   batch_t b;
   b.insert_hyperedge({1, 2});
-  EXPECT_THROW((void)tc::update(res(), slack, b.view(), r), dyng::error);
+  try {
+    (void)tc::update(res(), slack, b.view(), r);
+    ADD_FAILURE() << "accepted slack_csr storage";
+  } catch (const dyng::not_supported_error& e) {
+    EXPECT_NE(std::string(e.what()).find("hypergraph_storage::slack_csr"), std::string::npos)
+        << e.what();
+  }
   EXPECT_EQ(slack.version(), 0U);
   EXPECT_EQ(counts_of(r), before);
 }

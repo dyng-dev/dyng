@@ -1,0 +1,997 @@
+{
+ "record": "sssp's and mosp's kernels (SASS, resources) and host code (M11b criterion 2)",
+ "tool": "parity/sssp_sass.py",
+ "date": "2026-11-11T08:13:29Z",
+ "provenance": {
+  "build": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s4/src/build/parity-cuda",
+  "CMAKE_HOME_DIRECTORY": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s4/src",
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+  "commit": "4f439a24a5e0b4f8ccf7034c394df69306cf6a89",
+  "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0"
+ },
+ "objects": {
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/cuda.cu.o": {
+   "sha256": "0ec10c75730cb6f45ff38dab4cc816a6802524e7097d1f6c9fbf7bddfc96e248",
+   "kernels": {
+    "_ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiiiEEvNS1_6paramsIT_T0_T1_EE": {
+     "digest": "7ae132bea1b894a529696c58ae720b3fdd243c9dc4c78659cf9196dcc4b1fd5f",
+     "instructions": 2640,
+     "resources": {
+      "REG": 59,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiliEEvNS1_6paramsIT_T0_T1_EE": {
+     "digest": "2838a86c453fe75a3beea6ea5353984447dd10dceb3106574812b30c744afebb",
+     "instructions": 2656,
+     "resources": {
+      "REG": 60,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIlliEEvNS1_6paramsIT_T0_T1_EE": {
+     "digest": "6b47a0c99cc1cb50e9584a6c776cb602d239aa147143ad19f2dd14430fe1877b",
+     "instructions": 2944,
+     "resources": {
+      "REG": 64,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    }
+   },
+   "device": {
+    "sections": {
+     "sm_86:NULL": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "sm_86:.note.nv.tkinfo": "79f887a533cb12feed409ab37b6996713f3ec45277fd1f0418efb759da698eef",
+     "sm_86:.note.nv.cuinfo": "b7e4873b9513c1fb682b073aecd8afb8622bb00a45462b8dea615ebf0f2e2afd",
+     "sm_86:.nv.info": "3aaf189cd0b535b0be3b6f7de458539f39b1edfb524e79e2a2ff0979d7c930b1",
+     "sm_86:.nv.info._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIlliEEvNS1_6paramsIT_T0_T1_EE": "ca0229beeb203906624cb14cc8f3b06e142f45623cf7ca288f435a5d1d3c078c",
+     "sm_86:.nv.info._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiliEEvNS1_6paramsIT_T0_T1_EE": "924b8c9920360dc4576fd70495df3f0f760383e73dc2b5df2911d888a2c7adff",
+     "sm_86:.nv.info._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiiiEEvNS1_6paramsIT_T0_T1_EE": "f9d49973e73d6a6d42652ee51dc81b3fcffbb083d1ed33b6ad13b9ae8d6c3d27",
+     "sm_86:.nv.callgraph": "d2313ca97ba98e17e54a058fe0aecb7130f81435d3d125fee2c88be205925201",
+     "sm_86:.nv.rel.action": "f2ddd5db887b37b008c87a626c13ae9d5079cfa8feafd192603f0eab2c4def89",
+     "sm_86:.rel.nv.constant4": "73108beba978b841c13d1727f89fec57887805c8ea9dd5bb8be799d3724da815",
+     "sm_86:.nv.constant4": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+     "sm_86:.nv.constant0._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIlliEEvNS1_6paramsIT_T0_T1_EE": "afc249b32e5549092c980b1995ea5401e73af3fcda168c1da9ae1bdbfce0d447",
+     "sm_86:.nv.constant2._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiliEEvNS1_6paramsIT_T0_T1_EE": "827cfc67d1d3c6c089ad2dfe65e5c367e3932322070b0e0f6a7dd57cdbd0a989",
+     "sm_86:.nv.constant0._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiliEEvNS1_6paramsIT_T0_T1_EE": "f9d54bbe3ccaf08564c2928c55218a3f696989a05dffc8edf057773751aae153",
+     "sm_86:.nv.constant2._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiiiEEvNS1_6paramsIT_T0_T1_EE": "827cfc67d1d3c6c089ad2dfe65e5c367e3932322070b0e0f6a7dd57cdbd0a989",
+     "sm_86:.nv.constant0._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiiiEEvNS1_6paramsIT_T0_T1_EE": "f9d54bbe3ccaf08564c2928c55218a3f696989a05dffc8edf057773751aae153",
+     "sm_86:.text._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIlliEEvNS1_6paramsIT_T0_T1_EE": "7c87a187005e701c9deb86a726a22cbec9291e05520976d04e2083f795d62b3b",
+     "sm_86:.text._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiliEEvNS1_6paramsIT_T0_T1_EE": "3389bf3e64e33229d2b3bef9f0c854d3f2af416d382fb6baec151e120e0fc636",
+     "sm_86:.text._ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiiiEEvNS1_6paramsIT_T0_T1_EE": "cf772989b673d844764ca82e49f9404996b6c28c9634b745a23e1c23748c27a2",
+     "sm_86:.nv.global": "a48a4b077708f04a238140d24f77bafc2a8d589ef7c0691bb9a8096cd850aa7e"
+    },
+    "debug": {
+     "sm_86:.shstrtab": "715dd2e268923c774715b285ddad212b19b4cca13e0670f7b31a2423416eb673",
+     "sm_86:.strtab": "b4fb8566185f03630e19862b2482e93d9d8314cf066556e6365da3f5d9d1cf8f",
+     "sm_86:.symtab": "70b2fef05cd7e0335b8aaf2ea2fc06b2479c34df404147826b7910ef615f3c02",
+     "sm_86:.debug_frame": "116973b94ae4c20b6ebd65eb7ea17aa1093534e8373dbb7d367f4c1802e4b76a",
+     "sm_86:.debug_line": "e65c91c40b0c2956ae3aeee60ea4576034738094d72d219a9e30dd48defa3a15",
+     "sm_86:.debug_str": "2b73406ac1cba6e8c779bfac2732e2a93d1fd3941bdf13b5742176d661a655ee",
+     "sm_86:.nv_debug_line_sass": "c68436945de6556d541e9358d900d84a0aaff7461eeed98f3d9bcb194d6ad2df",
+     "sm_86:.nv_debug_ptx_txt": "de91d48133e81f662fccdf1a6a40a6394c72c7adec3e2a4b2cd6a021de3a047d",
+     "sm_86:.rel.debug_line": "5345ec891d22e93ba70cee74c752eefe30d19668194025fc79dd6bfe8a6baacc",
+     "sm_86:.rel.nv_debug_line_sass": "fb458e1ffd50e509c63a0616d7bdfbd911f413d15dbf049cd048873b9b4eafc3",
+     "sm_86:.rel.debug_frame": "eb3f54895e1780f3e429fa2786ce71a531994e6b5b875f0105137c184bb2e627"
+    }
+   },
+   "host": {
+    "digest": "da610c22a6fce955becbb9a34caee69159f10652c2cb029376cced03838b5e4e",
+    "lines": 7099
+   }
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/operators.cu.o": {
+   "sha256": "0ba7aaefa635d3512ae1ae692268fdb4c6f3ef56a297894614231fa2b683a1b0",
+   "kernels": {
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": {
+     "digest": "c7573f13b33d572ff5c585e9cfd261a0af532b0dd5db651f13679b7a5a849f30",
+     "instructions": 160,
+     "resources": {
+      "REG": 26,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": {
+     "digest": "15a0421e0e7ebb4c6b79215c5853dfa82c97a6256f661e7f5bdebd8b9a75866a",
+     "instructions": 168,
+     "resources": {
+      "REG": 28,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": {
+     "digest": "37dbe65319a9e77d078920ae0ae95bd16123495fda3ecfd29b46791c9f070667",
+     "instructions": 168,
+     "resources": {
+      "REG": 30,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators11push_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": {
+     "digest": "157d89bfb53eede01470c7a7579ccd62aa032caa21bb32cde12415a46b372a99",
+     "instructions": 216,
+     "resources": {
+      "REG": 30,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators11push_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": {
+     "digest": "58f33b04decc4b30e4bb8743ae59dea91361c7548c9cf9245f65677e9b8370e2",
+     "instructions": 224,
+     "resources": {
+      "REG": 30,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators11push_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": {
+     "digest": "532da36ad02d44ad84e948a97fb81a69518deb919f6e91b1805e52b45ea9dda9",
+     "instructions": 192,
+     "resources": {
+      "REG": 34,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators12split_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": {
+     "digest": "20c8ea227cd697370845efb68600f9a08551f17b8b90dcefa04c60b4ebee559c",
+     "instructions": 176,
+     "resources": {
+      "REG": 18,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators12split_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": {
+     "digest": "1ba942f7e622c3a173ac155fa0a871f681258fa561e7f12de8b5d130f297c5e4",
+     "instructions": 152,
+     "resources": {
+      "REG": 22,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators13unpack_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": {
+     "digest": "a4f150bc929563213edfb8c34a4d6164ff70918417ec45d8827cacca3cb6a043",
+     "instructions": 168,
+     "resources": {
+      "REG": 22,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators13unpack_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": {
+     "digest": "97ad453d28486cee56c9422a68257bddef5db15c3ab2476c4c66fddba33bae2e",
+     "instructions": 328,
+     "resources": {
+      "REG": 28,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators16pack_tree_kernelIiEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": {
+     "digest": "c5d9c5b2b9a1a6b2ca80b242f26f98057fa4c82738014d7176c3972609e88c42",
+     "instructions": 416,
+     "resources": {
+      "REG": 24,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators16pack_tree_kernelIlEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": {
+     "digest": "703868a607c930cb0ce9e112296bfdcdd1887205dda2ff3caf7dd2de972f047f",
+     "instructions": 600,
+     "resources": {
+      "REG": 34,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators16threshold_kernelIiEEvPNS1_7controlIT_EEyb": {
+     "digest": "3f82f08f23d965b4dbe6c9d8a175215522c7ba113c4b25123140a90c472b244e",
+     "instructions": 40,
+     "resources": {
+      "REG": 11,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators16threshold_kernelIlEEvPNS1_7controlIT_EEyb": {
+     "digest": "3f82f08f23d965b4dbe6c9d8a175215522c7ba113c4b25123140a90c472b244e",
+     "instructions": 40,
+     "resources": {
+      "REG": 11,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators17invalidate_kernelIiEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": {
+     "digest": "c120f3483fefd7d54c8b81f3fb396a6ffcb63de8c893eabe7ad5e9b993a052de",
+     "instructions": 160,
+     "resources": {
+      "REG": 20,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators17invalidate_kernelIlEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": {
+     "digest": "0aaf2a2a1e2ff4bfb7c18800a5627d401262cde4b39db863a04d95bee11088a1",
+     "instructions": 192,
+     "resources": {
+      "REG": 24,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators17mark_roots_kernelIiEEvPKT_S5_S3_S5_Pi": {
+     "digest": "6dc96492caffc703ee3031f42205147d26b807b1f44f3bc5f81afa322e5ccdcc",
+     "instructions": 120,
+     "resources": {
+      "REG": 24,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators17mark_roots_kernelIlEEvPKT_S5_S3_S5_Pi": {
+     "digest": "cddd342fdb70ddc1bebb47a3bec8670f058ab583781a72eefd18484f33768537",
+     "instructions": 256,
+     "resources": {
+      "REG": 26,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19init_control_kernelIiEEvPNS1_7controlIT_EE": {
+     "digest": "25ce63bb7a8da653fd55a855dcedf810349a0023ead4b6a2589bfdb6439b0b48",
+     "instructions": 64,
+     "resources": {
+      "REG": 8,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19init_control_kernelIlEEvPNS1_7controlIT_EE": {
+     "digest": "33cc9e7157103af9e6bfefac09060dc0e9756c53967b5d5ce060e4ecabc37f27",
+     "instructions": 64,
+     "resources": {
+      "REG": 8,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19insert_heads_kernelIiEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": {
+     "digest": "b3cbbb4698bec0f3871173b8ff44ac3ce319b4b29879c4a87eedd1d7d54fab3d",
+     "instructions": 88,
+     "resources": {
+      "REG": 16,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19insert_heads_kernelIlEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": {
+     "digest": "50e9d6dccad5b524f54209cbc880f5926de85bca9327a98e39330d1773bba7c4",
+     "instructions": 88,
+     "resources": {
+      "REG": 18,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19min_distance_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": {
+     "digest": "a7d94b5a14c346c6e6051e8fabff3331c1cbeecb5a06b8c9bb13321a38bb01cd",
+     "instructions": 160,
+     "resources": {
+      "REG": 18,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19min_distance_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": {
+     "digest": "2b79980b5ee46fe6970422fc49047028a41608e1b832992dee9c6d56c06c0e7f",
+     "instructions": 168,
+     "resources": {
+      "REG": 20,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19pointer_jump_kernelIiEEvT_PS3_PiPNS1_7controlIS3_EEi": {
+     "digest": "871b01e50a121a2ee6aaca38a0e87c90794b6b29b8fe3e486948963b1976e0d4",
+     "instructions": 88,
+     "resources": {
+      "REG": 16,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators19pointer_jump_kernelIlEEvT_PS3_PiPNS1_7controlIS3_EEi": {
+     "digest": "a67ba13d5f9abf6c3e56b6514f73234a4f228f19456c0719d50c50ea8a1ef87e",
+     "instructions": 96,
+     "resources": {
+      "REG": 22,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators21count_affected_kernelIiEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": {
+     "digest": "2060da3a04e6a84fc7d7d50275dafaac20fc790d98b0bcc83b9bb9acaa1bbb04",
+     "instructions": 168,
+     "resources": {
+      "REG": 32,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators21count_affected_kernelIlEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": {
+     "digest": "fbf118eda77535a00856c56777d4dd771334a0c559e9bc38e8f8efe23bb6d1bd",
+     "instructions": 344,
+     "resources": {
+      "REG": 48,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators21unpack_counted_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": {
+     "digest": "2347d4a731caff55494948ed9df666dfc18f5dd6f26c5f3d1a7282b0b8410d1c",
+     "instructions": 256,
+     "resources": {
+      "REG": 23,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators21unpack_counted_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": {
+     "digest": "71310b83ae8847f838fd122e5104fee623bd32045dd22821a6c9507862884b21",
+     "instructions": 408,
+     "resources": {
+      "REG": 31,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators22recover_parents_kernelIiiiEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": {
+     "digest": "99b645c51ff97971981959fb3b02ea0f1dd6926a64b669a81dd61e57f8174ae4",
+     "instructions": 80,
+     "resources": {
+      "REG": 24,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators22recover_parents_kernelIiliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": {
+     "digest": "6e73f9dae19d036f0edafe0bd852e831723733515822834e79bcdc5d94a2b479",
+     "instructions": 80,
+     "resources": {
+      "REG": 26,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators22recover_parents_kernelIlliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": {
+     "digest": "4e4cf091e8ebd20ed3b20d7f9e020407fbee7faeb893dfe20dcecaa2f49f1e2a",
+     "instructions": 88,
+     "resources": {
+      "REG": 26,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators23unpack_distances_kernelIiEEvT_PKyS3_PxPS3_bS7_S7_": {
+     "digest": "038fd78ad221e5d3c9b55aeefd3a1b745cf0465f30876f9875b7ee58f92e622c",
+     "instructions": 272,
+     "resources": {
+      "REG": 34,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators23unpack_distances_kernelIlEEvT_PKyS3_PxPS3_bS7_S7_": {
+     "digest": "f9bbe084a857b2b45b42f8946ac8c5b4a4934abd64ba4572d9f849eeda391b0f",
+     "instructions": 480,
+     "resources": {
+      "REG": 40,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIiEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": {
+     "digest": "f56e830a71698ea70fa09c5efcb73a152f82c6feda7ccccde3cb3521c2571718",
+     "instructions": 104,
+     "resources": {
+      "REG": 25,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIlEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": {
+     "digest": "400da830ffc54741603f50c709a0f2f855acb3e525eb499805852112d17c7815",
+     "instructions": 224,
+     "resources": {
+      "REG": 30,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    }
+   },
+   "device": {
+    "sections": {
+     "sm_86:NULL": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "sm_86:.note.nv.tkinfo": "79f887a533cb12feed409ab37b6996713f3ec45277fd1f0418efb759da698eef",
+     "sm_86:.note.nv.cuinfo": "b7e4873b9513c1fb682b073aecd8afb8622bb00a45462b8dea615ebf0f2e2afd",
+     "sm_86:.nv.info": "4641d281470602550ff07a18ef17c9634aad4c9feaa62de879f84e94607f19f5",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators21count_affected_kernelIlEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "a3c8ba110e1e7aedd16b9fa178fe254111dbd8acfdf0ef00e43447c9d3908eb0",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators22recover_parents_kernelIlliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "74cc48a96cd7c6c050bbdeb5018b55afb00a7efbc4ae8870c868ef299e1acc53",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators23unpack_distances_kernelIlEEvT_PKyS3_PxPS3_bS7_S7_": "65fe5fe9587c71283e8c5860fa7830ee7f59984742ad03029cb6d87b9f6bbdf7",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators13unpack_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "fe53a992aa071e0afa1cded74ae5819b36e1ff121b0092117005c1e5f2d04562",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators21unpack_counted_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "a7a2a679cccbdda218e9c60ae18f610f2c6733105055ec7fd8f18c88a81d93ac",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators11push_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "e9f14f5704a97fd25f9f922c6d8a33ce05ad49914fe561719df077420f4fbba2",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators12split_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "64a5c30c3dfc0047d1f6c7405c5b20c9d3a850228ca221ec478e79b98fbfb100",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators16threshold_kernelIlEEvPNS1_7controlIT_EEyb": "a9e98045a0d791b14085d476638a18819c35f8063d8a2b7ca4b34674ae3cdbc0",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19min_distance_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "09e6ddf7d2dfbe8a243dda9c5a4a16004da43090a78cba8fd725db7f3eaa011d",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators11pull_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "daadf09310a4f696c16e7ee70e2c5f607ec36c2eb36fcfa6a25079b03326801c",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19insert_heads_kernelIlEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "e7a4e01b6a5df6d4cb741280929d0061ce3cd70f969be33be1053ecadc0d0c1e",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators17invalidate_kernelIlEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "6502c4ccaf387ae004d47012367a847388f65252d12e4823ad5fef8523650b5e",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19pointer_jump_kernelIlEEvT_PS3_PiPNS1_7controlIS3_EEi": "c0cff5310cdd705f1155a5f96077a835f47f90b33170114f31dfed08182702d5",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators17mark_roots_kernelIlEEvPKT_S5_S3_S5_Pi": "e6f9c7e4338c58f2cd79bf70e7ac9d62003fc5b21857f5559c91971283f0c4a7",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators16pack_tree_kernelIlEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "25e2f6704e7840566fdcf77dae4193c1a7d175239d55fcb35eac131186d9b5c4",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIlEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "10458b80e879027e40a8b61a6a8181a08dd5e67b8551c8a89b332e05bf70c66c",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19init_control_kernelIlEEvPNS1_7controlIT_EE": "36d8078ad1b01b1e7a3ac51da216081817748bcc352c2bccfaa55be0743f1370",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators22recover_parents_kernelIiliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "65c86db4126df3dcf5ddef0111e9daa3a228c9e0c86db0f6a1c50115c2e0229f",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators11push_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "e83a09639048dfcacf70a318b6e02bcfab4495b94f6e40b75891701e560d5fcb",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators11pull_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "0636975d87b1ca77b7007b180f1cfe1c8503e2175c1188fa9a1cc618d2d3de40",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators21count_affected_kernelIiEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "c86cec05a010b52752c84ae0d724fbfd457568a65d60c4db38711a26ce6bdca2",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators22recover_parents_kernelIiiiEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "427eb8aa96e18699de1e3ed8f386903f85a4505aeb16218ad02deab636b92883",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators23unpack_distances_kernelIiEEvT_PKyS3_PxPS3_bS7_S7_": "1fc8364d171f3614b3ec419098353d5270f36a3478a95721ed3cfb04f2d4c820",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators13unpack_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "322e07156d45ec2fa94f2d62c04c78af597cee6d6f6c48b9b6fbfaf2bb702501",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators21unpack_counted_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "926f05c8392c6b1cb0c6262b7cf6af50d558f179020b5a16e386b03edb04eb0f",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators11push_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "1dc6f97674bfeda6a44577176e33f0f7ab741a9d9a91d709069a43c28209aa04",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators12split_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "17ec733f51617c8bebcce81a4cdf5926a71b0c61044c9b5e39cb62a08435ccd4",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators16threshold_kernelIiEEvPNS1_7controlIT_EEyb": "599073b8cf352d284108ebc5d947b1767c8ec6a5d442f27f4f1abf69f91d1106",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19min_distance_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "4b0e969b036eec9a8d6009f34b47c5bd6629993f8af42f283038e2b3a9be1629",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators11pull_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "9749d2d6d54d6971cf4cb683d4fee25b32cc1e674dd2ecde4ec6ab0670a48dd0",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19insert_heads_kernelIiEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "a286515ed19be8ddd6d2b26a260dc2728ed945ef001ffdd0ff6ae8b5d410fb30",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators17invalidate_kernelIiEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "00cf6b76ad2293e9bd9cebd0a503fb9616121bd8ffb631f5b1f40f4e7fe63e44",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19pointer_jump_kernelIiEEvT_PS3_PiPNS1_7controlIS3_EEi": "32abc418e6028af009ec047801bcf66d72655e303a45d08a7ec24cc83f299e44",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators17mark_roots_kernelIiEEvPKT_S5_S3_S5_Pi": "814dc42c597ead62935d20a494e890edc27de4ef564815322976a09daa8f6a21",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators16pack_tree_kernelIiEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "9be00faf7bc48eba29030581c71e585032c24344eb48f1451168d6284e6f5176",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIiEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "a0058b0df1c4e08b35e09f4eb95d56f0196fdd4801aa10454c122a810fc64504",
+     "sm_86:.nv.info._ZN4dyng6detail14sssp_operators19init_control_kernelIiEEvPNS1_7controlIT_EE": "04d32cc74ad38df751076b59601afc098a4f66a79d14e778d4d7d12c02d9922a",
+     "sm_86:.nv.callgraph": "d2313ca97ba98e17e54a058fe0aecb7130f81435d3d125fee2c88be205925201",
+     "sm_86:.nv.rel.action": "f2ddd5db887b37b008c87a626c13ae9d5079cfa8feafd192603f0eab2c4def89",
+     "sm_86:.rel.nv.constant4": "73108beba978b841c13d1727f89fec57887805c8ea9dd5bb8be799d3724da815",
+     "sm_86:.nv.constant4": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators21count_affected_kernelIlEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "3eefc4790b52024832ea4c03c6e7a781f3ef9416866a959b2777fce101ad9d61",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators22recover_parents_kernelIlliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators23unpack_distances_kernelIlEEvT_PKyS3_PxPS3_bS7_S7_": "4cc7e6272db6b1ad7581f76c63c694e926e20698e9b02223d5041a55960463f2",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators13unpack_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators21unpack_counted_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators11push_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators12split_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "4b48f21a4b7a02bfbec19ef880a967a02334a3cdcef8ae83de2ef327ba8bc5dd",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators16threshold_kernelIlEEvPNS1_7controlIT_EEyb": "1270be94b76ac32534581f51fecec7ce90ed9e0f3693f310058fba0c6ca8aaa7",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19min_distance_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators11pull_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "7c4c2b940c41426e36a4cf6c83afababacfb8bb1a1dc39162a95bb812e1d109f",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19insert_heads_kernelIlEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators17invalidate_kernelIlEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19pointer_jump_kernelIlEEvT_PS3_PiPNS1_7controlIS3_EEi": "8de76ee7eb6b32c307d4a46a43ac55bc15b917e2a24d36c3d001878a97fd39d6",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators17mark_roots_kernelIlEEvPKT_S5_S3_S5_Pi": "3eefc4790b52024832ea4c03c6e7a781f3ef9416866a959b2777fce101ad9d61",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators16pack_tree_kernelIlEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "e6a4dd1cc11fe045554f993bb765eba87d46248a8b85a7c8dbaa5c40594e0214",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIlEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19init_control_kernelIlEEvPNS1_7controlIT_EE": "d3df611a0ed2e328b050d285287637c60643ba96ec09e4aaefaad7f2cd114b77",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators22recover_parents_kernelIiliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators11push_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators11pull_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "7c4c2b940c41426e36a4cf6c83afababacfb8bb1a1dc39162a95bb812e1d109f",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators21count_affected_kernelIiEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "3eefc4790b52024832ea4c03c6e7a781f3ef9416866a959b2777fce101ad9d61",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators22recover_parents_kernelIiiiEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators23unpack_distances_kernelIiEEvT_PKyS3_PxPS3_bS7_S7_": "4cc7e6272db6b1ad7581f76c63c694e926e20698e9b02223d5041a55960463f2",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators13unpack_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators21unpack_counted_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators11push_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators12split_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "4b48f21a4b7a02bfbec19ef880a967a02334a3cdcef8ae83de2ef327ba8bc5dd",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators16threshold_kernelIiEEvPNS1_7controlIT_EEyb": "1270be94b76ac32534581f51fecec7ce90ed9e0f3693f310058fba0c6ca8aaa7",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19min_distance_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators11pull_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "7c4c2b940c41426e36a4cf6c83afababacfb8bb1a1dc39162a95bb812e1d109f",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19insert_heads_kernelIiEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators17invalidate_kernelIiEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19pointer_jump_kernelIiEEvT_PS3_PiPNS1_7controlIS3_EEi": "8de76ee7eb6b32c307d4a46a43ac55bc15b917e2a24d36c3d001878a97fd39d6",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators17mark_roots_kernelIiEEvPKT_S5_S3_S5_Pi": "3eefc4790b52024832ea4c03c6e7a781f3ef9416866a959b2777fce101ad9d61",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators16pack_tree_kernelIiEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "e6a4dd1cc11fe045554f993bb765eba87d46248a8b85a7c8dbaa5c40594e0214",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIiEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN4dyng6detail14sssp_operators19init_control_kernelIiEEvPNS1_7controlIT_EE": "d3df611a0ed2e328b050d285287637c60643ba96ec09e4aaefaad7f2cd114b77",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators21count_affected_kernelIlEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "f1ac6dc268bb57557f363d4fd2c3c4f365bd3f76b8eefb91f52e3bfb0d9419c3",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators22recover_parents_kernelIlliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "3a02383cd79ba92058461ec83ce1b393d4d4069e8b886b0a12dc62604b385d3d",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators23unpack_distances_kernelIlEEvT_PKyS3_PxPS3_bS7_S7_": "8753fe9f091c9be24bc82362fe126908a330196cd5ca87aff16ca7fe9dae9636",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators13unpack_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "2b81be0f1e805991cedd5fe786fbd7085c4273437436e542c2bd64d10b10d005",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators21unpack_counted_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "e1068e432909d4db5d504e536a0033af5fdfd5c1e9219b6e7223d92de97bb74e",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators11push_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "1b63fbbb74d83032601d14296c8e28e48713d58999639cb360b1f9cec7406b72",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators12split_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "7cefc09a0f6f453d0703323c5655e2e4403730e0dc07cc34f1db1a3005c2834c",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators16threshold_kernelIlEEvPNS1_7controlIT_EEyb": "98b87509b73eeb732fdb1934d30423343cf3e2980de6bfa0b9e7c4d6ccbcb979",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19min_distance_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "153992ef11dd005d4e56e5da8e2fefb812c592a24d68631369b87351968c15b3",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators11pull_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "0050bc377c7374870f6425e9de5e24ac0cb2d8101a6ec37a27c7c48acc7ce1a9",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19insert_heads_kernelIlEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "f05b1f099b5eb26151684abbed7b603d77e25b0ce3202b2b67b2130765d1ebf0",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators17invalidate_kernelIlEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "b5ca46232291b328cb86d52ae65325516ad6720252f4a6472d64ee3dc04aee73",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19pointer_jump_kernelIlEEvT_PS3_PiPNS1_7controlIS3_EEi": "f3149dbb8a2f0966bcb385d78be1b83e3b74025b5d8d3ba27e393c1c2fb802b6",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators17mark_roots_kernelIlEEvPKT_S5_S3_S5_Pi": "13303a879ea9ccce4a39b089bd1b149aa2fff4be4de11dfcb38b336352bcd446",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators16pack_tree_kernelIlEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "22ac6ae923557f4179a1e2612e78e14c410dfce25388e55510056628e8978e34",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIlEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "37d0bf5985f2a27216161979a634d3ce3074781ba1e3d2ba8bbe6b95b6da9253",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19init_control_kernelIlEEvPNS1_7controlIT_EE": "336b20fa0e3b82aff4a135014d7c20327c97848916b8e91cf0f6bddf6040117c",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators22recover_parents_kernelIiliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "80ef7af4b87eb6af19397b0b04934e2e99114a9c9bc987b7ac1a4fb9e721162c",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators11push_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "2300948030972b61e17de96fd2bf6f8d3adf520a28964c6ed16f1d47a7f1b64b",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators11pull_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "fd3abb8a1d35da4eca5353c2cfd48b59f98f3e01722c7999b68b90caa8081035",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators21count_affected_kernelIiEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "379395464569d0969f721286592d4de98128db7bce6fd2105595f9d1bec9d7ab",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators22recover_parents_kernelIiiiEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "5c1c399d6d83a734633d717636b470120e80f8024d28babf76e724e41240e26e",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators23unpack_distances_kernelIiEEvT_PKyS3_PxPS3_bS7_S7_": "e312ca199a338ba1695ba06732980489f6a04f0c0b9437c4a6cf6f913a59e8d8",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators13unpack_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "17f14029fc8110d5e9f28853f21727d15869d93d927351a252e83548d47e8b3a",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators21unpack_counted_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "59fe320cbe4bdcd623fa53d76e750689a8bbe68f1e1faa35a9b2ea3515d549a3",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators11push_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "8023f855080cba2c1eac56ac5b3e42396e2270d1b8d9c7ac4d5c2e51c7d45609",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators12split_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "43534858c9dd7185595545e1d649892cf44082e015ad3e5f111895640076167d",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators16threshold_kernelIiEEvPNS1_7controlIT_EEyb": "98b87509b73eeb732fdb1934d30423343cf3e2980de6bfa0b9e7c4d6ccbcb979",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19min_distance_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "2ed44fb443f2092ac2decda197f6b11c3378fa0e31d164aac7e04f8014cfbf8e",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators11pull_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "2bb75f4954080c81dee2b652224a61ee1e4da9ef91000564ba45d1783de5c517",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19insert_heads_kernelIiEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "bbd516d45a50be8752cd8f26163b2e6c363bd469748fde0a3356dbceb0e67e5b",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators17invalidate_kernelIiEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "5ec36f9b24ef4ded1e4726880597d361a8abe95480e2020a77fead6c535f9b11",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19pointer_jump_kernelIiEEvT_PS3_PiPNS1_7controlIS3_EEi": "295832e2933b78d4f618879d1e16cec82d153bb4030431fc5c9fd5e6e3a05ccf",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators17mark_roots_kernelIiEEvPKT_S5_S3_S5_Pi": "27ec732d9ec52b7cb2996d1057cabe05011a1ee14520f65d6c7a3e5fdaab1305",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators16pack_tree_kernelIiEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "a1b0b7f575b14cde6dff18b4eff4ef12fbefba7273158955434573506624be95",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIiEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "b4d52aec45d688e1306bf8437d618d9cdc94ae086c0a516547d35fcabc972202",
+     "sm_86:.text._ZN4dyng6detail14sssp_operators19init_control_kernelIiEEvPNS1_7controlIT_EE": "a5ee5fe16de2f1ce209c148950350d96f5be4da9c010f8c6ffde0d2b4d8d808f",
+     "sm_86:.nv.global": "a48a4b077708f04a238140d24f77bafc2a8d589ef7c0691bb9a8096cd850aa7e"
+    },
+    "debug": {
+     "sm_86:.shstrtab": "0ced21b53f34ce1aa9c66c9000f43f7bbf8f8b77a0df79b583fb9d7cfb06ae25",
+     "sm_86:.strtab": "85092ec598cb88e09672218324d0bc83f588ad65940f9386e11637405943b503",
+     "sm_86:.symtab": "433982ffeff3341bf68c02a2500e9effa16a8382d82191019faad7162c6f3135",
+     "sm_86:.debug_frame": "f52d8ca45d8fbbc143daaa3e42a7c22c8bb49bd47ab15ff7519bb31b990d1451",
+     "sm_86:.debug_line": "406271f5d551dbce7c896b7180245902ac52057ee80da05656bb109066469803",
+     "sm_86:.debug_str": "39cf1772bdf6d1ebd912264649e1d0695064e4c6b8d45b578bbb7ee83a48282c",
+     "sm_86:.nv_debug_line_sass": "9acf45045c0cb3c023b7cf1a2bea0dc794c88247e1abf8943c08c2f9ff984b46",
+     "sm_86:.nv_debug_ptx_txt": "6eb2c0e9cd20bb3a5a463a85328127340fbd6b2529d4e6da5e78e69154bd5431",
+     "sm_86:.rel.debug_line": "62730e954b79e30c7d805e629fa1b1b19de967c25231504a73ed1ae0e777c8de",
+     "sm_86:.rel.nv_debug_line_sass": "2d8fa05f4dba0b89474343e4d6f46808e4f8f88b687e7352ae52f2e6bca6d19b",
+     "sm_86:.rel.debug_frame": "34f3e36b0721e212f479c98d3c919cc79e817ff032954688bc7accc5dc469190"
+    }
+   },
+   "host": {
+    "digest": "fd834779cdc2286127289dff3627dfd4fdd31c565d20f33cb3b4fe7e0aa30871",
+    "lines": 14749
+   }
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/sssp.cpp.o": {
+   "sha256": "61d3f28150ce46b512cdeceb21359e4c297670523738bd3be83caf1b15d5c764",
+   "host": {
+    "digest": "9ff39bc176703baaefcb9594d3945f0e7710faae182b1fa655aad092d6715f6d",
+    "lines": 44069
+   }
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/sequential.cpp.o": {
+   "sha256": "35da09eecc7be2c5af6ecc074b5e13589685b5348fa1124a4f98be01e7dacf23",
+   "host": {
+    "digest": "31c684a1d5634ab096cff9277154c23a9fde175426d423893bd47dee54d8894a",
+    "lines": 6219
+   }
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/openmp.cpp.o": {
+   "sha256": "e30271a9c65a264f769a6615839f10282a2cfcecfc5d8224ec78b823c3cf4b3f",
+   "host": {
+    "digest": "7178e6dbd25b79f613d25bf63b4ebd66673193b413508dc9b213951b080fefb0",
+    "lines": 13135
+   }
+  },
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/cuda.cu.o": {
+   "sha256": "d00af3002800527654c9b2926e84117837094da34c7e44c3542d306778047327",
+   "kernels": {
+    "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": {
+     "digest": "aec79f614d4d294d953f9321fc345e7af22ce2518a9d187eb3a865f2d28d222e",
+     "instructions": 16,
+     "resources": {
+      "REG": 4,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiiyN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEyiLb0EiEEvT0_T1_T2_iT3_T4_T5_": {
+     "digest": "7885db92f994b98fc0c980fa0711264a3199f437c83f503e905062e7e052e94f",
+     "instructions": 1032,
+     "resources": {
+      "REG": 48,
+      "STACK": 0,
+      "SHARED": 7696,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllyN4cuda3std3__44plusIvEEE10Policy1000EPlSC_NS0_13ScanTileStateIlLb1EEES9_NS1_10InputValueIlSC_EEylLb0ElEEvT0_T1_T2_iT3_T4_T5_": {
+     "digest": "bdcad3ab14c2b14956af1980d910b53cef1cffeb671a2bc7e6cef8b7151c02b9",
+     "instructions": 1328,
+     "resources": {
+      "REG": 48,
+      "STACK": 0,
+      "SHARED": 7184,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": {
+     "digest": "3c9ab4ddc32871fb2e50dae8abe4a4a5194b5e94d3739a7c796b1653f471388c",
+     "instructions": 32,
+     "resources": {
+      "REG": 10,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIlLb1EEEEEvT_i": {
+     "digest": "99d7c07a7a9d77be9d7b9313c060ee14ea56df318a2c67beed82e0c44c002b9f",
+     "instructions": 32,
+     "resources": {
+      "REG": 12,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": {
+     "digest": "77a85d7f8cc95aad9c1bbfe2cce00271e334bc59f8f2a56484efd67d3dda6cf8",
+     "instructions": 360,
+     "resources": {
+      "REG": 40,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": {
+     "digest": "0d1a8f65dcd41f5cb3a5d1b97d4ce9356d4953cd52b2c3787dd22f19c3cebe68",
+     "instructions": 360,
+     "resources": {
+      "REG": 40,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail12mosp_kernels17fill_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": {
+     "digest": "a9aea7de9a6c45c49a293837478de9feaaa7aa4e692f439e605ebe5387e6981b",
+     "instructions": 384,
+     "resources": {
+      "REG": 40,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail12mosp_kernels18count_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_Py": {
+     "digest": "ce5d8f8e6df98d106f61aaf97c939044c14ce8fde86cb7f9ba8c9e601c7cfa5a",
+     "instructions": 528,
+     "resources": {
+      "REG": 40,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail12mosp_kernels18count_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": {
+     "digest": "d3a38fc9a1de4239883f0270d97e969066d3f1d8ca8a3ff84135e2cea4512a5f",
+     "instructions": 536,
+     "resources": {
+      "REG": 40,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    },
+    "_ZN4dyng6detail12mosp_kernels18count_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": {
+     "digest": "4ae1abc36863ea1e6f8081f6b272d3e35f27655dd438728b5809841cf19e606c",
+     "instructions": 560,
+     "resources": {
+      "REG": 40,
+      "STACK": 0,
+      "SHARED": 0,
+      "LOCAL": 0,
+      "TEXTURE": 0,
+      "SURFACE": 0,
+      "SAMPLER": 0
+     }
+    }
+   },
+   "device": {
+    "sections": {
+     "sm_86:NULL": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "sm_86:.note.nv.tkinfo": "79f887a533cb12feed409ab37b6996713f3ec45277fd1f0418efb759da698eef",
+     "sm_86:.note.nv.cuinfo": "b7e4873b9513c1fb682b073aecd8afb8622bb00a45462b8dea615ebf0f2e2afd",
+     "sm_86:.nv.info": "8e13c63c27778b7a05441d2f9068041c588894508e18be9cee4b10b7f842a001",
+     "sm_86:.nv.info._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllyN4cuda3std3__44plusIvEEE10Policy1000EPlSC_NS0_13ScanTileStateIlLb1EEES9_NS1_10InputValueIlSC_EEylLb0ElEEvT0_T1_T2_iT3_T4_T5_": "e6a125683dce147c6c3efdfb3939159fb46bee4879deee780ff6562e04c8c6c7",
+     "sm_86:.nv.info._ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIlLb1EEEEEvT_i": "9460d1030fa8d0650fa571969a8d9d7352198a16a2beb915b21c11de0f3d3c06",
+     "sm_86:.nv.info._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiiyN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEyiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "a47893f0f7f5b656c4af0762bf20546c00e25e640222f1fd82ca9f9dae7b9890",
+     "sm_86:.nv.info._ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "866ded1a04ba91b4baea98fb502ba4112015394ca0449e88336b1359f093da36",
+     "sm_86:.nv.info._ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "ba05e3084d5b35816a2e895afa81de219c3a18f6035bb245158878763485abaa",
+     "sm_86:.nv.info._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "58f41b621c8bcf10b371d88e6072c62d22eb802ec190d5697d53a09215ae63ea",
+     "sm_86:.nv.info._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "61eec110316dbc53a619096484509fa6d2bb5e9961e04ebca1e168849e52e401",
+     "sm_86:.nv.info._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "96fb542afe99d2431d3d0fff43dd5d9817f302c3200096b42bcb390e9c851eb7",
+     "sm_86:.nv.info._ZN4dyng6detail12mosp_kernels18count_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "f2dd8389d62f3b0a9759013b6bcf3e66455bcadc483dc00679a79f3a297149e5",
+     "sm_86:.nv.info._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "21d82a3672a8c24ef80de9769aa8c25b1eb03da82c998369c2e6c8e16681f368",
+     "sm_86:.nv.info._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "8c251d5457726b140c20291c7349749668ce7a3f2b93fdc9ff804195e77bab8b",
+     "sm_86:.nv.callgraph": "d2313ca97ba98e17e54a058fe0aecb7130f81435d3d125fee2c88be205925201",
+     "sm_86:.nv.rel.action": "f2ddd5db887b37b008c87a626c13ae9d5079cfa8feafd192603f0eab2c4def89",
+     "sm_86:.rel.nv.constant4": "b37373eaf53c7818521591ffab09165b13dff2a6eb2a19ee1f5ac9a3abf8dea5",
+     "sm_86:.nv.constant4": "5341e6b2646979a70e57653007a1f310169421ec9bdd9f1a5648f75ade005af1",
+     "sm_86:.nv.constant0._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllyN4cuda3std3__44plusIvEEE10Policy1000EPlSC_NS0_13ScanTileStateIlLb1EEES9_NS1_10InputValueIlSC_EEylLb0ElEEvT0_T1_T2_iT3_T4_T5_": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIlLb1EEEEEvT_i": "47f0149b43961165c5fa224dbd2d1e956cf0a26b86d15ee3e12652c2a6e013ca",
+     "sm_86:.nv.constant0._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiiyN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEyiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "c76903cde8580d1c809ac5352aab33af5a310ad05126294d66e06db880c463ed",
+     "sm_86:.nv.constant0._ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "47f0149b43961165c5fa224dbd2d1e956cf0a26b86d15ee3e12652c2a6e013ca",
+     "sm_86:.nv.constant0._ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "627f6149015f853f26db2f3dffba1b7c30b3b74b87c5cfb9f346c1616e3636d0",
+     "sm_86:.nv.constant2._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "cbb032642036ec7043fa4529f06c9c9d8b12fa70ea6799a19ca8321a808d86fa",
+     "sm_86:.nv.constant0._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "4717e5fb82c0ee85a7c97d022f410990a62efa2492070e42385cfeab67afd619",
+     "sm_86:.nv.constant2._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "5eb6da0e0e522104c6d50b0748e6893762f7f2c00a7163a46ccbb535bfd61a0d",
+     "sm_86:.nv.constant0._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "5f40124a24d3ad640b555a4196271a842d7581fefe3b0733cc6234c191261776",
+     "sm_86:.nv.constant2._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "5eb6da0e0e522104c6d50b0748e6893762f7f2c00a7163a46ccbb535bfd61a0d",
+     "sm_86:.nv.constant0._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "5f40124a24d3ad640b555a4196271a842d7581fefe3b0733cc6234c191261776",
+     "sm_86:.nv.constant2._ZN4dyng6detail12mosp_kernels18count_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "cbb032642036ec7043fa4529f06c9c9d8b12fa70ea6799a19ca8321a808d86fa",
+     "sm_86:.nv.constant0._ZN4dyng6detail12mosp_kernels18count_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "5f40124a24d3ad640b555a4196271a842d7581fefe3b0733cc6234c191261776",
+     "sm_86:.nv.constant2._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "5eb6da0e0e522104c6d50b0748e6893762f7f2c00a7163a46ccbb535bfd61a0d",
+     "sm_86:.nv.constant0._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "4cf9816ed1062189ff0c8d427fba5e912cc68fc9af76cf7f08fd255977de3b33",
+     "sm_86:.nv.constant2._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "5eb6da0e0e522104c6d50b0748e6893762f7f2c00a7163a46ccbb535bfd61a0d",
+     "sm_86:.nv.constant0._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "4cf9816ed1062189ff0c8d427fba5e912cc68fc9af76cf7f08fd255977de3b33",
+     "sm_86:.text._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllyN4cuda3std3__44plusIvEEE10Policy1000EPlSC_NS0_13ScanTileStateIlLb1EEES9_NS1_10InputValueIlSC_EEylLb0ElEEvT0_T1_T2_iT3_T4_T5_": "925fd8c2668009bcc0b35fac5ddd8cf3518a20f52e37b16e304f9740ec11314f",
+     "sm_86:.text._ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIlLb1EEEEEvT_i": "c16f78582550207023d21d6aff9a81d94d2c492b2ad02ab112ab5600ae6df9a3",
+     "sm_86:.text._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiiyN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEyiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "a89644b06e3da24710d71900e1d563c0c9f367a63374b6a56f1608965df64a14",
+     "sm_86:.text._ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "684e4b34973b895a113747e059d83cee9e4b51a7a36075f782a75e035c07edb3",
+     "sm_86:.text._ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "c637e932d132741cc2deaf4c9513ffe82d000cf3c64dd22f503e574ca51fa560",
+     "sm_86:.text._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "7814a762b784482b4ba66f797a0f2db135f9741bd95c086d1dace063194a7910",
+     "sm_86:.text._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "887ed7758f16fccbcc902a60465a3ca3567f9d927477a7fdd827b38e90cd0b31",
+     "sm_86:.text._ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "5c5b8f6fa8fd7aade584fc947e1d61b8b3f3dc0810b97e2319bcf85b8d917ce7",
+     "sm_86:.text._ZN4dyng6detail12mosp_kernels18count_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "adb77eb9e98c64e10a3f01fcbf7f86dcb0a89e19213c2c5449689970ff8a29d6",
+     "sm_86:.text._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "5fefdf030a85fce6826bf4d706e94c75fe9850adda683f17af4dbabbca78efc8",
+     "sm_86:.text._ZN4dyng6detail12mosp_kernels18count_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "e67821f8fb8434003cfab28b89554d1221dfcbe8b1b63fa55211c26ebc3024eb",
+     "sm_86:.nv.shared._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllyN4cuda3std3__44plusIvEEE10Policy1000EPlSC_NS0_13ScanTileStateIlLb1EEES9_NS1_10InputValueIlSC_EEylLb0ElEEvT0_T1_T2_iT3_T4_T5_": "6f2c5be0ed09e0aecb712264e23c010e2752e4ff4b91e0c03031296c4928604d",
+     "sm_86:.nv.global": "f459a9ad80b4e0c6fdd617797412dc1977d7ebcd822dc000f0c1a412eacb464a",
+     "sm_86:.nv.shared._ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiiyN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEyiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "abaf0fa0e9142a544a2080a6dffa85ee59c7d6040fd197831943927592d18f58"
+    },
+    "debug": {
+     "sm_86:.shstrtab": "ef78fd0fa2ad3e7e58538e67c49ab7be388452cfa624ce0e7bb7dd671b9e8ee8",
+     "sm_86:.strtab": "2bfa04b7452666e2f40be718f06dc00ea1f066738526c64a50886fc9bf8c5e01",
+     "sm_86:.symtab": "b4422afefd0ebf77b5fc49cd20e758a37986ba43c6af4c456fe0273f3595b8c7",
+     "sm_86:.debug_frame": "55f18708e8c530171d11e8d5ec9b5384ce8daa77fd34345c3d68742fa2fb7e61",
+     "sm_86:.debug_line": "bca53ab96d08c3a628eab61cc064e3bb3208b003f954146ff9696f244f60a40e",
+     "sm_86:.debug_str": "e8ba2f03b8655894ef0d8b2e77896870361128aae9dc7cd190207f889406f1bd",
+     "sm_86:.nv_debug_line_sass": "d6f2aac66a0e526a7b38fdd8c2fbfad236572d1fa2ef5b62b66bac52e35fcb9c",
+     "sm_86:.nv_debug_ptx_txt": "fe5d7f1d945b7305105182a264965abbdf135216955a6be887df10fd4a28c09a",
+     "sm_86:.rel.debug_line": "ea46aa0b155574c06676bed56f62c786905179cc30f62422d7dd4f5ca1cfe27b",
+     "sm_86:.rel.nv_debug_line_sass": "ca3b2b1eecb0586e787cef8b1dd106659eaa3ef48ea1663d53e2b6156bf55674",
+     "sm_86:.rel.debug_frame": "f1c897c4afeb34888edc7cb3d24436d579ec3f7eda6f5be538429ca876451f1a"
+    }
+   },
+   "host": {
+    "digest": "8eb4852a5c5d88eebc710f82a148e88e3694fe8c621a23fc7429e44fbb9466a4",
+    "lines": 16417
+   }
+  },
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/mosp.cpp.o": {
+   "sha256": "8124c471f2ecf34d9b25425fdfd11c255a799a4a659cca3934700bf79fa881ee",
+   "host": {
+    "digest": "9dd95b4dbeded93078f14defd846b73dbc5ed0b4b1d932d9d5799c3efdbe7e13",
+    "lines": 27734
+   }
+  },
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/sequential.cpp.o": {
+   "sha256": "c627c25281d98a422ae7861cff5dffcc6df8cf74d46dea53698a2453a23ed4d7",
+   "host": {
+    "digest": "f14f5829746be6742f336bd853bc9b166ccd5d54d19539a3023d293a1eba6604",
+    "lines": 5055
+   }
+  },
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/openmp.cpp.o": {
+   "sha256": "067eac590a73b57c37fd6ff0c2cf1fbb12e2ed7fa2c36c78d7b93db25b75989c",
+   "host": {
+    "digest": "ec68cb5b80ed9ff72bf165b3330afbf978dcbd14aba4402bde6d62ea15ccb9d8",
+    "lines": 4924
+   }
+  },
+  "tools/compat/CMakeFiles/dyng-compat-mosp.dir/mosp/mosp_compat.cpp.o": {
+   "sha256": "2678b1990c5f7fedf0d55db1875dba879b9ac7c605b86ef15193cdc4b809efc0",
+   "host": {
+    "digest": "0154b5836eb054a95b8c3612f3e61ad3a495465d134129302a5f776b7fda8fc2",
+    "lines": 33078
+   }
+  }
+ },
+ "kernels": 51,
+ "instructions": 20504
+}

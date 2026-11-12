@@ -5,7 +5,7 @@
 placement lesson; parity/triad_sass.py's reading).
 
     parity/sass_identity.py --base <build tree> --head <build tree> [--base-commit SHA]
-        [--json OUT]
+        [--all] [--json OUT]
 
 For every object of OBJECTS (the escher store's kernels, escher_store.cu, the sorted-merge line
 graph and triad_count's kernels) in both build trees (the same preset): every kernel function of
@@ -19,6 +19,13 @@ A base built from a `git archive` copy (no .git: its commit cannot be read) name
 exactly that commit's files under ARCHIVED (every archived file byte-identical, no other file
 under its directories) and records the commit and the check (exit 2 if it fails). The M11a review
 found the record's base commit null.
+
+--all (M11b step 1, ADR 0094) compares every CUDA object of the library and the compat tools
+(every `*.cu.o` of the base tree outside the tests) instead of OBJECTS, and each object's host
+code as well: `objdump -d` of its sections, with the addresses and the names nvcc derives from
+the build (`tmpxft_<pid>_...`, `_INTERNAL_<hash>_`, the anonymous namespaces' hashes) normalized.
+Two builds of the same sources in two directories differ in those names only, so a CUDA object is
+unchanged when its kernels and its host code are.
 """
 
 from __future__ import annotations
@@ -125,9 +132,10 @@ def kernels(obj: Path) -> dict[str, dict]:
     out = {}
     for name, code in triad_sass.sass(obj).items():
         stream = "\n".join(
-            ANONYMOUS.sub("_GLOBAL__N__", triad_sass.normalize(ins, name)) for _, ins in code
+            strip_build_names(ANONYMOUS.sub("_GLOBAL__N__", triad_sass.normalize(ins, name)))
+            for _, ins in code
         )
-        out[ANONYMOUS.sub("_GLOBAL__N__", name)] = {
+        out[strip_build_names(ANONYMOUS.sub("_GLOBAL__N__", name))] = {
             "digest": hashlib.sha256(stream.encode()).hexdigest(),
             "instructions": len(code),
             "resources": res.get(name, {}),
@@ -135,9 +143,54 @@ def kernels(obj: Path) -> dict[str, dict]:
     return out
 
 
-def compare(base: Path, head: Path) -> dict:
+# Names nvcc derives from the build (its temporary file's process id, a hash of the path).
+BUILD_NAMES = (
+    (re.compile(r"tmpxft_[0-9a-f]+_[0-9a-f]+"), "tmpxft"),
+    (re.compile(r"_INTERNAL_[0-9a-f]+_"), "_INTERNAL_"),
+    (re.compile(r"_GLOBAL__N__[0-9a-f]+_"), "_GLOBAL__N__"),
+    # CUDA 13's anonymous namespaces: _GLOBAL__N__<n>_<file>_cu_<hash>_<digits><name>
+    (re.compile(r"_cu_[0-9a-f]{8}_\d+"), "_cu_HASH_"),
+    (re.compile(r"_[0-9a-f]{8}(_\d+)?(?=\w*cudafe)"), "_HASH"),
+)
+
+
+def strip_build_names(text: str) -> str:
+    """`text` with the names nvcc derives from the build normalized (BUILD_NAMES)."""
+    for pattern, repl in BUILD_NAMES:
+        text = pattern.sub(repl, text)
+    return text
+
+
+def host_code(obj: Path) -> dict:
+    """The digest of an object's host instructions (objdump -d), addresses and build-derived
+    names normalized."""
+    out = subprocess.run(
+        ["objdump", "-d", "--no-show-raw-insn", str(obj)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    lines = []
+    for line in out.splitlines()[2:]:  # the file name line
+        line = re.sub(r"^\s*[0-9a-f]+:\s*", "", line)
+        line = re.sub(r"\b[0-9a-f]{6,16}\b", "ADDR", line)
+        lines.append(strip_build_names(line))
+    stream = "\n".join(lines)
+    return {"digest": hashlib.sha256(stream.encode()).hexdigest(), "lines": len(lines)}
+
+
+def all_cuda_objects(tree: Path) -> list[str]:
+    """Every *.cu.o of a build tree outside the tests and the dependencies."""
+    return sorted(
+        str(o.relative_to(tree))
+        for o in tree.rglob("*.cu.o")
+        if "/tests/" not in str(o) and "/_deps/" not in str(o)
+    )
+
+
+def compare(base: Path, head: Path, objects_of=None, host=False) -> dict:
     objects = {}
-    for rel in OBJECTS:
+    for rel in objects_of if objects_of is not None else OBJECTS:
         a, b = base / rel, head / rel
         if not a.is_file() or not b.is_file():
             objects[rel] = {
@@ -147,6 +200,12 @@ def compare(base: Path, head: Path) -> dict:
             continue
         ka, kb = kernels(a), kernels(b)
         differ = sorted(n for n in set(ka) | set(kb) if ka.get(n) != kb.get(n))
+        host_same = True
+        if host:
+            ha, hb = host_code(a), host_code(b)
+            host_same = ha == hb
+            if not host_same:
+                differ.append("(host code)")
         objects[rel] = {
             "identical": not differ,
             "functions": len(ka),
@@ -167,6 +226,11 @@ def main(argv: list[str] | None = None) -> int:
         "--base-commit",
         help="the commit the base's source tree was archived from (checked against it)",
     )
+    p.add_argument(
+        "--all",
+        action="store_true",
+        help="every CUDA object of the base tree (outside the tests), kernels and host code",
+    )
     p.add_argument("--json", type=Path)
     args = p.parse_args(argv)
     archive = None
@@ -179,7 +243,10 @@ def main(argv: list[str] | None = None) -> int:
         if not archive["identical"]:
             print(f"  differ {archive['differ']} extra {archive['extra']}")
             return 2
-    objects = compare(args.base, args.head)
+    if args.all:
+        objects = compare(args.base, args.head, all_cuda_objects(args.base), host=True)
+    else:
+        objects = compare(args.base, args.head)
     for rel, o in objects.items():
         why = "" if o["identical"] else f" {o.get('differ') or o.get('missing')}"
         verdict = "identical" if o["identical"] else "DIFFERS"
@@ -187,8 +254,12 @@ def main(argv: list[str] | None = None) -> int:
     ok = all(o["identical"] for o in objects.values())
     if args.json:
         doc = {
-            "record": "SASS identity of the 0.3 CUDA objects against the merge base (M11a "
-            "criterion 20)",
+            "record": (
+                "SASS and host-code identity of every CUDA object against the base (M11b, ADR 0094)"
+                if args.all
+                else "SASS identity of the 0.3 CUDA objects against the merge base (M11a "
+                "criterion 20)"
+            ),
             "tool": "parity/sass_identity.py",
             "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "provenance": {

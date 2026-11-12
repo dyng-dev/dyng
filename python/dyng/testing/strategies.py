@@ -24,7 +24,11 @@ A hypergraph's batches name its current ids, which depend on the ids earlier bat
             b = data.draw(dst.hyperedge_batches(model))
             s = hg.apply(b.to_batch())
             model.apply(b.delete_hyperedges, b.insert_hyperedges, b.insert_weights,
-                        s.inserted_ids)
+                        s.inserted_ids, delete_incidences=b.delete_incidences,
+                        insert_incidences=b.insert_incidences)
+
+With ``max_incidence_edits`` the batches also carry incidence edits (0.4; apply them to a
+hypergraph with ``storage="slack_csr"``), which the model applies with ``apply()``'s skip rules.
 """
 
 from __future__ import annotations
@@ -194,19 +198,30 @@ class RandomHypergraph:
 
 @dataclass(frozen=True)
 class RandomHyperedgeBatch:
-    """A drawn hyperedge batch: deletions (live, dead, repeated or out-of-range ids) and
-    insertions (member lists, with repeated members unless excluded)."""
+    """A drawn hyperedge batch: deletions (live, dead, repeated or out-of-range ids),
+    insertions (member lists, with repeated members unless excluded) and (0.4) incidence edits,
+    ``(hyperedge, vertex)`` removals and additions."""
 
     delete_hyperedges: tuple[int, ...]
     insert_hyperedges: tuple[tuple[int, ...], ...]
     insert_weights: tuple[int, ...] | None
+    delete_incidences: tuple[tuple[int, int], ...] = ()
+    insert_incidences: tuple[tuple[int, int], ...] = ()
 
     def to_batch(self) -> HyperedgeBatch:
         """The dynG batch."""
+
+        def edits(pairs: tuple[tuple[int, int], ...]) -> tuple[list[int], list[int]] | None:
+            if not pairs:
+                return None
+            return [p[0] for p in pairs], [p[1] for p in pairs]
+
         return HyperedgeBatch(
             delete_hyperedges=list(self.delete_hyperedges),
             insert_hyperedges=[list(h) for h in self.insert_hyperedges],
             insert_weights=None if self.insert_weights is None else list(self.insert_weights),
+            delete_incidences=edits(self.delete_incidences),
+            insert_incidences=edits(self.insert_incidences),
         )
 
 
@@ -260,11 +275,15 @@ def hyperedge_batches(
     max_weight: int = 20,
     repeated_members: bool = True,
     skipped_deletions: bool = True,
+    max_incidence_edits: int = 0,
 ) -> RandomHyperedgeBatch:
     """Random batches for the current state of ``model``: deletions of live ids (and, with
     ``skipped_deletions``, of dead, repeated and out-of-range ids, which ``apply()`` skips and
     counts) and insertions of member lists over the model's vertices. ``weighted`` defaults to
-    whether the model has weights."""
+    whether the model has weights. With ``max_incidence_edits`` > 0 (0.4) up to that many
+    incidence removals and as many additions: mostly of live hyperedges and their members (or
+    non-members), and, with ``skipped_deletions``, edits ``apply()`` skips (dead or out-of-range
+    ids and vertices, a hyperedge's last member, repeats)."""
     n = model.num_vertices
     live = model.live_ids
     bound = max(live, default=-1) + 1
@@ -277,6 +296,25 @@ def hyperedge_batches(
     insertions = (
         draw(_member_lists(n, max_insertions, max_cardinality, repeated_members)) if n > 0 else []
     )
+    removals: list[tuple[int, int]] = []
+    additions: list[tuple[int, int]] = []
+    if max_incidence_edits > 0 and n > 0:
+        ids: list[st.SearchStrategy[int]] = []
+        if live:
+            ids.append(st.sampled_from(live))
+        if skipped_deletions or not live:
+            ids.append(st.integers(-1, bound + 1))
+        vertex = st.integers(-1, n) if skipped_deletions else st.integers(0, n - 1)
+        edit = st.tuples(st.one_of(ids), vertex)
+        if live:
+            # a member of a live hyperedge (a removal that usually applies)
+            member = st.sampled_from(live).flatmap(
+                lambda h: st.tuples(st.just(h), st.sampled_from(model.rows[h]))
+            )
+            removals = draw(st.lists(st.one_of(member, edit), max_size=max_incidence_edits))
+        else:
+            removals = draw(st.lists(edit, max_size=max_incidence_edits))
+        additions = draw(st.lists(edit, max_size=max_incidence_edits))
     if weighted is None:
         weighted = model.weights is not None
     weights = (
@@ -290,4 +328,6 @@ def hyperedge_batches(
         if weighted
         else None
     )
-    return RandomHyperedgeBatch(tuple(deletions), tuple(insertions), weights)
+    return RandomHyperedgeBatch(
+        tuple(deletions), tuple(insertions), weights, tuple(removals), tuple(additions)
+    )

@@ -366,6 +366,12 @@ frontier lists (section "Scratch memory").
 - CUDA: the fused engine needs cooperative launch (every GPU since Pascal has it); without it
   `engine::automatic` runs the operators engine. A graph built with CUDA resources keeps a host
   copy of its CSR as well as the device copy (the device apply comes later).
+- **Host memory exhaustion** is `out_of_memory_error` on every backend, with the guarantee of the
+  call's documentation (`update()`: `g` and `r` unchanged before the commit, `r` poisoned after
+  it), also inside the OpenMP engine's parallel regions, where a per-thread list that grew or a
+  gathered frontier that was resized ended the process with `std::terminate` before 0.4 (the D13
+  class of {doc}`ADR 0061 <../adr/0061-exceptions-out-of-openmp-regions>`; {doc}`ADR 0094
+  <../adr/0094-sssp-openmp-regions-carry-allocation-failures>`).
 
 ## 7. Differences from the paper
 
@@ -432,7 +438,7 @@ take the connectivity-safe batch's time. The MOSP-level "(a) compute" totals of 
 | `defaultDelta` | `options.delta = 0` |
 | `canonicalizeTree`, `--init` files | `sssp::result::from_arrays(..., canonicalize)` |
 | `checkSospTree` | `testing::check_sssp_tree` |
-| `ListGather`; per-region `std::vector` thread lists | `detail::list_gather` (`cpp/src/util/list_gather.hpp`), plus `gather_pair()` (two lists between one pair of barriers); `thread_list`s kept in the workspace (`util/thread_list.hpp`) |
+| `ListGather`; per-region `std::vector` thread lists | `detail::list_gather` (`cpp/src/util/list_gather.hpp`), plus `gather_pair()` (two lists between one pair of barriers); `thread_list`s kept in the workspace (`util/thread_list.hpp`), appended to inside a region with `region_push_back()`, whose allocation failure is rethrown after the region (ADR 0094) |
 | `mosp` driver (per-objective part) | the command `dyng sssp update` (the same output files; {doc}`../api/cli`); for parity runs, `tools/compat` `dyng-compat-mosp` |
 | `mospPrep` (`mtx2csr`, `widen`, `cache`, `init`, `expected`) | `dyng prep <subcommand>` with `mospPrep`'s syntax (`dyng prep init` = `dyng sssp compute`) |
 

@@ -100,6 +100,10 @@
 #     Until the M11a review, maintain named hypergraph.apply only and missed Step 0 in the gate
 #     reading; the suite was read again with this map (ADR 0093, parity/results/M11a.md section
 #     11.6).
+#   - The static baseline's own stages are not the update's (M11b): the bench records the stages
+#     nested in the static recompute as "static/<stage>" (hyper_sssp.compute itself keeps its
+#     name), because the shared engine's static solve (engine::operators) opens the same hook
+#     stages as an update (seed, loop, finalize), which the update rows above sum.
 #   - One asymmetry, conservative for dynG: dynG's maintain also contains the id assignment
 #     (hypergraph.apply.ids), which B times in t_escher_ms (its h2v insert), outside B's
 #     maintain = t_delta_ms + t_csr_apply_ms.

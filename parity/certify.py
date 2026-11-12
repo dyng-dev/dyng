@@ -336,6 +336,12 @@ HYPER_SSSP_MODES = ("by_id", "by_id_public", "by_key")
 # the CUDA store, every make-test session and every paper configuration; `compare.py hyper_sssp
 # --part delta --backend cuda --certificate`, config "cuda:hyper_sssp/store").
 HYPER_SSSP_STORE = {"cuda": ["test", "paper"]}
+# The CUDA engines whose replays a 0.4 certificate needs (M11b criterion 11; HD13, ADR 0095): every
+# cuda requirement of the [modes] table holds for engine::automatic (config "cuda:...", the as-is
+# kernels) and for the shared sssp engine engine::operators (`compare.py hyper_sssp --cuda-engine
+# operators --certificate`, config "cuda-operators:..."). The store check is the container's, one
+# for both engines.
+HYPER_SSSP_CUDA_ENGINES = ("cuda", "cuda-operators")
 # The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
 # series on which its algorithm's gates became part of the release (PLAN 8.6, Appendix F): sssp and
 # cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
@@ -420,7 +426,7 @@ GPU_LOCAL_STEPS = {
         "slack_csr sanitizers (all four tools; a forced-overflow session)",
         "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
         "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)",
-        "hyper_sssp replays (cuda, make test; three modes, update == compute)",
+        "hyper_sssp replays (cuda, make test; three modes, both engines, update == compute)",
     ],
 }
 # The results of a step of ci/gpu_local.sh that are not a failure (only "passed" counts as run).
@@ -812,7 +818,8 @@ def triad_required_cases(spec: dict) -> dict[str, set[str]]:
 
 def hyper_sssp_required_cases(spec: dict) -> dict[str, set[str]]:
     """{"<backend>:hyper_sssp/<mode>": cases} of a hyper_sssp set's [modes] table ("test" and
-    "paper" name every case of that part)."""
+    "paper" name every case of that part); a cuda mode is required of both CUDA engines
+    (HYPER_SSSP_CUDA_ENGINES)."""
     cases = set(spec.get("cases", {}))
     out: dict[str, set[str]] = {}
     for backend, modes in (spec.get("modes") or {}).items():
@@ -824,7 +831,8 @@ def hyper_sssp_required_cases(spec: dict) -> dict[str, set[str]]:
                 want |= (
                     {c for c in cases if c.startswith(item + "/")} if "/" not in item else {item}
                 )
-            out[f"{backend}:hyper_sssp/{mode}"] = want
+            for config in HYPER_SSSP_CUDA_ENGINES if backend == "cuda" else (backend,):
+                out[f"{config}:hyper_sssp/{mode}"] = want
     for backend, items in HYPER_SSSP_STORE.items():
         want = set()
         for item in items:

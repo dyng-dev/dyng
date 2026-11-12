@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
-"""``dyng sssp compute|update``, ``dyng mosp compute|update`` and ``dyng cycle_count
-compute|update``.
+"""``dyng sssp compute|update``, ``dyng mosp compute|update``, ``dyng cycle_count
+compute|update`` and ``dyng hyper_sssp compute|update``.
 
 The outputs are the originals' files: MOSP's ``<out>/obj<k>/distances*.txt`` and
 ``SSSPTree*.txt`` (sssp, mosp), MOSP's ``<out>/combinedGraph/distancesCsr.txt``,
 ``SSSPTreeCsr.txt`` and ``mospCosts.txt`` (mosp), CycleEnumeration-GPU's histogram CSV
-(cycle_count), byte for byte.
+(cycle_count), byte for byte; hyper_sssp writes its hyperedge distances and parents in the
+formats of sssp's files, one line per hyperedge id.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from ._common import (
     note,
     objective_dir,
     options_from,
+    parse_random_weights,
     write_text,
     write_tree,
 )
@@ -642,4 +644,260 @@ def run_cycle_update(args: argparse.Namespace) -> int:
         note(f"match={'yes' if match else 'no'}")
         status = 0 if match else 1
     write_text(args.output, histogram_text(hist))
+    return status
+
+
+# -------------------------------------------------------------------------------------------------
+# hyper_sssp
+# -------------------------------------------------------------------------------------------------
+
+_HYPER_SSSP_HELP = """\
+Dynamic single-source shortest hyperpaths (dyng.hyper_sssp; H-SOSP). The hypergraph is a weighted
+.hg file (`; w` on every line, or seeded random weights: --random-weights MIN,MAX,SEED, or
+--read-options hsosp, MOSP_ESCHER's loader), stored as slack_csr with its line graph (the
+defaults of these commands); the batches of `update` are .dgt or .dgb files, hyperedge deletions
+and insertions and incidence edits (+i h v / -i h v). The results are written in sssp's distance
+and parent formats, one line per hyperedge id: <out>/hyperedge_distances.txt ("h d", "h INF" for a
+dead or unreachable id) and <out>/hyperedge_parents.txt ("h p", -1 for none), and with
+--vertex-distances <out>/vertex_distances.txt ("v d"). The default backend is sequential (no
+OpenMP backend in 0.4).
+"""
+
+# The read flags come from dyng.io.read_hypergraph()'s keywords, but for these: the option set is
+# --read-options, the seeded weights are --random-weights, and the properties are given field by
+# field (storage and line_graph default to slack_csr here).
+_HYPER_READ_SKIP = ("options", "properties", "resources", "random_weights")
+
+
+def _add_hyper_sssp_common(p: argparse.ArgumentParser) -> list[str]:
+    g = p.add_argument_group("hypergraph input")
+    g.add_argument(
+        "--input",
+        "--hypergraph",
+        dest="input",
+        required=True,
+        metavar="PATH",
+        help="the weighted hypergraph: a .hg file (one hyperedge per line, '; w' weights; "
+        "docs/api/file_formats.md)",
+    )
+    g.add_argument(
+        "--read-options",
+        choices=("escher_gpu", "hsosp"),
+        default=None,
+        help="the loader's option set (dyng.io.read_hypergraph's options=; hsosp: MOSP_ESCHER's "
+        "loader with its seeded weights U[1, 100]); the flags below override its fields",
+    )
+    g.add_argument(
+        "--random-weights",
+        metavar="MIN,MAX,SEED",
+        default=None,
+        help="draw one weight per hyperedge, uniform in [MIN, MAX] (dyng.io.read_hypergraph's "
+        "random_weights=)",
+    )
+    p.set_defaults(
+        read_names=add_function_flags(
+            p,
+            dyng.io.read_hypergraph,
+            "hypergraph read flags",
+            skip=_HYPER_READ_SKIP,
+            see=dyng.io.HypergraphReadOptions,
+            defaults={
+                **{
+                    n: "the option set's" for n in ("index_base", "max_cardinality", "num_vertices")
+                },
+                "storage": "slack_csr",
+                "line_graph": "slack_csr",
+            },
+        )
+    )
+    p.add_argument(
+        "--source", type=int, default=0, metavar="S", help="the source vertex (default 0)"
+    )
+    names = add_option_flags(p, dyng.hyper_sssp.Options, "hyper_sssp options")
+    p.add_argument(
+        "--out", required=True, metavar="DIR", help="the output directory (created if needed)"
+    )
+    p.add_argument(
+        "--vertex-distances",
+        action="store_true",
+        help="also write <out>/vertex_distances.txt (the distance of every vertex)",
+    )
+    p.add_argument("--quiet", action="store_true", help="no report lines on standard output")
+    add_backend_flags(p)
+    return names
+
+
+def add_hyper_sssp(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    p = sub.add_parser(
+        "hyper_sssp", help="dynamic single-source shortest hyperpaths", description=_HYPER_SSSP_HELP
+    )
+    verbs = p.add_subparsers(dest="verb", metavar="VERB", required=True)
+    c = verbs.add_parser(
+        "compute",
+        help="the shortest hyperpaths from a source vertex",
+        description="Compute the distance and the canonical parent of every hyperedge from the "
+        "source vertex and write <out>/hyperedge_distances.txt and hyperedge_parents.txt.",
+    )
+    names = _add_hyper_sssp_common(c)
+    c.set_defaults(func=run_hyper_sssp_compute, option_names=names)
+    u = verbs.add_parser(
+        "update",
+        help="apply batches and update the shortest hyperpaths",
+        description="Compute the shortest hyperpaths, then apply the batches of the --batches "
+        "files in order, updating the result after each, and write the files of the result after "
+        "the last batch. With .dgb files that carry the expected ids, every batch's inserted ids "
+        "must be them (exit status 1 otherwise: the ids diverged, and later operations would name "
+        "other hyperedges; build the hypergraph as the file's run did, e.g. --id-reuse "
+        "insert_first). Standard error gets update_seconds= (and with --compare-recompute "
+        "recompute_seconds= and match=yes|no).",
+    )
+    names = _add_hyper_sssp_common(u)
+    u.add_argument(
+        "--batches",
+        nargs="+",
+        required=True,
+        metavar="FILE",
+        help="the batch files (.dgt hyperedge batches or .dgb binary batches, incidence edits "
+        "included), applied in order",
+    )
+    u.add_argument(
+        "--compare-recompute",
+        action="store_true",
+        help="recompute the shortest hyperpaths of the updated hypergraph and compare the "
+        "distances and parents (exit status 1 if they differ)",
+    )
+    u.set_defaults(func=run_hyper_sssp_update, option_names=names)
+
+
+def _hyper_resources(args: argparse.Namespace) -> dyng.Resources:
+    if args.backend is None:
+        args.backend = "sequential"  # hyper_sssp has no OpenMP backend in 0.4
+    return make_resources(args)
+
+
+def _load_hypergraph(args: argparse.Namespace, res: dyng.Resources) -> dyng.Hypergraph:
+    kw = function_kwargs(args, args.read_names)
+    kw.setdefault("storage", "slack_csr")
+    kw.setdefault("line_graph", "slack_csr")
+    weights = parse_random_weights(args.random_weights)
+    if weights is not None:
+        kw["random_weights"] = weights
+    elif args.read_options != "hsosp":
+        kw.setdefault("weighted", True)  # the '; w' of every line: hyper_sssp's lengths
+    hint = (
+        "hyper_sssp needs one weight per hyperedge: end every line with '; w', or give "
+        "--random-weights MIN,MAX,SEED (or --read-options hsosp)"
+    )
+    try:
+        h = dyng.io.read_hypergraph(args.input, options=args.read_options, resources=res, **kw)
+    except dyng.FileFormatError as e:
+        text = str(e).removeprefix("dyng: ")
+        if "weighted read needs the weight" in text:
+            raise CliError(f"{text}; {hint}") from None
+        raise
+    if not h.weighted:
+        raise CliError(f"{args.input}: the hypergraph has no weights; {hint}")
+    if not 0 <= args.source < h.num_vertices:
+        raise CliError(
+            f"--source {args.source} is out of range: the hypergraph has {h.num_vertices} "
+            f"vertices (0 to {h.num_vertices - 1})"
+        )
+    return h
+
+
+def _hyperedge_batches(
+    paths: list[str], h: dyng.Hypergraph
+) -> list[tuple[dyng.HyperedgeBatch, np.ndarray | None]]:
+    """Every batch of the files, in order, with the expected ids of a .dgb record (or None)."""
+    out: list[tuple[dyng.HyperedgeBatch, np.ndarray | None]] = []
+    for path in paths:
+        with open(path, "rb") as f:
+            binary = f.read(8) == b"DYNGBAT1"
+        if binary:
+            for rec in dyng.io.BatchReader(path, num_vertices=h.num_vertices):
+                if not isinstance(rec.batch, dyng.HyperedgeBatch):
+                    raise CliError(f"{path}: holds graph batches, not hypergraph batches")
+                out.append((rec.batch, rec.expected_ids))
+        else:
+            for b in dyng.io.read_hyperedge_batches(
+                path, num_vertices=h.num_vertices, weighted=True
+            ):
+                out.append((b, None))
+    return out
+
+
+def _write_hyper_sssp(args: argparse.Namespace, sp: dyng.hyper_sssp.Result) -> None:
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    dyng.io.write_distances(out / "hyperedge_distances.txt", sp.hyperedge_distances)
+    dyng.io.write_parents(out / "hyperedge_parents.txt", sp.hyperedge_parents)
+    if args.vertex_distances:
+        dyng.io.write_distances(out / "vertex_distances.txt", sp.vertex_distances())
+
+
+def _reachable(sp: dyng.hyper_sssp.Result) -> int:
+    d = sp.hyperedge_distances.to_numpy()
+    return int(np.count_nonzero(d < dyng.hyper_sssp.INFINITE_DISTANCE))
+
+
+def run_hyper_sssp_compute(args: argparse.Namespace) -> int:
+    res = _hyper_resources(args)
+    h = _load_hypergraph(args, res)
+    opt = options_from(args, dyng.hyper_sssp.Options, args.option_names)
+    t = Stopwatch()
+    sp = dyng.hyper_sssp.compute(h, args.source, options=opt)
+    ms = t.ms()
+    _write_hyper_sssp(args, sp)
+    info(
+        args,
+        f"compute {fmt_ms(ms)} ms (reachable {_reachable(sp)} of {h.num_hyperedges} hyperedges)",
+    )
+    return 0
+
+
+def run_hyper_sssp_update(args: argparse.Namespace) -> int:
+    res = _hyper_resources(args)
+    h = _load_hypergraph(args, res)
+    opt = options_from(args, dyng.hyper_sssp.Options, args.option_names)
+    sp = dyng.hyper_sssp.compute(h, args.source, options=opt)
+    batches = _hyperedge_batches(args.batches, h)
+    seconds = 0.0
+    for index, (batch, expected) in enumerate(batches, 1):
+        t = Stopwatch()
+        st = dyng.hyper_sssp.update(h, batch, sp)
+        ms = t.ms()
+        seconds += ms / 1e3
+        ids = st.batch.inserted_ids
+        if expected is not None and not np.array_equal(ids, expected):
+            raise CliError(
+                f"batch {index}: the inserted ids {ids.tolist()[:8]} differ from the file's "
+                f"expected ids {np.asarray(expected).tolist()[:8]} (build the hypergraph as the "
+                "file's run did: --id-reuse, --capacity, --read-options, --num-vertices)"
+            )
+        b = st.batch
+        info(
+            args,
+            f"batch {index}: update {fmt_ms(ms)} ms (deleted {b.deleted_hyperedges}, inserted "
+            f"{b.inserted_hyperedges}, incidences -{b.deleted_incidences} "
+            f"+{b.inserted_incidences}, skipped {b.skipped_ops}; line graph "
+            f"-{st.line_graph_deletions} +{st.line_graph_insertions}; invalidated "
+            f"{st.invalidated}, relaxations {st.relaxations}, fallback {st.fallback_reason}, "
+            f"engine {st.engine_used})",
+        )
+    note(f"update_seconds={seconds:.6g}")
+    status = 0
+    if args.compare_recompute:
+        t = Stopwatch()
+        again = dyng.hyper_sssp.compute(h, args.source, options=opt)
+        note(f"recompute_seconds={t.ms() / 1e3:.6g}")
+        match = np.array_equal(
+            again.hyperedge_distances.to_numpy(), sp.hyperedge_distances.to_numpy()
+        ) and np.array_equal(again.hyperedge_parents.to_numpy(), sp.hyperedge_parents.to_numpy())
+        note(f"match={'yes' if match else 'no'}")
+        status = 0 if match else 1
+    _write_hyper_sssp(args, sp)
+    info(
+        args,
+        f"{len(batches)} batch(es); reachable {_reachable(sp)} of {h.num_hyperedges} hyperedges",
+    )
     return status

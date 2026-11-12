@@ -3,7 +3,8 @@
 /**
  * @file list_gather_test.cpp
  * @brief list_gather: gather() and gather_pair() concatenate per-thread lists in thread order
- *        (util/list_gather.hpp).
+ *        (util/list_gather.hpp); after a failure kept in the region's carrier every thread still
+ *        passes both barriers and no list is copied (ADR 0094).
  */
 #include <dyng/config.hpp>
 
@@ -17,11 +18,13 @@
 #include <omp.h>
 
 #include <cstdint>
+#include <new>
 #include <vector>
 
 namespace {
 
 using dyng::detail::list_gather;
+using dyng::detail::region_exceptions;
 using dyng::detail::thread_list;
 
 // Thread t contributes t + 1 elements to the first list and 2 * t to the second, each tagged
@@ -33,8 +36,9 @@ struct gathered {
   int team = 0;
 };
 
-gathered run(int threads, bool paired) {
+gathered run(int threads, bool paired, int failing_thread = -1) {
   gathered out;
+  region_exceptions errors;
   out.first = {-1, -2};  // appended after the existing contents
   out.filled.assign(1000, 0);
   list_gather<std::int32_t> first(out.first, threads);
@@ -50,17 +54,28 @@ gathered run(int threads, bool paired) {
     for (int i = 0; i < 1000; ++i) {
       out.filled[static_cast<std::size_t>(i)] = i;
     }
+    if (t == failing_thread) {
+      // A failure of this thread before the gather (as a failed region_push_back keeps it).
+      errors.run([] { throw std::bad_alloc(); });
+    }
     if (paired) {
-      list_gather<std::int32_t>::gather_pair(first, local_first, second, local_second);
+      list_gather<std::int32_t>::gather_pair(first, local_first, second, local_second, errors);
     } else {
-      first.gather(local_first);
-      second.gather(local_second);
+      first.gather(local_first, errors);
+      second.gather(local_second, errors);
     }
     // The first barrier of a gather waited for every thread's part of the loop.
     for (int i = 0; i < 1000; ++i) {
       EXPECT_EQ(out.filled[static_cast<std::size_t>(i)], i);
     }
   }
+  bool rethrown = false;
+  try {
+    errors.rethrow();
+  } catch (const std::bad_alloc&) {
+    rethrown = true;
+  }
+  EXPECT_EQ(rethrown, failing_thread >= 0 && failing_thread < out.team);
   return out;
 }
 
@@ -78,6 +93,22 @@ TEST(ListGather, PairEqualsTwoGathersInThreadOrder) {
     EXPECT_EQ(two.second, second) << threads;
     EXPECT_EQ(pair.first, first) << threads;
     EXPECT_EQ(pair.second, second) << threads;
+  }
+}
+
+// After a failure of any thread before the gather, every thread passes both barriers (the test
+// returns), the outputs are neither resized nor filled, and the failure is rethrown after the
+// region.
+TEST(ListGather, AFailureKeptInTheCarrierStopsTheCopies) {
+  for (int threads : {1, 3, 8}) {
+    for (int failing = 0; failing < threads; ++failing) {
+      for (const bool paired : {false, true}) {
+        const gathered out = run(threads, paired, failing);
+        if (failing >= out.team) continue;
+        EXPECT_EQ(out.first, (std::vector<std::int32_t>{-1, -2})) << threads << " " << failing;
+        EXPECT_TRUE(out.second.empty()) << threads << " " << failing;
+      }
+    }
   }
 }
 

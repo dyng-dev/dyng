@@ -47,6 +47,7 @@
 #include "framework/frontier.hpp"
 #include "framework/policies.hpp"
 #include "framework/problem.hpp"
+#include "framework/scratch_buffer.hpp"
 #include "framework/views.hpp"
 #include "framework/workspace.hpp"
 #include "hypergraph/slack_csr/slack_rows.hpp"
@@ -54,6 +55,7 @@
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/backend.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/types.hpp>
 #include <dyng/hyper_sssp.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 
@@ -106,6 +108,33 @@ struct hyper_sssp_engine_counters {
   std::int64_t jump_rounds = 0;          ///< pointer-jumping rounds (cuda)
   std::int64_t work = 0;                 ///< relaxations of the update
   hyper_sssp::fallback_reason reason = hyper_sssp::fallback_reason::none;  ///< why it fell back
+  engine engine_used = engine::fused;  ///< the CUDA engine that ran (operators on the host)
+  std::int64_t epochs = 0;             ///< near-far threshold raises (the shared engine)
+  std::int64_t delta = 0;              ///< the shared compute's near-far width (0: unbounded)
+  /// The host synchronizations of the shared engine's run (its fallback included; -1: the as-is
+  /// engine, whose count algorithm_budget derives from the counters above).
+  std::int64_t host_syncs = -1;
+};
+
+/**
+ * @brief The internal knobs of the shared engine (engine::operators on cuda; ADR 0095). Not
+ *        public: the parity harness sets them (hyper_sssp_virtual::set_operators_knobs) to read
+ *        the engine's variants; the defaults are the variant the O12 reading chose.
+ */
+struct hyper_sssp_operators_knobs {
+  bool warp_rows = true;  ///< one warp per row in the pull and the push (else one thread)
+  /// The near-far width; 0: unbounded (every improved node joins the next round, MOSP_ESCHER's
+  /// push rounds).
+  std::int64_t delta = 0;
+  /// compute(), the update's fallback and the static recompute on the shared engine (true) or on
+  /// the ported recompute (hsospRecompute, false; also taken for distance-only words).
+  bool shared_compute = true;
+  /// The seeds of the inserted pairs: relaxed one by one after the pull (true; MOSP_ESCHER's
+  /// relaxInsertedKernel) or both endpoints pulled as sssp's insertion heads (false).
+  bool seed_pairs = true;
+  /// The near-far width of the shared compute (a static solve from the seeds); 0: MOSP's
+  /// defaultDelta over the line graph (32 x the average entry weight / the average degree).
+  std::int64_t compute_delta = 0;
 };
 
 namespace hsosp {
@@ -119,6 +148,20 @@ struct hyper_sssp_device_state_deleter {
 };
 /// The owner of a device state.
 using hyper_sssp_device_ptr = std::unique_ptr<hsosp::device_state, hyper_sssp_device_state_deleter>;
+
+namespace hyper_ops {
+/// The shared engine's own device scratch of a CUDA result (operators.cu: its control block and
+/// the batch's change lists; allocated on the engine's first use).
+struct device_scratch;
+}  // namespace hyper_ops
+/// Deletes the shared engine's scratch (operators.cu; a no-op stub without CUDA).
+struct hyper_sssp_operators_scratch_deleter {
+  /// @brief Delete. @param[in] s The scratch.
+  void operator()(hyper_ops::device_scratch* s) const noexcept;
+};
+/// The owner of the shared engine's scratch.
+using hyper_sssp_operators_ptr =
+    std::unique_ptr<hyper_ops::device_scratch, hyper_sssp_operators_scratch_deleter>;
 
 /// The state behind a hyper_sssp::result.
 struct hyper_sssp_state {
@@ -135,14 +178,19 @@ struct hyper_sssp_state {
   /// The public mode: 1 for the ids that hold the source (the host copy on every backend; the
   /// CUDA engine keeps a device copy in its state).
   std::vector<std::uint8_t> holds_source;
-  // ---- the CUDA engine ----
-  hyper_sssp_device_ptr dev;  ///< the device arrays (cuda)
+  // ---- the CUDA engines ----
+  hyper_sssp_device_ptr dev;             ///< the device arrays (cuda; both engines)
+  hyper_sssp_operators_ptr ops;          ///< the shared engine's scratch (cuda, engine::operators)
+  hyper_sssp_operators_knobs ops_knobs;  ///< the shared engine's variant
   // ---- bookkeeping ----
   std::uint64_t version = 0;      ///< hypergraph version matched
   std::uint64_t graph_state = 0;  ///< hypergraph state matched (ADR 0006, "Graph identity")
   bool poisoned = false;          ///< a failed update left the result unusable
   std::int64_t max_weight = 0;    ///< the largest weight seen by compute() and the updates (the
                                   ///< running maximum of the check; HD11)
+  bool max_weight_known = false;  ///< max_weight bounds every live weight: compute() and every
+                                  ///< update since ran with options::validate_inputs (else the
+                                  ///< shared engine's packing bound is the largest int32 weight)
   /// The hypergraph the result matches (distance_to(), vertex_distances()): its lifetime token
   /// and its implementation (hypergraph_impl<int32_t, int32_t>).
   std::weak_ptr<const int> graph_alive;
@@ -221,6 +269,12 @@ struct hyper_sssp_workspace final : pooled_workspace {
   std::vector<int> base32;            ///< public mode: the live hyperedges of the source
   std::vector<int> lost32, gained32;  ///< public mode: lost_source, gained_source
   std::vector<int> initial32;         ///< the recompute's first list
+  // The shared engine's device lists of an update (engine::operators on cuda; operators.cu): the
+  // batch as sssp_changes, the insertion heads, the uploaded lost and gained nodes.
+  scratch_buffer<int> ops_from;   ///< the changed edges' tails
+  scratch_buffer<int> ops_to;     ///< the changed edges' heads
+  scratch_buffer<int> ops_heads;  ///< the insertion heads
+  scratch_buffer<int> ops_lists;  ///< the public mode's lost, then gained nodes
   // emulateSospUpdate's locals.
   std::vector<std::uint8_t> inv;  ///< the invalidated ids
   std::vector<int> child_off;     ///< the children of the tree before the batch (CSR:
@@ -336,11 +390,13 @@ void hyper_sssp_cuda_reserve(const resources& res, hyper_sssp_state& st, std::in
 
 /**
  * @brief hsospRecompute into `st` (compute(), the update's fallback and the harness's static
- *        recompute), with the profiler stages of the caller.
+ *        recompute), with the profiler stages of the caller. `ws` (an update's pooled workspace,
+ *        or null) holds its host lists, so a fallback allocates nothing in the steady state.
  */
 hyper_sssp_engine_counters hyper_sssp_cuda_recompute(const resources& res, hyper_sssp_state& st,
                                                      const hyper_sssp_graph& g,
-                                                     const hyper_sssp_budget& budget);
+                                                     const hyper_sssp_budget& budget,
+                                                     hyper_sssp_workspace* ws = nullptr);
 
 /**
  * @brief hsospUpdate on `st` for the batch `b` (the stages identify_affected, seed, loop,
@@ -370,8 +426,107 @@ const std::int32_t* hyper_sssp_cuda_parents(const hyper_sssp_state& st) noexcept
 void hyper_sssp_cuda_set_holds(const resources& res, hyper_sssp_state& st,
                                const std::vector<std::int64_t>& ids, std::uint8_t value);
 /// The bytes of a device state (the memory gate's graph scope: MOSP_ESCHER's
-/// HsospState::deviceBytes()).
+/// HsospState::deviceBytes(), plus the shared engine's scratch once it ran).
 std::int64_t hyper_sssp_cuda_bytes(const hyper_sssp_state& st) noexcept;
+/// The bytes of the shared engine's scratch of a result (0 before its first run).
+std::int64_t hyper_sssp_operators_bytes(const hyper_sssp_state& st) noexcept;
+
+// ------------------------------------------------------------------------------------------------
+// The shared engine (operators.cu, operators.cuh; engine::operators on cuda; M11b, O12, ADR 0095)
+// ------------------------------------------------------------------------------------------------
+
+/**
+ * @brief hyper_sssp on the shared sssp CUDA operators engine: sssp's kernels over the line graph
+ *        (slack rows, node weights, the symmetric view, the base offers, the work counter) and the
+ *        host loop of sssp's operators engine with MOSP_ESCHER's budget triggers where they apply
+ *        (before each push round: the push rounds against max_iterations, then the relaxations
+ *        against work_budget x max(1, live entries); an input distance that does not fit, or
+ *        distance-only packing: distance_width; an unfinished pointer jumping:
+ *        invalidation_depth). One member per framework hook (Tier A); the problem asks spent()
+ *        after the loop (framework over_budget) and then recomputes.
+ *
+ * Bound to one run of one result (its device state sized; `b` null for compute()). The device
+ * arrays are the result's (the distances, parents and packed words) with the as-is engine's work
+ * arrays as sssp's scratch (ADR 0095 section 3), plus the shared engine's own scratch (st.ops).
+ */
+class hyper_sssp_cuda_operators_engine {
+ public:
+  /**
+   * @brief Bind a run.
+   * @param[in]     res        Resources of the CUDA backend (must outlive the engine).
+   * @param[in,out] st         The result's state (its device state sized for the graph).
+   * @param[in]     g          The line graph after the batch.
+   * @param[in]     b          The batch (null: compute()).
+   * @param[in]     budget     The budget (an update's).
+   * @param[in]     max_weight The largest weight before or after the batch (the packing bound).
+   * @param[in,out] ws         An update's pooled workspace for a static solve inside it (the
+   *                           fallback; null: compute(), or b->scratch for an update).
+   * @throws not_supported_error if the cuda backend is not built.
+   */
+  hyper_sssp_cuda_operators_engine(const resources& res, hyper_sssp_state& st,
+                                   const hyper_sssp_graph& g, const hyper_sssp_batch* b,
+                                   const hyper_sssp_budget& budget, std::int64_t max_weight,
+                                   hyper_sssp_workspace* ws = nullptr);
+  /// update(): pack the old tree, the batch as sssp_changes, the roots, pointer jumping,
+  /// invalidation, the insertion heads (1 synchronization).
+  void identify_affected();
+  /// update(): the pull pass of the candidates.
+  void seed();
+  /// compute(): every word infinite, the seeds (the source row, or the base nodes) the frontier.
+  void reset();
+  /// Step 2: near-far with the push, to the fixed point (update: under the budget).
+  void loop();
+  /// Unpack the words into the result's distances and parents (1 synchronization).
+  void finalize();
+  /// @brief Whether the update stopped for a trigger (then the problem recomputes).
+  /// @return The update must fall back.
+  [[nodiscard]] bool spent() const noexcept {
+    return reason_ != hyper_sssp::fallback_reason::none;
+  }
+  /// @brief Why it stopped. @return The trigger (none: it did not).
+  [[nodiscard]] hyper_sssp::fallback_reason reason() const noexcept {
+    return reason_;
+  }
+  /// @brief Whether the words hold the parents (else compute() takes the ported recompute and an
+  ///        update falls back with distance_width). @return Packed parents.
+  [[nodiscard]] bool packed() const noexcept {
+    return parent_bits_ > 0;
+  }
+  /// @brief The run's counters. @return They (host_syncs counted).
+  [[nodiscard]] const hyper_sssp_engine_counters& counters() const noexcept {
+    return counters_;
+  }
+
+ private:
+  [[nodiscard]] unsigned int grid(std::int64_t work) const noexcept;
+  [[nodiscard]] unsigned int warp_grid(std::int64_t rows) const noexcept;
+  int next_generation();
+
+  const resources& res_;
+  hyper_sssp_state& st_;
+  hyper_sssp_graph g_;
+  const hyper_sssp_batch* b_ = nullptr;
+  hyper_sssp_budget budget_;
+  hyper_sssp_workspace* ws_ = nullptr;  ///< the pooled workspace of an update (or null)
+  hyper_sssp_engine_counters counters_{};
+  hyper_sssp::fallback_reason reason_ = hyper_sssp::fallback_reason::none;
+  std::int64_t n_ = 0;
+  int source_ = -1;                         ///< the virtual mode's source row (-1: the public mode)
+  int parent_bits_ = 0;                     ///< the packing (0: distance-only words)
+  std::uint64_t no_parent_ = 0;             ///< the packing's "no parent" value
+  std::uint64_t max_distance_ = 0;          ///< the bound n x max weight
+  std::uint64_t delta_ = 0;                 ///< the near-far width
+  int max_rounds_ = 0;                      ///< pointer-jumping rounds enqueued
+  int grid_cap_ = 1;                        ///< blocks the device holds at once
+  std::int64_t candidates_ = 0;             ///< candidates of the pull pass
+  std::int64_t invalidated_ = 0;            ///< the invalidated nodes (the first candidates)
+  const std::int32_t* inserted_ = nullptr;  ///< the inserted pairs (device; seed_pairs)
+  const std::int32_t* gained_ = nullptr;    ///< the public mode's gained nodes (device)
+  std::int64_t num_inserted_ = 0;           ///< inserted pairs
+  std::int64_t num_gained_ = 0;             ///< gained nodes
+  std::int64_t frontier_bound_ = 0;         ///< an upper bound of the frontier's length
+  bool stopped_ = false;  ///< a trigger stopped the update: the later hooks do nothing
+};
 
 // ------------------------------------------------------------------------------------------------
 // The problem
@@ -479,6 +634,13 @@ class hyper_sssp_problem final
   void size_arrays(framework::context& ctx, const hyper_sssp_graph& g);
   /// The stats both engines fill.
   void fill_stats(const hyper_sssp_engine_counters& c, stats_type& stats) const;
+  /// The largest weight the packing of the shared engine must hold (the running maximum after
+  /// the batch; 2^31 - 1 without validate_inputs).
+  [[nodiscard]] std::int64_t weight_bound() const noexcept;
+  /// The shared engine's static solve into the result (compute(), the fallback, the recompute):
+  /// the shared compute when the knobs ask for it and the words hold parents, else the ported
+  /// recompute (hsospRecompute). @return The counters of the solve.
+  hyper_sssp_engine_counters cuda_operators_solve(framework::context& ctx);
 
   hyper_sssp_state* state_ = nullptr;
   const hyper_sssp::result<vertex_t>* target_ = nullptr;
@@ -486,6 +648,7 @@ class hyper_sssp_problem final
   hyper_sssp_graph graph_{};
   hyper_sssp_batch batch_{};
   std::optional<workspace_pool::lease<hyper_sssp_workspace>> ws_;
+  std::optional<hyper_sssp_cuda_operators_engine> ops_;  ///< the shared engine of this run (cuda)
   hyper_sssp_engine_counters counters_{};
   std::int64_t pending_max_ = 0;  ///< the running maximum after the batch's weights
 };

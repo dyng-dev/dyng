@@ -1,0 +1,6237 @@
+{
+ "schema": 1,
+ "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
+ "version": "0.4.0",
+ "version_file": "0.4.0.dev0",
+ "date": "2026-11-12T03:34:02Z",
+ "commit": "747e8c73d1e55440b3c44ce11337f09235a1dc3b",
+ "branch": "m11b-hyper-sssp",
+ "measured_commits": [
+  "f6c19115cfddea9099fbfc698e579ec50200dd02"
+ ],
+ "code_paths": {
+  "library": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib"
+  ],
+  "tests": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib",
+   "cpp/tests",
+   "cpp/fuzz",
+   "examples",
+   "README.md"
+  ],
+  "packaging": [
+   "cpp/include",
+   "cpp/src",
+   "cpp/CMakeLists.txt",
+   "tools",
+   "cmake",
+   "CMakeLists.txt",
+   "CMakePresets.json",
+   "docs/references.bib",
+   "cpp/tests",
+   "cpp/fuzz",
+   "examples",
+   "README.md",
+   "python",
+   "pyproject.toml",
+   "VERSION",
+   "CHANGELOG.md",
+   "CITATION.cff",
+   "LICENSE",
+   "LICENSES",
+   "NOTICE",
+   "THIRD_PARTY_LICENSES.txt",
+   "THIRD_PARTY_LICENSES_CUDA.txt",
+   "AUTHORS.md",
+   "CONTRIBUTING.md",
+   "SECURITY.md",
+   "REUSE.toml",
+   "environment.yml",
+   "ruff.toml",
+   ".gitattributes",
+   ".gitignore",
+   "ci/wheels.sh",
+   "ci/wheel_check.py",
+   "ci/wheel-toolchain.yml",
+   "ci/plugin_wheels.sh",
+   "ci/plugin_pyproject.py",
+   "ci/plugin_smoke.py",
+   "ci/without_cuda_driver.sh",
+   "ci/cuda_toolkit.py",
+   "ci/cuda_toolkits.toml",
+   "ci/cibw_plugin.sh",
+   "ci/cibw_plugin_repair.sh",
+   "ci/cibuildwheel-plugin.toml",
+   ".github/workflows/release.yml",
+   ".github/workflows/wheels.yml"
+  ],
+  "repo": [
+   ".",
+   ":(exclude)benchmarks/results"
+  ]
+ },
+ "code_rule": "every measured commit has the release commit's sources (git diff <measured> <release> -- code_paths[scope] is empty): the library scope for the performance gates, the golden replays and the golden mutations; for a check, the scope it was recorded with (tests: a C++ test suite; packaging: the distributions; repo: a check of the whole tree but benchmarks/results). In the library scope only, a difference confined to metadata_paths is accepted when equivalence.json shows the measured programs unchanged (equivalences)",
+ "metadata_paths": {
+  "cpp/src/core/registry_table.inc": {
+   "what": "the algorithm registry table generated from the manifests by scripts/regen.py (names, titles, maturity, backends, citation keys), read only by dyng::algorithms()",
+   "functions": [
+    "dyng::algorithms()",
+    "dyng::algorithms() [clone .cold]"
+   ]
+  },
+  "cpp/src/algorithms/cycle_count/manifest.toml": {
+   "what": "the manifest of cycle_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/dynamic_bfs/manifest.toml": {
+   "what": "the manifest of dynamic_bfs (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/hyper_sssp/manifest.toml": {
+   "what": "the manifest of hyper_sssp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/label_propagation/manifest.toml": {
+   "what": "the manifest of label_propagation (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/mosp/manifest.toml": {
+   "what": "the manifest of mosp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/sssp/manifest.toml": {
+   "what": "the manifest of sssp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/triad_count/manifest.toml": {
+   "what": "the manifest of triad_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/triangle_delta/manifest.toml": {
+   "what": "the manifest of triangle_delta (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  }
+ },
+ "equivalences": [],
+ "environment": {
+  "hardware": {
+   "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+   "logical_cpus": 56,
+   "memory_gb": 124.4,
+   "gpus": [
+    {
+     "index": 0,
+     "name": "NVIDIA RTX A5000",
+     "memory": "24564 MiB",
+     "compute_capability": "8.6"
+    },
+    {
+     "index": 1,
+     "name": "NVIDIA RTX A5000",
+     "memory": "24564 MiB",
+     "compute_capability": "8.6"
+    }
+   ]
+  },
+  "os": {
+   "name": "Debian GNU/Linux 12 (bookworm)",
+   "kernel": "6.1.0-52-amd64"
+  },
+  "driver": {
+   "write_time": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "cuda_driver_api": "13.1",
+   "nvidia": "590.48.01",
+   "source": "named by 25 records"
+  },
+  "toolchain": {
+   "cxx": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "nvcc": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "cmake": "cmake version 4.4.3",
+   "python": "3.12.14"
+  }
+ },
+ "originals": [
+  {
+   "name": "MOSP-OpenMP",
+   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "7284f5005e694eaa3466fd29bc0d12f7cf505a28",
+   "upstream": "https://github.com/SMShovan/MOSP-OpenMP.git",
+   "export_patch": "MOSP-OpenMP",
+   "toolchain": "system g++ 12.2, Makefile defaults: -std=c++17 -Wall -Wextra -O3 -fopenmp",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "MOSP-CUDA",
+   "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "ac29545c6ff21a05901cd124ce6760644a129263",
+   "upstream": "https://github.com/SMShovan/MOSP-CUDA.git",
+   "export_patch": "MOSP-CUDA",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, host -O3, -lineinfo, --extended-lambda (Makefile defaults)",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "CycleEnumeration-GPU",
+   "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "da2067d62c2ce8f9234908089fa15bc53b5979c0",
+   "upstream": "git@github.com:SMShovan/CycleEnumeration-GPU.git",
+   "export_patch": "CycleEnumeration-GPU",
+   "toolchain": "system g++ 12.2 and CUDA 13.1 nvcc (sm_86), CMake Release (-O3 -DNDEBUG), OpenMP and CUDA enabled as in the original's docs/RESULTS.md",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "6a44c1cf5f1639721d35b418f99b420c5c45674e",
+   "upstream": "git@github.com:SMShovan/ESCHER-GPU.git",
+   "export_patch": "ESCHER-GPU",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo -Xcompiler -fopenmp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); C++ objects: the Makefile's hard-coded CXX = g++ (-std=c++17 -O3 -Wall -fopenmp)",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "80cee6284aae8836e5319eabf5e8bd127c0dca82",
+   "upstream": "git@github.com:SMShovan/MOSP_ESCHER.git",
+   "export_patch": "MOSP_ESCHER",
+   "toolchain": "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo --extended-lambda -Xcompiler -fopenmp for .cu and .cpp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); tests/local: g++ -O2 -Wall -Wextra -std=c++17 -fopenmp",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  },
+  {
+   "name": "LabelPropagation-CUDA",
+   "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+   "baseline_tag": "baseline-2026-09",
+   "baseline_commit": "f0a665e24fd4de8f7783cc10e0ae61bf93b418f5",
+   "upstream": "git@github.com:SMShovan/LabelPropagation-CUDA.git",
+   "export_patch": "LabelPropagation-CUDA",
+   "toolchain": "CUDA 13.1 nvcc (V13.1.115; /usr/local/cuda/bin/nvcc, the Makefile's fallback), sm_86, -std=c++17 -O3 --use_fast_math -lineinfo -Xcompiler -Wall -Xcompiler -fopenmp, linked with -lgomp; host compiler /usr/bin/g++ (Debian 12.2.0-14+deb12u1), the nvcc default",
+   "use": "performance baselines from the unpatched git-archive copy; goldens from the patched copy"
+  }
+ ],
+ "golden_suites": [
+  {
+   "set": "hyper_sssp_mosp_escher",
+   "kind": "hyper_sssp",
+   "reference": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "generated_by": "parity/hsosp_goldens.py export --twice (parity/export_goldens.py hyper_sssp)",
+   "cases": 25,
+   "files": 56,
+   "manifest_sha256": "6211339456bbd391e1054caec3e936184433ccc43b41e722124de5b2effec872",
+   "case_sha256": {
+    "paper/dblp_hyperedge_100000": "b404f142edc7c75a621d58d38325da5901aa71fe96936b63522d8c33901e45a2",
+    "paper/dblp_hyperedge_200000": "96f641e2dac2fa1b1290b779388381e82a840cca16b6261aaa0b0867eaec65a1",
+    "paper/dblp_hyperedge_25000": "3baac48cbcae607da77e10f2f36008f22de9a91b64ee9af17dfb8b4ce6dd89f5",
+    "paper/dblp_hyperedge_50000": "bbf4c852669b7bd8990bce6de947523117f322e7d49baecc1b9382208aa50066",
+    "paper/dblp_vertex_100000": "501ddb6d2fdf47f9062e6e151d974cf723a61b7ae34095c47fec55e32c56dc3e",
+    "paper/dblp_vertex_200000": "48b2df6ff5b038cf07814c8e6002b111f3f9956671d53c1e5deb70df70336de2",
+    "paper/dblp_vertex_25000": "b79f6f4fb363b97da7d9b55d35b2d3f2e7add58517d61fdfd349df2ea4915d39",
+    "paper/dblp_vertex_50000": "72263e99108b2a8444e10bd319e862650a908db65c2ae431d2066073a60fdcbb",
+    "paper/geology_hyperedge_100000": "6f7508d9dfe536ce544d70a79b405309160851cf37a2478cff78ac2a400eb95e",
+    "paper/geology_hyperedge_200000": "cabb938f73ffb7e22cc18f52acd230210db771c9f69c88d07c269593060e26c5",
+    "paper/geology_hyperedge_25000": "3e41ef21a5bf4c051559df25002476d4305b74a6b975e6ca7e7c9c7a3dcd47e4",
+    "paper/geology_hyperedge_50000": "c3def8cc490ae457b1d3a5795fa66f8b0f9e8a898b55f4e173ff23f770d3fc7f",
+    "paper/geology_vertex_100000": "1e01d518b426aca24bb8a11932da3decd96a39d0ff572080f97e810c828a84ca",
+    "paper/geology_vertex_200000": "a1bccc999e2a78cdd67912a22a09a2db0009bccf956f73b3131de5ac6eb67999",
+    "paper/geology_vertex_25000": "65ab49cd869d5420915c601be95ffed953502602b7f89a2e57029dc3757d8b28",
+    "paper/geology_vertex_50000": "0e6cc2c224b6cee970fae00f5c609358b3db9eef4b81903065da0e45ca5be79f",
+    "test/01-test_h2h_construction": "97157eab63199855945b53679bbd15b88a6171bb97b94d60dcbdf168df488ea4",
+    "test/02-test_h2h_delta": "8d7ea8205a5cafe30c828e2b9cd30063546e9fb609f530e260ff62e94b349e4f",
+    "test/03-test_hsosp_matches_dijkstra": "135b5a21af08a86290e35aa92460121a7c69d7faecfe3ecb88aeb30d2475ab7d",
+    "test/04-test_hsosp_scale": "0b08914aae98e7a2e7c1492e7c25ea4f03ccf7b2baa8ec1598dfb46fec564b4c",
+    "test/05-hsospStress": "e05a3dc8602db5e3493c0aa84a2fe1d29966fe1f737998a1a3c3d35c227edf98",
+    "test/06-hsospStress_escher": "17874203fe045302456d5b3535b375748cb16f2cb6db5b5d66803b1efa115f7d",
+    "test/07-hsospBench_smoke": "3df38b5afeedce2571ba4725ae456a30547062c3185e0be15eb858e402fd8a4a",
+    "test/08-hsospBench_real_hyperedge": "3b8bc9676a96456646dfd1b8f5750e4dded8a3b110c3b1d49884539e6035d935",
+    "test/09-hsospBench_real_vertex": "f841cb09292ff5cf2da36d552be7aa8a1732fe569660a30bd108d20db2d4363e"
+   },
+   "replays": [
+    {
+     "record": "parity-hyper_sssp_mosp_escher-cuda-hyper_sssp-by_id.json",
+     "date": "2026-11-12T02:34:20+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hyper_sssp/by_id"
+     ],
+     "checks": {
+      "verified": true,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 25,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/05-hsospStress": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_25000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_50000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_100000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_200000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_25000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_100000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_200000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_25000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_50000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_100000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_200000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_25000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_50000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_100000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_200000": {
+       "cuda:hyper_sssp/by_id": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-cuda-hyper_sssp-by_id_public.json",
+     "date": "2026-11-12T02:43:38+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hyper_sssp/by_id_public"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 13,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/05-hsospStress": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/dblp_hyperedge_50000": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/geology_hyperedge_50000": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/geology_vertex_50000": {
+       "cuda:hyper_sssp/by_id_public": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-cuda-hyper_sssp-by_key.json",
+     "date": "2026-11-12T02:46:36+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hyper_sssp/by_key"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 10,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/05-hsospStress": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "cuda:hyper_sssp/by_key": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "cuda:hyper_sssp/by_key": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-cuda-hyper_sssp-store.json",
+     "date": "2026-11-12T03:25:59+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part delta",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hyper_sssp/store"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": false,
+      "check_compute": null
+     },
+     "tolerance": null,
+     "compared": 25,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/05-hsospStress": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_hyperedge_25000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_hyperedge_50000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_hyperedge_100000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_hyperedge_200000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_vertex_25000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_vertex_100000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/dblp_vertex_200000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_hyperedge_25000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_hyperedge_50000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_hyperedge_100000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_hyperedge_200000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_vertex_25000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_vertex_50000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_vertex_100000": {
+       "cuda:hyper_sssp/store": "equal"
+      },
+      "paper/geology_vertex_200000": {
+       "cuda:hyper_sssp/store": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-cuda-operators-hyper_sssp-by_id.json",
+     "date": "2026-11-12T02:56:57+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda-operators:hyper_sssp/by_id"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 25,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/05-hsospStress": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_25000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_50000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_100000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_200000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_25000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_100000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_200000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_25000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_50000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_100000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_200000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_25000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_50000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_100000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_vertex_200000": {
+       "cuda-operators:hyper_sssp/by_id": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-cuda-operators-hyper_sssp-by_id_public.json",
+     "date": "2026-11-12T03:05:09+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda-operators:hyper_sssp/by_id_public"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 13,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/05-hsospStress": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/dblp_hyperedge_50000": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/geology_hyperedge_50000": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      },
+      "paper/geology_vertex_50000": {
+       "cuda-operators:hyper_sssp/by_id_public": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-cuda-operators-hyper_sssp-by_key.json",
+     "date": "2026-11-12T03:07:39+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda-operators:hyper_sssp/by_key"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 10,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/05-hsospStress": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "cuda-operators:hyper_sssp/by_key": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-sequential-hyper_sssp-by_id.json",
+     "date": "2026-11-12T02:49:37+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "sequential:hyper_sssp/by_id"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 12,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/05-hsospStress": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_hyperedge_50000": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "sequential:hyper_sssp/by_id": "equal"
+      },
+      "paper/geology_hyperedge_50000": {
+       "sequential:hyper_sssp/by_id": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-sequential-hyper_sssp-by_id_public.json",
+     "date": "2026-11-12T02:50:01+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "sequential:hyper_sssp/by_id_public"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 9,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/05-hsospStress": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "sequential:hyper_sssp/by_id_public": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-hyper_sssp_mosp_escher-sequential-hyper_sssp-by_key.json",
+     "date": "2026-11-12T02:54:32+00:00",
+     "port_commit": "f6c19115cfddea9099fbfc698e579ec50200dd02",
+     "executable": "parity/compare.py hyper_sssp --part results",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "sequential:hyper_sssp/by_key"
+     ],
+     "checks": {
+      "verified": false,
+      "oracle": true,
+      "check_compute": false
+     },
+     "tolerance": null,
+     "compared": 10,
+     "failed": 0,
+     "matrix": {
+      "test/01-test_h2h_construction": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/02-test_h2h_delta": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/03-test_hsosp_matches_dijkstra": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/04-test_hsosp_scale": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/05-hsospStress": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/06-hsospStress_escher": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/07-hsospBench_smoke": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/08-hsospBench_real_hyperedge": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "test/09-hsospBench_real_vertex": {
+       "sequential:hyper_sssp/by_key": "equal"
+      },
+      "paper/dblp_vertex_50000": {
+       "sequential:hyper_sssp/by_key": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": true,
+   "required_coverage": {
+    "cuda-operators:hyper_sssp/by_id": 25,
+    "cuda-operators:hyper_sssp/by_id_public": 13,
+    "cuda-operators:hyper_sssp/by_key": 10,
+    "cuda:hyper_sssp/by_id": 25,
+    "cuda:hyper_sssp/by_id_public": 13,
+    "cuda:hyper_sssp/by_key": 10,
+    "cuda:hyper_sssp/store": 25,
+    "sequential:hyper_sssp/by_id": 12,
+    "sequential:hyper_sssp/by_id_public": 9,
+    "sequential:hyper_sssp/by_key": 10
+   }
+  }
+ ],
+ "committed_fixtures": [],
+ "required_suites": {
+  "ipdps25_dynamosp_sosp": {
+   "algorithm": "sssp",
+   "since": "0.1"
+  },
+  "ieee_tc_dyntrucy": {
+   "algorithm": "cycle_count",
+   "since": "0.1"
+  },
+  "ipdps25_dynamosp_mosp": {
+   "algorithm": "mosp",
+   "since": "0.2"
+  },
+  "ipdps26_escher": {
+   "algorithm": "triad_count",
+   "since": "0.3"
+  },
+  "tkde26_escher_plus": {
+   "algorithm": "triad_count",
+   "since": "0.3"
+  },
+  "ics26_dynlp": {
+   "algorithm": "label_propagation",
+   "since": "0.4"
+  },
+  "ia3_hsosp": {
+   "algorithm": "hyper_sssp",
+   "since": "0.4"
+  }
+ },
+ "performance": [
+  {
+   "suite": "ia3_hsosp",
+   "algorithm": "hyper_sssp",
+   "summary": "ia3_hsosp.json",
+   "suite_file": "benchmarks/paper/ia3_hsosp.yaml",
+   "suite_sha256": "c645ee5a13b4d52eb69a90d45392e0c4207279b2cbe9248b11238dbceb1175d6",
+   "port_commits": [
+    "f6c19115cfddea9099fbfc698e579ec50200dd02"
+   ],
+   "baselines": {
+    "MOSP_ESCHER": {
+     "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+     "variant": "unpatched",
+     "backend": "cuda"
+    }
+   },
+   "tolerance": {
+    "compute": 1.05,
+    "compute_short": 1.1,
+    "short_region_ms": 10.0,
+    "end_to_end": 1.1,
+    "memory": 1.05
+   },
+   "inputs": {
+    "verified": true,
+    "run_check": "not run by this summary (bench_suite.py run checks every input first)",
+    "by_record": {
+     "ia3_hsosp-probe-dblp.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-probe-geology.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_hyperedge_25000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_hyperedge_50000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_hyperedge_100000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_hyperedge_200000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_vertex_25000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_vertex_50000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_vertex_100000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-dblp-dblp_vertex_200000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_hyperedge_25000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_hyperedge_50000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_hyperedge_100000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_hyperedge_200000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_vertex_25000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_vertex_50000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_vertex_100000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-geology-geology_vertex_200000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-default-clocks-dblp_hyperedge_50000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-default-clocks-dblp_vertex_50000.json": {
+      "datasets": [
+       "coauth"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-default-clocks-geology_hyperedge_50000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-default-clocks-geology_vertex_50000.json": {
+      "datasets": [
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-memory.json": {
+      "datasets": [
+       "coauth",
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-memory-large.json": {
+      "datasets": [
+       "coauth",
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     },
+     "ia3_hsosp-cuda-kernels.json": {
+      "datasets": [
+       "coauth",
+       "geology"
+      ],
+      "verified": true,
+      "how": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+     }
+    }
+   },
+   "readings": [
+    {
+     "reading": "probe-dblp",
+     "dataset": null,
+     "kind": "probe",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": false,
+     "record": "ia3_hsosp-probe-dblp.json",
+     "date": null,
+     "protocol": {},
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "probe-geology",
+     "dataset": null,
+     "kind": "probe",
+     "backend": "cuda",
+     "clocks": "boost",
+     "gated": false,
+     "record": "ia3_hsosp-probe-geology.json",
+     "date": null,
+     "protocol": {},
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_hyperedge_25000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_hyperedge_25000.json",
+     "date": "2026-11-11T16:54:01Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_hyperedge_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_hyperedge_50000.json",
+     "date": "2026-11-11T16:59:37Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_hyperedge_100000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_hyperedge_100000.json",
+     "date": "2026-11-11T17:05:56Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_hyperedge_200000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_hyperedge_200000.json",
+     "date": "2026-11-11T17:12:32Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_vertex_25000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_vertex_25000.json",
+     "date": "2026-11-11T17:20:48Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_vertex_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_vertex_50000.json",
+     "date": "2026-11-11T17:25:55Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_vertex_100000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_vertex_100000.json",
+     "date": "2026-11-11T17:31:51Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-dblp",
+     "dataset": "dblp_vertex_200000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-dblp-dblp_vertex_200000.json",
+     "date": "2026-11-11T17:37:16Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_hyperedge_25000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_hyperedge_25000.json",
+     "date": "2026-11-11T17:46:24Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_hyperedge_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_hyperedge_50000.json",
+     "date": "2026-11-11T17:48:59Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_hyperedge_100000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_hyperedge_100000.json",
+     "date": "2026-11-11T17:52:07Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_hyperedge_200000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_hyperedge_200000.json",
+     "date": "2026-11-11T17:55:31Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_vertex_25000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_vertex_25000.json",
+     "date": "2026-11-11T18:00:23Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_vertex_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_vertex_50000.json",
+     "date": "2026-11-11T18:02:51Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_vertex_100000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_vertex_100000.json",
+     "date": "2026-11-11T18:05:35Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-geology",
+     "dataset": "geology_vertex_200000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": true,
+     "record": "ia3_hsosp-cuda-geology-geology_vertex_200000.json",
+     "date": "2026-11-11T18:08:18Z",
+     "protocol": {
+      "rounds": 21,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "dataset": "dblp_hyperedge_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ia3_hsosp-cuda-default-clocks-dblp_hyperedge_50000.json",
+     "date": "2026-11-11T18:40:25Z",
+     "protocol": {
+      "rounds": 11,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "dataset": "dblp_vertex_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ia3_hsosp-cuda-default-clocks-dblp_vertex_50000.json",
+     "date": "2026-11-11T18:43:36Z",
+     "protocol": {
+      "rounds": 11,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "dataset": "geology_hyperedge_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ia3_hsosp-cuda-default-clocks-geology_hyperedge_50000.json",
+     "date": "2026-11-11T18:46:27Z",
+     "protocol": {
+      "rounds": 11,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "dataset": "geology_vertex_50000",
+     "kind": "run",
+     "backend": "cuda",
+     "clocks": "none",
+     "gated": false,
+     "record": "ia3_hsosp-cuda-default-clocks-geology_vertex_50000.json",
+     "date": "2026-11-11T18:48:01Z",
+     "protocol": {
+      "rounds": 11,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-memory",
+     "dataset": null,
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": true,
+     "record": "ia3_hsosp-cuda-memory.json",
+     "date": "2026-11-12T03:28:13Z",
+     "protocol": {
+      "gpu": 1,
+      "lock": "shared (flock -s by tools/locklog.py run GPU1-QUIET), in a GPU1-QUIET window of the shared calendar",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-memory-large",
+     "dataset": null,
+     "kind": "memory",
+     "backend": "cuda",
+     "clocks": null,
+     "gated": false,
+     "record": "ia3_hsosp-cuda-memory-large.json",
+     "date": "2026-11-12T03:29:59Z",
+     "protocol": {
+      "gpu": 1,
+      "lock": "shared (flock -s by tools/locklog.py run GPU1-QUIET), in a GPU1-QUIET window of the shared calendar",
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    },
+    {
+     "reading": "cuda-kernels",
+     "dataset": null,
+     "kind": "kernels",
+     "backend": "cuda",
+     "clocks": "base",
+     "gated": false,
+     "record": "ia3_hsosp-cuda-kernels.json",
+     "date": "2026-11-11T18:49:23Z",
+     "protocol": {
+      "rounds": 3,
+      "order": "A/B alternation (B first in every round)",
+      "gpu": 0,
+      "lock": {
+       "DYNG_PERF_LOCK": "",
+       "DYNG_PERF_LOCK_HELD": "1"
+      },
+      "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+      "statistic": "median"
+     },
+     "complete": true,
+     "driver": {
+      "nvidia": "590.48.01",
+      "cuda_driver_api": "13.1"
+     },
+     "inputs": "hashed by the measuring process (hsosp_goldens.check_dataset before each configuration; the probe's datasets likewise)"
+    }
+   ],
+   "execution_started": null,
+   "gated_regions": 271,
+   "within_gate": 271,
+   "ratio_range": [
+    0.14854297163755203,
+    1.0371054876315042
+   ],
+   "gate_table": [
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "maintain[b1]",
+     "ratio": 0.9915898898153305,
+     "original_ms": 54.06469,
+     "port_ms": 53.61,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "maintain[b2]",
+     "ratio": 0.835904517722081,
+     "original_ms": 36.01129,
+     "port_ms": 30.102,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "maintain[b3]",
+     "ratio": 0.8597811080594095,
+     "original_ms": 33.47131,
+     "port_ms": 28.778,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0008213427432848,
+     "original_ms": 4.27349,
+     "port_ms": 4.277,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.0042988665506363,
+     "original_ms": 3.25202,
+     "port_ms": 3.266,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "sosp_update[b3]",
+     "ratio": 0.9993932699637517,
+     "original_ms": 3.21395,
+     "port_ms": 3.2119999999999997,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "static[b1]",
+     "ratio": 1.0015458977748866,
+     "original_ms": 85.7754,
+     "port_ms": 85.908,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "static[b2]",
+     "ratio": 1.0016909667878273,
+     "original_ms": 85.8089,
+     "port_ms": 85.954,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "static[b3]",
+     "ratio": 1.0021890412652357,
+     "original_ms": 85.7453,
+     "port_ms": 85.933,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.9927942929608631,
+     "original_ms": 58.407869999999996,
+     "port_ms": 57.987,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.8511213632811674,
+     "original_ms": 39.27407,
+     "port_ms": 33.427,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.8735625919668647,
+     "original_ms": 36.698,
+     "port_ms": 32.058,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "dynamic[b1]",
+     "ratio": 0.3695157621059474,
+     "original_ms": 156.927,
+     "port_ms": 57.987,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "dynamic[b2]",
+     "ratio": 0.30361684348205203,
+     "original_ms": 110.096,
+     "port_ms": 33.427,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "dynamic[b3]",
+     "ratio": 0.29841104357296444,
+     "original_ms": 107.429,
+     "port_ms": 32.058,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_25000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7246583523375142,
+     "original_ms": 7016.0,
+     "port_ms": 5084.2029999999995,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.6285514509914729,
+     "original_ms": 83.5222,
+     "port_ms": 52.498,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.6452021765575716,
+     "original_ms": 68.6405,
+     "port_ms": 44.287,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.6568433790685673,
+     "original_ms": 67.4316,
+     "port_ms": 44.292,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0154888950239425,
+     "original_ms": 10.5043,
+     "port_ms": 10.667,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.0180559101472015,
+     "original_ms": 5.36611,
+     "port_ms": 5.463,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0218990255537195,
+     "original_ms": 4.80478,
+     "port_ms": 4.91,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "static[b1]",
+     "ratio": 1.0005469981751405,
+     "original_ms": 87.0204,
+     "port_ms": 87.068,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "static[b2]",
+     "ratio": 1.0016024903067755,
+     "original_ms": 86.8648,
+     "port_ms": 87.004,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "static[b3]",
+     "ratio": 1.0000978825500453,
+     "original_ms": 87.8604,
+     "port_ms": 87.869,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.672798876080661,
+     "original_ms": 94.0281,
+     "port_ms": 63.262,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.673615505425799,
+     "original_ms": 74.00661000000001,
+     "port_ms": 49.852,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.6822146777507628,
+     "original_ms": 72.2236,
+     "port_ms": 49.272,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.26786750166194545,
+     "original_ms": 236.169,
+     "port_ms": 63.262,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.2888095845016569,
+     "original_ms": 172.612,
+     "port_ms": 49.852,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.28269962304421914,
+     "original_ms": 174.291,
+     "port_ms": 49.272,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7008109215017064,
+     "original_ms": 7325.0,
+     "port_ms": 5133.44,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "maintain[b1]",
+     "ratio": 0.7428625128389238,
+     "original_ms": 136.2069,
+     "port_ms": 101.183,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "maintain[b2]",
+     "ratio": 0.6949807899286273,
+     "original_ms": 121.99329999999999,
+     "port_ms": 84.783,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "maintain[b3]",
+     "ratio": 0.7120770726823624,
+     "original_ms": 121.859,
+     "port_ms": 86.773,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0245089673287973,
+     "original_ms": 13.4767,
+     "port_ms": 13.807,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.0221120475954386,
+     "original_ms": 10.085,
+     "port_ms": 10.308,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0210019267822736,
+     "original_ms": 10.38,
+     "port_ms": 10.598,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "static[b1]",
+     "ratio": 0.9921868417397086,
+     "original_ms": 87.8262,
+     "port_ms": 87.14,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "static[b2]",
+     "ratio": 0.9891679507809878,
+     "original_ms": 87.9335,
+     "port_ms": 86.981,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "static[b3]",
+     "ratio": 0.992014087827948,
+     "original_ms": 87.7921,
+     "port_ms": 87.091,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.7693571855171337,
+     "original_ms": 149.68859999999998,
+     "port_ms": 115.164,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.7209833883622383,
+     "original_ms": 132.0821,
+     "port_ms": 95.229,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7370538863480507,
+     "original_ms": 132.26170000000002,
+     "port_ms": 97.484,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "dynamic[b1]",
+     "ratio": 0.3110707745166361,
+     "original_ms": 370.218,
+     "port_ms": 115.164,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "dynamic[b2]",
+     "ratio": 0.33308382971727973,
+     "original_ms": 285.901,
+     "port_ms": 95.229,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "dynamic[b3]",
+     "ratio": 0.3389781001592589,
+     "original_ms": 287.582,
+     "port_ms": 97.484,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_100000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.6877663527286801,
+     "original_ms": 7751.0,
+     "port_ms": 5330.8769999999995,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "maintain[b1]",
+     "ratio": 0.6979280822798813,
+     "original_ms": 233.23319999999998,
+     "port_ms": 162.78,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "maintain[b2]",
+     "ratio": 0.6116697557728348,
+     "original_ms": 261.8341,
+     "port_ms": 160.15599999999998,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "maintain[b3]",
+     "ratio": 0.5238950454882559,
+     "original_ms": 305.4085,
+     "port_ms": 160.002,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0003557100467826,
+     "original_ms": 22.2091,
+     "port_ms": 22.217,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.9986954074933065,
+     "original_ms": 23.4556,
+     "port_ms": 23.425,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.001913344314798,
+     "original_ms": 21.7943,
+     "port_ms": 21.836000000000002,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "static[b1]",
+     "ratio": 1.0006599432381589,
+     "original_ms": 89.2501,
+     "port_ms": 89.309,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "static[b2]",
+     "ratio": 0.9966223883290288,
+     "original_ms": 90.3301,
+     "port_ms": 90.025,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "static[b3]",
+     "ratio": 1.000007614381609,
+     "original_ms": 91.9313,
+     "port_ms": 91.932,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.7254497140745474,
+     "original_ms": 255.45119999999997,
+     "port_ms": 185.317,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6444099052298167,
+     "original_ms": 285.27959999999996,
+     "port_ms": 183.837,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.5565136602502685,
+     "original_ms": 327.2085,
+     "port_ms": 182.096,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "dynamic[b1]",
+     "ratio": 0.30666086386698127,
+     "original_ms": 604.306,
+     "port_ms": 185.317,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "dynamic[b2]",
+     "ratio": 0.3174195085649759,
+     "original_ms": 579.161,
+     "port_ms": 183.837,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "dynamic[b3]",
+     "ratio": 0.29578565221275593,
+     "original_ms": 615.635,
+     "port_ms": 182.096,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_hyperedge_200000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.6502398786605997,
+     "original_ms": 8571.0,
+     "port_ms": 5573.206,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "maintain[b1]",
+     "ratio": 0.7204101733763485,
+     "original_ms": 18.87397,
+     "port_ms": 13.597,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "maintain[b2]",
+     "ratio": 0.6310548955267571,
+     "original_ms": 18.24247,
+     "port_ms": 11.512,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "maintain[b3]",
+     "ratio": 0.6420078703616712,
+     "original_ms": 17.562089999999998,
+     "port_ms": 11.275,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.013775640578902,
+     "original_ms": 2.15235,
+     "port_ms": 2.182,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.000857783474255,
+     "original_ms": 3.01941,
+     "port_ms": 3.0220000000000002,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.011608623548922,
+     "original_ms": 3.9195,
+     "port_ms": 3.965,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "static[b1]",
+     "ratio": 0.9872822026365172,
+     "original_ms": 86.0605,
+     "port_ms": 84.966,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "static[b2]",
+     "ratio": 0.9846257684506435,
+     "original_ms": 86.2287,
+     "port_ms": 84.903,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "static[b3]",
+     "ratio": 0.9860241243331014,
+     "original_ms": 86.22,
+     "port_ms": 85.015,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.7543811330034967,
+     "original_ms": 21.02253,
+     "port_ms": 15.859,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6855386102737218,
+     "original_ms": 21.26649,
+     "port_ms": 14.579,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7103239294792337,
+     "original_ms": 21.50005,
+     "port_ms": 15.272,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "dynamic[b1]",
+     "ratio": 0.23463113541407757,
+     "original_ms": 67.5912,
+     "port_ms": 15.859,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "dynamic[b2]",
+     "ratio": 0.16448949474116514,
+     "original_ms": 88.6318,
+     "port_ms": 14.579,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "dynamic[b3]",
+     "ratio": 0.14854297163755203,
+     "original_ms": 102.812,
+     "port_ms": 15.272,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_25000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7178173801735171,
+     "original_ms": 7031.0,
+     "port_ms": 5046.973999999999,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.5665691911469748,
+     "original_ms": 34.4018,
+     "port_ms": 19.491,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.5788451400209418,
+     "original_ms": 32.92936,
+     "port_ms": 19.061,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.6015123881072196,
+     "original_ms": 32.41496,
+     "port_ms": 19.498,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9988451639036983,
+     "original_ms": 3.97459,
+     "port_ms": 3.97,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.008822791951357,
+     "original_ms": 5.10496,
+     "port_ms": 5.15,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0041596611131733,
+     "original_ms": 3.66376,
+     "port_ms": 3.679,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "static[b1]",
+     "ratio": 0.9851010856879001,
+     "original_ms": 86.1942,
+     "port_ms": 84.91,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "static[b2]",
+     "ratio": 0.9842448020832246,
+     "original_ms": 86.2509,
+     "port_ms": 84.892,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "static[b3]",
+     "ratio": 0.9843742047131878,
+     "original_ms": 86.4468,
+     "port_ms": 85.096,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6133198041816856,
+     "original_ms": 38.37639,
+     "port_ms": 23.537,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6377953584278409,
+     "original_ms": 38.02160000000001,
+     "port_ms": 24.25,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.643908385103922,
+     "original_ms": 36.09675,
+     "port_ms": 23.243,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.23154943433349728,
+     "original_ms": 101.65,
+     "port_ms": 23.537,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.18706512180446488,
+     "original_ms": 129.634,
+     "port_ms": 24.25,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.1755221941973388,
+     "original_ms": 132.422,
+     "port_ms": 23.243,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7080919169239404,
+     "original_ms": 7126.0,
+     "port_ms": 5045.862999999999,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "maintain[b1]",
+     "ratio": 0.6129924287580966,
+     "original_ms": 64.17045,
+     "port_ms": 39.336,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "maintain[b2]",
+     "ratio": 0.5537771691558102,
+     "original_ms": 62.31929,
+     "port_ms": 34.510999999999996,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "maintain[b3]",
+     "ratio": 0.5675153541821388,
+     "original_ms": 62.14105,
+     "port_ms": 35.266,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0038396002523968,
+     "original_ms": 7.82894,
+     "port_ms": 7.859,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.0047926787369748,
+     "original_ms": 5.21003,
+     "port_ms": 5.235,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0000757633154027,
+     "original_ms": 5.80756,
+     "port_ms": 5.808,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "static[b1]",
+     "ratio": 0.9859718555567413,
+     "original_ms": 86.2124,
+     "port_ms": 85.003,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "static[b2]",
+     "ratio": 0.9836523213749981,
+     "original_ms": 86.3303,
+     "port_ms": 84.919,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "static[b3]",
+     "ratio": 0.9810391551868501,
+     "original_ms": 86.8263,
+     "port_ms": 85.18,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6566821428452394,
+     "original_ms": 72.00743999999999,
+     "port_ms": 47.286,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.5892801838727169,
+     "original_ms": 67.51627,
+     "port_ms": 39.786,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.6049022692812966,
+     "original_ms": 67.94486,
+     "port_ms": 41.1,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2825305020135511,
+     "original_ms": 167.366,
+     "port_ms": 47.286,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "dynamic[b2]",
+     "ratio": 0.23314386170524465,
+     "original_ms": 170.65,
+     "port_ms": 39.786,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "dynamic[b3]",
+     "ratio": 0.22299507891638498,
+     "original_ms": 184.309,
+     "port_ms": 41.1,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_100000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7037006202618884,
+     "original_ms": 7255.0,
+     "port_ms": 5105.348,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "maintain[b1]",
+     "ratio": 0.5095235436319205,
+     "original_ms": 121.78240000000001,
+     "port_ms": 62.051,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "maintain[b2]",
+     "ratio": 0.5847174968861544,
+     "original_ms": 119.62700000000001,
+     "port_ms": 69.948,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "maintain[b3]",
+     "ratio": 0.5971055835150062,
+     "original_ms": 118.2069,
+     "port_ms": 70.582,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0042583938015004,
+     "original_ms": 13.0096,
+     "port_ms": 13.065,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.9996443135665423,
+     "original_ms": 12.0893,
+     "port_ms": 12.084999999999999,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0028796190537475,
+     "original_ms": 9.32415,
+     "port_ms": 9.350999999999999,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "static[b1]",
+     "ratio": 0.9859948149630672,
+     "original_ms": 85.9396,
+     "port_ms": 84.736,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "static[b2]",
+     "ratio": 0.9842330212785461,
+     "original_ms": 87.271,
+     "port_ms": 85.895,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "static[b3]",
+     "ratio": 0.9823869436825264,
+     "original_ms": 87.5714,
+     "port_ms": 86.029,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.5580172375428343,
+     "original_ms": 134.822,
+     "port_ms": 75.233,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6233573128010563,
+     "original_ms": 131.68210000000002,
+     "port_ms": 82.085,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.6270536312210516,
+     "original_ms": 127.53933,
+     "port_ms": 79.974,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2682935527240178,
+     "original_ms": 280.413,
+     "port_ms": 75.233,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "dynamic[b2]",
+     "ratio": 0.2779668478352889,
+     "original_ms": 295.305,
+     "port_ms": 82.085,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "dynamic[b3]",
+     "ratio": 0.24793065605178477,
+     "original_ms": 322.566,
+     "port_ms": 79.974,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-dblp",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "dblp_vertex_200000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.680672946985447,
+     "original_ms": 7696.0,
+     "port_ms": 5238.459,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "maintain[b1]",
+     "ratio": 0.8779451316771871,
+     "original_ms": 37.716480000000004,
+     "port_ms": 33.113,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "maintain[b2]",
+     "ratio": 0.6700974234997503,
+     "original_ms": 28.54958,
+     "port_ms": 19.131,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "maintain[b3]",
+     "ratio": 0.6984831421053664,
+     "original_ms": 27.50818,
+     "port_ms": 19.214,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.012682827907291,
+     "original_ms": 2.36698,
+     "port_ms": 2.397,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.0153994027545583,
+     "original_ms": 2.43451,
+     "port_ms": 2.472,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0049859262966985,
+     "original_ms": 3.07666,
+     "port_ms": 3.092,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "static[b1]",
+     "ratio": 0.991862383572269,
+     "original_ms": 30.4266,
+     "port_ms": 30.179,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "static[b2]",
+     "ratio": 0.9994876964518847,
+     "original_ms": 30.2555,
+     "port_ms": 30.24,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "static[b3]",
+     "ratio": 0.9961353047318953,
+     "original_ms": 29.7048,
+     "port_ms": 29.59,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.8887626475795126,
+     "original_ms": 40.09957000000001,
+     "port_ms": 35.639,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6994638874454124,
+     "original_ms": 30.9823,
+     "port_ms": 21.671,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7318004141439548,
+     "original_ms": 30.573909999999998,
+     "port_ms": 22.374,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "dynamic[b1]",
+     "ratio": 0.3418117297271376,
+     "original_ms": 104.265,
+     "port_ms": 35.639,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "dynamic[b2]",
+     "ratio": 0.2764874068157954,
+     "original_ms": 78.3797,
+     "port_ms": 21.671,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "dynamic[b3]",
+     "ratio": 0.29293775694571733,
+     "original_ms": 76.378,
+     "port_ms": 22.374,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_25000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.8003707504810776,
+     "original_ms": 3118.0,
+     "port_ms": 2495.556,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.6082240202190465,
+     "original_ms": 58.21046,
+     "port_ms": 35.405,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.6857077365853242,
+     "original_ms": 49.21047,
+     "port_ms": 33.744,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.7031457821420435,
+     "original_ms": 48.193419999999996,
+     "port_ms": 33.887,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9997495353221109,
+     "original_ms": 3.79295,
+     "port_ms": 3.7920000000000003,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.001627270776227,
+     "original_ms": 3.68101,
+     "port_ms": 3.687,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0034128501661552,
+     "original_ms": 4.01131,
+     "port_ms": 4.025,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "static[b1]",
+     "ratio": 1.0327478534992451,
+     "original_ms": 30.0722,
+     "port_ms": 31.057,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "static[b2]",
+     "ratio": 1.0302191746445153,
+     "original_ms": 29.4879,
+     "port_ms": 30.379,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "static[b3]",
+     "ratio": 1.0272216296053172,
+     "original_ms": 29.2488,
+     "port_ms": 30.045,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6344589338986447,
+     "original_ms": 61.992979999999996,
+     "port_ms": 39.332,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.7098154324819695,
+     "original_ms": 52.88417,
+     "port_ms": 37.538,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7286465676049244,
+     "original_ms": 52.17756,
+     "port_ms": 38.019,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.24957327867916265,
+     "original_ms": 157.597,
+     "port_ms": 39.332,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.30980126766142874,
+     "original_ms": 121.168,
+     "port_ms": 37.538,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.31932907214070333,
+     "original_ms": 119.059,
+     "port_ms": 38.019,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.785613411619283,
+     "original_ms": 3236.0,
+     "port_ms": 2542.245,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "maintain[b1]",
+     "ratio": 0.6470293429166896,
+     "original_ms": 98.17020000000001,
+     "port_ms": 63.519,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "maintain[b2]",
+     "ratio": 0.7380168250772143,
+     "original_ms": 93.76480000000001,
+     "port_ms": 69.19999999999999,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "maintain[b3]",
+     "ratio": 0.7482509927682602,
+     "original_ms": 91.6377,
+     "port_ms": 68.568,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0255777290297967,
+     "original_ms": 7.12964,
+     "port_ms": 7.312,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.009623940429916,
+     "original_ms": 42.706,
+     "port_ms": 43.117,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0261726475316013,
+     "original_ms": 9.72351,
+     "port_ms": 9.978,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "static[b1]",
+     "ratio": 1.0272008858248256,
+     "original_ms": 30.3446,
+     "port_ms": 31.17,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "static[b2]",
+     "ratio": 1.030526885436159,
+     "original_ms": 30.6746,
+     "port_ms": 31.611,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "static[b3]",
+     "ratio": 1.029077893301517,
+     "original_ms": 29.335,
+     "port_ms": 30.188,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6741415751438938,
+     "original_ms": 105.29984,
+     "port_ms": 70.987,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.8224747234403942,
+     "original_ms": 136.589,
+     "port_ms": 112.341,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.776175372420132,
+     "original_ms": 101.35596,
+     "port_ms": 78.67,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2865868921024796,
+     "original_ms": 247.698,
+     "port_ms": 70.987,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "dynamic[b2]",
+     "ratio": 0.46789839106694375,
+     "original_ms": 240.097,
+     "port_ms": 112.341,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "dynamic[b3]",
+     "ratio": 0.3764276930585527,
+     "original_ms": 208.991,
+     "port_ms": 78.67,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_100000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7536271376506869,
+     "original_ms": 3567.0,
+     "port_ms": 2688.188,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "maintain[b1]",
+     "ratio": 0.6445344224861403,
+     "original_ms": 169.918,
+     "port_ms": 109.518,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "maintain[b2]",
+     "ratio": 0.7469823723635227,
+     "original_ms": 166.273,
+     "port_ms": 124.203,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "maintain[b3]",
+     "ratio": 0.5148684110011583,
+     "original_ms": 242.1745,
+     "port_ms": 124.688,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0126419919354193,
+     "original_ms": 12.4743,
+     "port_ms": 12.632,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.003240759732535,
+     "original_ms": 12.1885,
+     "port_ms": 12.228000000000002,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0122654726586646,
+     "original_ms": 41.8981,
+     "port_ms": 42.412,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "static[b1]",
+     "ratio": 1.0262521070111317,
+     "original_ms": 29.9595,
+     "port_ms": 30.746,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "static[b2]",
+     "ratio": 1.0199231291575193,
+     "original_ms": 30.3366,
+     "port_ms": 30.941,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "static[b3]",
+     "ratio": 1.0198985322556822,
+     "original_ms": 29.1127,
+     "port_ms": 29.692,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6711653743893874,
+     "original_ms": 182.3783,
+     "port_ms": 122.406,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.7657305782289671,
+     "original_ms": 178.4518,
+     "port_ms": 136.646,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.5867398734688573,
+     "original_ms": 284.673,
+     "port_ms": 167.029,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "dynamic[b1]",
+     "ratio": 0.29106654967506296,
+     "original_ms": 420.543,
+     "port_ms": 122.406,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "dynamic[b2]",
+     "ratio": 0.364337840251911,
+     "original_ms": 375.053,
+     "port_ms": 136.646,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "dynamic[b3]",
+     "ratio": 0.3428718641395718,
+     "original_ms": 487.147,
+     "port_ms": 167.029,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_hyperedge_200000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.6876766826923076,
+     "original_ms": 4160.0,
+     "port_ms": 2860.7349999999997,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "maintain[b1]",
+     "ratio": 0.7514561317694899,
+     "original_ms": 16.17127,
+     "port_ms": 12.152,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "maintain[b2]",
+     "ratio": 0.6088175941444062,
+     "original_ms": 14.6185,
+     "port_ms": 8.9,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "maintain[b3]",
+     "ratio": 0.6187172490231704,
+     "original_ms": 14.2553,
+     "port_ms": 8.82,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0371054876315042,
+     "original_ms": 1.4068,
+     "port_ms": 1.459,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.9955160068128889,
+     "original_ms": 1.43845,
+     "port_ms": 1.432,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "sosp_update[b3]",
+     "ratio": 0.9927268658386483,
+     "original_ms": 2.23425,
+     "port_ms": 2.218,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "static[b1]",
+     "ratio": 1.0002871893512861,
+     "original_ms": 29.9454,
+     "port_ms": 29.954,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "static[b2]",
+     "ratio": 0.9981946091428723,
+     "original_ms": 30.0212,
+     "port_ms": 29.967,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "static[b3]",
+     "ratio": 1.001047870435463,
+     "original_ms": 30.1564,
+     "port_ms": 30.188,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.7800688262563635,
+     "original_ms": 17.5805,
+     "port_ms": 13.714,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6459412393401945,
+     "original_ms": 16.05564,
+     "port_ms": 10.371,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.6709297715310439,
+     "original_ms": 16.49502,
+     "port_ms": 11.067,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2684487561195707,
+     "original_ms": 51.0861,
+     "port_ms": 13.714,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "dynamic[b2]",
+     "ratio": 0.19730083478552024,
+     "original_ms": 52.5644,
+     "port_ms": 10.371,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "dynamic[b3]",
+     "ratio": 0.1894083961300238,
+     "original_ms": 58.4293,
+     "port_ms": 11.067,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_25000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.8093238932291666,
+     "original_ms": 3072.0,
+     "port_ms": 2486.243,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.5801317721761691,
+     "original_ms": 28.00743,
+     "port_ms": 16.248,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.5874807885699106,
+     "original_ms": 26.3515,
+     "port_ms": 15.481,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.6152125937913786,
+     "original_ms": 25.48875,
+     "port_ms": 15.681000000000001,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9984550019312476,
+     "original_ms": 2.0712,
+     "port_ms": 2.068,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.988319536482764,
+     "original_ms": 2.80982,
+     "port_ms": 2.777,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.000187015577705,
+     "original_ms": 2.88746,
+     "port_ms": 2.888,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "static[b1]",
+     "ratio": 0.9888997001529022,
+     "original_ms": 30.2154,
+     "port_ms": 29.88,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "static[b2]",
+     "ratio": 0.9930592989657585,
+     "original_ms": 29.8673,
+     "port_ms": 29.66,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "static[b3]",
+     "ratio": 0.9931849009163992,
+     "original_ms": 30.227,
+     "port_ms": 30.021,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6114524505467802,
+     "original_ms": 30.08247,
+     "port_ms": 18.394,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6274671193648507,
+     "original_ms": 29.1585,
+     "port_ms": 18.296,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.6555602460711841,
+     "original_ms": 28.37878,
+     "port_ms": 18.604,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2397308924938451,
+     "original_ms": 76.7277,
+     "port_ms": 18.394,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.23778517715619532,
+     "original_ms": 76.9434,
+     "port_ms": 18.296,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.22428076808085873,
+     "original_ms": 82.9496,
+     "port_ms": 18.604,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7953274760383386,
+     "original_ms": 3130.0,
+     "port_ms": 2489.375,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "maintain[b1]",
+     "ratio": 0.5779926818668505,
+     "original_ms": 51.059470000000005,
+     "port_ms": 29.512,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "maintain[b2]",
+     "ratio": 0.5638566619013238,
+     "original_ms": 49.97192,
+     "port_ms": 28.177,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "maintain[b3]",
+     "ratio": 0.655742672668062,
+     "original_ms": 49.4996,
+     "port_ms": 32.459,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9949393632093423,
+     "original_ms": 4.07261,
+     "port_ms": 4.052,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.9979022531522839,
+     "original_ms": 4.41426,
+     "port_ms": 4.405,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "sosp_update[b3]",
+     "ratio": 0.9998790956353526,
+     "original_ms": 11.5794,
+     "port_ms": 11.578000000000001,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "static[b1]",
+     "ratio": 0.9996998399146211,
+     "original_ms": 29.984,
+     "port_ms": 29.975,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "static[b2]",
+     "ratio": 0.9887768664272311,
+     "original_ms": 30.3213,
+     "port_ms": 29.981,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "static[b3]",
+     "ratio": 0.9971833769827544,
+     "original_ms": 30.3555,
+     "port_ms": 30.27,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6096064975370395,
+     "original_ms": 55.14705000000001,
+     "port_ms": 33.618,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.5989683199284994,
+     "original_ms": 54.42191,
+     "port_ms": 32.597,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7222622714463596,
+     "original_ms": 61.036,
+     "port_ms": 44.084,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2759735995271557,
+     "original_ms": 121.816,
+     "port_ms": 33.618,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "dynamic[b2]",
+     "ratio": 0.2687880337087917,
+     "original_ms": 121.274,
+     "port_ms": 32.597,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "dynamic[b3]",
+     "ratio": 0.33288529789322663,
+     "original_ms": 132.43,
+     "port_ms": 44.084,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_100000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7778338951884769,
+     "original_ms": 3263.0,
+     "port_ms": 2538.072,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "maintain[b1]",
+     "ratio": 0.5344130620004879,
+     "original_ms": 97.28617,
+     "port_ms": 51.991,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "maintain[b2]",
+     "ratio": 0.5343976160514174,
+     "original_ms": 95.4383,
+     "port_ms": 51.001999999999995,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "maintain[b3]",
+     "ratio": 0.590360059028497,
+     "original_ms": 93.22277,
+     "port_ms": 55.035,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9923993974155061,
+     "original_ms": 7.61387,
+     "port_ms": 7.556,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.9999196952434489,
+     "original_ms": 7.96964,
+     "port_ms": 7.969,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "sosp_update[b3]",
+     "ratio": 0.9976021482047105,
+     "original_ms": 7.09802,
+     "port_ms": 7.0809999999999995,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "static[b1]",
+     "ratio": 1.001442875842375,
+     "original_ms": 29.8709,
+     "port_ms": 29.914,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "static[b2]",
+     "ratio": 1.005279944975286,
+     "original_ms": 29.6594,
+     "port_ms": 29.816,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "static[b3]",
+     "ratio": 0.9987122473858622,
+     "original_ms": 29.1205,
+     "port_ms": 29.083,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.5684399204658868,
+     "original_ms": 104.89587,
+     "port_ms": 59.627,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.5705673325058496,
+     "original_ms": 103.40585,
+     "port_ms": 59.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.6195916683770114,
+     "original_ms": 100.32091,
+     "port_ms": 62.158,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "dynamic[b1]",
+     "ratio": 0.28670272869335256,
+     "original_ms": 207.975,
+     "port_ms": 59.627,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "dynamic[b2]",
+     "ratio": 0.2855552597826876,
+     "original_ms": 206.615,
+     "port_ms": 59.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "dynamic[b3]",
+     "ratio": 0.3048784076751783,
+     "original_ms": 203.878,
+     "port_ms": 62.158,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-geology",
+     "backend": "cuda",
+     "clocks": "base",
+     "case": "geology_vertex_200000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7453179618559634,
+     "original_ms": 3513.0,
+     "port_ms": 2618.3019999999997,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_hyperedge_50000",
+     "region": "device_memory",
+     "ratio": 0.5364261486730242,
+     "original_mib": 6879.290319442749,
+     "port_mib": 3690.2312116622925,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_hyperedge_50000",
+     "region": "graph_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_hyperedge_50000",
+     "region": "graph_memory[b1]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_hyperedge_50000",
+     "region": "graph_memory[b2]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_hyperedge_50000",
+     "region": "graph_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_vertex_50000",
+     "region": "device_memory",
+     "ratio": 0.556701848592285,
+     "original_mib": 5431.390377998352,
+     "port_mib": 3023.665063858032,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_vertex_50000",
+     "region": "graph_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_vertex_50000",
+     "region": "graph_memory[b1]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_vertex_50000",
+     "region": "graph_memory[b2]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "dblp_vertex_50000",
+     "region": "graph_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "geology_hyperedge_50000",
+     "region": "device_memory",
+     "ratio": 0.476975412206005,
+     "original_mib": 3414.72221660614,
+     "port_mib": 1628.7385368347168,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "geology_hyperedge_50000",
+     "region": "graph_memory[build]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "geology_hyperedge_50000",
+     "region": "graph_memory[b1]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "geology_hyperedge_50000",
+     "region": "graph_memory[b2]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-memory",
+     "backend": "cuda",
+     "clocks": null,
+     "case": "geology_hyperedge_50000",
+     "region": "graph_memory[b3]",
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    }
+   ],
+   "recorded_not_gated": [
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.668601020739495,
+     "original_ms": 72.0654,
+     "port_ms": 48.183,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.6836352136384146,
+     "original_ms": 57.043580000000006,
+     "port_ms": 38.997,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.7076817900371274,
+     "original_ms": 55.37941,
+     "port_ms": 39.190999999999995,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9950729905906419,
+     "original_ms": 9.51287,
+     "port_ms": 9.466,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.9842847537643186,
+     "original_ms": 4.86343,
+     "port_ms": 4.787,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 0.9900602374946731,
+     "original_ms": 4.34115,
+     "port_ms": 4.298,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "static[b1]",
+     "ratio": 1.0087217823754768,
+     "original_ms": 78.8027,
+     "port_ms": 79.49,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "static[b2]",
+     "ratio": 1.0028297206726535,
+     "original_ms": 79.0184,
+     "port_ms": 79.242,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "static[b3]",
+     "ratio": 0.9991090221518115,
+     "original_ms": 79.9122,
+     "port_ms": 79.841,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.708088393048702,
+     "original_ms": 81.5675,
+     "port_ms": 57.757,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.7087203935113154,
+     "original_ms": 61.896060000000006,
+     "port_ms": 43.867,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7294977770812319,
+     "original_ms": 59.72328,
+     "port_ms": 43.568,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2712716991057338,
+     "original_ms": 212.912,
+     "port_ms": 57.757,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.29350916986156556,
+     "original_ms": 149.457,
+     "port_ms": 43.867,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.29157102225196585,
+     "original_ms": 149.425,
+     "port_ms": 43.568,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_hyperedge_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.713619074733096,
+     "original_ms": 7025.0,
+     "port_ms": 5013.174,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.6006024475113505,
+     "original_ms": 29.26728,
+     "port_ms": 17.578,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.6273551858767239,
+     "original_ms": 27.36249,
+     "port_ms": 17.166,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.6510131827578486,
+     "original_ms": 27.01635,
+     "port_ms": 17.588,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9968081656340144,
+     "original_ms": 3.51522,
+     "port_ms": 3.504,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.0120257638489467,
+     "original_ms": 4.55522,
+     "port_ms": 4.609999999999999,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0047527469162265,
+     "original_ms": 3.26548,
+     "port_ms": 3.2809999999999997,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "static[b1]",
+     "ratio": 0.9920840470597888,
+     "original_ms": 77.9944,
+     "port_ms": 77.377,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "static[b2]",
+     "ratio": 0.9982247835650978,
+     "original_ms": 77.737,
+     "port_ms": 77.599,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "static[b3]",
+     "ratio": 0.9904145183730256,
+     "original_ms": 78.2016,
+     "port_ms": 77.452,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6454818406190866,
+     "original_ms": 32.78636,
+     "port_ms": 21.163,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.684040302390115,
+     "original_ms": 31.91771,
+     "port_ms": 21.833,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.6907573763833557,
+     "original_ms": 30.28415,
+     "port_ms": 20.919,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2508501738278032,
+     "original_ms": 84.3651,
+     "port_ms": 21.163,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.21739953001155055,
+     "original_ms": 100.428,
+     "port_ms": 21.833,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.21314208045581168,
+     "original_ms": 98.1458,
+     "port_ms": 20.919,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "dblp_vertex_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7227284330985916,
+     "original_ms": 6816.0,
+     "port_ms": 4926.117,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.6237119863997994,
+     "original_ms": 52.32864,
+     "port_ms": 32.638,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.7029184962858432,
+     "original_ms": 44.67232,
+     "port_ms": 31.401,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.7215524880771593,
+     "original_ms": 43.51312,
+     "port_ms": 31.397000000000002,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 1.0087027113807716,
+     "original_ms": 3.30127,
+     "port_ms": 3.33,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 1.01312656943052,
+     "original_ms": 3.22171,
+     "port_ms": 3.2640000000000002,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 1.0098949301234317,
+     "original_ms": 3.52908,
+     "port_ms": 3.564,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "static[b1]",
+     "ratio": 1.0337638507125355,
+     "original_ms": 26.8127,
+     "port_ms": 27.718,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "static[b2]",
+     "ratio": 1.032881982309463,
+     "original_ms": 26.4096,
+     "port_ms": 27.278,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "static[b3]",
+     "ratio": 1.0407714522410363,
+     "original_ms": 25.8318,
+     "port_ms": 26.885,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6482003389148938,
+     "original_ms": 55.65409,
+     "port_ms": 36.075,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.7256762262915847,
+     "original_ms": 47.90704,
+     "port_ms": 34.765,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7450331829718848,
+     "original_ms": 47.0422,
+     "port_ms": 35.048,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2609629768949204,
+     "original_ms": 138.238,
+     "port_ms": 36.075,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.33577692783186525,
+     "original_ms": 103.536,
+     "port_ms": 34.765,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.33338723639027085,
+     "original_ms": 105.127,
+     "port_ms": 35.048,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_hyperedge_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.7959116983564293,
+     "original_ms": 3103.0,
+     "port_ms": 2469.714,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "maintain[b1]",
+     "ratio": 0.6453109477615829,
+     "original_ms": 23.79628,
+     "port_ms": 15.356,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "maintain[b2]",
+     "ratio": 0.6577237951400154,
+     "original_ms": 21.97579,
+     "port_ms": 14.454,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "maintain[b3]",
+     "ratio": 0.695537451327467,
+     "original_ms": 21.20806,
+     "port_ms": 14.751,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "sosp_update[b1]",
+     "ratio": 0.9830058475682674,
+     "original_ms": 1.82298,
+     "port_ms": 1.792,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "sosp_update[b2]",
+     "ratio": 0.9815058110156645,
+     "original_ms": 2.47375,
+     "port_ms": 2.428,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "sosp_update[b3]",
+     "ratio": 0.9904855035033693,
+     "original_ms": 2.53613,
+     "port_ms": 2.512,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "static[b1]",
+     "ratio": 1.008324727759407,
+     "original_ms": 26.8237,
+     "port_ms": 27.047,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "static[b2]",
+     "ratio": 1.0105182949604816,
+     "original_ms": 26.7724,
+     "port_ms": 27.054,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "static[b3]",
+     "ratio": 1.0190275000093807,
+     "original_ms": 26.6509,
+     "port_ms": 27.158,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "dynamic_comparable[b1]",
+     "ratio": 0.6711927623027633,
+     "original_ms": 25.642409999999998,
+     "port_ms": 17.211,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "dynamic_comparable[b2]",
+     "ratio": 0.6924667748091993,
+     "original_ms": 24.44305,
+     "port_ms": 16.926,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "dynamic_comparable[b3]",
+     "ratio": 0.7288166857160184,
+     "original_ms": 23.74534,
+     "port_ms": 17.306,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "dynamic[b1]",
+     "ratio": 0.2961337944562019,
+     "original_ms": 58.119,
+     "port_ms": 17.211,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "dynamic[b2]",
+     "ratio": 0.2867540177073909,
+     "original_ms": 59.0262,
+     "port_ms": 16.926,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "dynamic[b3]",
+     "ratio": 0.2909211944142324,
+     "original_ms": 59.4869,
+     "port_ms": 17.306,
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "reading": "cuda-default-clocks",
+     "backend": "cuda",
+     "clocks": "none",
+     "case": "geology_vertex_50000",
+     "region": "load_plus_dynamic",
+     "ratio": 0.816497127407908,
+     "original_ms": 2959.0,
+     "port_ms": 2416.015,
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": false
+    }
+   ],
+   "release_only": [],
+   "passed": true
+  }
+ ],
+ "checks": [],
+ "dry_run": {
+  "algorithm": "hyper_sssp",
+  "what": "a dry run of one algorithm's parts of a certificate: its performance suites (recheck_gates) and golden sets judged as in a release; not a release's certificate",
+  "outside": [
+   "golden set sssp",
+   "golden set cycle_count",
+   "golden set cycle_count_cuda",
+   "golden set mosp_scale",
+   "golden set cbst_trace_escher_gpu_test",
+   "golden set cbst_trace_escher_gpu_targeted",
+   "golden set cbst_trace_mosp_escher_targeted",
+   "golden set cbst_trace_escher_gpu_coauth50k",
+   "golden set cbst_trace_mosp_escher_dblp50k_hyperedge",
+   "golden set cbst_trace_mosp_escher_dblp50k_vertex",
+   "golden set cbst_trace_escher_gpu_syn1m",
+   "golden set cbst_trace_mosp_escher_test",
+   "golden set triad_count_escher_gpu",
+   "golden set label_propagation_generator",
+   "golden set label_propagation_damped",
+   "golden set label_propagation_trace",
+   "golden set label_propagation_hub",
+   "golden set label_propagation_irlp",
+   "golden set label_propagation_inplace",
+   "golden set label_propagation_oracle",
+   "suite ipdps25_dynamosp_sosp (sssp)",
+   "suite ieee_tc_dyntrucy (cycle_count)",
+   "suite ipdps25_dynamosp_mosp (mosp)",
+   "suite ipdps26_escher (triad_count)",
+   "suite tkde26_escher_plus (triad_count)",
+   "suite ics26_dynlp (label_propagation)",
+   "the release checks (checks.json)",
+   "the committed fixtures"
+  ]
+ },
+ "verdict": {
+  "golden_parity": true,
+  "committed_fixtures": "outside this dry run",
+  "performance_gates": true,
+  "checks": "outside this dry run",
+  "problems": [],
+  "passed": true
+ }
+}

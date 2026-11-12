@@ -103,6 +103,7 @@ nanobind_add_module(
   bindings/dynamic_bfs.cpp
   bindings/triangle_delta.cpp
   bindings/triad_count.cpp
+  bindings/hyper_sssp.cpp
   bindings/update.cpp
   bindings/io.cpp
   bindings/generators.cpp

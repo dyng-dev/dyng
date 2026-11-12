@@ -1,0 +1,239 @@
+{
+ "schema": 2,
+ "what": "mutation checks of the golden parity (PLAN 8.4): hyper_sssp",
+ "date": "2026-11-05T12:28:46Z",
+ "commit": "a62a615fb167c62266a856dd88f0fc25e7ddb941",
+ "goldens": {
+  "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
+  "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml",
+  "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the lockstep and graph-on-CBST tests (no golden corpus)",
+  "hyper_sssp": "hyper_sssp's and the slack_csr container's tests: the committed subset of hyper_sssp_mosp_escher (cpp/tests/data/goldens/hyper_sssp) by id, the oracle dyng::testing::hyper_sssp_reference / line_graph_delta, the CBST traces",
+  "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
+  "triad_count": "triad_count's tests against the independent oracle (dyng::testing::triad_reference) on every backend (no golden corpus)"
+ },
+ "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst test executables, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "suite": "hyper_sssp",
+   "config": "cuda",
+   "build": "ok",
+   "replays": [
+    {
+     "suite": "hyper_sssp",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "tests": {
+      "dyng_hyper_sssp_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hsosp_results_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hyper_sssp_conformance_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_ids_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    }
+   ],
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "hsosp_ops_pull_adds_neighbour_weight",
+   "suite": "hyper_sssp",
+   "plan": "M11b 4: #1's twin in the shared engine (the pull adds the neighbour's weight)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_OPS_PULL_ADDS_NEIGHBOUR_WEIGHT"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 13
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ClonesKeepTheResultOnEveryBackend/cuda_operators",
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/cuda_operators",
+      "Backends/HyperSssp.TheRequirementsAreChecked/cuda_operators",
+      "Backends/HyperSssp.TheTwoCudaEnginesGiveTheSameBytes/cuda_operators",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/cuda_operators",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/cuda_operators"
+     ]
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C4_EnginesAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C3_BackendsAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C4_EnginesAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hsosp_ops_non_tight_parent",
+   "suite": "hyper_sssp",
+   "plan": "M11b 4: #2's twin in the shared engine (the warp pull records a non-tight parent)",
+   "defines": [
+    "DYNG_MUTATION_HSOSP_OPS_NON_TIGHT_PARENT"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 10
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.TheTwoCudaEnginesGiveTheSameBytes/cuda_operators",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/cuda_operators",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/cuda_operators"
+     ]
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C4_EnginesAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C3_BackendsAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C4_EnginesAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "sssp_roots_only_operators_hsosp",
+   "suite": "hyper_sssp",
+   "plan": "PLAN 8.4 sssp: a skipped subtree invalidation in the shared operators (pointer jumping marks no descendant) against hyper_sssp's suite on the shared engine (M11b 4)",
+   "file": "cpp/src/algorithms/sssp/operators.cuh",
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 12
+   },
+   "tests": {
+    "dyng_hyper_sssp_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HyperSssp.ThePublicModeEqualsTheVirtualModeOnHPlusTheSourceRow/cuda_operators",
+      "Backends/HyperSssp.TheSharedEngineFallsBackWhenItsWordsCannotHoldTheParents/cuda_operators",
+      "Backends/HyperSssp.TheTwoCudaEnginesGiveTheSameBytes/cuda_operators",
+      "Backends/HyperSssp.TheWorkBudgetRecomputesOrThrows/cuda_operators",
+      "Backends/HyperSssp.TwoResultsOfDifferentSourcesInOneUpdate/cuda_operators",
+      "Backends/HyperSssp.UpdatesEqualComputeAndTheOracle/cuda_operators"
+     ]
+    },
+    "dyng_hsosp_results_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HsospResults.TheSubsetEqualsMospEscherInEveryMode"
+     ]
+    },
+    "dyng_hyper_sssp_conformance_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "hyper_sssp/conformance/hv32_w32.C4_EnginesAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C3_BackendsAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C4_EnginesAgree",
+      "hyper_sssp_shared_engine/conformance/hv32_w32.C5_ABatchAndItsInverseCancel"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}

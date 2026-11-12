@@ -5,3 +5,8 @@
 #include "conformance/conformance.hpp"
 
 DYNG_CONFORMANCE_SUITE(hyper_sssp);
+
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+// M11b criterion 3: the kit on both CUDA engines (C4 compares them in either suite).
+DYNG_CONFORMANCE_SUITE(hyper_sssp_shared_engine);
+#endif

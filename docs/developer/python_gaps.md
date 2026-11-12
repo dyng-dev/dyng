@@ -3,8 +3,9 @@
 PLAN Section 5.4, rule 8: every stable C++ symbol has a Python counterpart, or it is listed here.
 The Python API is described in {doc}`../adr/0011-python-bindings` (ADR 0011). This page lists what
 the Python package does not bind, and why; each entry names the release that closes it, or
-"by design". The hypergraph rows (0.3, M8b), those of `triad_count` (0.3, M9b) and those of
-`label_propagation` (0.4, M10b) are in their own tables below.
+"by design". The hypergraph rows (0.3, M8b), those of `triad_count` (0.3, M9b), those of
+`label_propagation` (0.4, M10b) and those of `hyper_sssp` (0.4, M11b) are in their own tables
+below.
 
 ## C++ symbols without a Python counterpart
 
@@ -26,7 +27,7 @@ the Python package does not bind, and why; each entry names the release that clo
 | `to_string(...)` of the enumerations | enumerations are strings in Python | by design |
 | `testing::edge_set_after_batch()` | `dyng.testing.oracles.GraphModel.apply()` (pure Python) | by design |
 | `testing::check_sssp_tree()` on arrays (without a result) | `dyng.testing.check_sssp_tree(graph, result)` | after 0.2.0 (not in 0.2.0) |
-| `dyng::update(res, g, batch, r...)` with `dynamic_bfs::result` or `triangle_delta::result` | `dyng.update()` accepts sssp, cycle_count and mosp results over a graph and `dyng.triad_count` results over a hypergraph only; call `dyng.dynamic_bfs.update()` / `dyng.triangle_delta.update()` | by design: teaching algorithms (ADR 0033) |
+| `dyng::update(res, g, batch, r...)` with `dynamic_bfs::result` or `triangle_delta::result` | `dyng.update()` accepts sssp, cycle_count and mosp results over a graph and `dyng.triad_count` and `dyng.hyper_sssp` results over a hypergraph only; call `dyng.dynamic_bfs.update()` / `dyng.triangle_delta.update()` | by design: teaching algorithms (ADR 0033) |
 | `experimental::count_local_patterns<op_t>`, `local_patterns_result<op_t>`, `local_patterns_stats`, the Op concept (`max_pattern_bins`, `max_op_size`, `DYNG_EXPERIMENTAL_CHECK_HOST_CALLBACKS`), `member_span`, `hyperedge_rows`, the set helpers, `experimental::access_rows()` (`<dyng/experimental/local_patterns.hpp>`, `.cuh`) | none | by design: C++ and nvcc only. An Op is compiled into the engine's kernels, so it cannot come from Python; the experimental tier is not bound (ADR 0058). The four built-in Ops are `dyng.triad_count`'s patterns |
 
 ## PLAN 5.4 features that are not in the 0.1 Python package
@@ -53,14 +54,14 @@ except:
 | C++ | Python in 0.3 | Why, and when |
 |---|---|---|
 | `hypergraph::h2v()`, `v2h()`, `h2h()` (zero-copy views in the container's memory space) | `Hypergraph.h2v()`, `v2h()`, `h2h()` return host copies (`dyng.Incidence`, `dyng.LineGraph`) | a view is invalidated by the next `apply()` (the rule of `graph::view()` above); zero-copy device views need the Array staleness rule for containers; after 0.3 |
-| `line_graph_view::overlaps` | none | always empty under `hypergraph_storage::escher` (ADR 0041, section 7); with `slack_csr` (0.4, M11) |
+| `line_graph_view::overlaps` | none | always empty, under `hypergraph_storage::escher` (ADR 0041, section 7) and under `slack_csr` (0.4; HD9) |
 | `line_graph_view::weights` | `Hypergraph.weights` (the same array: the weights by id) | by design |
 | `hyperedge_batch::delete_hyperedge()`, `insert_hyperedge()`, `delete_incidence()`, `insert_incidence()`, `reserve()`, `clear()` (and the `initializer_list` overloads) | `dyng.HyperedgeBatch(delete_hyperedges=..., insert_hyperedges=..., insert_offsets=..., insert_members=..., delete_incidences=..., insert_incidences=...)` from arrays | by design (as `edge_batch`'s builders) |
 | `hyperedge_list<V,W>`, `hyperedge_list::add_hyperedge()`, `hyperedge_list_view<V,W>`, `hyperedge_batch_view<V,W>` | `dyng.HyperedgeList` (NumPy arrays), `Hypergraph.from_lists()` | by design |
 | `hypergraph<int32, W>` with another vertex type | int32 vertex ids only; int64 member arrays raise `NotSupportedError` unless `vertex_dtype="int32"` (checked) | the library instantiates (int32, unweighted) and (int32, int32) only (PLAN 4.4.3) |
 | `io::batch_reader(res, path)` (device views staged through pinned buffers) | `dyng.io.BatchReader(path)` gives host batches | Python batches are host objects (`dyng.Hypergraph.apply()` stages them; the same rule as graph batches above); with device-resident batches (after 0.3) |
 | `io::batch_writer` (record by record) | `dyng.io.write_binary_batches(path, batches, ...)` writes a whole list | a streaming writer from Python is not needed by the parity or benchmark tools; after 0.3 if asked |
-| `io::edge_batch_file_header()`, `hyperedge_batch_file_header()`, `batch_file_flags` | `dyng.io.BatchFileHeader` (read side; the flags as `deleted_members`, `expected_ids`, `insert_first`); `write_binary_batches()` sets them from its arguments | by design |
+| `io::edge_batch_file_header()`, `hyperedge_batch_file_header()`, `batch_file_flags` | `dyng.io.BatchFileHeader` (read side; the flags as `deleted_members`, `expected_ids`, `insert_first` and, from 0.4, `incidence_edits`); `write_binary_batches()` sets them from its arguments and (`incidence_edits`) from the batches | by design |
 | `generators::random_hyperedge_batch(num_vertices, h2v, weights, opt)` (the rows overload) | `dyng.generators.random_hyperedge_batch(hypergraph, ...)` (the hypergraph overload) | by design: the rows of a Python hypergraph come from the hypergraph |
 | `generators::legacy::escher_batch_options::batch_size()` and the `escher_hypergraph_options` / `escher_batch_options` aggregates | keywords of `escher_hypergraph()` and `EscherBatchGenerator(..., batch_size=...)` | by design |
 | `testing::cbst_host_model` and its policy, layout and event types | none | a model of the store's trees for the store's own tests (C++ contributors who change the store); not a user-facing oracle; by design |
@@ -102,3 +103,22 @@ label files has a counterpart in `dyng.label_propagation`, `dyng.Graph`, `dyng.E
 | `testing::harmonic_options`, `label_error`, `label_error_against()`, `class_agreement`, `class_agreement_with()` | `dyng.testing.harmonic_solution(graph, seed_labels, relative_tolerance=, max_iterations=, num_threads=)`, `HarmonicResult.error(labels)` (mean and max \|F - F*\|) | the class comparisons are the parity harness's (C++); after 0.4 if users ask |
 | `testing::union_find`, `testing::lp_host_model` | none | the conformance kit's and the parity harness's models (C++ tests); by design |
 | `detail::label_propagation_supported_v`, `DYNG_LABEL_PROPAGATION_TYPES_MESSAGE` | `NotSupportedError` naming the float32 graphs | by design (dtype dispatch) |
+
+## hyper_sssp symbols without a Python counterpart (0.4, M11b)
+
+`<dyng/hyper_sssp.hpp>` is `dyng.hyper_sssp` (ADR 0097): `BudgetAction`, `FallbackReason` (the
+enumerations, also their names as strings), `INFINITE_DISTANCE`, `Options`, `Stats`, `Result`
+(`hyperedge_distances`, `hyperedge_parents`, `distance_to()`, `vertex_distances()`, `source`,
+`options`, `set_options()`, `graph_version`, `space`, `clone()`), `compute()`, `update()`;
+`dyng.update()` over hypergraphs takes its results; the container's incidence edits and
+`storage="slack_csr"` (M11b); `dyng.testing.hyper_sssp_reference()` and `check_hyper_sssp_tree()`
+for the oracle. Every frozen symbol has its counterpart, except:
+
+| C++ | Python in 0.4 | Why, and when |
+|---|---|---|
+| `hyper_sssp::result::get_options()`, `set_options()` | `Result.options`, `Result.set_options()` | by design (the other results' spelling) |
+| `hyper_sssp::to_string(budget_action)`, `to_string(fallback_reason)` | `str(BudgetAction.error)`, `str(FallbackReason.none)` (`StrEnum`s) | by design |
+| `DYNG_HYPER_SSSP_TYPES_MESSAGE` | `NotSupportedError` from `dyng.hyper_sssp.compute()` on an unweighted `dyng.Hypergraph` (the one other type it holds) | by design: a compile-time message |
+| `DYNG_HYPER_SSSP_CONTAINER_MESSAGE` | `TypeError` from `dyng.update(graph, batch, result)` with a `dyng.Graph`: "argument N is a dyng.hyper_sssp.Result, a result of a hypergraph algorithm; dyng.update() takes a dyng.Hypergraph for it" | by design: a compile-time message |
+| `testing::hyper_sssp_reference()` and `check_hyper_sssp_tree()` on arrays, with a source hyperedge (`source_is_vertex = false`) | `dyng.testing.hyper_sssp_reference(hypergraph, source)` and `check_hyper_sssp_tree(hypergraph, result)`: a source vertex, the rows and weights of a hypergraph | the public mode (a source vertex) covers the Python tests; the source-hyperedge mode is the parity harness's |
+| `testing::line_graph_delta()` (tracked) | none | the pair delta of two states is checked by the C++ tests and the parity harness; after 0.4 if asked |

@@ -171,8 +171,17 @@ class HypergraphModel:
         insert_hyperedges: Sequence[Sequence[int]],
         insert_weights: Sequence[int] | None,
         inserted_ids: Sequence[int],
+        *,
+        delete_incidences: Sequence[tuple[int, int]] = (),
+        insert_incidences: Sequence[tuple[int, int]] = (),
     ) -> dict[str, int]:
         """Apply a batch with the ids the hypergraph gave; returns the summary's counts.
+
+        The incidence edits (0.4, ``(hyperedge, vertex)`` pairs) run after the deletions and
+        before the insertions, removals first, each in batch order, with ``apply()``'s skip rules:
+        an edit of a hyperedge that is not live then (out of range, dead or deleted by the batch)
+        or of a vertex out of range, a removal of a non-member or of a hyperedge's last member and
+        an addition of a member are skipped and counted in ``skipped_ops``.
 
         Raises:
             AssertionError: the ids are not a valid choice.
@@ -198,6 +207,24 @@ class HypergraphModel:
             del self.rows[h]
             if self.weights is not None:
                 self.weights.pop(h, None)
+        removed = added = skipped_edits = 0
+        for h, v in delete_incidences:
+            row = self.rows.get(int(h)) if int(h) not in deleted else None
+            if row is None or not 0 <= int(v) < self.num_vertices or int(v) not in row:
+                skipped_edits += 1
+            elif len(row) == 1:
+                skipped_edits += 1  # the last member stays: a hyperedge is never emptied
+            else:
+                row.remove(int(v))
+                removed += 1
+        for h, v in insert_incidences:
+            row = self.rows.get(int(h)) if int(h) not in deleted else None
+            if row is None or not 0 <= int(v) < self.num_vertices or int(v) in row:
+                skipped_edits += 1
+            else:
+                row.append(int(v))
+                row.sort()
+                added += 1
         for k, i in enumerate(ids):
             self.rows[i] = rows[k]
             if self.weights is not None and insert_weights is not None:
@@ -207,7 +234,9 @@ class HypergraphModel:
             "deleted_hyperedges": len(deleted),
             "ignored_deletions": ignored,
             "dropped_members": dropped,
-            "skipped_ops": ignored + dropped,  # 0.3: no incidence edits to skip
+            "inserted_incidences": added,
+            "deleted_incidences": removed,
+            "skipped_ops": ignored + dropped + skipped_edits,
             "num_hyperedges_after": len(self.rows),
         }
 

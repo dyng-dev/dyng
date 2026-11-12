@@ -38,38 +38,51 @@ dyng::resources backend() {
 }
 
 hr::report replay(const std::vector<hd::record>& recs, hr::mode m = hr::mode::by_id,
-                  bool check_compute = false) {
+                  bool check_compute = false, dyng::engine e = dyng::engine::automatic) {
   hr::options opt;
   opt.mode = m;
   opt.check_compute = check_compute;
+  opt.cuda_engine = e;
   return hr::replay(recs, backend(), opt, "subset");
+}
+
+/// The CUDA engines a replay runs (M11b: both; the host has one).
+std::vector<dyng::engine> engines() {
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+  return {dyng::engine::fused, dyng::engine::operators};
+#else
+  return {dyng::engine::automatic};
+#endif
 }
 
 TEST(HsospResults, TheSubsetEqualsMospEscherInEveryMode) {
   const auto recs = hd::read_dump(subset);
-  for (const hr::mode m : {hr::mode::by_id, hr::mode::by_id_public, hr::mode::by_key}) {
-    const hr::report rep = replay(recs, m, true);
-    SCOPED_TRACE(rep.mode);
-    EXPECT_TRUE(rep.ok()) << (rep.mismatches.empty() ? "" : rep.mismatches.front());
-    EXPECT_EQ(rep.stopped_sessions, 0);
-    EXPECT_GT(rep.updates, 0);
-    EXPECT_GT(rep.recomputes, 0);
-    EXPECT_GT(rep.ids_compared, 0);
-    EXPECT_EQ(rep.compute_checked, rep.updates - rep.not_checked);
-    EXPECT_EQ(rep.not_checked, 0);
-    EXPECT_GT(rep.b_fallbacks, 0);  // the subset forces a fallback (workBudget 0)
-    if (m != hr::mode::by_id) {
-      EXPECT_GT(rep.canonical_checked, 0);
+  for (const dyng::engine e : engines())
+    for (const hr::mode m : {hr::mode::by_id, hr::mode::by_id_public, hr::mode::by_key}) {
+      const hr::report rep = replay(recs, m, true, e);
+      SCOPED_TRACE(rep.mode + (e == dyng::engine::operators ? " (engine::operators)" : ""));
+      EXPECT_TRUE(rep.ok()) << (rep.mismatches.empty() ? "" : rep.mismatches.front());
+      EXPECT_EQ(rep.stopped_sessions, 0);
+      EXPECT_GT(rep.updates, 0);
+      EXPECT_GT(rep.recomputes, 0);
+      EXPECT_GT(rep.ids_compared, 0);
+      EXPECT_EQ(rep.compute_checked, rep.updates - rep.not_checked);
+      EXPECT_EQ(rep.not_checked, 0);
+      EXPECT_GT(rep.b_fallbacks, 0);  // the subset forces a fallback (workBudget 0)
+      if (m != hr::mode::by_id) {
+        EXPECT_GT(rep.canonical_checked, 0);
+      }
     }
-  }
 }
 
 TEST(HsospResults, TheFallbackDecisionsAreTabulated) {
-  const hr::report rep = replay(hd::read_dump(subset));
-  EXPECT_EQ(rep.fallback_equal + rep.fallback_differ, rep.updates - rep.not_checked);
-  EXPECT_EQ(rep.dyng_fallbacks, rep.b_fallbacks);  // workBudget 0: deterministic on both sides
-  ASSERT_FALSE(rep.calls.empty());
-  for (const hr::call_digest& c : rep.calls) EXPECT_EQ(c.distances.size(), 64U);
+  for (const dyng::engine e : engines()) {
+    const hr::report rep = replay(hd::read_dump(subset), hr::mode::by_id, false, e);
+    EXPECT_EQ(rep.fallback_equal + rep.fallback_differ, rep.updates - rep.not_checked);
+    EXPECT_EQ(rep.dyng_fallbacks, rep.b_fallbacks);  // workBudget 0: deterministic on both sides
+    ASSERT_FALSE(rep.calls.empty());
+    for (const hr::call_digest& c : rep.calls) EXPECT_EQ(c.distances.size(), 64U);
+  }
 }
 
 /// The index of the n-th record with `tag` (and `kind`, for sssp records), or recs.size().

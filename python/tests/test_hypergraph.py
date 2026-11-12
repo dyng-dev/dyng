@@ -151,12 +151,74 @@ def test_a_huge_slack_or_headroom_saturates(policy: dyng.CapacityPolicy) -> None
     assert h.num_hyperedges == 2
 
 
-@pytest.mark.parametrize("value", ["slack_csr"])
-def test_slack_csr_is_planned_for_0_4(value: str) -> None:
-    with pytest.raises(dyng.NotSupportedError, match="0.4"):
-        dyng.Hypergraph.from_lists([[0]], storage=value)  # type: ignore[arg-type]
-    with pytest.raises(dyng.NotSupportedError, match="0.4"):
-        dyng.Hypergraph.from_lists([[0]], line_graph=value)  # type: ignore[arg-type]
+def test_the_storage_and_line_graph_matrix(hres: dyng.Resources) -> None:
+    # 0.4 (HD9): slack_csr storage with line_graph none, automatic (-> slack_csr) or slack_csr;
+    # escher storage with none, automatic (-> sorted_merge) or sorted_merge. The 0.3 refusal of
+    # "slack_csr" by the Python layer is lifted (M11b).
+    for storage, line_graph in [
+        ("slack_csr", "slack_csr"),
+        ("slack_csr", "automatic"),
+        ("slack_csr", "none"),
+        ("escher", "sorted_merge"),
+    ]:
+        h = dyng.Hypergraph.from_lists(
+            [[0, 1], [1, 2], [3]],
+            storage=storage,  # type: ignore[arg-type]
+            line_graph=line_graph,  # type: ignore[arg-type]
+            resources=hres,
+        )
+        assert (h.properties.storage, h.properties.line_graph) == (storage, line_graph)
+        if line_graph != "none":
+            assert h.h2h().col_ind.tolist() == [1, 0]
+    for storage, line_graph in [("escher", "slack_csr"), ("slack_csr", "sorted_merge")]:
+        with pytest.raises(dyng.NotSupportedError, match=storage):
+            dyng.Hypergraph.from_lists(
+                [[0]],
+                storage=storage,  # type: ignore[arg-type]
+                line_graph=line_graph,  # type: ignore[arg-type]
+                resources=hres,
+            )
+    with pytest.raises(dyng.InvalidArgumentError, match="store_v2h"):
+        dyng.Hypergraph.from_lists([[0]], storage="slack_csr", store_v2h=False, resources=hres)
+
+
+@pytest.mark.parametrize("reuse", ["erase_first", "insert_first"])
+def test_incidence_edits_on_slack_csr(hres: dyng.Resources, reuse: str) -> None:
+    lists = [[0, 1, 2], [2, 3], [4, 5], [1, 5]]
+    h = dyng.Hypergraph.from_lists(
+        lists,
+        storage="slack_csr",
+        id_reuse=reuse,
+        resources=hres,  # type: ignore[arg-type]
+    )
+    model = HypergraphModel(6, lists, reuse=reuse)
+    # removals: applied, a repeat, applied, the last member of {2}, a vertex out of range, a dead
+    # id, a hyperedge the batch deletes; additions: applied, a member, a hyperedge the batch
+    # deletes, an id out of range, a hyperedge the batch deletes
+    removals = [(0, 1), (0, 1), (1, 3), (1, 2), (2, 9), (7, 0), (3, 1)]
+    additions = [(2, 0), (2, 4), (3, 3), (-1, 0), (3, 1)]
+    b = dyng.HyperedgeBatch(
+        delete_hyperedges=[3],
+        insert_hyperedges=[[0, 3]],
+        delete_incidences=([e[0] for e in removals], [e[1] for e in removals]),
+        insert_incidences=([e[0] for e in additions], [e[1] for e in additions]),
+    )
+    assert b.num_incidence_edits == 12 and not b.empty and "incidence_edits=12" in repr(b)
+    assert b.delete_incidences[0].tolist() == [e[0] for e in removals]
+    s = h.apply(b)
+    want = model.apply(
+        [3], [[0, 3]], None, s.inserted_ids, delete_incidences=removals, insert_incidences=additions
+    )
+    for name, value in want.items():
+        assert getattr(s, name) == value, name
+    assert (s.deleted_incidences, s.inserted_incidences) == (2, 1)
+    assert s.skipped_ops == 9
+    assert rows(h) == model.rows_by_id(h.hyperedge_id_bound)
+    assert h.h2h().col_ind.tolist() == [
+        j for r in model.line_graph(h.hyperedge_id_bound) for j in r
+    ]
+    h.check_integrity()
+    assert dyng.HyperedgeBatch().delete_incidences[0].size == 0
 
 
 # -- batches and ids ----------------------------------------------------------------------------
@@ -204,7 +266,7 @@ def test_validation_errors_change_nothing(hres: dyng.Resources) -> None:
         with pytest.raises(dyng.InvalidArgumentError):
             h.apply(bad)
         assert (h.version, rows(h), h.to_hyperedge_list().to_lists()) == before
-    with pytest.raises(dyng.NotSupportedError, match="0.4"):
+    with pytest.raises(dyng.NotSupportedError, match="slack_csr"):  # escher storage (HD9)
         h.apply(dyng.HyperedgeBatch(delete_incidences=([0], [1])))
     assert (h.version, rows(h)) == before[:2]
 

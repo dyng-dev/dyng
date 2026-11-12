@@ -1,0 +1,36 @@
+{
+ "record": "the planted one-instruction change of parity/sssp_sass.py plant",
+ "plant": {
+  "file": "cpp/src/algorithms/sssp/operators.cuh",
+  "old": "if (nd <= max_distance) {  // larger: never shortest, may not fit",
+  "new": "if (nd < max_distance) {  // PLANTED (parity/sssp_sass.py plant)"
+ },
+ "results": {
+  "unplanted": {
+   "differ": [],
+   "instructions": {}
+  },
+  "planted": {
+   "differ": [
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE",
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE",
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE"
+   ],
+   "instructions": {
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": [
+     160,
+     160
+    ],
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": [
+     168,
+     168
+    ],
+    "_ZN4dyng6detail14sssp_operators11pull_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": [
+     168,
+     168
+    ]
+   }
+  }
+ },
+ "caught": true
+}

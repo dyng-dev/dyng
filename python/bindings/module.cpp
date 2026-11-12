@@ -80,6 +80,7 @@ NB_MODULE(_core, m) {
   bind_dynamic_bfs(m);
   bind_triangle_delta(m);
   bind_triad_count(m);
+  bind_hyper_sssp(m);
   bind_update(m);
   bind_io(m);
   bind_generators(m);

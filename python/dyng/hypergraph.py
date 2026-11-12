@@ -5,7 +5,9 @@
 A hypergraph holds hyperedges (sets of vertices) identified by 0-based int64 ids. Hyperedge i of
 :meth:`Hypergraph.from_hyperedges` gets id i; a batch (:class:`HyperedgeBatch`) deletes
 hyperedges by id and inserts new ones, whose ids the store's best-fit reuse chooses and
-:attr:`HyperApplySummary.inserted_ids` reports (read them there, never predict them). The C++
+:attr:`HyperApplySummary.inserted_ids` reports (read them there, never predict them), and (0.4,
+``storage="slack_csr"``) removes vertices from and adds vertices to live hyperedges (incidence
+edits). The C++
 API is ``dyng::hypergraph<V, W>`` (``<dyng/hypergraph/hypergraph.hpp>``); the concepts page
 "Hypergraphs and hyperedge ids" of the documentation explains ids, ``id_reuse`` and the
 capacity presets.
@@ -156,14 +158,20 @@ class HypergraphProperties:
     """The properties of a hypergraph, fixed at construction (C++ ``dyng::hypergraph_properties``).
 
     Attributes:
-        storage: ``"escher"`` (the ESCHER store; ``"slack_csr"`` is planned for 0.4).
+        storage: ``"escher"`` (the ESCHER store, the default) or ``"slack_csr"`` (0.4:
+            MOSP_ESCHER's host incidence model and slack CSR line graph; the storage of incidence
+            edits and of :mod:`dyng.hyper_sssp`).
         line_graph: ``"none"`` (:meth:`Hypergraph.h2h` raises), ``"automatic"`` (built when
-            first read, then maintained), ``"sorted_merge"`` (built with the hypergraph and
-            maintained by every batch); ``"slack_csr"`` is planned for 0.4.
+            first read, then maintained: ``"sorted_merge"`` under escher storage,
+            ``"slack_csr"`` under slack_csr storage), ``"sorted_merge"`` (escher storage: built
+            with the hypergraph and maintained by every batch) or ``"slack_csr"`` (slack_csr
+            storage: the slack CSR line graph, kept from every batch's pair delta). The other
+            two combinations raise :class:`~dyng.NotSupportedError`.
         reuse: The order of a batch's deletions and insertions, which decides the reused ids:
             ``"erase_first"`` (ESCHER's order, the default) or ``"insert_first"`` (H-SOSP's).
         capacity: Sizing and growth of the storage (:class:`CapacityPolicy`).
-        store_v2h: Keep vertex -> hyperedges (:meth:`Hypergraph.v2h`, the line graph).
+        store_v2h: Keep vertex -> hyperedges (:meth:`Hypergraph.v2h`, the line graph;
+            ``storage="slack_csr"`` needs it).
     """
 
     storage: StorageName = "escher"
@@ -183,14 +191,6 @@ class HypergraphProperties:
         )
 
     def _to_native(self) -> Any:
-        if "slack_csr" in (self.storage, self.line_graph):
-            # The C++ container has slack_csr storage from 0.4 (M11a); its Python layer (the
-            # incidence edits, hyper_sssp) comes with M11b, until then the Python layer keeps
-            # refusing it as 0.3 did.
-            raise NotSupportedError(
-                'storage="slack_csr" and line_graph="slack_csr" are planned for the Python layer '
-                'of 0.4; use storage="escher"'
-            )
         p = native.HypergraphProperties()
         p.storage = enum_member(native.HypergraphStorage, self.storage, "storage")
         p.line_graph = enum_member(native.LineGraphPolicy, self.line_graph, "line_graph")
@@ -236,10 +236,12 @@ class HyperApplySummary:
     Attributes:
         inserted_hyperedges: Hyperedges inserted.
         deleted_hyperedges: Live hyperedges deleted.
-        inserted_incidences: Incidences added by incidence edits (0.4).
-        deleted_incidences: Incidences removed by incidence edits (0.4).
-        skipped_ops: Every skipped operation: in 0.3 ``ignored_deletions + dropped_members``;
-            incidence edits (0.4) add the edits they skip.
+        inserted_incidences: (hyperedge, vertex) incidences added by incidence edits (0.4).
+        deleted_incidences: (hyperedge, vertex) incidences removed by incidence edits (0.4).
+        skipped_ops: Every skipped operation: ``ignored_deletions + dropped_members`` plus the
+            incidence edits the batch skips (0.4: an edit of a dead, deleted or out-of-range
+            hyperedge or an out-of-range vertex, a removal of a non-member or of a hyperedge's
+            last member, an addition of a member).
         ignored_deletions: Deletions of dead, out-of-range or repeated ids.
         dropped_members: Repeated members of inserted hyperedges dropped.
         num_hyperedges_after: Live hyperedges after the batch.
@@ -433,12 +435,21 @@ def _native_class(weighted: bool) -> Any:
 
 
 class HyperedgeBatch:
-    """A batch of hypergraph changes: hyperedge deletions (by id) and insertions (member lists).
+    """A batch of hypergraph changes: hyperedge deletions (by id) and insertions (member lists),
+    and (0.4) incidence edits: vertices removed from and added to live hyperedges.
 
     The order in which deletions and insertions reach the store is a property of the hypergraph
     (:attr:`HypergraphProperties.reuse`); the ids of the inserted hyperedges are reported by
     :attr:`HyperApplySummary.inserted_ids`. Deletions of dead, out-of-range or repeated ids are
     skipped and counted, as are repeated members of an inserted hyperedge.
+
+    Incidence edits apply on ``storage="slack_csr"`` only (escher storage raises
+    :class:`~dyng.NotSupportedError`, nothing changed). They are evaluated after the batch's
+    deletions and before its insertions, removals before additions, each in batch order (the
+    phase order of MOSP_ESCHER): an edit of a dead, deleted or out-of-range hyperedge (an id the
+    batch inserts is one), of an out-of-range vertex, a removal of a non-member or of a
+    hyperedge's last member, and an addition of a member are skipped and counted in
+    :attr:`HyperApplySummary.skipped_ops`.
 
     The arrays are kept as given and converted, with range checks, to the hypergraph's types at
     every use (int64 ids are never narrowed silently).
@@ -451,9 +462,10 @@ class HyperedgeBatch:
         insert_weights: One weight per inserted hyperedge (a weighted hypergraph).
         insert_offsets: CSR offsets of the inserted hyperedges (insertions + 1, from 0).
         insert_members: CSR members of the inserted hyperedges.
-        delete_incidences: ``(hyperedges, vertices)``: vertices removed from live hyperedges
-            (planned for 0.4: applying such a batch raises :class:`~dyng.NotSupportedError`).
-        insert_incidences: ``(hyperedges, vertices)``: vertices added to live hyperedges (0.4).
+        delete_incidences: ``(hyperedges, vertices)``: vertex ``vertices[k]`` removed from the
+            live hyperedge ``hyperedges[k]`` (0.4, ``storage="slack_csr"``).
+        insert_incidences: ``(hyperedges, vertices)``: vertex ``vertices[k]`` added to the live
+            hyperedge ``hyperedges[k]`` (0.4, ``storage="slack_csr"``).
 
     Examples:
         >>> import dyng
@@ -462,6 +474,9 @@ class HyperedgeBatch:
         ... )
         >>> b.num_deletions, b.num_insertions
         (2, 2)
+        >>> e = dyng.HyperedgeBatch(delete_incidences=([4], [9]), insert_incidences=([4], [2]))
+        >>> e.num_incidence_edits
+        2
     """
 
     __slots__ = ("_del", "_offsets", "_members", "_weights", "_del_inc", "_ins_inc")
@@ -540,9 +555,23 @@ class HyperedgeBatch:
 
     @classmethod
     def _from_arrays(cls, parts: tuple[Any, ...]) -> HyperedgeBatch:
-        """A batch from a native (delete ids, offsets, members, weights or None) tuple."""
-        deletions, offsets, members, weights = parts
-        return cls(deletions, None, weights, insert_offsets=offsets, insert_members=members)
+        """A batch from a native (delete ids, offsets, members, weights or None[, removals'
+        hyperedges, removals' vertices, additions' hyperedges, additions' vertices]) tuple."""
+        deletions, offsets, members, weights = parts[:4]
+        removals = additions = None
+        if len(parts) > 4:
+            dh, dv, ih, iv = parts[4:8]
+            removals = (dh, dv) if dh.size else None
+            additions = (ih, iv) if ih.size else None
+        return cls(
+            deletions,
+            None,
+            weights,
+            insert_offsets=offsets,
+            insert_members=members,
+            delete_incidences=removals,
+            insert_incidences=additions,
+        )
 
     # -- properties ----------------------------------------------------------------------------
     @property
@@ -566,6 +595,27 @@ class HyperedgeBatch:
         return self._weights
 
     @property
+    def delete_incidences(self) -> tuple[np.ndarray, np.ndarray]:
+        """The incidence removals ``(hyperedges, vertices)`` (0.4; two empty arrays if none)."""
+        return self._edits(self._del_inc)
+
+    @property
+    def insert_incidences(self) -> tuple[np.ndarray, np.ndarray]:
+        """The incidence additions ``(hyperedges, vertices)`` (0.4; two empty arrays if none)."""
+        return self._edits(self._ins_inc)
+
+    @staticmethod
+    def _edits(pair: tuple[np.ndarray, np.ndarray] | None) -> tuple[np.ndarray, np.ndarray]:
+        if pair is None:
+            return np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.int64)
+        return pair
+
+    @property
+    def num_incidence_edits(self) -> int:
+        """The number of incidence removals and additions (0.4)."""
+        return sum(int(p[0].size) for p in (self._del_inc, self._ins_inc) if p is not None)
+
+    @property
     def num_insertions(self) -> int:
         """The number of inserted hyperedges."""
         return int(self._offsets.size) - 1
@@ -579,10 +629,7 @@ class HyperedgeBatch:
     def empty(self) -> bool:
         """Whether the batch changes nothing."""
         return (
-            self.num_insertions == 0
-            and self.num_deletions == 0
-            and self._del_inc is None
-            and self._ins_inc is None
+            self.num_insertions == 0 and self.num_deletions == 0 and self.num_incidence_edits == 0
         )
 
     def insertions(self) -> list[list[int]]:
@@ -591,9 +638,10 @@ class HyperedgeBatch:
         return [self._members[int(o[i]) : int(o[i + 1])].tolist() for i in range(o.size - 1)]
 
     def __repr__(self) -> str:
+        edits = f", incidence_edits={self.num_incidence_edits}" if self.num_incidence_edits else ""
         return (
             f"dyng.HyperedgeBatch(deletions={self.num_deletions}, "
-            f"insertions={self.num_insertions}, weighted={self._weights is not None})"
+            f"insertions={self.num_insertions}{edits}, weighted={self._weights is not None})"
         )
 
     # -- native --------------------------------------------------------------------------------
@@ -719,8 +767,8 @@ class Hypergraph:
         Raises:
             InvalidArgumentError: a member out of range, an empty hyperedge, malformed offsets,
                 a weight outside [1, 2^31 - 1].
-            NotSupportedError: int64 members without ``vertex_dtype="int32"``, ``"slack_csr"``
-                (planned for 0.4), or a CUDA backend without a CUDA build.
+            NotSupportedError: int64 members without ``vertex_dtype="int32"``, or a CUDA backend
+                without a CUDA build.
             CapacityError: the storage exceeds the capacity policy.
             OutOfMemoryError: host or device memory cannot be allocated (also a
                 ``MemoryError``); no hypergraph is made.
@@ -918,8 +966,9 @@ class Hypergraph:
     def apply(
         self, batch: HyperedgeBatch, *, resources: Resources | None = None
     ) -> HyperApplySummary:
-        """Apply a batch: delete hyperedges by id and insert new ones, in the order of
-        :attr:`HypergraphProperties.reuse`.
+        """Apply a batch: delete hyperedges by id, apply its incidence edits (0.4, slack_csr
+        storage) and insert new hyperedges, in the order of :attr:`HypergraphProperties.reuse`
+        (see :class:`HyperedgeBatch` for the order of the edits and what is skipped).
 
         Returns:
             What the batch did; ``inserted_ids`` holds the id of every inserted hyperedge.
@@ -927,7 +976,8 @@ class Hypergraph:
         Raises:
             InvalidArgumentError: a member out of range, an empty inserted hyperedge, a weight
                 outside [1, 2^31 - 1]; nothing is changed.
-            NotSupportedError: incidence edits (planned for 0.4); nothing is changed.
+            NotSupportedError: incidence edits on escher storage (they need
+                ``storage="slack_csr"``); nothing is changed.
             CapacityError: the storage exceeds its policy (the hypergraph is then unusable).
             OutOfMemoryError: host or device memory cannot be allocated (also a
                 ``MemoryError``): before the store changes, nothing is changed; inside the

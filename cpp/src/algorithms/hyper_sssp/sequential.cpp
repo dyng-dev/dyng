@@ -63,7 +63,8 @@ std::size_t hyper_sssp_workspace::bytes() const noexcept {
           next.capacity() + affected.capacity() + base32.capacity() + lost32.capacity() +
           gained32.capacity() + initial32.capacity()) *
              sizeof(int) +
-         heap.capacity() * sizeof(entry);
+         heap.capacity() * sizeof(entry) + ops_from.bytes() + ops_to.bytes() + ops_heads.bytes() +
+         ops_lists.bytes();
 }
 
 namespace {

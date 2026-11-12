@@ -1940,7 +1940,8 @@ def certificate_record(args, part: str, reports: list[dict], problems: list[str]
     <dir>/parity-hyper_sssp_mosp_escher-<backend>-hyper_sssp-<mode|store>.json."""
     dirty = subprocess.run(["git", "-C", str(REPO), "diff", "--quiet", "HEAD"]).returncode != 0
     feature = args.mode if part == "results" else "store"
-    config = f"{args.backend}:hyper_sssp/{feature}"
+    label = backend_label(args) if part == "results" else args.backend
+    config = f"{label}:hyper_sssp/{feature}"
     manifest = set_dir(args.scratch) / "MANIFEST.sha256"
     matrix: dict[str, dict[str, str]] = {}
     for r in reports:  # a case run several times (--repeat) is equal only if every run was
@@ -1967,7 +1968,7 @@ def certificate_record(args, part: str, reports: list[dict], problems: list[str]
         "passed": not problems and all(v[config] == "equal" for v in matrix.values()),
     }
     args.certificate.mkdir(parents=True, exist_ok=True)
-    path = args.certificate / f"parity-{SET}-{args.backend}-hyper_sssp-{feature}.json"
+    path = args.certificate / f"parity-{SET}-{label}-hyper_sssp-{feature}.json"
     path.write_text(json.dumps(doc, indent=1) + "\n")
     print(f"wrote {path}")
     return path
@@ -2104,10 +2105,27 @@ RESULTS_TOTALS = (
 
 def fallback_strict(args, case: str) -> bool:
     """Whether a differing fallback decision of `case` is a failure (HD7): only for the make-test
-    sessions on cuda by id, whose work lies far from the budget (the decisions are deterministic
-    there: every recorded run equals B's), after one repeat of the case. Elsewhere the decision is
-    not a parity target, and a difference is tabulated."""
-    return args.backend == "cuda" and args.mode == "by_id" and case.startswith("test/")
+    sessions on cuda by id with the as-is engine, whose work lies far from the budget (the
+    decisions are deterministic there: every recorded run equals B's), after one repeat of the
+    case. Elsewhere (the shared engine's own work counts included, M11b) the decision is not a
+    parity target, and a difference is tabulated."""
+    return (
+        args.backend == "cuda"
+        and getattr(args, "cuda_engine", "automatic") in ("automatic", "fused")
+        and args.mode == "by_id"
+        and case.startswith("test/")
+    )
+
+
+def backend_label(args) -> str:
+    """The backend as the records name it: "cuda-operators" for the shared engine (M11b; the
+    sssp corpus's label of the same engine), the backend otherwise."""
+    engine = getattr(args, "cuda_engine", "automatic")
+    return (
+        f"{args.backend}-{engine}"
+        if args.backend == "cuda" and engine == "operators"
+        else (args.backend)
+    )
 
 
 def results_main(args) -> int:
@@ -2153,6 +2171,10 @@ def results_main(args) -> int:
                 js = Path(tmp) / "report.json"
                 cmd = [str(exe), "--algorithm", args.mode, "--backend", args.backend]
                 cmd += ["--json", str(js)]
+                if args.backend == "cuda" and args.cuda_engine != "automatic":
+                    cmd += ["--cuda-engine", args.cuda_engine]
+                if args.operators_knobs:
+                    cmd += ["--operators-knobs", args.operators_knobs]
                 if args.check_compute:
                     cmd.append("--check-compute")
                 cmd.append(str(dump))
@@ -2250,7 +2272,9 @@ def results_main(args) -> int:
         "record": f"hyper_sssp's results ({args.mode}): B's sessions replayed whole through "
         "hyper_sssp",
         "mode": args.mode,
-        "backend": args.backend,
+        "backend": backend_label(args),
+        "cuda_engine": args.cuda_engine,
+        "operators_knobs": args.operators_knobs or None,
         "check_compute": args.check_compute,
         "repeat": args.repeat,
         "same_as": portable(Path(args.same_as)) if args.same_as else None,
@@ -2263,7 +2287,7 @@ def results_main(args) -> int:
         "problems": problems,
     }
     print(
-        f"hyper_sssp results {args.mode} on {args.backend}: {len(cases)} cases, "
+        f"hyper_sssp results {args.mode} on {backend_label(args)}: {len(cases)} cases, "
         f"{totals['sessions']} sessions ({totals['stopped_sessions']} stopped), "
         f"{totals['batches']} batches, {totals['updates']} updates, "
         f"{totals['recomputes']} recomputes "
@@ -2275,7 +2299,9 @@ def results_main(args) -> int:
         print("  " + pr)
     if args.record:
         args.record.mkdir(parents=True, exist_ok=True)
-        name = f"M11a-hsosp-results-{args.mode}-{args.backend}"
+        name = f"{args.prefix}-hsosp-results-{args.mode}-{backend_label(args)}"
+        if args.operators_knobs:
+            name += "-" + re.sub(r"[^a-z0-9]+", "-", args.operators_knobs.lower()).strip("-")
         if args.cases != "t,p50":
             name += "-" + re.sub(r"[^a-z0-9]+", "-", args.cases.lower()).strip("-")
         if args.repeat > 1:
@@ -2326,6 +2352,17 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--repeat", type=int, default=1,
                    help="--part results: run each case N times (identical digests)")  # fmt: skip
     p.add_argument("--same-as", help="--part results: a record whose digests must be equal")
+    p.add_argument("--cuda-engine", choices=["automatic", "fused", "operators"],
+                   default="automatic",
+                   help="--part results on cuda: the engine (operators: the shared sssp engine, "
+                   "M11b; its records name the backend cuda-operators)")  # fmt: skip
+    p.add_argument("--prefix", default="M11a", help="--record: the records' name prefix")
+    p.add_argument(
+        "--operators-knobs",
+        default="",
+        help="--part results: the shared engine's internal knobs (dyng_hsosp_replay "
+        "--operators-knobs; ADR 0095)",
+    )
     p.add_argument(
         "--certificate",
         type=Path,

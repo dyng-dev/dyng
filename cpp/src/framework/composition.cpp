@@ -134,7 +134,17 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
       prepare = prepare || participants[i]->reads_prepared_graph();
     }
     if (prepare) {
-      graph_access::prepare(res, g);
+      try {
+        graph_access::prepare(res, g);
+      } catch (...) {
+        // G_{t+1} is already in place (graph::apply is strong and done): a failure here is after
+        // the commit, so every result is left unusable, as for a failing after_apply below (the
+        // headers' basic guarantee; found by the allocation-failure tests of ADR 0094).
+        for (std::size_t i = 0; i < count; ++i) {
+          participants[i]->poison();
+        }
+        throw;
+      }
     }
     framework::record_commit_counts(commit.used());
   }

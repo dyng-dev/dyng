@@ -1,6 +1,12 @@
 # Sketch: `hyper_sssp` (0.4)
 
-**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M11.
+**Status:** **frozen** (M11b, 2026-11-11; {doc}`../../adr/0096-hyper-sssp-api-review-and-freeze-0-4`).
+The API that was frozen is `<dyng/hyper_sssp.hpp>` as drafted in M11a
+({doc}`../../adr/0090-hyper-sssp-draft-api-and-names`) and reviewed in M11b; it departs from this
+sketch where the author's decisions of 2026-10-28 say so (HD8: `work_budget` is a double multiple
+of the line graph's live entries with `max_iterations`, and there is no `delta`; HD11: the vertex
+rule; int32 parents, ADR 0090; HD13 and HD14: the engines and the backends). The sketch below is
+the M3 review, kept as it was, with the open questions answered at the end.
 **Computes:** single-source shortest hyperpaths on a hypergraph with hyperedge weights: the
 distance D(h) of every hyperedge from a source vertex (through the line graph, where two
 hyperedges are adjacent when they share a vertex and entering h costs w(h)), its canonical parent
@@ -106,5 +112,13 @@ stats update(const resources& res, hypergraph<vertex_t, weight_t>& hg,
 
 1. Whether `result` also exposes per-vertex distances as an array (n values) or only
    `distance_to()`; an array costs one extra pass per update and is what most users will plot.
+   **Answered (HD11, decided by the author on 2026-10-28; ADR 0090):** both. `vertex_distances()`
+   returns the n values, computed on request once per hypergraph version from the hypergraph the
+   result matches (not maintained by `update()`, so an update pays nothing for it), and
+   `distance_to(v)` reads one; each is the minimum of D(h) over v's live hyperedges, 0 for the
+   source (D(h) already holds w(h): PLAN 5.3's "+ w(h)" is superseded).
 2. Parity by id needs `id_reuse::insert_first`; with the default `erase_first` the results are
    compared keyed by (sorted vertex set, weight). The documented default stays `erase_first` (O16).
+   **Answered (HD2, decided by the author on 2026-10-28; ADR 0080):** as written. The parity runs
+   set `insert_first` and compare by id (`by_id`, and `by_id_public` for the public API's parents);
+   `by_key` compares by (sorted vertex set, weight); the default stays `erase_first`.

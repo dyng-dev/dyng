@@ -318,9 +318,11 @@ void local_pattern_problem<vertex_t, weight_t, flavor_t>::begin_update(framework
   expect_backend(res, what);
   state_ = &flavor_t::state(handle_);
   expect_not_poisoned(*state_, what);
+  // The storage before the result's identity: no result can match a slack_csr hypergraph (compute()
+  // refuses it), so the documented not_supported_error names the storage, never a stale result.
+  expect_escher_storage(g.get(), what);
   framework::expect_current_result(what, state_->version, state_->graph_state, g.get());
   hypergraph_access::expect_placement(res, g.get(), what);
-  expect_escher_storage(g.get(), what);
   flavor_t::check_update(*state_, ctx.on_cuda(), what);
   DYNG_EXPECTS(batch.normalized != nullptr, what, ": Step 0 of the hypergraph is missing");
   normalized_ = batch.normalized;

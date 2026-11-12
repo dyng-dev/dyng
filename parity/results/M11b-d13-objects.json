@@ -1,0 +1,1457 @@
+{
+ "cuda_objects_v2": {
+  "record": "SASS and host-code identity of every CUDA object against the base (M11b, ADR 0094)",
+  "tool": "parity/sass_identity.py",
+  "date": "2026-11-04T13:06:16Z",
+  "provenance": {
+   "base": {
+    "path": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/base/build/cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/build_tree.cu.o",
+    "sha256": "f0931229ea12188d1f2f809c9c59bc476eb038c7a0e8f12a26ddee2e24aad42b",
+    "build_tree": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/base/build",
+    "source_tree": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/base/src",
+    "build_type": "Release",
+    "cuda_compiler": "/usr/local/cuda-13.1/bin/nvcc",
+    "cuda_compiler_version": "Build cuda_13.1.r13.1/compiler.37061995_0",
+    "commit": "64a5123869c142867270b122973ef058bbe2b654",
+    "archive_check": {
+     "commit": "64a5123869c142867270b122973ef058bbe2b654",
+     "paths": [
+      "cpp",
+      "cmake",
+      "CMakeLists.txt",
+      "CMakePresets.json"
+     ],
+     "files": 2125,
+     "identical": true,
+     "differ": [],
+     "extra": []
+    }
+   },
+   "head": {
+    "path": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/head/build/cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/build_tree.cu.o",
+    "sha256": "a9ce588bba71a5998c0612337c7f1f567d7a608392d2c79d43bf9b247dc8440c",
+    "build_tree": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/head/build",
+    "source_tree": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/head/src",
+    "build_type": "Release",
+    "cuda_compiler": "/usr/local/cuda-13.1/bin/nvcc",
+    "cuda_compiler_version": "Build cuda_13.1.r13.1/compiler.37061995_0",
+    "commit": null
+   },
+   "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0"
+  },
+  "objects": {
+   "cpp/CMakeFiles/dyng_graph.dir/src/graph/apply_set_device.cu.o": {
+    "identical": true,
+    "functions": 14,
+    "instructions": 3176,
+    "differ": [],
+    "base_sha256": "d680ad82598bd1bfb8bec03ce3c6ed85e6da27a972e397db315bdbc5e7062c98",
+    "head_sha256": "a7fcf6d40fb680fa56eea5f861ab0af788f76c8acd2f458f61a281013ade6db3",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIjjjyN4cuda3std3__44plusIvEEE10Policy1000EPKjPjNS0_13ScanTileStateIjLb1EEES9_NS1_10InputValueIjSE_EEyjLb0EjEEvT0_T1_T2_iT3_T4_T5_": "14eff61470d6a8097ed3251817f9fbea8f174b8753cb1637ada227373f52c7a9",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubImmmyN4cuda3std3__44plusIvEEE10Policy1000EPKmPmNS0_13ScanTileStateImLb1EEES9_NS1_10InputValueImSE_EEymLb0EmEEvT0_T1_T2_iT3_T4_T5_": "6e48c24c2c634137e500f7ef5bc522b51ce0a71ba31508611c1d162fcd6ca028",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIjLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateImLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_build_next_rows_kernelIjEEvNS0_10device_csrIT_EEPKiPKNS0_11device_edgeEPKjjPKS4_PjPi": "f65dd7149637ece42b28db2f2d4559294f8e8ccccebad905c2b18670e13444e2",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_build_next_rows_kernelImEEvNS0_10device_csrIT_EEPKiPKNS0_11device_edgeEPKjjPKS4_PjPi": "9499ea9f7a13057db91374acecec0909065fd3657c7e86a0caf254d103091bc9",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_change_rows_kernelEPKNS0_11device_edgeEjjPj": "d32a17dc2e4f1e93081a98a770a4468dd70e31513b898407991234c800fe9eb6",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_edge_membership_kernelIjEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPh": "23aba03772fdd7e6f4d1d0c6f8d17ec6097d88e31774202a3b6e993c12f7bc0d",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_edge_membership_kernelImEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPh": "83e582eadd44f8d79600f9952b996e142d0a276a07c95b51bdecc0b7566e8f5f",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_mark_owners_kernelIjEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPi": "e1d0974cb9ab891c7f1482875d9ec37d469f3a93dc5be5694ab819be99b3a9ff",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_mark_owners_kernelImEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPi": "b1c60be5e38658d176808120a2c90e4bc08bcffba124269734fb9badc5c61bc2",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_next_degree_kernelIjEEvNS0_10device_csrIT_EEjPKjS7_PS4_": "5465eeb3846fbe66e4d11fa680d34445ccb0e326c952696df876444c9ecc3396",
+     "_ZN4dyng6detail60_GLOBAL__N__apply_set_device_cu_HASH_next_degree_kernelImEEvNS0_10device_csrIT_EEjPKjS7_PS4_": "93579048f517cedba9bd9df01935224f173ee0af07b847764ea38f4098588765"
+    }
+   },
+   "cpp/CMakeFiles/dyng_graph.dir/src/graph/device_graph.cu.o": {
+    "identical": true,
+    "functions": 13,
+    "instructions": 3584,
+    "differ": [],
+    "base_sha256": "a477d68ef8a3cfa8b84fed838ec4ee8e17cfa009d41bb15f6c72c6a7c71a5e56",
+    "head_sha256": "ed9b899e6323d8c018c30a2da75e55eeb88728d85b3173dd8af3f80081054031",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiiyN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEyiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "14eff61470d6a8097ed3251817f9fbea8f174b8753cb1637ada227373f52c7a9",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllyN4cuda3std3__44plusIvEEE10Policy1000EPlSC_NS0_13ScanTileStateIlLb1EEES9_NS1_10InputValueIlSC_EEylLb0ElEEvT0_T1_T2_iT3_T4_T5_": "6e48c24c2c634137e500f7ef5bc522b51ce0a71ba31508611c1d162fcd6ca028",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIlLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_fill_reverse_kernelIiiNS_10unweightedEEEvT_T0_iPKS5_PKS4_PKT1_PS5_PS4_PSA_": "e50819e637f5d4a1f48d4422f026e125727089e58560647dadf49ba48fb7369b",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_fill_reverse_kernelIiiiEEvT_T0_iPKS4_PKS3_PKT1_PS4_PS3_PS9_": "232e078ce9fa4315dcd0cd6b02371c027352dc6011f701b61d639650521c485a",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_fill_reverse_kernelIilNS_10unweightedEEEvT_T0_iPKS5_PKS4_PKT1_PS5_PS4_PSA_": "e049dcf5b2384f779cd6da7b997b4768c92ddcc05d191186632b9f661982b475",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_fill_reverse_kernelIiliEEvT_T0_iPKS4_PKS3_PKT1_PS4_PS3_PS9_": "4bee071a5b78b13c5bdf9c4663ed248a33780ac856b0a37f99031e1bc1c634c0",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_fill_reverse_kernelIlliEEvT_T0_iPKS4_PKS3_PKT1_PS4_PS3_PS9_": "97ac6e3d48e66f655df621b7ee35a2f6409c2d725c1e63a8b2c44ee2bbb631fe",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_in_degree_kernelIiiEEvPKT_T0_PS6_": "96e0bd37f8d0e4ec17c6cbb382173e1b215dae596502becb4e0aa5daf6237f9c",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_in_degree_kernelIilEEvPKT_T0_PS6_": "92443a31424d75171dbf65bc45f284ebd3f89d58a08c39c1d8556f9011caf663",
+     "_ZN4dyng6detail56_GLOBAL__N__device_graph_cu_HASH_in_degree_kernelIllEEvPKT_T0_PS6_": "6b97c174c6e920d3ad234b30d1d95379d77741611048a91c8dcb1dbeacf35d53"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/build_tree.cu.o": {
+    "identical": true,
+    "functions": 9,
+    "instructions": 544,
+    "differ": [],
+    "base_sha256": "f0931229ea12188d1f2f809c9c59bc476eb038c7a0e8f12a26ddee2e24aad42b",
+    "head_sha256": "a9ce588bba71a5998c0612337c7f1f567d7a608392d2c79d43bf9b247dc8440c",
+    "digests": {
+     "_ZN4dyng6detail6escher18rewire_tree_kernelEPNS1_9cbst_nodeEi": "2c79a56a9e8afd63509731ceae144d6557af280988eb2d0481fa31b105c10e62",
+     "_ZN4dyng6detail6escher18store_items_kernelEPNS1_9cbst_nodeEPiS4_ii": "81c6130f4938b06c84b29010af2757222e57f510301deb19a2429ea610284223",
+     "_ZN4dyng6detail6escher23build_empty_tree_kernelEPNS1_9cbst_nodeEi": "63c42a1c8092631ab3561bb01cbe22e6fd1403a08e0a6b197457deb2fa89d2b7",
+     "_ZN4dyng6detail6escher23rank_order_nodes_kernelEPKNS1_9cbst_nodeEPKiiPS2_Pi": "182cfd1ce7dddc62600dbcc503dfc52b32ff95c20a01fa7b29c875db30f0efc9",
+     "_ZN4dyng6detail6escher25init_tail_metadata_kernelEPNS1_9cbst_nodeEPKii": "d33e736d46d2c5f106f0b858e86a237f44070999681356c9095006c424665e1f",
+     "_ZN4dyng6detail6escher25place_node_records_kernelEPNS1_9cbst_nodeEPKS2_i": "055e21217e97182b9dcb8fee6e4080f35ab43174dfed7e5f6838dc2daaecf1ac",
+     "_ZN4dyng6detail6escher28set_initial_occupancy_kernelEPNS1_9cbst_nodeEPKii": "87c8d870c54ae373fab5cede43b829bf5f97ce3cf2bf97963a859f3790a88fe5",
+     "_ZN4dyng6detail6escher29record_keys_and_starts_kernelEPKNS1_9cbst_nodeEiPiS5_": "16f7a1e9e0615a1b2e637203fb2bb87364d474fcec5f7e2e906e7f80914baeef",
+     "_ZN4dyng6detail6escher33count_occupancy_mismatches_kernelEPKNS1_9cbst_nodeEPKiiPi": "35725eebf2e793c26c4110d081d88bae9f1f332f7ea420e29f73b4cbef7ac1f5"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/cbst_store.cu.o": {
+    "identical": true,
+    "functions": 22,
+    "instructions": 17112,
+    "differ": [],
+    "base_sha256": "4d5c8d95a9b8ce19390dd6fadcbbff82e7d67617b390d62b22f10fd9087f5346",
+    "head_sha256": "ed7e5b1a8959ba37ab444a1c6e43c86e16fc06f5e702eabaf046a2329de98f71",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort29DeviceRadixSortOnesweepKernelINS1_5radix10policy_hubIiiyE10Policy1000ELNS0_9SortOrderE0EiiyiiNS1_21identity_decomposer_tEEEvPT5_SB_PT3_PKSC_PT1_PKSG_PT2_PKSK_T4_iiT6_": "f3733a5ed754af27a3e28fb13256e232752f3d5a3ed63f927151d200f9f58d76",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort30DeviceRadixSortHistogramKernelINS1_5radix10policy_hubIiiyE10Policy1000ELNS0_9SortOrderE0EiyNS1_21identity_decomposer_tEEEvPT2_PKT1_SA_iiT3_": "2cb69def0eeb5d3e45ead5de6a6d1033294057da3d48f5b75b78b7bebbf402c7",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort31DeviceRadixSortSingleTileKernelINS1_5radix10policy_hubIiiyE10Policy1000ELNS0_9SortOrderE0EiiyNS1_21identity_decomposer_tEEEvPKT1_PSA_PKT2_PSE_T3_iiT4_": "1ae942e76f2939a45f43abef602b51869ae7ba44c4117702045ad02125b57edf",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort33DeviceRadixSortExclusiveSumKernelINS1_5radix10policy_hubIiiyE10Policy1000EyEEvPT0_": "3b12a5a60ec37c9845366e83b9e8397f02a5add83f75ead33b313e487d67955f",
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiijN4cuda3__47maximumIiEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEESE_NS0_13ScanTileStateIiLb1EEES8_NS0_8NullTypeEjiLb0ESH_EEvT0_T1_T2_iT3_T4_T5_": "41d895e174d0438b4eec557fee665f7d0f09f669a706b23da204007c1aa8969c",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiijN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEESF_NS0_13ScanTileStateIiLb1EEES9_NS0_8NullTypeEjiLb0ESI_EEvT0_T1_T2_iT3_T4_T5_": "3f328c88540c7992181a7fbfe87e70e139cbd00f430fea7fbc87cbc175c22094",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiimN4cuda3__47maximumIiEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEESE_NS0_13ScanTileStateIiLb1EEES8_NS0_8NullTypeEmiLb0ESH_EEvT0_T1_T2_iT3_T4_T5_": "6aecca96b9a679a11f4452e8fb19d94f48cc856b014cd9d5178481170947b173",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiimN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEESF_NS0_13ScanTileStateIiLb1EEES9_NS0_8NullTypeEmiLb0ESI_EEvT0_T1_T2_iT3_T4_T5_": "54051f152b6449d1d8ff86861a3357cc87f3555ca60f6b61717f82357b99b4cb",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxjN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIxEESF_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxPxEEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "9a898d97eb35c5363e77b5ca6035228701f51c8f67e4d5c18af02bd0ec200540",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxmN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIxEESF_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxPxEEmxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "7a9f4f89353e7b5caf1454d0cc3333c8d5759f9eec8f4131506448dc7e306ef0",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIxLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan23DeviceCompactInitKernelINS0_13ScanTileStateIiLb1EEEPlEEvT_iT0_": "f3c44736db9466665b7b564ce7718cfafe06178412a0b909fc6743e7206ba7cc",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce18DeviceReduceKernelINS2_10policy_hubIljN4cuda3std3__44plusIlEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS18transform_iteratorI9less_thanNSD_10device_ptrIiEEllEEjS9_lNS7_8identityEEEvT0_PT3_T1_NS0_13GridEvenShareISN_EET2_T4_": "38e7193c76a6eed635f71f6217ecc31096c353264d23e7e5f7ff2358f51181e9",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce18DeviceReduceKernelINS2_10policy_hubIlyN4cuda3std3__44plusIlEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS18transform_iteratorI9less_thanNSD_10device_ptrIiEEllEEyS9_lNS7_8identityEEEvT0_PT3_T1_NS0_13GridEvenShareISN_EET2_T4_": "e50011be7acc3358cd73ebeaefb71e8967b22e11771394e00994d8ee25016fb0",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce28DeviceReduceSingleTileKernelINS2_10policy_hubIljN4cuda3std3__44plusIlEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS18transform_iteratorI9less_thanNSD_10device_ptrIiEEllEEPljS9_llNS7_8identityEEEvT0_T1_T2_T3_T4_T6_": "ad4dbca7c06ae09e9313ba1aff3a0ead2045c1d48d29b1b502026df0c44fa213",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce28DeviceReduceSingleTileKernelINS2_10policy_hubIljN4cuda3std3__44plusIlEEE10Policy1000EPlSC_iS9_llNS7_8identityEEEvT0_T1_T2_T3_T4_T6_": "1d80f95c45dad7c7bac35620f25790a4e2d60ea94cee98d206a24a70f205987f",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce28DeviceReduceSingleTileKernelINS2_10policy_hubIlyN4cuda3std3__44plusIlEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS18transform_iteratorI9less_thanNSD_10device_ptrIiEEllEEPlyS9_llNS7_8identityEEEvT0_T1_T2_T3_T4_T6_": "f07e01782f11737f9b0dee707d0c1101a551df1d498bbf7d986d3cd57cab7562",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce28DeviceReduceSingleTileKernelINS2_10policy_hubIlyN4cuda3std3__44plusIlEEE10Policy1000EPlSC_iS9_llNS7_8identityEEEvT0_T1_T2_T3_T4_T6_": "1d80f95c45dad7c7bac35620f25790a4e2d60ea94cee98d206a24a70f205987f",
+     "_ZN3cub17CUB_300104_SM_8606detail6select23DeviceSelectSweepKernelINS2_10policy_hubIN4dyng6detail6escher9cbst_nodeEiiLb0ELNS0_10SelectImplE0EE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIS8_EENSE_IiEESF_PlNS0_13ScanTileStateIiLb1EEENS7_6is_setENS0_8NullTypeEiNS2_19streaming_context_tIlLb1EEELS9_0EEEvT0_T1_T2_T3_T4_T5_T6_T7_iT8_NS1_7vsmem_tE": "b77fbd00e05adc36ff7cac7a15628fafeabebe59e52cc98b351ae6ea1946d2e0",
+     "_ZN3cub17CUB_300104_SM_8606detail8for_each13static_kernelINS2_12policy_hub_t12policy_500_tElN6thrust23THRUST_300104_SM_860_NS8cuda_cub10__tabulate7functorINS7_10device_ptrIiEENS7_6system6detail7generic6detail22compute_sequence_valueIiEEEEEEvT0_T1_": "8af4e072652a5bceb496f08c7596b5ea6390212089ffcaa8498080fb3861a4bc"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/compact.cu.o": {
+    "identical": true,
+    "functions": 2,
+    "instructions": 432,
+    "differ": [],
+    "base_sha256": "015a683bcb691b27479b879e405574557770875adfca287d3517cc02dbef1b16",
+    "head_sha256": "f31f995ec9721920279dc542b26ab459bab754768e73091c08184edb0e333f14",
+    "digests": {
+     "_ZN4dyng6detail6escher19compact_copy_kernelEPNS1_9cbst_nodeEPKiiS5_xS5_PKxPiS8_": "87fd886a4463aa04c10a79ef6cbf87fc9be185dcad53ecfb58b59efd8824f9f5",
+     "_ZN4dyng6detail6escher20compact_sizes_kernelEPKNS1_9cbst_nodeEPKiiS6_xPiPxPj": "f20fcbc847b64ff6089c962799792a012ad4bbec2da6aa5eb6223db6069fa2e9"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/delete_avail.cu.o": {
+    "identical": true,
+    "functions": 3,
+    "instructions": 128,
+    "differ": [],
+    "base_sha256": "a69b2cecba7a19d488fe42f9133e76e65df731cd3718a5c7091d3e1b083986a7",
+    "head_sha256": "9d5398b6ead645029c5e0cc31020910383c82aa35c421eba5b2d7e3ae3f1b558",
+    "digests": {
+     "_ZN4dyng6detail6escher20apply_deletes_kernelEPNS1_9cbst_nodeEPiiS4_": "8fd18bb0806da62808d8208f1f1d3eddaeb2968b94d0f4c07862a3003a62979d",
+     "_ZN4dyng6detail6escher25reduce_avail_level_kernelEiiiPiS2_": "95a5430d580e5d406354034e203be85983c2e4ce64edc50be528824aa3dc2358",
+     "_ZN4dyng6detail6escher28locate_delete_targets_kernelEPNS1_9cbst_nodeEPiiS4_": "7d73602c5535a1db8a23612e6eeac77330e5561f8925bfe12e477b184e1f4729"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/find.cu.o": {
+    "identical": true,
+    "functions": 3,
+    "instructions": 296,
+    "differ": [],
+    "base_sha256": "23115e732a11f4e4cb7bb225fb5510bc3784dbca0d722a892465a782e27d13c6",
+    "head_sha256": "576a4d8431d99fab58d72d68ede94e5e190ca6b44aec6a7b5949434aa2dc1f78",
+    "digests": {
+     "_ZN4dyng6detail6escher16find_node_kernelEPKNS1_9cbst_nodeEPKiiPi": "f3a9d21e73438a66cf11219e9d39630e27904c937db69b5d2b9cc5cbd12e825b",
+     "_ZN4dyng6detail6escher22find_row_values_kernelEPKNS1_9cbst_nodeEPKiS6_xS6_iPKxS6_Pi": "f8d3598db845c62f092c70fdd5db69da85a0a019862383bb73bc5478bd04edb5",
+     "_ZN4dyng6detail6escher23find_row_lengths_kernelEPKNS1_9cbst_nodeEPKiS6_xS6_iPiPj": "1f37c21b4812e8d914486e8b2ffa93fd7c9730ccb6d427aa78a3c312d9164213"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/insert_reuse.cu.o": {
+    "identical": true,
+    "functions": 11,
+    "instructions": 696,
+    "differ": [],
+    "base_sha256": "ead2df5cd33a482a71cbf0fcb43cfa14295bd09d2bd8ad27b83c853b539b970c",
+    "head_sha256": "cddedcbca1ad398ab039152a1facf11a1a909eac07d3c1df71b247254bd3aa30",
+    "digests": {
+     "_ZN4dyng6detail6escher18lower_bound_kernelEPiiS2_iS2_": "523ef0ea3f9c5c589903de91e286d0661324ad8e968d024241810736618b1dbd",
+     "_ZN4dyng6detail6escher19pair_matches_kernelEPKiS3_S3_iPiS4_": "d0a3fc227b2d4e014b3d9a17d4b5979e5a0b37675095d2887f00cfa28716754b",
+     "_ZN4dyng6detail6escher23apply_reuse_warp_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_S4_S4_S4_S4_i": "2d331c921f623d5817df0737599dcb2f94d7a469798750553b654da25a021211",
+     "_ZN4dyng6detail6escher23compute_assigned_kernelEPiS2_i": "08770df854c353525918137b42e1fc281b0459430eb88b40bd0a333a031c8836",
+     "_ZN4dyng6detail6escher24apply_reuse_block_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_S4_S4_S4_S4_i": "241ba13df5152c6f60899e3341b4577b08eb67373a6880ea239a560762c2cd0d",
+     "_ZN4dyng6detail6escher25apply_reuse_thread_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_S4_S4_S4_S4_i": "f5f29990136c165b54ed0d088f9755164766d2547e86323eaede7a76a17f261e",
+     "_ZN4dyng6detail6escher25compute_b_in_place_kernelEPii": "60f9027cf3086bd709a2818776ce65f022c3d72d76c3b50c5716ee30cd24134d",
+     "_ZN4dyng6detail6escher25compute_item_sizes_kernelEPiS2_i": "1b14e7bf6b6cdf9f7ec845775b0f2b981c419b930772ed0a60fefb7c7a413c25",
+     "_ZN4dyng6detail6escher28locate_reusable_slots_kernelEPiS2_iS2_i": "a3cb79dcc7fbd62d242eac353c85b293a58f3be8cfc90652a2c3e43718ddadb6",
+     "_ZN4dyng6detail6escher30extract_slot_capacities_kernelEPNS1_9cbst_nodeEPiS4_i": "aa1f28d33b4a7de2fc32fb41b3308e02d74a7901082d1458147a4653979853ec",
+     "_ZN4dyng6detail6escher34extract_keys_from_positions_kernelEPiS2_S2_ii": "fd6530a5cadbba56df135b6ca6df4ed0d0c16187602413eedb53d227ed4eacfd"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/integrity.cu.o": {
+    "identical": true,
+    "functions": 0,
+    "instructions": 0,
+    "differ": [],
+    "base_sha256": "4e79a8d9760915159118a4d5fdf1aa65816b4102a12c28576cc0245719ee7703",
+    "head_sha256": "14c8bdd22560a9f6b6ffed60860aba47f5886479f0701a57672ba277eb2b63e6",
+    "digests": {}
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/locator.cu.o": {
+    "identical": true,
+    "functions": 13,
+    "instructions": 4992,
+    "differ": [],
+    "base_sha256": "61ea481b7f57f0e61a50188ae66fdf80942484c2a64403b37f6790a57beaf1e8",
+    "head_sha256": "0cfce53a00c0faca617dfa9bcbb916576c881b736899a02df484429febde7d21",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort29DeviceRadixSortOnesweepKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000ELNS0_9SortOrderE0EyS6_yiiNS1_21identity_decomposer_tEEEvPT5_SC_PT3_PKSD_PT1_PKSH_PT2_PKSL_T4_iiT6_": "1f2524a18a47e5eadcf48f3966ce68788a3c6525e5ec187c4dc43acec6a02da7",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort30DeviceRadixSortHistogramKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000ELNS0_9SortOrderE0EyyNS1_21identity_decomposer_tEEEvPT2_PKT1_SB_iiT3_": "f8922d7ba46526a9f41f044338963df5f43b923875af642c0d11a479d4fb146c",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort31DeviceRadixSortSingleTileKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000ELNS0_9SortOrderE0EyS6_yNS1_21identity_decomposer_tEEEvPKT1_PSB_PKT2_PSF_T3_iiT4_": "21cc0fff4ffed4f000d75815899b5ecc640d07a8cc9b913bf188ec19a55c4dae",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort33DeviceRadixSortExclusiveSumKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000EyEEvPT0_": "3b12a5a60ec37c9845366e83b9e8397f02a5add83f75ead33b313e487d67955f",
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiijN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEESF_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiPiEEjiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "b474fb64167e8211827cf888ba4dc64b1081cdb512735ef153dcd556d070c832",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiimN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEESF_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiPiEEmiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "14eff61470d6a8097ed3251817f9fbea8f174b8753cb1637ada227373f52c7a9",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN4dyng6detail6escher16row_heads_kernelEPKNS1_9cbst_nodeEPKiiiPi": "483088ff4e21ce428613e1f7e1309cfa18457108bfebea69997bbabfa9d3a5f7",
+     "_ZN4dyng6detail6escher18pair_values_kernelEPKyxPi": "77db46708abb67524a33328e2c172a8862ca6d00af313ea512d40bbc53b6c194",
+     "_ZN4dyng6detail6escher24build_row_locator_kernelEPKNS1_9cbst_nodeEPKiiS6_iPiS7_S7_S7_": "ff4e3ef0216d76b40380bddce0698d4615c064f19366602a06339ceb3978cb4b",
+     "_ZN4dyng6detail6escher26chained_row_lengths_kernelEPKixS3_iPiPj": "3c89e7159f56ad574c69a71c3c86e2b2b6e6f5cb37aa6bddc2dd74887f505a8c",
+     "_ZN4dyng6detail6escher26gather_chained_rows_kernelEPKixS3_iS3_PyPj": "5561bbc7861696b2a6f7ef2c02db81d110ae9b4efae1511f9bf9dd4ad1fe8f29"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/payload.cu.o": {
+    "identical": true,
+    "functions": 7,
+    "instructions": 1160,
+    "differ": [],
+    "base_sha256": "faae04e3c122f4dc5cb08485f0b54ea7aeb09fe7308c3f419ffc95ab60fa7233",
+    "head_sha256": "2bb63c250efecd5550e3e6c809ae942e5d688a5a1ea815d8455e1309b2d4072b",
+    "digests": {
+     "_ZN4dyng6detail6escher21allocate_space_kernelEPiS2_iS2_S2_S2_i": "ab446a66959c518dcdcfcb99ddf52347cbbe5979aeb019876c3ef8161601e777",
+     "_ZN4dyng6detail6escher23insert_node_warp_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_S4_iPKiPj": "c3db98912fb1f82cc4f76c061d7affc152a8d4b4e46f1b31145814201d9591df",
+     "_ZN4dyng6detail6escher24insert_node_block_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_S4_iPKiPj": "41e755f4e8bc75273c40eee8ab687d6d3c0e5d05a9e2e9c3201ef65166d65c7e",
+     "_ZN4dyng6detail6escher25insert_node_thread_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_S4_iPKiPj": "4ca4e257055297deff85bb2db23a078b6820e7ae40ce7b041d9246bf3d66b278",
+     "_ZN4dyng6detail6escher30fixup_overflow_metadata_kernelEPNS1_9cbst_nodeEPiS4_S4_ii": "2533b825ad33bdd205dac6e5f0bc703802f0b16b5e65705357cd225e983019cf",
+     "_ZN4dyng6detail6escher30update_partial_solution_kernelEPiS2_i": "a99c99f36aab05c5c79f571e7f7bd4f6543ba0fa5fc6141e059d791b40435451",
+     "_ZN4dyng6detail6escher33compute_next_multiple_of_4_kernelEPiS2_i": "8307f0b48a3fd9bb60ee2cf96cc3d9803f06b08e8d3db236df7f48c6e7539f1b"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher/unfill.cu.o": {
+    "identical": true,
+    "functions": 3,
+    "instructions": 1680,
+    "differ": [],
+    "base_sha256": "658abdfd97c6edc19bbeda5281b7c33bcadf51ceac6d83bbcfc8262a5d7e3348",
+    "head_sha256": "8b1ba15bd1d1f6aee31f59755acb56d5605c7c8439cb3477cf9310944f68344f",
+    "digests": {
+     "_ZN4dyng6detail6escher18unfill_warp_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_iiPjPKi": "28acdc1f913a4a401d508a8f7a6de8fcb56e802b1786030c3afacf95fdfad962",
+     "_ZN4dyng6detail6escher19unfill_block_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_iiPjPKi": "00c6f3907b1db3be21d55541edaf1e7c8e92339026bc60692e8f3ae3cba6d78d",
+     "_ZN4dyng6detail6escher20unfill_thread_kernelEPNS1_9cbst_nodeEPiS4_S4_S4_S4_iiPjPKi": "09e2eef7052abdaaf9ae13c32d8d2bda2d2b3ad91b2c9f94fb7397e884847d27"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/escher_store.cu.o": {
+    "identical": true,
+    "functions": 10,
+    "instructions": 3424,
+    "differ": [],
+    "base_sha256": "8339f23971659b49f589df66dae91cf5407e4f98835e41a8ae4dddf092ef6a6f",
+    "head_sha256": "e4f5c98122963acab5c9b5021525aecab6ee429d1a94acf7e6857a33d7a052f3",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIllljN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIlEESF_NS0_13ScanTileStateIlLb1EEES9_NS0_8NullTypeEjlLb0ESI_EEvT0_T1_T2_iT3_T4_T5_": "4b61aeaa8dcd4877832a25a780b067b48a3e760fce83d3bd3051ce5dcf13ccc5",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllmN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIlEESF_NS0_13ScanTileStateIlLb1EEES9_NS0_8NullTypeEmlLb0ESI_EEvT0_T1_T2_iT3_T4_T5_": "93278687d182a33c1a2d6361be7afd2589188926ea3058eb31a565da24796eaf",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIlLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail5hyper17gather_h2h_kernelEPKiS3_S3_S3_lPKlPlS6_": "f325cdfc7bc62f169ce8947e22db8fafb0524d0d7d57d77ee6706d26e9a76521",
+     "_ZN4dyng6detail5hyper17gather_h2v_kernelEPKiS3_S3_lPKlPi": "6eb1eb1a2111c3556c8db3b00429c635d0c23b9c6eacd864ffcc9c017380e04a",
+     "_ZN4dyng6detail5hyper17gather_v2h_kernelEPKiS3_S3_lPKlPl": "fd7698110e27b9c640bd3fe6561835e6aecc3f1bc9c082daf27db3a417691bb6",
+     "_ZN4dyng6detail5hyper22h2h_row_lengths_kernelEPKilPl": "828aec718c4dccf6a3f64ec9da8d5809c297dc567b1e0d45282bf0bf2f118afa",
+     "_ZN4dyng6detail5hyper22h2v_row_lengths_kernelEPKilPl": "828aec718c4dccf6a3f64ec9da8d5809c297dc567b1e0d45282bf0bf2f118afa",
+     "_ZN4dyng6detail5hyper22v2h_row_lengths_kernelEPKilPl": "828aec718c4dccf6a3f64ec9da8d5809c297dc567b1e0d45282bf0bf2f118afa"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/line_graph/incidence_delta.cu.o": {
+    "identical": true,
+    "functions": 32,
+    "instructions": 17800,
+    "differ": [],
+    "base_sha256": "f9b17e3ec8a457c3e4f916b0950dd48278231a6a24be4203b11cd34273d8e5b1",
+    "head_sha256": "03056be50312a2c61fc7b4cc7845d21c2fdacb2dbb460f471743ff1728301fd8",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort29DeviceRadixSortOnesweepKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000ELNS0_9SortOrderE0EyS6_jiiNS1_21identity_decomposer_tEEEvPT5_SC_PT3_PKSD_PT1_PKSH_PT2_PKSL_T4_iiT6_": "e6e3932078b96b1b8e9d530ab6ef20b04c7ae60afafc47c09d19347b90c01fd6",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort29DeviceRadixSortOnesweepKernelINS1_5radix10policy_hubIyijE10Policy1000ELNS0_9SortOrderE0EyijiiNS1_21identity_decomposer_tEEEvPT5_SB_PT3_PKSC_PT1_PKSG_PT2_PKSK_T4_iiT6_": "0a561a951177c9d955abe865e64759f0f0641340b88100fd1f20c4931d5ae037",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort30DeviceRadixSortHistogramKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000ELNS0_9SortOrderE0EyjNS1_21identity_decomposer_tEEEvPT2_PKT1_SB_iiT3_": "220f29bae9fdfa9bb77662891e3540387bc598ae97a9676e41295cbd546188cb",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort30DeviceRadixSortHistogramKernelINS1_5radix10policy_hubIyijE10Policy1000ELNS0_9SortOrderE0EyjNS1_21identity_decomposer_tEEEvPT2_PKT1_SA_iiT3_": "220f29bae9fdfa9bb77662891e3540387bc598ae97a9676e41295cbd546188cb",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort31DeviceRadixSortSingleTileKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000ELNS0_9SortOrderE0EyS6_jNS1_21identity_decomposer_tEEEvPKT1_PSB_PKT2_PSF_T3_iiT4_": "bc5322f367bc74b36da1f3be037eb4ac8c829b71318c8ee8bf30b61cc2ff484b",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort31DeviceRadixSortSingleTileKernelINS1_5radix10policy_hubIyijE10Policy1000ELNS0_9SortOrderE0EyijNS1_21identity_decomposer_tEEEvPKT1_PSA_PKT2_PSE_T3_iiT4_": "edff1680f4c2c3961f6c5fb22bf1e6ba6d672726b70496794a88f5cef1057d60",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort33DeviceRadixSortExclusiveSumKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000EjEEvPT0_": "3a79770f0e5d6642272861275c9d04a0b416eae70a23fedb9e882b02d9cb5cc9",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort33DeviceRadixSortExclusiveSumKernelINS1_5radix10policy_hubIyijE10Policy1000EjEEvPT0_": "3a79770f0e5d6642272861275c9d04a0b416eae70a23fedb9e882b02d9cb5cc9",
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiijN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEjiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "b474fb64167e8211827cf888ba4dc64b1081cdb512735ef153dcd556d070c832",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxjN4cuda3std3__44plusIvEEE10Policy1000EPxSC_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxSC_EEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "9a898d97eb35c5363e77b5ca6035228701f51c8f67e4d5c18af02bd0ec200540",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIxLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan23DeviceCompactInitKernelINS0_13ScanTileStateIiLb1EEEPiEEvT_iT0_": "3de1d3aedd80a6a0567e3048ec289ec555bb36943e7b4a331712da1a1b95b67c",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan23DeviceCompactInitKernelINS0_24ReduceByKeyScanTileStateIiiLb1EEEPiEEvT_iT0_": "ce0fe8f7b38719708ff5b15bb06dae2051feda233b356e3e8d1481617905d546",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan23DeviceCompactInitKernelINS0_24ReduceByKeyScanTileStateIijLb1EEEPiEEvT_iT0_": "ce0fe8f7b38719708ff5b15bb06dae2051feda233b356e3e8d1481617905d546",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce23DeviceReduceByKeyKernelINS1_13reduce_by_key10policy_hubIN4cuda3std3__44plusIiEEiyE10Policy1000EPySD_PiSE_SE_NS0_24ReduceByKeyScanTileStateIijLb1EEENS8_8equal_toIvEESA_jiNS0_8NullTypeEEEvT0_T1_T2_T3_T4_T5_iT6_T7_T8_T10_NS1_7vsmem_tE": "4d4017795a4dc349b336c8c19ff3be7638f91cbef2aabec6d50d1c0cf488ba0c",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce23DeviceReduceByKeyKernelINS1_3rle6encode10policy_hubIiiE10Policy1000EN6thrust23THRUST_300104_SM_860_NS18transform_iteratorIN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f589high_wordEPyNSA_11use_defaultESJ_EEPiNSA_17constant_iteratorIiiSJ_EESL_SL_NS0_24ReduceByKeyScanTileStateIiiLb1EEEN4cuda3std3__48equal_toIvEENSS_4plusIvEEiiNS0_8NullTypeEEEvT0_T1_T2_T3_T4_T5_iT6_T7_T8_T10_NS1_7vsmem_tE": "d10d743c5be4a9c29b173ffcbb1973f8c9b69836b2b9ec5d70eee456fe283fa7",
+     "_ZN3cub17CUB_300104_SM_8606detail6select23DeviceSelectSweepKernelINS2_10policy_hubIyNS0_8NullTypeEiLb0ELNS0_10SelectImplE0EE10Policy1000EPyPS5_S9_PiNS0_13ScanTileStateIiLb1EEES5_N4cuda3std3__48equal_toIvEEiNS2_19streaming_context_tIlLb1EEELS6_0EEEvT0_T1_T2_T3_T4_T5_T6_T7_iT8_NS1_7vsmem_tE": "df12038397044e1138458bb1842b99c6f0302c92c0cc2469f5fbf239459e92f1",
+     "_ZN3cub17CUB_300104_SM_8606detail6select23DeviceSelectSweepKernelINS2_10policy_hubIybiLb0ELNS0_10SelectImplE0EE10Policy1000EPyN6thrust23THRUST_300104_SM_860_NS18transform_iteratorIN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5810is_deletedEPaNSA_11use_defaultESJ_EES8_PiNS0_13ScanTileStateIiLb1EEENS0_8NullTypeESO_iNS2_19streaming_context_tIlLb1EEELS5_0EEEvT0_T1_T2_T3_T4_T5_T6_T7_iT8_NS1_7vsmem_tE": "e121eebd9a3dcf299bc7ea028b897ae0a4059ae6a485e20749de1f7e8d90e78d",
+     "_ZN3cub17CUB_300104_SM_8606detail6select23DeviceSelectSweepKernelINS2_10policy_hubIybiLb0ELNS0_10SelectImplE0EE10Policy1000EPyN6thrust23THRUST_300104_SM_860_NS18transform_iteratorIN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5811is_insertedEPaNSA_11use_defaultESJ_EES8_PiNS0_13ScanTileStateIiLb1EEENS0_8NullTypeESO_iNS2_19streaming_context_tIlLb1EEELS5_0EEEvT0_T1_T2_T3_T4_T5_T6_T7_iT8_NS1_7vsmem_tE": "29a18705c047a5b8417cfff4038a5bb1b5af3c834fd0c788b0432fc19cde9295",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5813totals_kernelEPKxS5_S5_S5_iPx": "67c6084ee52f1cb1c3576a80236b764585ed97db5ae30b9946d16fa46aff4288",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5816set_index_kernelEPKiiPi": "70ffd48c660cc50d2bb01f6609a0c6a268befc3e8566a82efffca21691f78108",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5818reset_index_kernelEPKiiPi": "9a0e3bf2ab57366787bf772a785ae9db10b3ee4292abc188a83618562c6828fa",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5818scatter_int_kernelEPKiS5_iPi": "2e5d1517e628da7b9e59aae87bc21f19a089971db6e4ec67107f5df1d6a554d9",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5820keys_to_pairs_kernelEPKyxP4int2": "0b601b035e5d93f872b8954c4ba0e35537402db29a96f14ba6efe2d1aacecbc2",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5820relocate_rows_kernelEPKiPKxiPxS5_Pi": "c5f204e8fa113ac5187be7f9354ad26aca03aa2bb02d7e956c5552bcf68aeaae",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5820write_he_rows_kernelEPKiPKxiS5_S5_PxPiS9_": "8a8733bbed168e68ae3bae040d6e94884aeed0b3448a8f811a6a4dd499979d9e",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5821classify_pairs_kernelEPKyxPKiS7_S7_S7_S7_PKxS7_S7_Pa": "a375d7f87b78dea2798332ff914f94aacc2f1cad4290392a1d377b554b136940",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5822emit_candidates_kernelEPKyPKiiPKxS7_S7_S9_xPy": "cdc8b063857ea847fd443b0f1170ac9a11f653f45b86e618ccf0bab5e76ca8fb",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5823count_candidates_kernelEPKyPKiiS7_S7_PxS8_": "d1cec4f16d5125bb036d4b9fad2474fd1023a5cbe23c5188b39766ea6bb0423f",
+     "_ZN4dyng6detail5hyper5slack51_GLOBAL__N__incidence_delta_cu_12093f5824apply_vertex_rows_kernelEPKiS5_iPKyS5_PKxPiSA_Pj": "09842289fb5ef585f5c59da00b559afb8b30f313b76ac8158c87e851756fc127"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/line_graph/slack_csr_h2h.cu.o": {
+    "identical": true,
+    "functions": 12,
+    "instructions": 6160,
+    "differ": [],
+    "base_sha256": "61f1f089c80426094f4cde734fab134d8e681723636c4ec81f7a39801be118c1",
+    "head_sha256": "1fcc8e9e45dbef08564b64a3b024ce162dab213b90a5c9827ae40441da55ef25",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort29DeviceRadixSortOnesweepKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000ELNS0_9SortOrderE0EyS6_jiiNS1_21identity_decomposer_tEEEvPT5_SC_PT3_PKSD_PT1_PKSH_PT2_PKSL_T4_iiT6_": "e6e3932078b96b1b8e9d530ab6ef20b04c7ae60afafc47c09d19347b90c01fd6",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort30DeviceRadixSortHistogramKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000ELNS0_9SortOrderE0EyjNS1_21identity_decomposer_tEEEvPT2_PKT1_SB_iiT3_": "220f29bae9fdfa9bb77662891e3540387bc598ae97a9676e41295cbd546188cb",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort31DeviceRadixSortSingleTileKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000ELNS0_9SortOrderE0EyS6_jNS1_21identity_decomposer_tEEEvPKT1_PSB_PKT2_PSF_T3_iiT4_": "bc5322f367bc74b36da1f3be037eb4ac8c829b71318c8ee8bf30b61cc2ff484b",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort33DeviceRadixSortExclusiveSumKernelINS1_5radix10policy_hubIyNS0_8NullTypeEjE10Policy1000EjEEvPT0_": "3a79770f0e5d6642272861275c9d04a0b416eae70a23fedb9e882b02d9cb5cc9",
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiijN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEjiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "b474fb64167e8211827cf888ba4dc64b1081cdb512735ef153dcd556d070c832",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan23DeviceCompactInitKernelINS0_24ReduceByKeyScanTileStateIiiLb1EEEPiEEvT_iT0_": "ce0fe8f7b38719708ff5b15bb06dae2051feda233b356e3e8d1481617905d546",
+     "_ZN3cub17CUB_300104_SM_8606detail6reduce23DeviceReduceByKeyKernelINS1_3rle6encode10policy_hubIiiE10Policy1000EN6thrust23THRUST_300104_SM_860_NS18transform_iteratorIN4dyng6detail5hyper5slack49_GLOBAL__N__slack_csr_h2h_cu_96025eeb7key_rowEPKyNSA_11use_defaultESK_EEPiNSA_17constant_iteratorIiiSK_EESM_SM_NS0_24ReduceByKeyScanTileStateIiiLb1EEEN4cuda3std3__48equal_toIvEENST_4plusIvEEiiNS0_8NullTypeEEEvT0_T1_T2_T3_T4_T5_iT6_T7_T8_T10_NS1_7vsmem_tE": "c9c9d0623b006617e75607d4c28cb2751d757f6de57c12d11edc840dfab0a804",
+     "_ZN4dyng6detail5hyper5slack49_GLOBAL__N__slack_csr_h2h_cu_96025eeb22apply_rows_warp_kernelEiPKiS5_S5_PKyPxPiS9_S9_PyxS9_Pj": "6a9795fc7eafb20621e8bf9562730e8f714ab0bf8fc40c8e210bb1b8bffdb42f",
+     "_ZN4dyng6detail5hyper5slack49_GLOBAL__N__slack_csr_h2h_cu_96025eeb22scatter_weights_kernelEPKiPKxiPx": "44e70311a12854d511173bd992a9fea3e0efcadf8c1d39eebd71f5f2b68fe16e",
+     "_ZN4dyng6detail5hyper5slack49_GLOBAL__N__slack_csr_h2h_cu_96025eeb24expand_delta_keys_kernelEPK4int2iiPy": "216990b9997c0a1698343bd5e9ef43fe0c09df73f6900e7c8f518fbc3d9873c0"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/line_graph/sorted_merge.cu.o": {
+    "identical": true,
+    "functions": 23,
+    "instructions": 11352,
+    "differ": [],
+    "base_sha256": "b996110184406f63cab3af522ab59fdd25fc37ce7a3312682194bc79ffb4e18c",
+    "head_sha256": "bb100624535ff93dc2a74db2614ddcd91c712e4f50c0cba8d8641d606ace180c",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort29DeviceRadixSortOnesweepKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000ELNS0_9SortOrderE0EyS6_yiiNS1_21identity_decomposer_tEEEvPT5_SC_PT3_PKSD_PT1_PKSH_PT2_PKSL_T4_iiT6_": "1f2524a18a47e5eadcf48f3966ce68788a3c6525e5ec187c4dc43acec6a02da7",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort30DeviceRadixSortHistogramKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000ELNS0_9SortOrderE0EyyNS1_21identity_decomposer_tEEEvPT2_PKT1_SB_iiT3_": "f8922d7ba46526a9f41f044338963df5f43b923875af642c0d11a479d4fb146c",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort31DeviceRadixSortSingleTileKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000ELNS0_9SortOrderE0EyS6_yNS1_21identity_decomposer_tEEEvPKT1_PSB_PKT2_PSF_T3_iiT4_": "21cc0fff4ffed4f000d75815899b5ecc640d07a8cc9b913bf188ec19a55c4dae",
+     "_ZN3cub17CUB_300104_SM_8606detail10radix_sort33DeviceRadixSortExclusiveSumKernelINS1_5radix10policy_hubIyNS0_8NullTypeEyE10Policy1000EyEEvPT0_": "3b12a5a60ec37c9845366e83b9e8397f02a5add83f75ead33b313e487d67955f",
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIixxjN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEENSE_IxEENS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxPxEEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "c598fa3e2a057ef8e83ec16f5b35ee4d330252a344c6cbc03826f86faafbf979",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIixxmN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIiEENSE_IxEENS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxPxEEmxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "1278eacd8fb575b2efedef6b155802113d281f016b620c346df5e1f77aa40ec0",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxjN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIxEESF_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxPxEEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "9a898d97eb35c5363e77b5ca6035228701f51c8f67e4d5c18af02bd0ec200540",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxmN4cuda3std3__44plusIvEEE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIxEESF_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxPxEEmxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "7a9f4f89353e7b5caf1454d0cc3333c8d5759f9eec8f4131506448dc7e306ef0",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIxLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan23DeviceCompactInitKernelINS0_13ScanTileStateIiLb1EEEPlEEvT_iT0_": "f3c44736db9466665b7b564ce7718cfafe06178412a0b909fc6743e7206ba7cc",
+     "_ZN3cub17CUB_300104_SM_8606detail6select23DeviceSelectSweepKernelINS2_10policy_hubIyNS0_8NullTypeEiLb0ELNS0_10SelectImplE1EE10Policy1000EN6thrust23THRUST_300104_SM_860_NS10device_ptrIyEEPS5_SC_PlNS0_13ScanTileStateIiLb1EEES5_N4cuda3std3__48equal_toIyEEiNS2_19streaming_context_tIlLb1EEELS6_1EEEvT0_T1_T2_T3_T4_T5_T6_T7_iT8_NS1_7vsmem_tE": "56a90ff85fec985182a507904b5b62ebb55600bc4723f4f2d71e6e9858be4d3b",
+     "_ZN3cub17CUB_300104_SM_8606detail9transform16transform_kernelINS2_10policy_hubILb1EN4cuda3std3__45tupleIJN6thrust23THRUST_300104_SM_860_NS10device_ptrIKhEESD_EEENSB_IhEEE10policy1000EiN4dyng6detail6escher48_GLOBAL__N__sorted_merge_cu_9763098c8or_bytesEPhJPSC_SO_EEEvT0_ibT1_T2_DpNS2_10kernel_argIT3_EE": "539e3a6985e147c4146b55c2b0980b071a56f3670785b5fc6a111ae27bc352e5",
+     "_ZN3cub17CUB_300104_SM_8606detail9transform16transform_kernelINS2_10policy_hubILb1EN4cuda3std3__45tupleIJN6thrust23THRUST_300104_SM_860_NS10device_ptrIKhEESD_EEENSB_IhEEE10policy1000ElN4dyng6detail6escher48_GLOBAL__N__sorted_merge_cu_9763098c8or_bytesEPhJPSC_SO_EEEvT0_ibT1_T2_DpNS2_10kernel_argIT3_EE": "6b6e53e9986a9df7a5718dbb00b009314394dd943818186a79d890c07c3c409b",
+     "_ZN4dyng6detail6escher20removal_count_kernelENS1_8row_viewEPKiiPKhPx": "5b0f0b63c2cf95b0055065bc1e90e077c5c5bed76d0aa950255b8e26e8ead441",
+     "_ZN4dyng6detail6escher21pair_histogram_kernelEPKyxPi": "b4d0e98f29b538209ee0aec13af10ca383a5201a782910c80be4a8956e3d1580",
+     "_ZN4dyng6detail6escher21removal_gather_kernelENS1_8row_viewEPKiiPKhPKxPy": "67a9cb29f60506be6b6c83f7478097a13a2fe896d67794f7a8237af2d639d465",
+     "_ZN4dyng6detail6escher23merged_row_slots_kernelENS1_8row_viewENS1_9row_deltaEiPiPx": "5c55e001c7e37dc7bb815c73ce5b6feaba2f7ebe21ced897be209e1f34274b26",
+     "_ZN4dyng6detail6escher23mirror_additions_kernelEPKyxPKhPyS6_": "7046c6cd2dc10c2076894b71740dd51db4c6a6093e86355fbfc6a054c4ae8d1e",
+     "_ZN4dyng6detail6escher24write_merged_rows_kernelENS1_8row_viewENS1_9row_deltaEiPKxPKiPiPj": "7dbf4fb4e5a807e2e24c9c9365435b6e3e825696e794c2a18f71ac7a029e1361",
+     "_ZN4dyng6detail6escher26neighbourhood_count_kernelEPKiS3_S3_iS3_S3_xPjPx": "55a1c8b9027ce0075d4b336f3081c06a5d86bf41da3369e529eccdf20ea89e0e",
+     "_ZN4dyng6detail6escher27neighbourhood_gather_kernelEPKiS3_S3_iS3_S3_xPjPKxPy": "c34782bc3bb6ab8a97bfaa986bb7f541e4d318e10bb3ed7ba12d2ca5b28a6832",
+     "_ZN4dyng6detail6escher48_GLOBAL__N__sorted_merge_cu_9763098c20narrow_starts_kernelEPKxiPi": "907486e0718b08281dbf5ef680053652129dd782673ca2e108787e28629c5eb4"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/slack_csr/device_store.cu.o": {
+    "identical": true,
+    "functions": 1,
+    "instructions": 24,
+    "differ": [],
+    "base_sha256": "8c5a7fe2e805210e36974aef7a577e0e8806468bc747a80763bfe74209cc52ed",
+    "head_sha256": "c975954ce59ee2ec2887ac188bbc3ee0e6c83b4712cbb37429c895b1e30d2b3e",
+    "digests": {
+     "_ZN4dyng6detail5hyper24zero_dead_degrees_kernelEPKiiPi": "f2040570c26ac32ba767240b1c495c8d7c2273843b1fbb057202c3c38b9bc976"
+    }
+   },
+   "cpp/CMakeFiles/dyng_hypergraph.dir/src/hypergraph/slack_csr/slack_csr_store.cu.o": {
+    "identical": true,
+    "functions": 1,
+    "instructions": 16,
+    "differ": [],
+    "base_sha256": "17261ef579714bbf5eef88673f90269167edcb51ab52e4afa745a83d15087b3c",
+    "head_sha256": "e126f6934da77342ec8e0f60b9ce19c600cd08034f3511468fd505c2dc4ad2ce",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4"
+    }
+   },
+   "cpp/CMakeFiles/dyng_util.dir/src/util/device_fill.cu.o": {
+    "identical": true,
+    "functions": 7,
+    "instructions": 280,
+    "differ": [],
+    "base_sha256": "97373ce75597ab01bc6c571f645b29c2688aedd51c923ef2b3e37a0e08d00b18",
+    "head_sha256": "ec139f6283db947512b0128502462b9dcd98b6de5315d1f0893df1c658228808",
+    "digests": {
+     "_ZN4dyng6detail55_GLOBAL__N__device_fill_cu_HASH_fill_kernelIdEEvPT_mS3_": "ed1e67c368dc1df5aa8972a757cb4fc3707090bf590ca808ff5818d5c28cbefe",
+     "_ZN4dyng6detail55_GLOBAL__N__device_fill_cu_HASH_fill_kernelIfEEvPT_mS3_": "54ff6e5d0a8e29ca681717dc206b168723c44befbf2bd74999876e4d26e315a8",
+     "_ZN4dyng6detail55_GLOBAL__N__device_fill_cu_HASH_fill_kernelIhEEvPT_mS3_": "cbd028669d867d48611ba1390eea4539f52d27607d7a1b4712364e08e37ce0b3",
+     "_ZN4dyng6detail55_GLOBAL__N__device_fill_cu_HASH_fill_kernelIiEEvPT_mS3_": "54ff6e5d0a8e29ca681717dc206b168723c44befbf2bd74999876e4d26e315a8",
+     "_ZN4dyng6detail55_GLOBAL__N__device_fill_cu_HASH_fill_kernelIjEEvPT_mS3_": "54ff6e5d0a8e29ca681717dc206b168723c44befbf2bd74999876e4d26e315a8",
+     "_ZN4dyng6detail55_GLOBAL__N__device_fill_cu_HASH_fill_kernelIlEEvPT_mS3_": "ed1e67c368dc1df5aa8972a757cb4fc3707090bf590ca808ff5818d5c28cbefe",
+     "_ZN4dyng6detail55_GLOBAL__N__device_fill_cu_HASH_fill_kernelImEEvPT_mS3_": "ed1e67c368dc1df5aa8972a757cb4fc3707090bf590ca808ff5818d5c28cbefe"
+    }
+   },
+   "cpp/src/algorithms/cycle_count/CMakeFiles/dyng_cycle_count.dir/cuda.cu.o": {
+    "identical": true,
+    "functions": 17,
+    "instructions": 25584,
+    "differ": [],
+    "base_sha256": "4ced6350c1ae67e915f76d34817522279f1f2bc1b38feb100f567fd6776db043",
+    "head_sha256": "3a41a8106f6c4580c4ab5561a37dda84f6c66eb26fd66b94a7388932ddbd6a93",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIyyyyN4cuda3std3__44plusIvEEE10Policy1000EPySC_NS0_13ScanTileStateIyLb1EEES9_NS1_10InputValueIySC_EEyyLb0EyEEvT0_T1_T2_iT3_T4_T5_": "7a9f4f89353e7b5caf1454d0cc3333c8d5759f9eec8f4131506448dc7e306ef0",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIyLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi16EjEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "97ac6fb6f139519009c91e555f3f86d012d6f5829b464bf51271b4b8a3ef4ec7",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi16EmEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "91b2a1e298290a31c810218947356e746790a5d54c9f72f7e3a3179e7a04d74e",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi32EjEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "ed4135696f204a1e59b199c2aac6376ba00040e98a293b89e54be78d6120aa76",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi32EmEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "3bfeb89ea1fabcbb204d7c005f7f873961ede45166fe65c3f4c68e7a6632e5f5",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi4EjEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "7d185236a635a75d37bbdb744667140bec9913e4e5a49252def8077183ff8533",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi4EmEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "84107fa6fede074bc1ba6fe5fdf4366cd27866e675a2c11edd3c62c725161d47",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi64EjEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "b77a106f372ef88d33476dd6f318bd751abd9e503c91083ea2e59cc21369d3b5",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi64EmEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "46eed9fd485ebeaf71d2e77ed2d8075214a388d099655fb581c0052baeccaf22",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi8EjEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "af1e29256776b6fbe8456e100d59fbf3375a269ea4ddaedbd0cd325c86a69140",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_count_owned_cycles_kernelILi8EmEEvNS0_10device_csrIT0_EEPKiPKNS0_11device_edgeEPKyjyiPySD_": "2b34633d7c6e1d239de1be158e3af96577e96ac690ebd3179fa9a410fb536a02",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_item_counts_kernelIjEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPy": "83716c2ce01d50722bb5b5dacbd0eeb1f676d8a1364923bb4b1608c567436b82",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_item_counts_kernelImEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPy": "51cce143cef36b3e18d0720f59aae4aef81c6d17eb8df66ce9aa90819fd048e8",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_mark_owners_kernelIjEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPi": "e1d0974cb9ab891c7f1482875d9ec37d469f3a93dc5be5694ab819be99b3a9ff",
+     "_ZN4dyng6detail47_GLOBAL__N__cuda_cu_HASH_mark_owners_kernelImEEvNS0_10device_csrIT_EEPKNS0_11device_edgeEjPi": "b1c60be5e38658d176808120a2c90e4bc08bcffba124269734fb9badc5c61bc2"
+    }
+   },
+   "cpp/src/algorithms/cycle_count/CMakeFiles/dyng_cycle_count.dir/static_cuda.cu.o": {
+    "identical": true,
+    "functions": 53,
+    "instructions": 82944,
+    "differ": [],
+    "base_sha256": "8c5f695dfbec1d466dd2bd87d7ab94f81cf975da04989fd959f2b9d9e6e54958",
+    "head_sha256": "85344a15626ac19dd3d45360f90b2eb4725c79c3544395b1e4ee69fad701c994",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIjjjyN4cuda3std3__44plusIvEEE10Policy1000EPKjPjNS0_13ScanTileStateIjLb1EEES9_NS1_10InputValueIjSE_EEyjLb0EjEEvT0_T1_T2_iT3_T4_T5_": "14eff61470d6a8097ed3251817f9fbea8f174b8753cb1637ada227373f52c7a9",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubImmmyN4cuda3std3__44plusIvEEE10Policy1000EPKmPmNS0_13ScanTileStateImLb1EEES9_NS1_10InputValueImSE_EEymLb0EmEEvT0_T1_T2_iT3_T4_T5_": "6e48c24c2c634137e500f7ef5bc522b51ce0a71ba31508611c1d162fcd6ca028",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIyyyyN4cuda3std3__44plusIvEEE10Policy1000EPKyPyNS0_13ScanTileStateIyLb1EEES9_NS1_10InputValueIySE_EEyyLb0EyEEvT0_T1_T2_iT3_T4_T5_": "7a9f4f89353e7b5caf1454d0cc3333c8d5759f9eec8f4131506448dc7e306ef0",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIjLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateImLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIyLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi16EjEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "d0d62fb66a8e582359a55afb3a071c1874b63f79f77ea392db34a4e37a33b155",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi16EmEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "fb9422c28fb0dc72590badc59fbb68d212f99e88877bf804513526f72818703f",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi32EjEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "f493c7654607313f755812795b02eaa823bdeadf5058f4387454253d48e7bb20",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi32EmEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "eca7c7f5ffee5199a0f620e6a767646012c3dd990a5f12d24cd43bee6494271d",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi4EjEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "acdd26082be68e26e8732a436ba46e1a2f57f9c53798cfcb8a3169eae5898dda",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi4EmEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "0d5c313ff7683868d83984d43e9c8485c7063c653df259dc4499f1317065843e",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi64EjEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "32fa14785754a1975cbe8bd60df0e0f408bb55dcc7122e31c42ad531fd850490",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi64EmEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "c435d6247b2914147c14e1690acc902400b523aac9df2a8c88406f0d8efac132",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi8EjEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "d71dfc74b7aed445e6bc2eca5b03025ebc5a3908d4a84ef3dcbbdec4c7f569c2",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_edge_items_kernelILi8EmEEvNS0_10device_csrIT0_EEiPKjS7_yPyS8_": "0768f60d1b8c219016ffec2d2501427257e5ac736910d9e0aafa2087b6bc852e",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi16EjEEvNS0_10device_csrIT0_EEiPy": "f39a1ae1b1c8fc252e95b43e90359416c7d7ed1bdaca5b98d78c65d30fa0fa77",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi16EmEEvNS0_10device_csrIT0_EEiPy": "bd29827fe2ea5d4fa571fa0b0de6eaea39bfd36206e16b6f2e9e335f784317d7",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi32EjEEvNS0_10device_csrIT0_EEiPy": "975232039d72e27f3ec63da2fffa517c66d3c7bfb4dffe8f71f0005782f188ff",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi32EmEEvNS0_10device_csrIT0_EEiPy": "64f4fbecc589a8e48bc612c3cc47d074c3f47bc82d08d98a470c7cceede6fcad",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi4EjEEvNS0_10device_csrIT0_EEiPy": "52a1615ca3f74e340a6ea8dd1d30b22341c85b9a74ed45ba08ab3b7094a0c2c8",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi4EmEEvNS0_10device_csrIT0_EEiPy": "4d4c962f256d55c59cf5318ed2dd78beab51d6cc00cb292a938b6135f7fc2c65",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi64EjEEvNS0_10device_csrIT0_EEiPy": "74c4da166549e9bc7631874a20b9f0a629b3d510ca9587bf2ba9656f4ebaa593",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi64EmEEvNS0_10device_csrIT0_EEiPy": "1cdd0a47f24c56f1375cfcfc2a7cf1a3bd6bc50ffbdda5e4edf8a53ef6d51a80",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi8EjEEvNS0_10device_csrIT0_EEiPy": "4454f5349fe6f94bacb636bed55f6b0f0a17671b474d750fe6355a3593b8db3f",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_kernelILi8EmEEvNS0_10device_csrIT0_EEiPy": "2d75d3fa2547b1515e3326c3cee2fd6d30a97a98e4595e31cdbcffb89031ecf4",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi16EjEEvNS0_10device_csrIT0_EEiPyS6_": "6f1768c2d54437e94b643a7dead03106e82a1be4b6f25429c81ee48e33f5efab",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi16EmEEvNS0_10device_csrIT0_EEiPyS6_": "41acd74d5cc44f5df10549e85859adeae8e75fcb5789ac961419a488d92f7eee",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi32EjEEvNS0_10device_csrIT0_EEiPyS6_": "199eeb031962d93758016f513bf5e18494ca40765ebf3115e2856c0969db7364",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi32EmEEvNS0_10device_csrIT0_EEiPyS6_": "98320f109a1b1c91d8263aab36a78710fa68a0a9cda2cd1b8f152910c6e7d090",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi4EjEEvNS0_10device_csrIT0_EEiPyS6_": "1cb98c5c346001f2d5bb88f1ad0eaeb64d45186563fb052d8f851370fa3cb4fa",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi4EmEEvNS0_10device_csrIT0_EEiPyS6_": "5bdd9c1fe497261b5425110b918d6ce3b0b6ffb2f88c49698de0c3714623f8b1",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi64EjEEvNS0_10device_csrIT0_EEiPyS6_": "3222c94687b48a43897b15fd0306d2533f65b16ed241cf6f120f9c5cd6df5f6c",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi64EmEEvNS0_10device_csrIT0_EEiPyS6_": "f694aa1ac7028930f174b29ef148c064ca2307949b22084941d6a7eddeaa67c4",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi8EjEEvNS0_10device_csrIT0_EEiPyS6_": "b4ce284780fc735f39cb27f3e87d660cba4596615d51d3cfb35b992642c3cf1e",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_roots_queue_kernelILi8EmEEvNS0_10device_csrIT0_EEiPyS6_": "4c942c4f7767bf992e6a5242cad1f8a016409643da14c771b663ae239921dea2",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi16EjEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "d8332eb9418b7e42b0f9dd96f787f4d5d8cd52dbcae99a7478a599022846034b",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi16EmEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "21c3eb0a982f7a7f5e78d52136788d351c31d1c49c497fc243c24d1a61ce32b9",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi32EjEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "de006561f9e5e28f503848061187a4722c722a732bbe78705994e5c148a51c72",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi32EmEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "b7511afc3c3030d7df9953de85dae8eeed11f0610caebf16def898204211be9e",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi4EjEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "521c6e61399d2bc8655d7e5544b3e276babf39018d276b708353632eaa70bdf8",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi4EmEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "850aa0a0e4180cd1475ccfb6fec470e853976b7a58745de3836337fd6de6f5b2",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi64EjEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "85a7ffdf3ac80bfbeda1452ce6e339d74e6af5e7e506a5981b8e68520b1e335b",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi64EmEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "6f5f3a8a55819b7a6eee160e1be2864ba52a4695d00a3be71727b0aac8f46ecd",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi8EjEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "b7db794cbe09683e3631e68e1989221c82ebc231f6ca9bc6e3d3d72acdbb6f64",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_count_two_hop_items_kernelILi8EmEEvNS0_10device_csrIT0_EEiPKjS7_PKyS4_yPySA_": "38099f00f3716bde5600f0e42f72d73fdc2bd1733c6eca20797a9fe3497e25c9",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_fill_edge_items_kernelIjEEvNS0_10device_csrIT_EEPKS4_S7_PjS8_": "8c14c8303f438e8b50d388baa1babc693648ddc8fced1fee835f4f6420d0f94a",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_fill_edge_items_kernelImEEvNS0_10device_csrIT_EEPKS4_S7_PjS8_": "ca01a6482eef14c29e36a9fa56f6ebeedea4f17ad41396da4af3284e66542c55",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_forward_rows_kernelIjEEvNS0_10device_csrIT_EEPS4_S6_": "3834a69559429d161a62e9278cc15b0cc300653bb0ffad91ba5d2a34946c93c6",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_forward_rows_kernelImEEvNS0_10device_csrIT_EEPS4_S6_": "f4c15e13830bcb67c281f9ffa2d0cf56a4eda9e14b4f4f3988b58e078bc20c45",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_target_degree_kernelIjEEvNS0_10device_csrIT_EEPKjS4_Py": "a61d39dddd4ba8b5d6e092702ba7e3deb308bee032a3cc150f72dc9e46026411",
+     "_ZN4dyng6detail55_GLOBAL__N__static_cuda_cu_HASH_target_degree_kernelImEEvNS0_10device_csrIT_EEPKjS4_Py": "67a733a451ba6fdd22de48e304a8e746b572449fa426aa2ba02ceebafdbf92d4"
+    }
+   },
+   "cpp/src/algorithms/dynamic_bfs/CMakeFiles/dyng_dynamic_bfs.dir/cuda.cu.o": {
+    "identical": true,
+    "functions": 23,
+    "instructions": 4872,
+    "differ": [],
+    "base_sha256": "3a7de1800c8832784e79135c11be8d25f78b4b97f5a91aa930acccd6f28d73dc",
+    "head_sha256": "8395a1c6eb7cc18336c5c8832e537c54c4aa0e402758b51c485fc3822fec39aa",
+    "digests": {
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10clear_flagIiEEEEvlT_": "ebd7db8e0be17208158a924a4a01fe852a876cf38abdb318dff7fa1ad7414837",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10clear_flagIlEEEEvlT_": "f37afcde6f6a927153c5b22ef2441d96daca2dace69e351c0386b3373c571f87",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10find_rootsIiiEEEEvlT_": "c42119879831debb3dbcf3f1864020dcb0d94ff9e43c23f18326365733417937",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10find_rootsIilEEEEvlT_": "2686d443a8caec9ea8d28320ff9911a123c6e897ddd7e4fcd186f6f547f79a6b",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10find_rootsIllEEEEvlT_": "f56c1c6a395842d5ff42194d6a2d05b957cc3b4bf65e9ace5e3ccb4d417b9cc3",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10pull_levelIiiEEEEvlT_": "236e3b0d1a39ad7bf73d33a369432d248722c4bac85af862440abd1a126fa83e",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10pull_levelIilEEEEvlT_": "3edd571c7136df09425ca2efbc903176dae36f1f0134d4a932278cea7b43d759",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops10pull_levelIllEEEEvlT_": "63f8bda0ad818b17f9d187ca45a7aac214eaba257356b6006f2822029de6a064",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops11advance_oneIiiEEEEvlT_": "176178e4965722315e6c7a02a6476dd0e1565fbfbd669873f9733ed191b74507",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops11advance_oneIilEEEEvlT_": "c66a476d95d75b37a4fc16efc39d138afd8491687123df5c91d6dee3b71bbe7f",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops11advance_oneIllEEEEvlT_": "25d520438ff9ab20a0ee9510f82d38435dca0314ff0a17fa6a027312ce51d33d",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops13repair_parentIiiEEEEvlT_": "e6ad89d9ea066ef4c413eb69de209cbddf9e55e5f6166d4481cf0dbcc4771cd4",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops13repair_parentIilEEEEvlT_": "d27150bea0356fca3c776802c14437d34bd785a8820cac8189d4b1df06902742",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops13repair_parentIllEEEEvlT_": "2932e5086a13a34bc05fc2579bf437335a3c9f3be8e31c27a16898a3ce2f9bca",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops15offer_insertionIiiEEEEvlT_": "1aa8596b71b8697b89e7a2633a3ed01677f5c9c2f9688cc142c5941bb0077629",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops15offer_insertionIilEEEEvlT_": "d725cd57aa84ec9e5ad8e78946963b23fa28f1383f69fbdeb9b0466c89400b72",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops15offer_insertionIllEEEEvlT_": "c29be9a2980f826da2e7988eb99fa260698319279eda42020160d208de4fd72c",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops19invalidate_childrenIiiEEEEvlT_": "8680774e92cafa3eb6f9ceb56b3821914bf65b3efda533c95a7a3e8f4865df9b",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops19invalidate_childrenIilEEEEvlT_": "0609227024527065a7ce36ad679d8822532277d85d752e28bb2a10e36b7739ae",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_15dynamic_bfs_ops19invalidate_childrenIllEEEEvlT_": "e7327b42277101d78ac490b4b49b21b154a95bd1993aac85842ccd30fdd59ea6",
+     "_ZN4dyng6detail9operators15for_each_kernelINS1_8fill_oneIjEEEEvlT_": "6a344a40693b040f7d6c9914965da21cb6a6a97164f68904772b4b5fbf6fd093",
+     "_ZN4dyng6detail9operators15for_each_kernelINS1_8fill_oneIlEEEEvlT_": "b79cc741f521251ad59250259881ab975b395a63235e3d1558132b366460a8aa",
+     "_ZN4dyng6detail9operators15for_each_kernelINS1_8fill_oneImEEEEvlT_": "b79cc741f521251ad59250259881ab975b395a63235e3d1558132b366460a8aa"
+    }
+   },
+   "cpp/src/algorithms/hyper_sssp/CMakeFiles/dyng_hyper_sssp.dir/cuda.cu.o": {
+    "identical": true,
+    "functions": 0,
+    "instructions": 0,
+    "differ": [],
+    "base_sha256": "011ee53811fa3ae3afd16b12a9ea270c20a1b78356f413e85d60e951be7680d5",
+    "head_sha256": "f2a4d7b7083c9d4da0ee539f965a2d14066c1a2adc17f47799cba50f95fc9dac",
+    "digests": {}
+   },
+   "cpp/src/algorithms/hyper_sssp/CMakeFiles/dyng_hyper_sssp.dir/engine.cu.o": {
+    "identical": true,
+    "functions": 17,
+    "instructions": 1920,
+    "differ": [],
+    "base_sha256": "db3c6190c6c14718fdfd6c37e3aaf76c789a6ad447ae0871f6da0b93de755f44",
+    "head_sha256": "e3a0ec8312e9bea072c194c0088cca98213df0a0f51bc83314ba43c89cc47cc5",
+    "digests": {
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba11jump_kernelEPKiPiS4_S5_iPy": "fcb01c4658e9fe203e03621f36f209492d14cbb7ccda34efeb14322a59750048",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba11push_kernelEPKiiPKxS4_S4_S6_PyPiiS8_S7_iii": "f378697653742742a796656981cbe97add11a518d5e52bd649f8a551bf0f7d84",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba14fill_ll_kernelEPxix": "86e08c1dc782cc045615b1c0da170509abf359c15f2c0e3cfd9bbf651016ddd3",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba15fill_int_kernelEPiii": "fc3085408c22cb12f645cbe2d0c6d780a39f0f1af461b49f4dd217fb5be5570d",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba15mark_ids_kernelEPKiiPi": "9a0e3bf2ab57366787bf772a785ae9db10b3ee4292abc188a83618562c6828fa",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba16init_jump_kernelEPKyPii": "a00f8bec84ec4524ca6e95c284c50068044178dae5e1cf351e2fb8e6764fc91c",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba16seed_base_kernelEPKiiPKxPx": "eb523b1dfb3c51e2fedbbe4d00ff163383758e0680d8555ca0eb84676fe6a00d",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba17invalidate_kernelEPKiPyPiS5_ii": "bac0b090efbbc535fafa68c72db2a38ca9461cc6733e0b5da2979d4b467e5372",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba17pack_state_kernelEPKxPKiPyiS7_": "5653b88f0c5a822dce1ebd3c8f7a13a540002a285f937cafc3e8ebca0da96caf",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba17relax_base_kernelEPKiiPKxPyPiiS8_S7_": "5940b3868e58652523ab5f2e188bbe99213311f730dbf4eabbf9b4ac28034a3b",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba19unpack_state_kernelEPKyPxPii": "14b1c9dbd318ec611edafd2bf2231641c50e3338059fcdd6a102c288720a5698",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba21relax_inserted_kernelEPK4int2iPKxPyPiiS9_S8_iii": "424b2c3d07c9cf406fa48e0f3e9d1de8baf34753d72974f5a33a6c51e828fd20",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba23mark_lost_source_kernelEPKiiPKyPi": "736b5b3919b67dde984c7c0d6e0f4b8962c0ed612294b5d04356decd8741b502",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba23pull_invalidated_kernelEPKiiPKxS4_S4_S6_PyPiiS8_S7_iiPKh": "d03bd4adbae0ace085998091368c7de359b8f6b5f422a11f9f187597485292a3",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba26pull_distances_warp_kernelEPKiiPKxS4_S4_S6_PxPiS8_S8_S8_S8_iiiPKh": "bc128388053a59f7e81b896c29ffd1eef883443374cb7d570ead566660efa3d9",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba30collect_candidates_warp_kernelEPKiiPKxS4_S4_PiS7_S7_S7_i": "daf98b33f1a306017370afae7b9bf86fd1f9d0479c9620b8b8a9b3930e197c00",
+     "_ZN4dyng6detail5hsosp41_GLOBAL__N__engine_cu_8b8a69ba30mark_deleted_tree_edges_kernelEPK4int2iPKyPi": "8163a9478a40f16c1230679b834131de1639bb194818834e0db8cc08e6e8b5c3"
+    }
+   },
+   "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/cuda.cu.o": {
+    "identical": true,
+    "functions": 11,
+    "instructions": 5168,
+    "differ": [],
+    "base_sha256": "7a9a1ffc02724f3dbe9369abca0ed8e81a41cc6eec7c2eed3e584d205ec20a16",
+    "head_sha256": "5c9d7ab5f50e92f332e600fcecadb44ab649d55159e286adf919e5e2814081b2",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIiiiyN4cuda3std3__44plusIvEEE10Policy1000EPiSC_NS0_13ScanTileStateIiLb1EEES9_NS1_10InputValueIiSC_EEyiLb0EiEEvT0_T1_T2_iT3_T4_T5_": "14eff61470d6a8097ed3251817f9fbea8f174b8753cb1637ada227373f52c7a9",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIlllyN4cuda3std3__44plusIvEEE10Policy1000EPlSC_NS0_13ScanTileStateIlLb1EEES9_NS1_10InputValueIlSC_EEylLb0ElEEvT0_T1_T2_iT3_T4_T5_": "6e48c24c2c634137e500f7ef5bc522b51ce0a71ba31508611c1d162fcd6ca028",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIiLb1EEEEEvT_i": "afd0b0f8a4996989840a1b84764bb31cbaf48e897d8ea68c64488f0362bc32ba",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIlLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "d32ef29d339088e7f6ac93bbdcbd5ab294fdc166fed3252b043c1e06418fdf69",
+     "_ZN4dyng6detail12mosp_kernels17fill_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "103d3d8adcc58bb4c980c551ad2acf615ad31ca13f9932188d27109291d677af",
+     "_ZN4dyng6detail12mosp_kernels17fill_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_PS4_PT1_": "a8fff0635d72eebc98c596bd154458431576d995d6caec7be3ceacff2a9a5e1e",
+     "_ZN4dyng6detail12mosp_kernels18count_edges_kernelIiiiEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "1f2a5a8614cd5b35d710d0aacfbc458ea1dba7e422d4faca73f890c2d86412c5",
+     "_ZN4dyng6detail12mosp_kernels18count_edges_kernelIiliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "52bb29cc90efb27b406e542db2e0365771019acff3997a9f630ddd15552b365a",
+     "_ZN4dyng6detail12mosp_kernels18count_edges_kernelIlliEEvNS0_18mosp_combine_inputIT_EEPT0_Py": "857d888064d0aab3e8b440556902488ee4eaf2d5bc45adaee8e861a9aa019658"
+    }
+   },
+   "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/cuda.cu.o": {
+    "identical": true,
+    "functions": 3,
+    "instructions": 8240,
+    "differ": [],
+    "base_sha256": "8634a00a9c04d405a06527248ae49f84c365efc8949e71dd2b3cd0f8836cc1b1",
+    "head_sha256": "ca0306a1c11f519dbbd5651f3178857568b1037120d806a6abd744c9e10bf21f",
+    "digests": {
+     "_ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiiiEEvNS1_6paramsIT_T0_T1_EE": "c151ba6178d03f9b245b9a5407330dd1563b49e7f6e945a933adf462a5925586",
+     "_ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIiliEEvNS1_6paramsIT_T0_T1_EE": "397577b10775f52f693035be55c8a6c84cdabef95305759ece1e94c3b55a97f5",
+     "_ZN4dyng6detail10sssp_fused22sssp_persistent_kernelIlliEEvNS1_6paramsIT_T0_T1_EE": "d97c60855fdf02eb2729499d5fc9fd09eb1d7d244831de781bf38d4d563d50e2"
+    }
+   },
+   "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/operators.cu.o": {
+    "identical": true,
+    "functions": 37,
+    "instructions": 7096,
+    "differ": [],
+    "base_sha256": "748fa5a53b846efbae34810766efe14ac09f3f2c769fc4741e18a9effa17e200",
+    "head_sha256": "4ea19c10f79edb92e4bea521d94a6d4d1cf0b6e3ac26b613a2abf343e806380a",
+    "digests": {
+     "_ZN4dyng6detail14sssp_operators11pull_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "5f7aee8d0dfcc7c0d6d61f55b2f81ccd9b4b61d32791b7120dfff2a3c5d74e81",
+     "_ZN4dyng6detail14sssp_operators11pull_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "8df48d0b8e83c28b63170c25c41abcb3a187e226553f086e8982abd435cf7274",
+     "_ZN4dyng6detail14sssp_operators11pull_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyPiiPS3_PNS1_7controlIS3_EE": "cd47a7ebc7f9ff1d7e67c51a90f19e7a4e2b41ca3a27706b7eee1528a9339f9c",
+     "_ZN4dyng6detail14sssp_operators11push_kernelIiiiEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "693cfcb60d6886b0394abe11eb96a57de2a1d9a64fc404776c2ec13f4be04d6d",
+     "_ZN4dyng6detail14sssp_operators11push_kernelIiliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "1c4fa485c70a802af94f75c02eaa1c9c990b87ffd3508dae5f83a45bb6c19436",
+     "_ZN4dyng6detail14sssp_operators11push_kernelIlliEEvPKT_S3_NS0_12sssp_kernels10device_csrIS3_T0_T1_EEPyNS6_7packingEyS3_PiiPS3_SE_SD_SE_SE_SE_PKNS1_7controlIS3_EE": "bd74eed524bd8ad530dd67ac77f83d443f3a0f4ff81b629b0ee2c28119690c46",
+     "_ZN4dyng6detail14sssp_operators12split_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "580f2297a0c960edc1655c4d07a1cc4eba3c9094355e909ffeca4c976487b27b",
+     "_ZN4dyng6detail14sssp_operators12split_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPiiPS3_SD_SC_SD_SD_bSD_PKNS1_7controlIS3_EE": "b63f2b280032c2012773acb070c9b7f4984b686268c29a546101dd8b0c7b43eb",
+     "_ZN4dyng6detail14sssp_operators13unpack_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "6e4e67026341519286c545052c51dbca46cb3034e4eeec812a9351cdc2bdbd7a",
+     "_ZN4dyng6detail14sssp_operators13unpack_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_": "0289e82cfd2364c67ad72f2fc637f392ab87253a385ffeb6d788b2afe9858bd5",
+     "_ZN4dyng6detail14sssp_operators16pack_tree_kernelIiEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "d81db90da78f1d98760e2b2a36a99f618c5437462eb34cec9d6b11923ee0ad8e",
+     "_ZN4dyng6detail14sssp_operators16pack_tree_kernelIlEEvT_PKxPKS3_PyNS0_12sssp_kernels7packingEyPS3_PNS1_7controlIS3_EE": "be99d86a396af3aa0a482c83fe61ba4817d6c9e34bc8415922f971cdef171fea",
+     "_ZN4dyng6detail14sssp_operators16threshold_kernelIiEEvPNS1_7controlIT_EEyb": "c757b56203027c0ed1802cdc15ba179207d90302d3e860aec43ccba4c65f23fe",
+     "_ZN4dyng6detail14sssp_operators16threshold_kernelIlEEvPNS1_7controlIT_EEyb": "c757b56203027c0ed1802cdc15ba179207d90302d3e860aec43ccba4c65f23fe",
+     "_ZN4dyng6detail14sssp_operators17invalidate_kernelIiEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "6f138066055686c23778672735a8f3f3aa1beb4bddb05cb59dec6b684e0d9a51",
+     "_ZN4dyng6detail14sssp_operators17invalidate_kernelIlEEvT_PiPyS4_iPS3_PNS1_7controlIS3_EE": "555de74c7afb5481533f9b4c392a6bd3d19f0234392ddc262ed4f8101ce47f25",
+     "_ZN4dyng6detail14sssp_operators17mark_roots_kernelIiEEvPKT_S5_S3_S5_Pi": "e3746d460d5c888eb0f3d08630ad0e926562ac6a115bb9ad274dc1b824990d17",
+     "_ZN4dyng6detail14sssp_operators17mark_roots_kernelIlEEvPKT_S5_S3_S5_Pi": "56196d26e2d888b0f96f0e2050f3a337c19583711d5354a78476c080992e3484",
+     "_ZN4dyng6detail14sssp_operators19init_control_kernelIiEEvPNS1_7controlIT_EE": "39967b1568956f4c6e3e5bf21068d7faeff2ad8f503d693ca4f36916fc18fcdb",
+     "_ZN4dyng6detail14sssp_operators19init_control_kernelIlEEvPNS1_7controlIT_EE": "47d96b8e792051078f85f26f24ee65152fc3ca2b7d26eb77c1c3899819905685",
+     "_ZN4dyng6detail14sssp_operators19insert_heads_kernelIiEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "f13f639208e6346c400bcfbdbd4e2729d317bbdd926e26087f902ac9353dcd6c",
+     "_ZN4dyng6detail14sssp_operators19insert_heads_kernelIlEEvPKT_S3_S3_PiiPS3_PNS1_7controlIS3_EE": "bcb902c7d04f8f03ef793668a82ae33cce600caf9987f2fca9231008400435ac",
+     "_ZN4dyng6detail14sssp_operators19min_distance_kernelIiEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "7f3095724622e953ff737e0402c5bfbd338d2e4c68da67c69186eba60569fa8e",
+     "_ZN4dyng6detail14sssp_operators19min_distance_kernelIlEEvPKT_NS1_8count_ofIS3_EEPKyNS0_12sssp_kernels7packingEPNS1_7controlIS3_EE": "88488d35eec28a3ae19a27af07e3c5044713e800223ab719058bc2e7a4bb2cd9",
+     "_ZN4dyng6detail14sssp_operators19pointer_jump_kernelIiEEvT_PS3_PiPNS1_7controlIS3_EEi": "55e50d926c625031d655dc29b069bc3316a541badbd347fccf5d1c318491902b",
+     "_ZN4dyng6detail14sssp_operators19pointer_jump_kernelIlEEvT_PS3_PiPNS1_7controlIS3_EEi": "17f3b924d7ff0fd7985437fde43255600461f3b9102d57b9f04a4714b28b3f43",
+     "_ZN4dyng6detail14sssp_operators21count_affected_kernelIiEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "b313c8ee9350105530a3dd945c9a8be1d687d68f07d345f47d3989dd5a1b289c",
+     "_ZN4dyng6detail14sssp_operators21count_affected_kernelIlEEvT_PKS3_S5_S5_PNS1_7controlIS3_EE": "bef8ff22fc628ba398874565ec5b4c42fabfb6e2ecfd2ae709a5c97d76954dd2",
+     "_ZN4dyng6detail14sssp_operators21unpack_counted_kernelIiEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "08e104ea4e0e7cc0f64b19d3f764235e3e2ecfe3c79d13cbf7f1abe0b8363c8d",
+     "_ZN4dyng6detail14sssp_operators21unpack_counted_kernelIlEEvT_PKyNS0_12sssp_kernels7packingEPxPS3_PNS1_7controlIS3_EE": "48e420e86e8ce798602838fd92176d397b9c1297bd8bcd41c8f805a019232c31",
+     "_ZN4dyng6detail14sssp_operators22recover_parents_kernelIiiiEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "a748f81b31288b1836042b470979042b7e90bf9c9ee2a3bf0e074e0a05c5e627",
+     "_ZN4dyng6detail14sssp_operators22recover_parents_kernelIiliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "495a564b8f0c62f47f89695d7cfa2e7f73dc4d30e577eca374d063dff96055d0",
+     "_ZN4dyng6detail14sssp_operators22recover_parents_kernelIlliEEvNS0_12sssp_kernels10device_csrIT_T0_T1_EEPKyS5_PS5_": "df29edc2e31569379bafb9773c4c3a8afc3967401897b5d34899a8de586557f3",
+     "_ZN4dyng6detail14sssp_operators23unpack_distances_kernelIiEEvT_PKyS3_PxPS3_bS7_S7_": "e3a1cb1451749e10f0f4b17a42a6227ac585353c20cf84dd04585721dcfe38fb",
+     "_ZN4dyng6detail14sssp_operators23unpack_distances_kernelIlEEvT_PKyS3_PxPS3_bS7_S7_": "f0ffdc2f1890bb0973111514102d8edf305ffb1f58f83ca727d7a316a60b6f4a",
+     "_ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIiEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "4718cfbbc12423241f10633df47fbbf6ae4d973871448343f881a49f66b18812",
+     "_ZN4dyng6detail14sssp_operators24init_from_scratch_kernelIlEEvT_PyS3_NS0_12sssp_kernels7packingEPS3_PNS1_7controlIS3_EE": "4be27c58bf0adfc2818cefa088584c79e5e1e1e24822d70a59be51fa59883516"
+    }
+   },
+   "cpp/src/algorithms/triad_count/CMakeFiles/dyng_triad_count.dir/cuda.cu.o": {
+    "identical": true,
+    "functions": 5,
+    "instructions": 1432,
+    "differ": [],
+    "base_sha256": "8b86739958fbbf88784a90dd436036c8857ec94b4bf205eaddce999271c98672",
+    "head_sha256": "cdfd81f6c6dbd2e77f87f9308f22f3ae045fc9508a5147b0004b1e1b48802d48",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxjN4cuda3std3__44plusIvEEE10Policy1000EPxSC_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxSC_EEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "9a898d97eb35c5363e77b5ca6035228701f51c8f67e4d5c18af02bd0ec200540",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIxLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail39_GLOBAL__N__cuda_cu_090a49fc15frontier_kernelEPKliiPiPh": "dff62f789920b7455462f48bf44ffdab6659a23d3446735ffd59e81f0e2007c2",
+     "_ZN4dyng6detail5triad5wedge19count_wedges_kernelENS0_14local_patterns9line_rowsEPKiibPx": "d5016b39a955bcff5b886687b1550db8a867922410af2d2121fb86abd35d76cd"
+    }
+   },
+   "cpp/src/algorithms/triad_count/CMakeFiles/dyng_triad_count.dir/engine/counters.cu.o": {
+    "identical": true,
+    "functions": 8,
+    "instructions": 3328,
+    "differ": [],
+    "base_sha256": "49fb9997f11ea1ad16c96a3a763a7e694d3cd99b349d220ca4b2e382210e51c3",
+    "head_sha256": "2a65aed1579a8c30d310bdcf2098968c1d690844329c40a5c0aabf7700fa0fcf",
+    "digests": {
+     "_ZN3cub17CUB_300104_SM_8606detail11EmptyKernelIvEEvv": "9c361fa1eefa2644f7e53417ec8ed6841569da1f5bd6f33b89ab1da0485424d4",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan16DeviceScanKernelINS2_10policy_hubIxxxjN4cuda3std3__44plusIvEEE10Policy1000EPxSC_NS0_13ScanTileStateIxLb1EEES9_NS1_10InputValueIxSC_EEjxLb0ExEEvT0_T1_T2_iT3_T4_T5_": "9a898d97eb35c5363e77b5ca6035228701f51c8f67e4d5c18af02bd0ec200540",
+     "_ZN3cub17CUB_300104_SM_8606detail4scan20DeviceScanInitKernelINS0_13ScanTileStateIxLb1EEEEEvT_i": "066805d3872f08c5ef150f50e032aa919843d3334148abcd2f31f468ffb1f98f",
+     "_ZN4dyng6detail14local_patterns10key_kernelINS0_5triad10choose3_opEEEvNS_12experimental14hyperedge_rowsEPKiiT_PySA_": "affa0825fd45ad2fe54362a47af66593c01b702ddda010f254cc9ab3e76222ca",
+     "_ZN4dyng6detail14local_patterns11pair_kernelINS0_5triad8type2_opEEEvNS1_9line_rowsENS_12experimental14hyperedge_rowsEPKiiPKxxbPKhT_PySF_": "75f02055a345905c1cdf215e46e5cba0dfe7d8d77153efa5124520e4c249c93d",
+     "_ZN4dyng6detail14local_patterns15triangle_kernelINS0_5triad8motif_opEEEvNS1_9line_rowsENS_12experimental14hyperedge_rowsEPKiiPKxxbPKhT_PySF_": "f4a72ab7234ed63be176b1d4ec9cdd9ba5b2cbc69febe624b371b3eb6a176834",
+     "_ZN4dyng6detail14local_patterns15triangle_kernelINS0_5triad8type3_opEEEvNS1_9line_rowsENS_12experimental14hyperedge_rowsEPKiiPKxxbPKhT_PySF_": "dbc2cd968584e42b4a7ee120ebea2e4879a0793407dde533e2dbc9657f782a69",
+     "_ZN4dyng6detail5triad5wedge19count_wedges_kernelENS0_14local_patterns9line_rowsEPKiibPx": "d5016b39a955bcff5b886687b1550db8a867922410af2d2121fb86abd35d76cd"
+    }
+   },
+   "cpp/src/algorithms/triangle_delta/CMakeFiles/dyng_triangle_delta.dir/cuda.cu.o": {
+    "identical": true,
+    "functions": 7,
+    "instructions": 1256,
+    "differ": [],
+    "base_sha256": "79a1c5aa45bd6c9df314568efa5dcbbca8377fe82ebca572ebeb2ddb37bde718",
+    "head_sha256": "221398df029f2d9625cf74087ad3c8079e864e4a18dac8a136459c6a61b5d5df",
+    "digests": {
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_18triangle_delta_ops17count_from_vertexIiiEEEEvlT_": "d56b375828a453fc3f36aab2f06b527b0bab94d5dc9ee6a028bb781cf25c107f",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_18triangle_delta_ops17count_from_vertexIilEEEEvlT_": "d1695fe9d95059c0ce721b3a37821b70ffc6eded1aca60c98b73148c9c63b66b",
+     "_ZN4dyng6detail9operators15for_each_kernelINS0_18triangle_delta_ops17count_from_vertexIllEEEEvlT_": "225fe4ab7d0bae5409366cc4d64dd2ebde016ef187a61a1cc9b6e3601d0edace",
+     "_ZN4dyng6detail9operators15for_each_kernelINS1_12count_detail11device_itemILi1ENS0_9framework9ownership10min_memberENS0_18triangle_delta_ops21count_owned_by_changeIiiEEEEEEvlT_": "5c262069f122f8f52828a99ecdfad14cce039d5e316ad22553f4815c605e40a2",
+     "_ZN4dyng6detail9operators15for_each_kernelINS1_12count_detail11device_itemILi1ENS0_9framework9ownership10min_memberENS0_18triangle_delta_ops21count_owned_by_changeIilEEEEEEvlT_": "77308629b88d89443f1472de34bc47c4471c820629c7f0239159be58e3639a62",
+     "_ZN4dyng6detail9operators15for_each_kernelINS1_12count_detail11device_itemILi1ENS0_9framework9ownership10min_memberENS0_18triangle_delta_ops21count_owned_by_changeIllEEEEEEvlT_": "1b46c28b423b166459902c771ee4e57739c13f3870b7fc8437eec48fcca1dec5",
+     "_ZN4dyng6detail9operators15for_each_kernelINS1_8fill_oneImEEEEvlT_": "b79cc741f521251ad59250259881ab975b395a63235e3d1558132b366460a8aa"
+    }
+   }
+  },
+  "identical": true
+ },
+ "host_objects_differing_from_the_parent_state": [
+  "cpp/CMakeFiles/dyng_framework.dir/src/framework/composition.cpp.o",
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/openmp.cpp.o"
+ ],
+ "corpora": {
+  "mosp_scale-cuda": {
+   "schema": 1,
+   "algorithm": "mosp",
+   "set": "mosp_scale",
+   "label": "",
+   "date": "2026-11-05T07:54:37Z",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+    "cross_checked_with": "MOSP-CUDA e220ee20d1b0948ece3df135a02d1b898264c22f"
+   },
+   "port": {
+    "repository": "dyng",
+    "commit": "cedabfcf165b07ce6ea4307b908ba1364719b222"
+   },
+   "executable": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build/tools/compat/dyng-compat-mosp",
+   "build": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "CMAKE_CXX_FLAGS": "",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+    "DYNG_CUDA_ARCHITECTURES": "86",
+    "DYNG_ENABLE_CUDA": "ON",
+    "DYNG_ENABLE_OPENMP": "ON",
+    "build_dir": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build",
+    "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64",
+    "python": "3.13.9"
+   },
+   "tolerance": "none: SHA-256 of every output file and the invalidated counters equal",
+   "configs": [
+    "cuda",
+    "cuda-operators"
+   ],
+   "cases": [
+    "gate/rgg_local10k",
+    "gate/rgg_safe50k",
+    "gate/rgg_unsafe50k",
+    "gate/roadNet-CA_local10k",
+    "gate/roadNet-CA_safe50k",
+    "gate/roadNet-CA_unsafe50k",
+    "gate/roadNet-PA_local10k",
+    "gate/roadNet-PA_safe50k",
+    "gate/roadNet-PA_unsafe50k",
+    "gate/road_usa_g_local10k",
+    "gate/road_usa_g_safe50k",
+    "gate/road_usa_g_unsafe50k",
+    "ksweep/roadNet-CA-K4_safe50k_k1",
+    "ksweep/roadNet-CA-K4_safe50k_k2",
+    "ksweep/roadNet-CA-K4_safe50k_k2_pref1-3",
+    "ksweep/roadNet-CA-K4_safe50k_k3",
+    "ksweep/roadNet-CA-K4_safe50k_k4",
+    "ksweep/roadNet-CA-K4_safe50k_k4_pref4-1-4-2",
+    "pref/roadNet-CA_local10k_pref4-1-4",
+    "pref/roadNet-CA_safe50k_pref4-1-4"
+   ],
+   "matrix": {
+    "gate": {
+     "cuda": {
+      "cases": 12,
+      "pass": 12,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 12,
+      "pass": 12,
+      "fail": []
+     }
+    },
+    "pref": {
+     "cuda": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     }
+    },
+    "ksweep": {
+     "cuda": {
+      "cases": 6,
+      "pass": 6,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 6,
+      "pass": 6,
+      "fail": []
+     }
+    }
+   },
+   "passed": true
+  },
+  "mosp_scale-host": {
+   "schema": 1,
+   "algorithm": "mosp",
+   "set": "mosp_scale",
+   "label": "",
+   "date": "2026-11-05T06:38:24Z",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+    "cross_checked_with": "MOSP-CUDA e220ee20d1b0948ece3df135a02d1b898264c22f"
+   },
+   "port": {
+    "repository": "dyng",
+    "commit": "cedabfcf165b07ce6ea4307b908ba1364719b222"
+   },
+   "executable": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build/tools/compat/dyng-compat-mosp",
+   "build": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "CMAKE_CXX_FLAGS": "",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+    "DYNG_CUDA_ARCHITECTURES": "86",
+    "DYNG_ENABLE_CUDA": "ON",
+    "DYNG_ENABLE_OPENMP": "ON",
+    "build_dir": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build",
+    "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64",
+    "python": "3.13.9"
+   },
+   "tolerance": "none: SHA-256 of every output file and the invalidated counters equal",
+   "configs": [
+    "sequential",
+    "openmp:28"
+   ],
+   "cases": [
+    "gate/rgg_local10k",
+    "gate/rgg_safe50k",
+    "gate/rgg_unsafe50k",
+    "gate/roadNet-CA_local10k",
+    "gate/roadNet-CA_safe50k",
+    "gate/roadNet-CA_unsafe50k",
+    "gate/roadNet-PA_local10k",
+    "gate/roadNet-PA_safe50k",
+    "gate/roadNet-PA_unsafe50k",
+    "gate/road_usa_g_local10k",
+    "gate/road_usa_g_safe50k",
+    "gate/road_usa_g_unsafe50k",
+    "ksweep/roadNet-CA-K4_safe50k_k1",
+    "ksweep/roadNet-CA-K4_safe50k_k2",
+    "ksweep/roadNet-CA-K4_safe50k_k2_pref1-3",
+    "ksweep/roadNet-CA-K4_safe50k_k3",
+    "ksweep/roadNet-CA-K4_safe50k_k4",
+    "ksweep/roadNet-CA-K4_safe50k_k4_pref4-1-4-2",
+    "pref/roadNet-CA_local10k_pref4-1-4",
+    "pref/roadNet-CA_safe50k_pref4-1-4"
+   ],
+   "matrix": {
+    "gate": {
+     "sequential": {
+      "cases": 12,
+      "pass": 12,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 12,
+      "pass": 12,
+      "fail": []
+     }
+    },
+    "pref": {
+     "sequential": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     }
+    },
+    "ksweep": {
+     "sequential": {
+      "cases": 6,
+      "pass": 6,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 6,
+      "pass": 6,
+      "fail": []
+     }
+    }
+   },
+   "passed": true
+  },
+  "sssp-cuda": {
+   "schema": 1,
+   "algorithm": "sssp",
+   "label": "",
+   "date": "2026-11-05T07:35:47Z",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
+   },
+   "port": {
+    "repository": "dyng",
+    "commit": "cedabfcf165b07ce6ea4307b908ba1364719b222"
+   },
+   "driver": "compat",
+   "executable": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build/tools/compat/dyng-compat-mosp",
+   "build": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "CMAKE_CXX_FLAGS": "",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+    "DYNG_CUDA_ARCHITECTURES": "86",
+    "DYNG_ENABLE_CUDA": "ON",
+    "DYNG_ENABLE_OPENMP": "ON",
+    "build_dir": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build",
+    "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64",
+    "python": "3.13.9"
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "tolerance": "none: byte equality of every compared file; invalidated counters equal",
+   "configs": [
+    "cuda",
+    "cuda-operators"
+   ],
+   "matrix": {
+    "testcases": {
+     "cuda": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     }
+    },
+    "regressions": {
+     "cuda": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     }
+    },
+    "thesis": {
+     "cuda": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     }
+    },
+    "escher": {
+     "cuda": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     }
+    },
+    "fixtures": {
+     "cuda": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     }
+    },
+    "sosp": {
+     "cuda": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     }
+    },
+    "large_weights": {
+     "cuda-operators": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "cuda": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     }
+    },
+    "packing": {
+     "cuda": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     }
+    },
+    "stress": {
+     "cuda": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     }
+    },
+    "noncanonical": {
+     "cuda": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     },
+     "cuda-operators": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     }
+    }
+   },
+   "passed": true
+  },
+  "sssp-host": {
+   "schema": 1,
+   "algorithm": "sssp",
+   "label": "",
+   "date": "2026-11-05T05:57:42Z",
+   "reference": {
+    "name": "MOSP-OpenMP",
+    "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
+   },
+   "port": {
+    "repository": "dyng",
+    "commit": "cedabfcf165b07ce6ea4307b908ba1364719b222"
+   },
+   "driver": "compat",
+   "executable": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build/tools/compat/dyng-compat-mosp",
+   "build": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "CMAKE_CXX_FLAGS": "",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+    "DYNG_CUDA_ARCHITECTURES": "86",
+    "DYNG_ENABLE_CUDA": "ON",
+    "DYNG_ENABLE_OPENMP": "ON",
+    "build_dir": "$DYNG_SCRATCH/m11-builds/m11b-s1/head/build",
+    "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64",
+    "python": "3.13.9"
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "tolerance": "none: byte equality of every compared file; invalidated counters equal",
+   "configs": [
+    "sequential",
+    "openmp:1",
+    "openmp:4",
+    "openmp:16",
+    "openmp:28",
+    "openmp:56"
+   ],
+   "matrix": {
+    "testcases": {
+     "sequential": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 10,
+      "pass": 10,
+      "fail": []
+     }
+    },
+    "regressions": {
+     "sequential": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     }
+    },
+    "thesis": {
+     "sequential": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 1,
+      "pass": 1,
+      "fail": []
+     }
+    },
+    "escher": {
+     "openmp:1": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     },
+     "sequential": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 4,
+      "pass": 4,
+      "fail": []
+     }
+    },
+    "fixtures": {
+     "sequential": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 17,
+      "pass": 17,
+      "fail": []
+     }
+    },
+    "sosp": {
+     "sequential": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 148,
+      "pass": 148,
+      "fail": []
+     }
+    },
+    "large_weights": {
+     "openmp:1": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "sequential": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 2,
+      "pass": 2,
+      "fail": []
+     }
+    },
+    "packing": {
+     "sequential": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 3,
+      "pass": 3,
+      "fail": []
+     }
+    },
+    "stress": {
+     "sequential": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 200,
+      "pass": 200,
+      "fail": []
+     }
+    },
+    "noncanonical": {
+     "sequential": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     },
+     "openmp:1": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     },
+     "openmp:4": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     },
+     "openmp:16": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     },
+     "openmp:28": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     },
+     "openmp:56": {
+      "cases": 107,
+      "pass": 107,
+      "fail": []
+     }
+    }
+   },
+   "passed": true
+  }
+ }
+}

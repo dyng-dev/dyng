@@ -1,0 +1,388 @@
+{
+ "algorithm": "hyper_sssp",
+ "what": "the clock probe per dataset and B's quiet pre-read (HD4; records only)",
+ "reference": {
+  "name": "MOSP_ESCHER",
+  "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+  "variant": "unpatched",
+  "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
+ },
+ "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+ "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+ "gpu": 0,
+ "env": {
+  "CUDA_MODULE_LOADING": "EAGER",
+  "OMP_*": "unset"
+ },
+ "lock": {
+  "DYNG_PERF_LOCK": "",
+  "DYNG_PERF_LOCK_HELD": "1"
+ },
+ "layout": "one (--out <work>/hsosp-ab.csv on every run)",
+ "versions": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "probe": {
+  "geology": {
+   "config": "geology_hyperedge_200000",
+   "clock_lock": {
+    "control": "boost",
+    "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+    "how": "ncu --clock-control boost on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+    "before": {
+     "pstate": "P0",
+     "sm_mhz": 1920,
+     "memory_mhz": 8001
+    },
+    "locked": {
+     "pstate": "P2",
+     "sm_mhz": 1695,
+     "memory_mhz": 7601
+    },
+    "check": "every busy GPU sample of every accepted round at the locked clocks",
+    "after_reset": {
+     "pstate": "P0",
+     "sm_mhz": 1920,
+     "memory_mhz": 8001
+    }
+   },
+   "rounds": [
+    {
+     "round": 1,
+     "window": {
+      "wall_s": 4.787188291549683,
+      "program_cpu_s": 21.709431999999993,
+      "foreign_cpu_cores": 1.2901318324128255,
+      "procs_running": {
+       "median": 3,
+       "min": 3,
+       "max": 58
+      },
+      "foreign_runnable": {
+       "median": 1,
+       "min": 0,
+       "max": 9
+      },
+      "gpu": {
+       "samples": 95,
+       "busy_samples": 38,
+       "pstates_busy": {
+        "P2": 38
+       },
+       "sm_mhz": {
+        "median": 1695.0,
+        "min": 1695,
+        "max": 1695
+       },
+       "memory_mhz": {
+        "median": 7601.0,
+        "min": 7601,
+        "max": 7601
+       },
+       "foreign_processes": [],
+       "clocks_locked": true
+      },
+      "contaminated": false,
+      "reasons": []
+     },
+     "load": {
+      "start": [
+       6.123046875,
+       0
+      ],
+      "end": [
+       5.79248046875,
+       0
+      ],
+      "during": {
+       "samples": 9,
+       "load_average_max": 5.79248046875,
+       "procs_blocked_max": 0
+      }
+     },
+     "csv": [
+      {
+       "t_csr_apply_ms": 15.4836,
+       "t_delta_ms": 152.12,
+       "t_dynamic_total_ms": 409.865,
+       "t_escher_ms": 231.441,
+       "t_sosp_update_ms": 10.8199,
+       "t_static_ms": 27.013,
+       "fallback": "0",
+       "h2h_pairs": "37409045",
+       "seeds": "494966",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 15.349,
+       "t_delta_ms": 149.942,
+       "t_dynamic_total_ms": 358.978,
+       "t_escher_ms": 183.075,
+       "t_sosp_update_ms": 10.6117,
+       "t_static_ms": 27.0151,
+       "fallback": "0",
+       "h2h_pairs": "37106497",
+       "seeds": "467294",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 15.3328,
+       "t_delta_ms": 230.188,
+       "t_dynamic_total_ms": 447.045,
+       "t_escher_ms": 163.898,
+       "t_sosp_update_ms": 37.6252,
+       "t_static_ms": 26.173,
+       "fallback": "1",
+       "h2h_pairs": "36817899",
+       "seeds": "504777",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      }
+     ],
+     "e2e": {
+      "load": 2787.0,
+      "dynamic": 1216.0,
+      "static": 80.0,
+      "wall": 4437.0,
+      "batches": 3
+     }
+    },
+    {
+     "round": 2,
+     "window": {
+      "wall_s": 4.781836032867432,
+      "program_cpu_s": 22.223572999999988,
+      "foreign_cpu_cores": 1.1592436385392098,
+      "procs_running": {
+       "median": 3,
+       "min": 3,
+       "max": 58
+      },
+      "foreign_runnable": {
+       "median": 1,
+       "min": 0,
+       "max": 2
+      },
+      "gpu": {
+       "samples": 96,
+       "busy_samples": 57,
+       "pstates_busy": {
+        "P2": 57
+       },
+       "sm_mhz": {
+        "median": 1695,
+        "min": 1695,
+        "max": 1695
+       },
+       "memory_mhz": {
+        "median": 7601,
+        "min": 7601,
+        "max": 7601
+       },
+       "foreign_processes": [],
+       "clocks_locked": true
+      },
+      "contaminated": false,
+      "reasons": []
+     },
+     "load": {
+      "start": [
+       5.79248046875,
+       0
+      ],
+      "end": [
+       5.48876953125,
+       0
+      ],
+      "during": {
+       "samples": 10,
+       "load_average_max": 5.79248046875,
+       "procs_blocked_max": 0
+      }
+     },
+     "csv": [
+      {
+       "t_csr_apply_ms": 15.5815,
+       "t_delta_ms": 150.935,
+       "t_dynamic_total_ms": 410.702,
+       "t_escher_ms": 233.398,
+       "t_sosp_update_ms": 10.7885,
+       "t_static_ms": 26.8273,
+       "fallback": "0",
+       "h2h_pairs": "37409045",
+       "seeds": "494966",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 15.3544,
+       "t_delta_ms": 150.827,
+       "t_dynamic_total_ms": 355.495,
+       "t_escher_ms": 178.758,
+       "t_sosp_update_ms": 10.5557,
+       "t_static_ms": 27.0468,
+       "fallback": "0",
+       "h2h_pairs": "37106497",
+       "seeds": "467294",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 15.3399,
+       "t_delta_ms": 211.64,
+       "t_dynamic_total_ms": 424.173,
+       "t_escher_ms": 159.799,
+       "t_sosp_update_ms": 37.3943,
+       "t_static_ms": 25.9425,
+       "fallback": "1",
+       "h2h_pairs": "36817899",
+       "seeds": "504777",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      }
+     ],
+     "e2e": {
+      "load": 2793.0,
+      "dynamic": 1190.0,
+      "static": 80.0,
+      "wall": 4424.0,
+      "batches": 3
+     }
+    },
+    {
+     "round": 3,
+     "window": {
+      "wall_s": 4.787302255630493,
+      "program_cpu_s": 21.797372999999993,
+      "foreign_cpu_cores": 1.1517008338189485,
+      "procs_running": {
+       "median": 3.0,
+       "min": 3,
+       "max": 58
+      },
+      "foreign_runnable": {
+       "median": 1.0,
+       "min": 0,
+       "max": 2
+      },
+      "gpu": {
+       "samples": 95,
+       "busy_samples": 55,
+       "pstates_busy": {
+        "P2": 55
+       },
+       "sm_mhz": {
+        "median": 1695,
+        "min": 1695,
+        "max": 1695
+       },
+       "memory_mhz": {
+        "median": 7601,
+        "min": 7601,
+        "max": 7601
+       },
+       "foreign_processes": [],
+       "clocks_locked": true
+      },
+      "contaminated": false,
+      "reasons": []
+     },
+     "load": {
+      "start": [
+       5.48876953125,
+       0
+      ],
+      "end": [
+       5.2890625,
+       0
+      ],
+      "during": {
+       "samples": 10,
+       "load_average_max": 5.48876953125,
+       "procs_blocked_max": 0
+      }
+     },
+     "csv": [
+      {
+       "t_csr_apply_ms": 15.4808,
+       "t_delta_ms": 153.423,
+       "t_dynamic_total_ms": 404.482,
+       "t_escher_ms": 224.707,
+       "t_sosp_update_ms": 10.8714,
+       "t_static_ms": 27.1144,
+       "fallback": "0",
+       "h2h_pairs": "37409045",
+       "seeds": "494966",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 15.3519,
+       "t_delta_ms": 150.033,
+       "t_dynamic_total_ms": 349.34,
+       "t_escher_ms": 173.418,
+       "t_sosp_update_ms": 10.5375,
+       "t_static_ms": 26.8555,
+       "fallback": "0",
+       "h2h_pairs": "37106497",
+       "seeds": "467294",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 15.324,
+       "t_delta_ms": 222.79,
+       "t_dynamic_total_ms": 438.483,
+       "t_escher_ms": 163.055,
+       "t_sosp_update_ms": 37.3143,
+       "t_static_ms": 26.0912,
+       "fallback": "1",
+       "h2h_pairs": "36817899",
+       "seeds": "504777",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      }
+     ],
+     "e2e": {
+      "load": 2797.0,
+      "dynamic": 1192.0,
+      "static": 80.0,
+      "wall": 4437.0,
+      "batches": 3
+     }
+    }
+   ],
+   "holds": true,
+   "clock": "boost"
+  }
+ },
+ "pre_read": {},
+ "datasets_sha256": {
+  "geology": "884e04ffef5d0caf0528230808dec742a41f59348402fe6b584b6c3323ce9de1"
+ },
+ "pre_read_clock_lock": null,
+ "quiet_maxima": {
+  "load_average": null,
+  "procs_blocked": null,
+  "load_average_median": null
+ },
+ "audit": {
+  "load_average": 16.0,
+  "procs_blocked": 4,
+  "quiet_max": null,
+  "quiet_max_source": null,
+  "why": "no quiet maximum of B in this run (no pre-read): ADR 0056's thresholds"
+ },
+ "clocks": {
+  "geology": "boost"
+ },
+ "lock_windows": [
+  {
+   "start": "START EXCL M11b shared-engine-node-weight probes-dblp-geology 2026-11-10T19:57:12Z 30",
+   "end": "END EXCL M11b shared-engine-node-weight 2026-11-10T19:58:04Z rc=0 reset=ok"
+  }
+ ]
+}

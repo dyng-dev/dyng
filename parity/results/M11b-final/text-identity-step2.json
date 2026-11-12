@@ -1,0 +1,165 @@
+{
+ "what": "M11b criterion 10: the text-section identity of the final library against the build the readings were taken on",
+ "a": {
+  "label": "M11b step 2 (git archive of 3655ccf): the shared engine's readings",
+  "build": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s2/src/build/parity-cuda"
+ },
+ "b": {
+  "label": "final library (clone of 4f439a2)",
+  "build": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s4/src/build/parity-cuda"
+ },
+ "how": "readelf -SW: every section with the X flag hashed (SHA-256); the whole file with parity/certify.py compare_elf (allowed: the registry's dyng::algorithms())",
+ "readelf": "GNU readelf (GNU Binutils for Debian) 2.40",
+ "files": [
+  {
+   "file": "cpp/libdyng.so",
+   "executable_sections_a": {
+    ".init": {
+     "addr": 716800,
+     "size": 23,
+     "sha256": "fd181a09a07b40ef66b6565145e71c77a666f8b4d2c127a0af9f0fbfec931bab"
+    },
+    ".plt": {
+     "addr": 716832,
+     "size": 34128,
+     "sha256": "ba74ae22d9674268fa844ed6e1f9fe350918b5a0dcc4028a051aeb8c53519869"
+    },
+    ".plt.got": {
+     "addr": 750960,
+     "size": 40,
+     "sha256": "4bfd1f9903018c071ed7823137b927cfbfdba23296de27197f4800d2487d456d"
+    },
+    ".text": {
+     "addr": 751008,
+     "size": 3829662,
+     "sha256": "48fec99f45ffb470c197adf3850825c86f9cd3f86f73b4d044f8c4fabba1fcb9"
+    },
+    ".fini": {
+     "addr": 4580672,
+     "size": 9,
+     "sha256": "66e6f54550612182b4ad78f30b140dd08318b968db3878de2db65fef87dc04d7"
+    }
+   },
+   "executable_sections_b": {
+    ".init": {
+     "addr": 716800,
+     "size": 23,
+     "sha256": "12431dc50a30e95a9b0a3847c481cd42057d456220b03538dcc9e86837d81956"
+    },
+    ".plt": {
+     "addr": 716832,
+     "size": 34128,
+     "sha256": "ba74ae22d9674268fa844ed6e1f9fe350918b5a0dcc4028a051aeb8c53519869"
+    },
+    ".plt.got": {
+     "addr": 750960,
+     "size": 40,
+     "sha256": "36eeb2e013524b1f2a6b102a192795b368257389a4dc87bb128f23b6ef9dfe58"
+    },
+    ".text": {
+     "addr": 751008,
+     "size": 3829662,
+     "sha256": "6b6b9e010ede33f5e9919f25648eb925cc19c2ea6ce812490da022456210ea53"
+    },
+    ".fini": {
+     "addr": 4580672,
+     "size": 9,
+     "sha256": "66e6f54550612182b4ad78f30b140dd08318b968db3878de2db65fef87dc04d7"
+    }
+   },
+   "text_sections_identical": false,
+   "differing_text_sections": [
+    ".init",
+    ".plt.got",
+    ".text"
+   ],
+   "whole_file": {
+    "sha256_measured": "4ae84d37a3ae399c5a99af3ff72e12caa4445b6ce9ea7c7383f700f63bc0d255",
+    "sha256_release": "16e270e0d5a1a0b324f6d0ee6a800cd62f7fc6eb1021556bcb7d49b3f75a42d8",
+    "result": "different",
+    "differing_bytes_by_section": {},
+    "differing_functions": [],
+    "reasons": [
+     "sizes differ (22341248 / 22345864 bytes)",
+     "the section layout differs",
+     "the symbols differ in name, address or kind"
+    ]
+   }
+  },
+  {
+   "file": "tools/compat/dyng-compat-hsosp",
+   "executable_sections_a": {
+    ".init": {
+     "addr": 28672,
+     "size": 23,
+     "sha256": "c2a5e18e4bfef8ac6d48260fb9a7589b26bcce66993cdc4833533ba872d3e18a"
+    },
+    ".plt": {
+     "addr": 28704,
+     "size": 2592,
+     "sha256": "e5e33b175277917686179cabcb11ae862a7f7c7198441abc26cea7204cbc5ded"
+    },
+    ".plt.got": {
+     "addr": 31296,
+     "size": 24,
+     "sha256": "ebd090e2fc350fed1583c52e6ad6bc4fd3a234345e89cc5f3fd6d650979d4358"
+    },
+    ".text": {
+     "addr": 31328,
+     "size": 237656,
+     "sha256": "a65a9a4dc9793037e5b4170818068d44387e005d613d36cc6cf9aa1dd3c5d4fc"
+    },
+    ".fini": {
+     "addr": 268984,
+     "size": 9,
+     "sha256": "66e6f54550612182b4ad78f30b140dd08318b968db3878de2db65fef87dc04d7"
+    }
+   },
+   "executable_sections_b": {
+    ".init": {
+     "addr": 28672,
+     "size": 23,
+     "sha256": "c2a5e18e4bfef8ac6d48260fb9a7589b26bcce66993cdc4833533ba872d3e18a"
+    },
+    ".plt": {
+     "addr": 28704,
+     "size": 2592,
+     "sha256": "e5e33b175277917686179cabcb11ae862a7f7c7198441abc26cea7204cbc5ded"
+    },
+    ".plt.got": {
+     "addr": 31296,
+     "size": 24,
+     "sha256": "ebd090e2fc350fed1583c52e6ad6bc4fd3a234345e89cc5f3fd6d650979d4358"
+    },
+    ".text": {
+     "addr": 31328,
+     "size": 237656,
+     "sha256": "a65a9a4dc9793037e5b4170818068d44387e005d613d36cc6cf9aa1dd3c5d4fc"
+    },
+    ".fini": {
+     "addr": 268984,
+     "size": 9,
+     "sha256": "66e6f54550612182b4ad78f30b140dd08318b968db3878de2db65fef87dc04d7"
+    }
+   },
+   "text_sections_identical": true,
+   "differing_text_sections": [],
+   "whole_file": {
+    "sha256_measured": "9265c26d55698e6819ae3973d6fcf699f546d14c2062fdc09e58c7a5fb1c3caa",
+    "sha256_release": "dc8db575a668596c022a3e633d2b5068647c5fd5ebb5769fa0979ec2f0ada1aa",
+    "result": "different",
+    "differing_bytes_by_section": {
+     ".note.gnu.build-id": 20,
+     ".dynstr": 1
+    },
+    "differing_functions": [
+     "(data in .dynstr)"
+    ],
+    "reasons": [
+     "bytes differ outside the allowed functions: (data in .dynstr)"
+    ]
+   }
+  }
+ ],
+ "all_text_identical": false
+}

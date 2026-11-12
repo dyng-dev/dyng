@@ -2,12 +2,15 @@
 
 A hypergraph (`dyng::hypergraph`, `dyng.Hypergraph`) holds **hyperedges**: sets of vertices.
 Like a graph it changes by batches, but a batch of a hypergraph deletes and inserts whole
-hyperedges, and the **ids** of the inserted hyperedges are chosen by the store. This page explains
-those ids, the order of a batch, how the storage is sized, the limits of the index types and the
-materialized line graph. The exact contracts are on {doc}`../api/cpp/hypergraph`; the decisions
+hyperedges (and, from 0.4 on `slack_csr` storage, removes vertices from and adds vertices to live
+hyperedges), and the **ids** of the inserted hyperedges are chosen by the store. This page explains
+those ids, the order of a batch, the two storages and the incidence edits, how the storage is
+sized, the limits of the index types and the materialized line graph. The exact contracts are on {doc}`../api/cpp/hypergraph`; the decisions
 behind them are ADRs {doc}`../adr/0041-hypergraph-container`,
-{doc}`../adr/0042-sorted-merge-line-graph-and-row-views` and
-{doc}`../adr/0047-hypergraph-api-review-and-freeze-0-3`.
+{doc}`../adr/0042-sorted-merge-line-graph-and-row-views`,
+{doc}`../adr/0047-hypergraph-api-review-and-freeze-0-3` and, for 0.4's `slack_csr` storage and
+incidence edits, {doc}`../adr/0085-incidence-edits-and-the-allocator` and
+{doc}`../adr/0086-host-slack-csr-store-and-line-graph`.
 
 ## Ids are 0-based, and -1 means none
 
@@ -34,7 +37,7 @@ a batch can be given out again.
 
 Repeated members of an inserted hyperedge are dropped (`dropped_members`), and deletions of dead,
 out-of-range or repeated ids are skipped (`ignored_deletions`); `skipped_ops` counts every
-skipped operation, in 0.3 their sum (the incidence edits of 0.4 add the edits they skip).
+skipped operation: their sum, plus the incidence edits a batch skips (0.4; below).
 
 ## `id_reuse`: the order of a batch
 
@@ -78,6 +81,75 @@ The default is `erase_first` (the author's decision O16, the plan's default); th
 against H-SOSP set `insert_first`. Results that depend on ids (shortest hyperpaths) are compared
 across the two orders by content (the sorted member set and the weight), not by id.
 
+## Two storages: `escher` and `slack_csr` (0.4)
+
+`hypergraph_properties::storage` (Python `storage=`) chooses how the incidences are kept:
+
+- `hypergraph_storage::escher` (the default): ESCHER's CBST store, rows sorted for ESCHER-GPU's
+  line-graph merge; the storage of `triad_count` and of 0.3. It refuses incidence edits.
+- `hypergraph_storage::slack_csr` (0.4): MOSP_ESCHER's H-SOSP storage: the ids of the ESCHER
+  store's best-fit reuse (the same id allocator), the incidence lists, and a **slack CSR line
+  graph**; it takes incidence edits, and it is the storage of `hyper_sssp`. It needs the
+  vertex-to-hyperedge rows (`store_v2h = true`, else `invalid_argument_error`).
+
+Each storage has its line graphs; the other two combinations raise `not_supported_error` at
+construction, naming the fix:
+
+| `storage` \ `line_graph` | `none` | `automatic` | `sorted_merge` | `slack_csr` |
+|---|---|---|---|---|
+| `escher` | no line graph | built on first read, kept as `sorted_merge` | built and kept | `not_supported_error` |
+| `slack_csr` | no line graph | built on first read, kept as `slack_csr` | `not_supported_error` | built and kept |
+
+**When to choose which.** `escher` for triad counts (`triad_count` refuses `slack_csr` storage in
+0.4, so the two algorithms do not share a hypergraph) and for batches of whole hyperedges with
+ESCHER-GPU's ids; `slack_csr` for shortest hyperpaths (`hyper_sssp` refuses `escher`) and whenever
+a batch changes the members of existing hyperedges. Both run on every backend.
+
+**The slack CSR line graph.** Each hyperedge id has a row of its neighbours' ids in a slot with
+headroom (a multiple of 32 entries, at least a quarter more than its degree): a batch's pair
+deletions swap-remove from the rows, its insertions append, a row that outgrows its slot moves to
+the tail of the array with a new slot, and a tail that cannot take the moves rebuilds the whole
+array from the incidence lists with the same headroom. The rows are sets but not
+sorted: `h2h()` sorts a copy of each row on request (the same view as under `sorted_merge`), and
+`hypergraph_view::overlaps` is empty under this storage. The sizes are internal (MOSP_ESCHER's
+headroom of 1.6; no public capacity field, HD9); an entry count past 2^31 - 1 is a
+`capacity_error`.
+
+## Incidence edits (0.4, `slack_csr` storage)
+
+A batch can remove a vertex from a live hyperedge (`hyperedge_batch::delete_incidence(h, v)`;
+`.dgt` line `-i h v`; Python `delete_incidences=(hyperedges, vertices)`) and add one
+(`insert_incidence(h, v)`; `+i h v`; `insert_incidences=`). The hyperedge keeps its id and weight.
+
+**The order of a batch** is fixed, whatever the order of its arrays (MOSP_ESCHER's phases): the
+hyperedge deletions, then the incidence removals, then the incidence additions (each in batch
+order), then the insertions. Every edit is checked against the hypergraph as it is after the
+deletions, and is **skipped and counted** in `skipped_ops` when:
+
+- its hyperedge is negative, at or above the id bound, dead, or deleted by the same batch (an id
+  the batch inserts is one of these: the insertions come last);
+- its vertex is outside `[0, num_vertices())` (an out-of-range member of an *inserted* hyperedge
+  is an `invalid_argument_error` instead);
+- a removal names a vertex that is not a member (a second removal of the same vertex is one);
+- a removal would empty its hyperedge (the last member stays; delete the hyperedge instead);
+- an addition names a vertex that is already a member (a repeat is one).
+
+The summary counts the applied ones (`inserted_incidences`, `deleted_incidences`), so applied plus
+skipped equals requested. Under escher storage a batch with an edit raises `not_supported_error`
+(naming `slack_csr`) before anything changes. A changed hyperedge changes the line graph: the pairs
+that start or stop sharing a vertex form the batch's **pair delta**, computed inside the commit
+from the incidence changes, exact whatever the order of the operations (`hyper_sssp`'s
+`stats::line_graph_insertions` / `line_graph_deletions` count it).
+
+**Ids with edits.** An edit never allocates an id, but it changes a row's length, and the id
+allocator models it: a removal leaves room in the hyperedge's slot (an unfill), an addition fills
+it or opens an overflow segment (a fill), and these decide where later compactions put the rows,
+hence the slots that best fit reads, hence the ids of later insertions. Under `id_reuse` the store
+sees the edits between the two halves of the batch: `erase_first` erases the deleted ids, applies
+the removals and the additions, then inserts; `insert_first` (MOSP_ESCHER's order) inserts first,
+then erases and applies the edits. Read the ids from `inserted_ids`; the parity harness replays
+MOSP_ESCHER's sessions with their ids under `insert_first`.
+
 ## Capacity presets
 
 The store keeps each incidence relation (h2v, v2h, and the line graph) in a payload array that is
@@ -104,8 +176,8 @@ later call that reads or changes its storage (the views, `weights()`, `apply()`,
 `to_hyperedge_list()`, `clone()`, `check_integrity()`) throws until it is destroyed or assigned,
 and the `noexcept` accessors (`num_hyperedges()`, `version()`, `store_stats()`, ...) return
 unspecified values, because a half-applied batch cannot be undone cheaply on the device. Errors found before the store changes (an out-of-range vertex, an
-empty hyperedge, a bad weight, an incidence edit before 0.4, a batch of more than `INT_MAX / 3`
-inserted members, host memory running out while the batch is checked) change nothing.
+empty hyperedge, a bad weight, an incidence edit under escher storage, a batch of more than
+`INT_MAX / 3` inserted members, host memory running out while the batch is checked) change nothing.
 
 Host memory running out inside one of the container's OpenMP loops on the sequential or openmp
 backend (the vertex-to-hyperedge rows that `apply()` changes, the line graph's build) is the same
@@ -147,7 +219,7 @@ algorithms on hypergraphs (triad counting, shortest hyperpaths) walk it over and
   start or stop sharing a vertex), so incidence edits (a vertex removed from or added to a live
   hyperedge) keep it exact. `automatic` under slack_csr storage maintains it as `slack_csr`.
   Incidence edits need slack_csr storage in 0.4 (escher storage refuses them), and triad_count
-  reads escher storage only. In 0.4.0.dev0 slack_csr runs on the CPU backends.
+  reads escher storage only (section "Two storages" above).
 
 Each row of `h2h()` is sorted and contiguous, and `out[r]` is the offset of its first neighbour
 with an id greater than `r`, so a loop over `col_ind[out[r] .. row_ptr[r + 1])` visits each pair

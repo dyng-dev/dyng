@@ -156,12 +156,16 @@ void hyper_sssp_cuda_reserve(const resources& res, hyper_sssp_state& st, std::in
 
 hyper_sssp_engine_counters hyper_sssp_cuda_recompute(const resources& res, hyper_sssp_state& st,
                                                      const hyper_sssp_graph& g,
-                                                     const hyper_sssp_budget& budget) {
+                                                     const hyper_sssp_budget& budget,
+                                                     hyper_sssp_workspace* ws) {
   const scoped_device guard(res.device());
   st.dev->stream = stream_of(res);
   hsosp::device_graph dev = device_graph_of(g, nullptr);
-  std::vector<int> base;  // compute(): the recompute's own lists
-  std::vector<int> initial;
+  std::vector<int> own_base;  // compute(): the recompute's own lists (an update's: the workspace's)
+  std::vector<int> own_initial;
+  std::vector<int>& base = ws != nullptr ? ws->base32 : own_base;
+  std::vector<int>& initial = ws != nullptr ? ws->initial32 : own_initial;
+  if (ws != nullptr) reserve_scratch(initial, 1);
   dev.initial = &initial;
   if (!st.endpoints.is_virtual()) {
     // The source flags on the device (the host copy is current: compute() rebuilt it).
@@ -263,7 +267,7 @@ void hyper_sssp_cuda_set_holds(const resources& res, hyper_sssp_state& st,
 }
 
 std::int64_t hyper_sssp_cuda_bytes(const hyper_sssp_state& st) noexcept {
-  return st.dev == nullptr ? 0 : st.dev->device_bytes();
+  return (st.dev == nullptr ? 0 : st.dev->device_bytes()) + hyper_sssp_operators_bytes(st);
 }
 
 }  // namespace dyng::detail

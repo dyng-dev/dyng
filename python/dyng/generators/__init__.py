@@ -3,7 +3,8 @@
 """dyng.generators: seeded generators of graphs, hypergraphs and batches (C++ ``dyng::generators``).
 
 - :func:`uniform_hypergraph` and :func:`random_hyperedge_batch` (0.3): hypergraphs and hyperedge
-  batches with distributions owned by the library, bit-exact per (seed, major version).
+  batches with distributions owned by the library, bit-exact per (seed, major version); from 0.4
+  also batches of incidence edits (:data:`IncidenceBatchMixName`).
 - :func:`vertex_arrival_stream` (0.4): vertex-arrival streams for
   :mod:`dyng.label_propagation` (:class:`VertexArrivalStream`), with distributions owned by the
   library.
@@ -16,6 +17,7 @@ from __future__ import annotations
 from . import legacy
 from .hypergraphs import (
     HyperedgeBatchMixName,
+    IncidenceBatchMixName,
     random_hyperedge_batch,
     uniform_hypergraph,
     uniform_hypergraph_arrays,
@@ -25,6 +27,7 @@ from .vertex_arrival import VertexArrivalStream, vertex_arrival_stream
 __all__ = [
     "legacy",
     "HyperedgeBatchMixName",
+    "IncidenceBatchMixName",
     "uniform_hypergraph",
     "uniform_hypergraph_arrays",
     "random_hyperedge_batch",

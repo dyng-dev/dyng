@@ -56,8 +56,8 @@ def test_read_hypergraph_properties(tmp_path: Path) -> None:
     p = h.properties
     assert (p.line_graph, p.reuse) == ("sorted_merge", "insert_first")
     assert h.weighted and h.h2h().num_rows == 2
-    with pytest.raises(dyng.NotSupportedError, match="0.4"):
-        dyng.io.read_hypergraph(f, storage="slack_csr")
+    h = dyng.io.read_hypergraph(f, storage="slack_csr", line_graph="slack_csr")
+    assert h.properties.storage == "slack_csr"
 
 
 def test_hg_round_trip(tmp_path: Path) -> None:
@@ -119,10 +119,9 @@ def test_dgt_kinds_are_not_mixed(tmp_path: Path) -> None:
     with pytest.raises(dyng.FileFormatError):
         dyng.io.read_batches(f)
     i = _write(tmp_path / "i.dgt", "+i 0 1\n")
-    # The incidence edits of 0.4: read by the C++ library, refused by the Python layer until M11b
-    # (rather than dropped).
-    with pytest.raises(dyng.NotSupportedError, match="0.4"):
-        dyng.io.read_hyperedge_batches(i)
+    # The incidence edits of 0.4 are hypergraph operations (read by the Python layer from M11b)
+    (b,) = dyng.io.read_hyperedge_batches(i)
+    assert [a.tolist() for a in b.insert_incidences] == [[0], [1]]
     with pytest.raises(dyng.FileFormatError):
         dyng.io.read_batches(i)
 
@@ -278,9 +277,9 @@ def test_reader_options_beyond_int64_are_invalid_arguments(tmp_path: Path, value
         dyng.io.BatchReader(path, num_vertices=value)
 
 
-def test_dgb_incidence_edits_are_refused_until_m11b(tmp_path: Path) -> None:
+def test_dgb_incidence_edits_are_read(tmp_path: Path) -> None:
     # The seed written from the specification (cpp/fuzz/make_dgb_seeds.py): the flag
-    # incidence_edits of 0.4, which the Python layer takes with M11b (refused, never dropped).
+    # incidence_edits of 0.4, which the Python layer reads from M11b (refused until then).
     seed = (
         Path(__file__).resolve().parents[2]
         / "cpp"
@@ -292,5 +291,43 @@ def test_dgb_incidence_edits_are_refused_until_m11b(tmp_path: Path) -> None:
     data = seed.read_bytes()
     f = tmp_path / "edits.dgb"
     f.write_bytes(data[data.index(b"\n") + 1 :])
-    with pytest.raises(dyng.NotSupportedError, match="0.4"):
-        dyng.io.read_binary_batches(f)
+    reader = dyng.io.BatchReader(f)
+    assert reader.header.incidence_edits
+    batches = [r.batch for r in reader]
+    assert batches and sum(b.num_incidence_edits for b in batches) > 0  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize("weighted", [False, True])
+def test_incidence_edits_round_trip(tmp_path: Path, weighted: bool) -> None:
+    edits = dyng.HyperedgeBatch(
+        delete_hyperedges=[1],
+        insert_hyperedges=[[0, 2]],
+        insert_weights=[5] if weighted else None,
+        delete_incidences=([0, 2], [1, 3]),
+        insert_incidences=([2], [0]),
+    )
+    plain = dyng.HyperedgeBatch(delete_hyperedges=[0])
+    for path, write, read in [
+        (tmp_path / "b.dgt", dyng.io.write_hyperedge_batches, None),
+        (tmp_path / "b.dgb", dyng.io.write_binary_batches, dyng.io.read_binary_batches),
+    ]:
+        write(path, [edits, plain])  # type: ignore[operator]
+        got = (
+            dyng.io.read_hyperedge_batches(path, weighted=weighted) if read is None else read(path)
+        )
+        assert len(got) == 2
+        for a, b in zip(got, [edits, plain], strict=True):
+            assert isinstance(a, dyng.HyperedgeBatch)
+            assert [x.tolist() for x in a.delete_incidences] == [
+                x.tolist() for x in b.delete_incidences
+            ]
+            assert [x.tolist() for x in a.insert_incidences] == [
+                x.tolist() for x in b.insert_incidences
+            ]
+            assert a.delete_hyperedges.tolist() == b.delete_hyperedges.tolist()
+            assert a.insertions() == b.insertions()
+    # The flag is set only when a batch has an edit: a 0.3 file stays byte-identical
+    assert dyng.io.BatchReader(tmp_path / "b.dgb").header.incidence_edits
+    dyng.io.write_binary_batches(tmp_path / "p.dgb", [plain])
+    assert not dyng.io.BatchReader(tmp_path / "p.dgb").header.incidence_edits
+    assert dyng.io.BatchReader(tmp_path / "p.dgb").header.flags == 0

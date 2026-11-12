@@ -8,9 +8,11 @@
  * The kit compares the distances and parents by id (bitwise), and C2 also against the independent
  * oracle (dyng::testing::hyper_sssp_reference). hyper_sssp reads the slack_csr line graph only
  * (HD9): the kit's escher presets are not its (accepts()), and every slack_csr preset gets the
- * vertex-to-hyperedge rows and the slack_csr line graph (require()). C4 is skipped until M11b (the
- * operators engine, the shared sssp engine of O12, arrives there; on cuda engine::operators throws
- * not_supported_error and the host backend has one engine). C10's partners: a second hyper_sssp
+ * vertex-to-hyperedge rows and the slack_csr line graph (require()). C4 compares the two CUDA
+ * engines (M11b: engine::fused, MOSP_ESCHER's kernels, and engine::operators, the shared sssp
+ * engine of O12; the host backend has one engine), and the test-only tag hyper_sssp_shared_engine
+ * runs C0-C12 again with engine::operators as the kit's engine (M11b criterion 3: the kit on both
+ * engines). C10's partners: a second hyper_sssp
  * result of another source on the same hypergraph (the test-only tag hyper_sssp_other_source, the
  * manifest's entry) and the kit's fake test_hyper_pairs. C0 checks the openmp refusal (HD14): the
  * manifest lists sequential and cuda.
@@ -45,13 +47,15 @@ namespace dyng::conformance {
 namespace tags {
 /// The test-only tag of hyper_sssp from another source vertex (C10's partner).
 struct hyper_sssp_other_source;
+/// The test-only tag of hyper_sssp on the shared engine (the kit's engine::operators on cuda).
+struct hyper_sssp_shared_engine;
 }  // namespace tags
 
 namespace hyper_sssp_kit_detail {
 
 /// The traits of hyper_sssp from the source vertex `source_vertex` (the kit's hypergraphs have at
-/// least two vertices).
-template <std::int32_t source_vertex>
+/// least two vertices), with `kit_engine` as the CUDA engine of the kit's engine::automatic.
+template <std::int32_t source_vertex, engine kit_engine = engine::automatic>
 struct traits_of {
   static constexpr oracle_kind oracle = oracle_kind::compute;  ///< update chain == compute
   static constexpr determinism level = determinism::bitwise;   ///< identical bytes
@@ -92,11 +96,11 @@ struct traits_of {
     return {};
   }
   /// compute() from the source vertex with the engine of the kit (cuda: automatic and fused run
-  /// MOSP_ESCHER's kernels, operators is not_supported_error until M11b).
+  /// MOSP_ESCHER's kernels, operators the shared sssp engine; automatic is `kit_engine`).
   template <typename container_t>
   static result<container_t> compute(const resources& res, const container_t& h, engine e) {
     hyper_sssp::options opt;
-    opt.cuda_engine = e;
+    opt.cuda_engine = e == engine::automatic ? kit_engine : e;
     return hyper_sssp::compute(res, h, source_vertex, opt);
   }
   /// update().
@@ -228,6 +232,19 @@ struct test_traits<tags::hyper_sssp_other_source> : hyper_sssp_kit_detail::trait
   }
   /// C10's test-only partners.
   using test_partners = type_list<tags::hyper_sssp, tags::test_hyper_pairs>;
+};
+
+/// hyper_sssp from vertex 0 on the shared engine (test-only tag, the manifest's entry; M11b).
+template <>
+struct test_traits<tags::hyper_sssp_shared_engine>
+    : hyper_sssp_kit_detail::traits_of<0, engine::operators> {
+  static constexpr std::string_view name = "hyper_sssp";  ///< the manifest's
+  /// hyper_sssp's registry entry.
+  static const algorithm_info* registry_entry() {
+    return hyper_sssp_kit_detail::hyper_sssp_entry();
+  }
+  /// C10's test-only partners: the as-is engine from another source, and the kit's fake.
+  using test_partners = type_list<tags::hyper_sssp_other_source, tags::test_hyper_pairs>;
 };
 
 }  // namespace dyng::conformance

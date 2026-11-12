@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+# Two batches for examples/data/hyper_sssp.hg (0-based vertex ids: file id - 1). Batch 0 deletes
+# hyperedge 3, removes vertex 7 from hyperedge 5, adds vertex 6 to hyperedge 1 and inserts {0, 11}
+# of weight 6; batch 1 removes vertex 1 from hyperedge 0, adds vertex 2 to hyperedge 8, deletes
+# hyperedge 6 and inserts {3, 9} of weight 1 (an edit is applied after the deletions and before
+# the insertions of its batch).
+%dgt 1 hypergraph
+%batch 0
+-h 3
+-i 5 7
++i 1 6
++h 0 11 ; 6
+%batch 1
+-h 6
+-i 0 1
++i 8 2
++h 3 9 ; 1
