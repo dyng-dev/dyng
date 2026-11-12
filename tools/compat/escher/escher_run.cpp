@@ -17,8 +17,9 @@
  * --insertions, --seed, --insert-mode, --check and --timing FILE (A's JSON {meta, stages[{stage,
  * batch, ms}]}). What it does, in A's order (src/driver.cu run()):
  *
- *  1. the clock starts at the top of main(); resources::warm_up() (the CUDA context and, under
- *     CUDA_MODULE_LOADING=EAGER, the modules; A's first CUDA call does the same inside its total);
+ *  1. the clock starts at the top of main(); resources::warm_up() of triad_count's and the
+ *     hypergraph containers' kernel groups (the CUDA context and, under CUDA_MODULE_LOADING=EAGER,
+ *     the modules; A's first CUDA call does the same inside its total; ADR 0109 part B);
  *  2. load (`load_ms`): io::read_hypergraph(F, hypergraph_read_options::escher_gpu()) or
  *     generators::legacy::escher_hypergraph(std::mt19937_64(seed), {N, maxCard, minCard - 1,
  *     V - 1}) after A's lines "Generating hypergraph with: ..." (printHypergraphParams); A's line
@@ -51,6 +52,8 @@
  * Nsight Systems peak, M9a criterion 13). Exit status: 0 done, 1 a --check failure, 2 a usage or
  * input error.
  */
+#include "core/kernel_groups.hpp"
+
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
@@ -341,7 +344,9 @@ int run(const run_options& o, clock_type::time_point start) {
   profiler prof(popt);
   res.attach_profiler(&prof);
   timing_log log(prof);
-  res.warm_up();
+  // resources::warm_up() of the kernel groups this tool runs (ADR 0109 part B): triad_count's and
+  // the hypergraph containers'.
+  detail::warm_up_kernel_groups(res, {"triad_count", "hypergraph"});
 
   // 2. Load (A's init.load: no synchronization).
   std::mt19937_64 rng(o.seed);

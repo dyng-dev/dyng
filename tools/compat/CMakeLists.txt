@@ -7,6 +7,8 @@
 add_executable(dyng-compat-mosp mosp/mosp_compat.cpp)
 # dyng::testing: the path costs of the weight columns beyond -k (mospPathCosts covers them all).
 target_link_libraries(dyng-compat-mosp PRIVATE dyng::dyng dyng::testing)
+# core/kernel_groups.hpp: the warm-up of the kernel groups the tool runs (ADR 0109 part B).
+target_include_directories(dyng-compat-mosp PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 if(DYNG_ENABLE_OPENMP)
   # The driver reads its input files concurrently in an OpenMP region, like MOSP's `mosp`.
   target_link_libraries(dyng-compat-mosp PRIVATE OpenMP::OpenMP_CXX)
@@ -17,6 +19,8 @@ dyng_enable_sanitizers(dyng-compat-mosp)
 
 add_executable(dyng-compat-cycle-enum cycle_enum/cycle_enum_compat.cpp)
 target_link_libraries(dyng-compat-cycle-enum PRIVATE dyng::dyng)
+# core/kernel_groups.hpp: the warm-up of the kernel group the tool runs (ADR 0109 part B).
+target_include_directories(dyng-compat-cycle-enum PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 target_compile_features(dyng-compat-cycle-enum PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-cycle-enum)
 dyng_enable_sanitizers(dyng-compat-cycle-enum)
@@ -89,7 +93,8 @@ add_executable(
                      "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/cbst_trace.cpp"
                      "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/escher_dump.cpp"
 )
-target_include_directories(dyng-compat-escher PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests")
+target_include_directories(dyng-compat-escher PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests"
+                                                      "${PROJECT_SOURCE_DIR}/cpp/src")
 target_link_libraries(dyng-compat-escher PRIVATE dyng::dyng)
 target_compile_features(dyng-compat-escher PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-escher)
