@@ -43,9 +43,9 @@ struct vertex_arrival_options {
   std::int64_t total_vertices = 50000;  ///< --totalNodes: vertices of the full graph (> 1)
   std::int32_t average_degree = 5;      ///< --avgDegree: target average degree (> 0)
   std::int32_t num_batches = 10;        ///< --numBatches: batches b0 .. b(num_batches - 1) (> 0)
-  /// --seed: the legacy stream's graph seeds std::mt19937(seed) and its batches
-  /// std::mt19937(seed + 12345); the library's stream (generate_vertex_arrival_stream()) seeds
-  /// std::mt19937_64(seed) and std::mt19937_64(seed + 0x9E3779B97F4A7C15).
+  /** @brief --seed: the legacy stream's graph seeds std::mt19937(seed) and its batches
+   *         std::mt19937(seed + 12345); the library's stream (generate_vertex_arrival_stream())
+   *         seeds std::mt19937_64(seed) and std::mt19937_64(seed + 0x9E3779B97F4A7C15). */
   std::uint32_t seed = 42;
   float ground_truth_fraction = 0.01F;  ///< labelled share of the arrivals (b0: of all vertices)
   float deleted_fraction = 0.09F;       ///< departures per batch, as a share of its arrivals
