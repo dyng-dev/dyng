@@ -1,0 +1,66 @@
+{
+ "superseded": "by parity/results/M11b-merged/integration.json (the M11b review fixes): the author merged M10a as 9bf1bd3 (#23) after this record was written, so origin/main and m10a-label-propagation (a0734e1) are no longer the refs named here, and M11b is the first of M10b / M11b to freeze. This record stays as written at step 4 (parity/results/M11b.md section 4.9).",
+ "what": "M11b criterion 11, integration (the second of M10b / M11b to freeze): the trial merges, the generated files on the merged tree, the scoped dry runs and the 0.1-0.3 certificate tests",
+ "date": "2026-11-11",
+ "head": "a30fe48 (m11b-hyper-sssp; the later commits change records only)",
+ "origin_main": "64a5123869c142867270b122973ef058bbe2b654",
+ "m10_ref": {
+  "name": "m10a-label-propagation",
+  "commit": "69ae55fd11668d9172628c363f1d668ce9f36ff3",
+  "note": "the latest m10* ref in the repository (read-only); M10b has not started"
+ },
+ "trial_merge_origin_main": "no conflict (origin/main 64a5123 is the branch's base)",
+ "trial_merge_m10": {
+  "before": "3b8a410's parent: conflicts in GOVERNANCE.md, docs/adr/README.md and ci/cmake_consumer.sh (a shell script: a code conflict, never excused); fixed in 3b8a410 by moving M11's block",
+  "conflicts": {
+   "GOVERNANCE.md": "Markdown (the approvals log's end): M11b's rows of 2026-11-04 to 2026-11-11 against M10a's rows of 2026-11-04 to 2026-11-11; resolved by combining both sides' rows in date order (M11's first within a date)",
+   "docs/adr/README.md": "Markdown (the index rows): M11b's 0094-0097 against M10a's 0100; resolved in numeric order",
+   "docs/developer/plan.md": "Markdown: the M10 and M11 rows are adjacent lines and both sides edited their own; resolved with M10a's M10 row and M11b's M11 row"
+  },
+  "code_conflicts": 0,
+  "markers_after_resolution": "git grep -nE '^(<<<<<<<|>>>>>>>)( |$)' empty",
+  "scratch_worktree": "$DYNG_SCRATCH/review/m11b-trial (git worktree add --detach; the merge committed there, never pushed; removed afterwards)"
+ },
+ "generated_files_on_the_merged_tree": {
+  "scripts/regen.py --check": "7 generated files up to date (8 algorithms)",
+  "stubs (ci/python.sh: regen.py --stubs --check, mypy --strict, the Python suite)": "stubs up to date; mypy: no issues in 41 files; 776 passed, 91 skipped",
+  "API baseline (ci/docs.sh --doxygen-only)": "api-snapshot: OK (1436 declarations match public_api.txt)"
+ },
+ "certificate_tests_0.1-0.4_on_the_merged_tree": "parity/tests/test_release_cert.py: 126 passed",
+ "scoped_dry_runs_on_the_merged_tree": {
+  "hyper_sssp": {
+   "records_measured_on": "4f439a2 (M11b, this step)",
+   "as_measured": {
+    "passed": false,
+    "problems": 21,
+    "cause": "every problem is a record measured on its own branch's library ('does not have the release's code') or follows from one ('no passed replay')",
+    "first_problems": [
+     "parity-hyper_sssp_mosp_escher-cuda-hyper_sssp-by_id.json: measured commit 4f439a24a5e0b4f8ccf7034c394df69306cf6a89 does not have the release's code (differs)",
+     "parity-hyper_sssp_mosp_escher-cuda-hyper_sssp-by_id_public.json: measured commit 4f439a24a5e0b4f8ccf7034c394df69306cf6a89 does not have the release's code (differs)",
+     "parity-hyper_sssp_mosp_escher-cuda-hyper_sssp-by_key.json: measured commit 4f439a24a5e0b4f8ccf7034c394df69306cf6a89 does not have the release's code (differs)"
+    ]
+   },
+   "measured_commits_rewritten_to_the_merge": {
+    "passed": true,
+    "what": "a copy of the same records with only the measured commit set to the trial merge (as M10a's acceptance verifier did): the merged certificate entries are sound"
+   }
+  },
+  "label_propagation": {
+   "records_measured_on": "d327950 (M10a, its merged-tree records: parity/results/M10a-gates/ and the summary of $DYNG_SCRATCH/runs/bench/m10a-merged)",
+   "as_measured": {
+    "passed": false,
+    "problems": 26,
+    "cause": "every problem is a record measured on its own branch's library ('does not have the release's code') or follows from one ('no passed replay')",
+    "first_problems": [
+     "parity-label_propagation_generator-sequential.json: measured commit d327950ff536cd8a264c02924dd87325bbac357f does not have the release's code (differs)",
+     "golden set label_propagation_generator: no passed replay on sequential (compare.py label_propagation <kind> --json, then compare.py label_propagation certificate)",
+     "golden set label_propagation_generator: 14 of the 14 cases of the set need sequential have no passed replay (first: 500k_d1e-4_s42; a replay of a subset certifies nothing of the rest)"
+    ]
+   },
+   "measured_commits_rewritten_to_the_merge": {
+    "passed": true,
+    "what": "a copy of the same records with only the measured commit set to the trial merge (as M10a's acceptance verifier did): the merged certificate entries are sound"
+   }
+  }
+ }
+}

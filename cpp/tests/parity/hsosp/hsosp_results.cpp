@@ -112,7 +112,11 @@ struct b_call {
 class session_results {
  public:
   session_results(const resources& res, const options& opt, report& rep)
-      : res_(res), opt_(opt), rep_(rep) {}
+      : res_(res), opt_(opt), rep_(rep) {
+    if (!opt_.operators_knobs.empty() && !hv::parse_operators_knobs(opt_.operators_knobs, knobs_)) {
+      throw invalid_argument_error("dyng_hsosp_replay: --operators-knobs " + opt_.operators_knobs);
+    }
+  }
 
   void run(const std::vector<hd::record>& records) {
     for (std::size_t i = 0; i < records.size(); ++i) {
@@ -442,16 +446,18 @@ class session_results {
     hyper_sssp::options o;
     o.max_iterations = rec.i64("cfg.max_iterations");
     o.work_budget = as_double(rec, "cfg.work_budget", 1.0);
+    o.cuda_engine = opt_.cuda_engine;
     const int block = static_cast<int>(rec.i64("cfg.block_size"));
     if (opt_.mode == mode::by_id) {
       detail::hyper_sssp_endpoints ends;
       ends.source_hyperedge = rec.i64("source") - 1;
       ends.zero_weight_a = source_ - 1;
       ends.zero_weight_b = target_ - 1;
-      return hv::compute(res_, *h_, ends, o, block);
+      return hv::compute(res_, *h_, ends, o, block, knobs_);
     }
     result_t r = hyper_sssp::compute(res_, *h_, source_vertex_, o);
     hv::set_block_size(r, block);
+    hv::set_operators_knobs(r, knobs_);
     return r;
   }
 
@@ -655,6 +661,7 @@ class session_results {
   resources res_;
   options opt_;
   report& rep_;
+  detail::hyper_sssp_operators_knobs knobs_;  ///< the shared engine's knobs
   std::unique_ptr<whgraph> h_;
   std::map<std::int64_t, tracked> results_;
   std::map<std::int64_t, std::int64_t> b_to_dyng_;  ///< by_key: B id -> dynG id

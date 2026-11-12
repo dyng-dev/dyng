@@ -14,7 +14,7 @@ ported file ({doc}`../developer/provenance`).
 | {doc}`mosp_cuda` | `sssp` (CUDA); later `mosp` | `e220ee2` | `baseline-2026-09` = `ac29545` | 0.1 |
 | {doc}`cycle_enumeration_gpu` | `cycle_count` | `0a976ad` | `baseline-2026-09` = `da2067d` | 0.1 |
 | {doc}`escher_gpu` | the ESCHER hypergraph store, `triad_count`, `experimental::count_local_patterns` | `abcf9b2` | `baseline-2026-09` = `6a44c1c` | 0.3 |
-| MOSP_ESCHER | `hyper_sssp`, the sssp operators engine | `4b86159` | | 0.2 (the operators engine) / 0.4 (`hyper_sssp`, planned) |
+| {doc}`mosp_escher` | `hyper_sssp`, the `slack_csr` storage and its incidence edits; the structure of the sssp operators engine | `4b86159` | `baseline-2026-09` = `80cee62` | 0.2 (the operators engine) / 0.4 (`hyper_sssp`) |
 | LabelPropagation-CUDA | `label_propagation` | `a276a3a` | | 0.4 (planned) |
 
 Every original is public under `https://github.com/SMShovan/<repository>`. The originals carried
@@ -28,4 +28,5 @@ mosp_openmp
 mosp_cuda
 cycle_enumeration_gpu
 escher_gpu
+mosp_escher
 ```

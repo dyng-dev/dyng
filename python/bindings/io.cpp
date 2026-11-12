@@ -356,22 +356,23 @@ nb::tuple current_batch(const io::batch_reader& r) {
   if (h.kind == container_kind::hypergraph) {
     DYNG_EXPECTS(h.vertex_type == io::batch_dtype::int32,
                  "the Python package reads hypergraph .dgb files with int32 vertex ids");
-    if ((h.flags & io::batch_file_flags::incidence_edits) != 0) {
-      throw not_supported_error(
-          "dyng: a .dgb file with incidence edits (flag incidence_edits): planned for the Python "
-          "layer of 0.4; until then read the file from C++");
-    }
+    // (deletions, offsets, members, weights or None, then the incidence removals' and
+    // additions' hyperedges and vertices: empty unless the file has the flag incidence_edits)
+    auto hyper_batch = [](const auto& b, nb::object weights) {
+      return nb::make_tuple(copied(b.delete_hyperedges), copied(b.insert_offsets),
+                            copied(b.insert_members), std::move(weights),
+                            copied(b.delete_incidence_hyperedge), copied(b.delete_incidence_vertex),
+                            copied(b.insert_incidence_hyperedge),
+                            copied(b.insert_incidence_vertex));
+    };
     nb::object batch;
     if (h.weight_type == io::batch_dtype::none) {
-      const auto b = r.hyperedge_batch<std::int32_t, unweighted>();
-      batch = nb::make_tuple(copied(b.delete_hyperedges), copied(b.insert_offsets),
-                             copied(b.insert_members), nb::none());
+      batch = hyper_batch(r.hyperedge_batch<std::int32_t, unweighted>(), nb::none());
     } else {
       DYNG_EXPECTS(h.weight_type == io::batch_dtype::int32,
                    "the Python package reads hypergraph .dgb files with int32 weights");
       const auto b = r.hyperedge_batch<std::int32_t, std::int32_t>();
-      batch = nb::make_tuple(copied(b.delete_hyperedges), copied(b.insert_offsets),
-                             copied(b.insert_members), copied(b.insert_weights));
+      batch = hyper_batch(b, nb::cast(copied(b.insert_weights)));
     }
     const auto a = r.annotations<std::int32_t>();
     nb::object members = nb::none();
@@ -537,6 +538,7 @@ void bind_io(nb::module_& m) {
   m.attr("BATCH_FLAG_DELETED_MEMBERS") = io::batch_file_flags::deleted_members;
   m.attr("BATCH_FLAG_EXPECTED_IDS") = io::batch_file_flags::expected_ids;
   m.attr("BATCH_FLAG_INSERT_FIRST") = io::batch_file_flags::insert_first;
+  m.attr("BATCH_FLAG_INCIDENCE_EDITS") = io::batch_file_flags::incidence_edits;
 #define DYNG_PY_BIND_HYPERGRAPH_IO(V, W) bind_hypergraph_io<V, W>(m);
   DYNG_PY_FOR_EACH_HYPERGRAPH_TYPE(DYNG_PY_BIND_HYPERGRAPH_IO)
 #undef DYNG_PY_BIND_HYPERGRAPH_IO

@@ -72,7 +72,8 @@ hyperedges by best fit, and the batch order (`id_reuse`) changes which slots are
 ({doc}`../concepts/hypergraphs`). Deletions of dead or unknown ids are skipped and counted
 (`ignored_deletions`). A batch with an invalid member or an empty hyperedge raises
 `dyng.InvalidArgumentError` and changes nothing; incidence edits (`delete_incidences=`,
-`insert_incidences=`) raise `dyng.NotSupportedError` until 0.4.
+`insert_incidences=`, below) need `storage="slack_csr"` and raise `dyng.NotSupportedError` on the
+default escher storage.
 
 ## Read the rows
 
@@ -182,8 +183,45 @@ print(st.batch.inserted_ids, motifs.total, type1.total)
 The algorithm is {doc}`../algorithms/triad_count`; the {doc}`../tutorials/hypergraph_triads`
 tutorial does it step by step.
 
+## Incidence edits and `slack_csr` storage (0.4)
+
+On `storage="slack_csr"` a batch can also remove vertices from live hyperedges and add vertices to
+them; the hyperedges keep their ids. The batch runs its deletions, then the removals, then the
+additions, then the insertions, and skips (and counts in `skipped_ops`) an edit that cannot apply
+({doc}`../concepts/hypergraphs`):
+
+<!-- snippet: hypergraph-python-incidence -->
+```python
+import dyng
+
+seq = dyng.Resources("sequential")
+h = dyng.Hypergraph.from_lists(
+    [[0, 1, 2], [2, 3], [3, 4]], [5, 1, 2], storage="slack_csr", resources=seq
+)
+s = h.apply(
+    dyng.HyperedgeBatch(
+        delete_incidences=([0, 1], [1, 3]),  # 1 leaves {0, 1, 2}; 3 leaves {2, 3}
+        insert_incidences=([2, 2], [0, 3]),  # 0 joins {3, 4}; 3 is a member: skipped
+    )
+)
+print(s.deleted_incidences, s.inserted_incidences, s.skipped_ops)
+print([h.h2v().row(i).tolist() for i in range(3)])
+print(h.h2h().row(2).tolist())
+```
+<!-- snippet-output: hypergraph-python-incidence -->
+```text
+2 1 1
+[[0, 2], [2], [0, 3, 4]]
+[0]
+```
+
+`dyng.io.read_hyperedge_batches` reads the `.dgt` lines `-i h v` / `+i h v`, and the `.dgb`
+readers and writers carry the edits (the file flag `incidence_edits`). `line_graph="slack_csr"`
+(or `"automatic"`) keeps the line graph under every batch. Shortest hyperpaths on such a
+hypergraph are {doc}`../algorithms/hyper_sssp` (`dyng.hyper_sssp`; the
+{doc}`../tutorials/shortest_hyperpaths` tutorial); `triad_count` refuses `slack_csr` storage in
+0.4.
+
 ## Not yet
 
-Incidence edits (`delete_incidences=`, `insert_incidences=`) and the `slack_csr` storage are
-planned for 0.4. The list of C++ symbols without a Python counterpart is
-{doc}`../developer/python_gaps`.
+The list of C++ symbols without a Python counterpart is {doc}`../developer/python_gaps`.

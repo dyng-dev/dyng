@@ -28,6 +28,13 @@ dyng_add_test(
   SOURCES mosp_allocation_failure_test.cpp
   LABELS cpu mosp
 )
+# compute() and update() on openmp under host allocation failures inside sssp's OpenMP regions
+# (M11b, ADR 0094): out_of_memory_error with mosp.hpp's guarantee (its own operator new).
+dyng_add_test(
+  NAME dyng_mosp_openmp_allocation_failure_tests
+  SOURCES mosp_openmp_allocation_failure_test.cpp
+  LABELS cpu mosp
+)
 
 if(DYNG_ENABLE_CUDA)
   dyng_add_test(

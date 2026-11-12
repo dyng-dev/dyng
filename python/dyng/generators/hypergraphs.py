@@ -26,6 +26,7 @@ from ..resources import Resources, resolve
 
 __all__ = [
     "HyperedgeBatchMixName",
+    "IncidenceBatchMixName",
     "uniform_hypergraph",
     "uniform_hypergraph_arrays",
     "random_hyperedge_batch",
@@ -51,7 +52,25 @@ HyperedgeBatchMixName = Literal[
 ``heavy_delete``, ``delete_all``, ``reinsert``, ``larger`` (a batch larger than the hypergraph),
 ``duplicates`` (repeated members and parallel hyperedges), ``dead_ids`` (deletions apply()
 skips), ``skewed`` (one hyperedge of ``skewed_cardinality`` members), ``limits`` (ids at the index
-limits) and ``empty``."""
+limits) and ``empty``. The incidence-edit mixes of 0.4 are :data:`IncidenceBatchMixName`."""
+
+IncidenceBatchMixName = Literal[
+    "incidence_removals",
+    "incidence_additions",
+    "incidence_mixed",
+    "incidence_emptying",
+    "incidence_same_batch",
+    "incidence_repeats",
+    "incidence_out_of_range",
+]
+"""The incidence-edit mixes of :func:`random_hyperedge_batch` (0.4; C++ ``hyperedge_batch_mix``),
+whose batches apply on ``storage="slack_csr"``: ``incidence_removals`` (one member removed from
+each of k hyperedges), ``incidence_additions`` (one non-member added to each of k hyperedges),
+``incidence_mixed`` (deletions, removals, additions and insertions in one batch),
+``incidence_emptying`` (every member of a hyperedge removed: the last removal is skipped),
+``incidence_same_batch`` (edits of hyperedges the batch deletes, and of ids it inserts: skipped),
+``incidence_repeats`` (the same edit twice: the second skipped) and ``incidence_out_of_range``
+(edits of out-of-range vertices and ids: skipped)."""
 
 
 def uniform_hypergraph_arrays(
@@ -149,7 +168,7 @@ def uniform_hypergraph(
 def random_hyperedge_batch(
     hypergraph: Hypergraph,
     *,
-    mix: HyperedgeBatchMixName = "mixed",
+    mix: HyperedgeBatchMixName | IncidenceBatchMixName = "mixed",
     size: int = -1,
     min_cardinality: int = 1,
     max_cardinality: int = 4,
@@ -167,7 +186,7 @@ def random_hyperedge_batch(
 
     Args:
         hypergraph: The hypergraph.
-        mix: The kind of batch (:data:`HyperedgeBatchMixName`).
+        mix: The kind of batch (:data:`HyperedgeBatchMixName`, :data:`IncidenceBatchMixName`).
         size: k of the mix (-1: max(1, live hyperedges / 10)).
         min_cardinality: Fresh hyperedges' smallest cardinality.
         max_cardinality: Fresh hyperedges' largest cardinality.

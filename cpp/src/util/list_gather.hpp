@@ -24,12 +24,21 @@
  * the outputs are the same. The near-far loop of the sssp engines runs about a thousand such
  * regions per objective on a 10K batch, where the barriers are most of its time (M1b,
  * parity/results/M1b.md section 9).
+ *
+ * Changed (M11b, ADR 0094; the D13 class of ADR 0061): the output's resize inside `omp single`
+ * can allocate, and an exception must not leave the region. gather() and gather_pair() take the
+ * region's region_exceptions carrier: the resize runs through it, every thread still passes both
+ * barriers, and after a failure (the resize's, or a failed region_push_back() of any thread
+ * before the gather) no thread copies its list; the caller rethrows after the region. Nothing
+ * changes when nothing fails.
  */
 #pragma once
 
 #include <dyng/config.hpp>
 
 #if DYNG_HAS_OPENMP
+
+#include "util/region_exceptions.hpp"
 
 #include <omp.h>
 
@@ -46,7 +55,8 @@ namespace dyng::detail {
  * Every thread of a parallel region calls gather() exactly once with its local list; the lists
  * are appended to the output (after its current contents) in thread order, at offsets from a
  * prefix sum over their sizes, so the copies run in parallel instead of being serialized in a
- * critical section. gather() contains barriers.
+ * critical section. gather() contains barriers. An allocation failure of the output's growth is
+ * kept in the region's carrier (ADR 0094); the output is then not filled.
  *
  * @tparam value_t Element type.
  */
@@ -77,10 +87,13 @@ class list_gather {
   /**
    * @brief Append this thread's list (call once per thread, inside the parallel region).
    * @tparam alloc_t Allocator of the local list (std::allocator or cache_line_allocator).
-   * @param[in] local The thread's list.
+   * @param[in]     local  The thread's list.
+   * @param[in,out] errors The region's carrier: the output's resize runs through it, and after a
+   *                       failure kept in it no list is copied (the caller rethrows after the
+   *                       region).
    */
   template <typename alloc_t>
-  void gather(const std::vector<value_t, alloc_t>& local) {
+  void gather(const std::vector<value_t, alloc_t>& local, region_exceptions& errors) {
     const int thread = omp_get_thread_num();
     offsets_[static_cast<std::size_t>(thread) + 1] = local.size();
 #pragma omp barrier
@@ -90,7 +103,10 @@ class list_gather {
       for (int i = 0; i < threads; ++i) {
         offsets_[static_cast<std::size_t>(i) + 1] += offsets_[static_cast<std::size_t>(i)];
       }
-      out_.resize(base_ + offsets_[static_cast<std::size_t>(threads)]);
+      resize_output(static_cast<std::size_t>(threads), errors);
+    }
+    if (errors.failed()) {
+      return;  // the output may be too short; the region's results are discarded
     }
     std::copy(local.begin(), local.end(),
               out_.begin() +
@@ -111,12 +127,14 @@ class list_gather {
    * @param[in]     local_first  The thread's list for the first gather.
    * @param[in,out] second       The second gather (a different output than the first's).
    * @param[in]     local_second The thread's list for the second gather.
+   * @param[in,out] errors       The region's carrier (as for gather()).
    */
   template <typename first_alloc_t, typename second_alloc_t>
   static void gather_pair(list_gather& first,
                           const std::vector<value_t, first_alloc_t>& local_first,
                           list_gather& second,
-                          const std::vector<value_t, second_alloc_t>& local_second) {
+                          const std::vector<value_t, second_alloc_t>& local_second,
+                          region_exceptions& errors) {
     const auto thread = static_cast<std::size_t>(omp_get_thread_num());
     first.offsets_[thread + 1] = local_first.size();
     second.offsets_[thread + 1] = local_second.size();
@@ -124,19 +142,27 @@ class list_gather {
 #pragma omp single
     {
       const auto threads = static_cast<std::size_t>(omp_get_num_threads());
-      first.prefix_sum_and_resize(threads);
-      second.prefix_sum_and_resize(threads);
+      first.prefix_sum_and_resize(threads, errors);
+      second.prefix_sum_and_resize(threads, errors);
+    }
+    if (errors.failed()) {
+      return;  // an output may be too short; the region's results are discarded
     }
     first.copy_at(local_first, thread);
     second.copy_at(local_second, thread);
   }
 
  private:
-  void prefix_sum_and_resize(std::size_t threads) {
+  void prefix_sum_and_resize(std::size_t threads, region_exceptions& errors) noexcept {
     for (std::size_t i = 0; i < threads; ++i) {
       offsets_[i + 1] += offsets_[i];
     }
-    out_.resize(base_ + offsets_[threads]);
+    resize_output(threads, errors);
+  }
+
+  // Inside `omp single`: an allocation failure is kept in the carrier, not thrown (ADR 0094).
+  void resize_output(std::size_t threads, region_exceptions& errors) noexcept {
+    errors.run([this, threads] { out_.resize(base_ + offsets_[threads]); });
   }
 
   template <typename alloc_t>

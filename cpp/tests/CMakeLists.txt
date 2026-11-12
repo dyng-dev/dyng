@@ -652,6 +652,17 @@ dyng_add_test(
 )
 target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+# Host allocation failures inside the OpenMP engine's regions are out_of_memory_error with
+# sssp.hpp's guarantee (M11b, ADR 0094; the D13 class): its own operator new, so its own
+# executable.
+dyng_add_test(
+  NAME dyng_sssp_openmp_allocation_failure_tests
+  SOURCES algorithms/sssp/sssp_openmp_allocation_failure_test.cpp
+  LABELS cpu sssp
+)
+target_include_directories(
+  dyng_sssp_openmp_allocation_failure_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src"
+)
 endif()
 
 # cycle_count (CycleEnumeration-GPU@0a976ad): API, the original's suites, randomized differential
@@ -1312,6 +1323,10 @@ endif()
 # every build: the sequential twin) and, in CUDA builds, with the same suites on cuda
 # (hyper_sssp.mutation.cuda.<name>, labels gpu;mutation;hyper_sssp). The CTest passes when the
 # suite fails; the control copy must pass. parity/mutate.py registers the suite (M11a step 5).
+# M11b (criterion 4): #1 and #2 have twins in the shared engine (engine::operators: the line
+# graph's pull weight, hyper_sssp/operators.cuh, and the warp pull, sssp/operators.cuh), defined
+# apart (DYNG_MUTATION_HSOSP_OPS_*) and run on cuda only (the fourth field): the CUDA suite runs
+# every case on both engines, so the shared engine's cases detect them.
 option(DYNG_HYPER_SSSP_MUTATION_TESTS "Build the mutation tests of hyper_sssp" ${DYNG_MUTATION_TESTS})
 if(DYNG_HYPER_SSSP_MUTATION_TESTS AND TARGET dyng_hyper_sssp)
   get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
@@ -1329,11 +1344,13 @@ if(DYNG_HYPER_SSSP_MUTATION_TESTS AND TARGET dyng_hyper_sssp)
       list(APPEND _dyng_hsosp_other_objects $<TARGET_OBJECTS:${_module}>)
     endif()
   endforeach()
-  # name|define|expected verdict
+  # name|define|expected verdict[|cuda: the CUDA suite only]
   set(_dyng_hyper_sssp_mutants
       "control||pass"
       "pull_adds_neighbour_weight|DYNG_MUTATION_HSOSP_PULL_ADDS_NEIGHBOUR_WEIGHT|fail"
       "non_tight_parent|DYNG_MUTATION_HSOSP_NON_TIGHT_PARENT|fail"
+      "ops_pull_adds_neighbour_weight|DYNG_MUTATION_HSOSP_OPS_PULL_ADDS_NEIGHBOUR_WEIGHT|fail|cuda"
+      "ops_non_tight_parent|DYNG_MUTATION_HSOSP_OPS_NON_TIGHT_PARENT|fail|cuda"
   )
   set(_dyng_hsosp_mutant_suite
       algorithms/hyper_sssp/hyper_sssp_test.cpp
@@ -1353,11 +1370,22 @@ if(DYNG_HYPER_SSSP_MUTATION_TESTS AND TARGET dyng_hyper_sssp)
     list(GET _mutant 0 _name)
     list(GET _mutant 1 _define)
     list(GET _mutant 2 _expect)
+    list(LENGTH _mutant _fields)
+    set(_cuda_only OFF)
+    if(_fields GREATER 3)
+      set(_cuda_only ON)
+    endif()
+    if(_cuda_only AND NOT DYNG_ENABLE_CUDA)
+      continue()
+    endif()
     set(_lib dyng_hyper_sssp_mutant_${_name})
     add_library(${_lib}_module OBJECT ${_dyng_hsosp_sources})
     add_library(${_lib} STATIC ${_dyng_hsosp_other_objects} $<TARGET_OBJECTS:${_lib}_module>)
-    set(_exes dyng_hyper_sssp_mutant_${_name}_tests)
-    add_executable(dyng_hyper_sssp_mutant_${_name}_tests ${_dyng_hsosp_mutant_suite})
+    set(_exes)
+    if(NOT _cuda_only)
+      set(_exes dyng_hyper_sssp_mutant_${_name}_tests)
+      add_executable(dyng_hyper_sssp_mutant_${_name}_tests ${_dyng_hsosp_mutant_suite})
+    endif()
     if(DYNG_ENABLE_CUDA)
       add_executable(dyng_hyper_sssp_cuda_mutant_${_name}_tests ${_dyng_hsosp_mutant_suite})
       target_compile_definitions(dyng_hyper_sssp_cuda_mutant_${_name}_tests PRIVATE DYNG_TEST_CUDA=1)

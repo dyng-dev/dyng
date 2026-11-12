@@ -10,7 +10,7 @@ import dyng
 import numpy as np
 import pytest
 from conftest import host_backends  # noqa: E402
-from dyng.generators.hypergraphs import HyperedgeBatchMixName
+from dyng.generators.hypergraphs import HyperedgeBatchMixName, IncidenceBatchMixName
 
 hypothesis = pytest.importorskip("hypothesis")
 st = hypothesis.strategies
@@ -37,13 +37,26 @@ def test_uniform_hypergraph_is_seeded() -> None:
     assert w.weights is not None and set(w.weights.tolist()) <= {3, 4}
 
 
-@pytest.mark.parametrize("mix", list(typing.get_args(HyperedgeBatchMixName)))
+@pytest.mark.parametrize(
+    "mix", [*typing.get_args(HyperedgeBatchMixName), *typing.get_args(IncidenceBatchMixName)]
+)
 def test_every_mix_applies(mix: str) -> None:
+    # The incidence-edit mixes (0.4) apply on slack_csr storage (escher storage refuses edits).
+    edits = mix.startswith("incidence_")
+    props = dyng.HypergraphProperties(
+        storage="slack_csr" if edits else "escher",
+        line_graph="slack_csr" if edits else "sorted_merge",
+    )
     h = dyng.generators.uniform_hypergraph(
-        num_vertices=1200, num_hyperedges=30, max_cardinality=4, seed=3, line_graph="sorted_merge"
+        num_vertices=1200, num_hyperedges=30, max_cardinality=4, seed=3, properties=props
     )
     b = dyng.generators.random_hyperedge_batch(h, mix=mix, size=5, seed=4)  # type: ignore[arg-type]
+    assert (b.num_incidence_edits > 0) == edits
     s = h.apply(b)
+    if mix in ("incidence_out_of_range", "incidence_repeats", "incidence_same_batch"):
+        assert s.skipped_ops >= 2
+    if edits and mix != "incidence_out_of_range":
+        assert s.inserted_incidences + s.deleted_incidences > 0
     if mix == "skewed":
         assert max(len(r) for r in b.insertions()) >= 1024
     if mix == "delete_all":

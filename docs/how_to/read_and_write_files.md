@@ -101,6 +101,15 @@ while (reader.next()) {
 also carry the members of the deleted hyperedges and the ids its insertions are expected to get
 (`reader.annotations<std::int32_t>()`), which the parity harness checks.
 
+**Incidence edits** (0.4, for `hypergraph_storage::slack_csr`): the `.dgt` lines `-i h v` and
+`+i h v` remove vertex v from, or add it to, the live hyperedge h; the batch's
+`delete_incidence_hyperedge()` / `insert_incidence_hyperedge()` and their vertex arrays hold them,
+and a `.dgb` file carries them under its flag `incidence_edits` (bit 3). The whole-file writers set
+the flag only when a batch has an edit, so a file without edits is byte-identical to 0.3's; a
+`batch_writer` opened without it rejects a batch that has one, and a reader of 0.3 rejects a file
+with it. In Python the edits are `dyng.HyperedgeBatch(delete_incidences=..., insert_incidences=...)`
+and `BatchFileHeader.incidence_edits` ({doc}`use_hypergraphs_from_python`).
+
 ## Triad counts (the triad-bins JSON)
 
 ```cpp

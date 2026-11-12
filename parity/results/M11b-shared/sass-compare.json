@@ -1,0 +1,121 @@
+{
+ "objects": {
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/cuda.cu.o": {
+   "identical": true,
+   "kernels": 11,
+   "instructions": 5168,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": false,
+   "byte_identical": false
+  },
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/mosp.cpp.o": {
+   "identical": true,
+   "kernels": 0,
+   "instructions": 0,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": true,
+   "byte_identical": false
+  },
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/openmp.cpp.o": {
+   "identical": true,
+   "kernels": 0,
+   "instructions": 0,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": true,
+   "byte_identical": true
+  },
+  "cpp/src/algorithms/mosp/CMakeFiles/dyng_mosp.dir/sequential.cpp.o": {
+   "identical": true,
+   "kernels": 0,
+   "instructions": 0,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": true,
+   "byte_identical": true
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/cuda.cu.o": {
+   "identical": true,
+   "kernels": 3,
+   "instructions": 8240,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": false,
+   "byte_identical": false
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/openmp.cpp.o": {
+   "identical": true,
+   "kernels": 0,
+   "instructions": 0,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": true,
+   "byte_identical": false
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/operators.cu.o": {
+   "identical": true,
+   "kernels": 37,
+   "instructions": 7096,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": false,
+   "byte_identical": false
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/sequential.cpp.o": {
+   "identical": true,
+   "kernels": 0,
+   "instructions": 0,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": true,
+   "byte_identical": false
+  },
+  "cpp/src/algorithms/sssp/CMakeFiles/dyng_sssp.dir/sssp.cpp.o": {
+   "identical": true,
+   "kernels": 0,
+   "instructions": 0,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": true,
+   "byte_identical": false
+  },
+  "tools/compat/CMakeFiles/dyng-compat-mosp.dir/mosp/mosp_compat.cpp.o": {
+   "identical": true,
+   "kernels": 0,
+   "instructions": 0,
+   "differ": [],
+   "host_identical": true,
+   "device_sections_differ": [],
+   "debug_sections_identical": true,
+   "byte_identical": false
+  }
+ },
+ "identical": true,
+ "base": {
+  "build": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/head/build",
+  "CMAKE_HOME_DIRECTORY": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s1/head/src",
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+  "commit": "8e2f3df (src.commit of a git-archive copy)",
+  "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0"
+ },
+ "head": {
+  "build": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s2/src/build/parity-cuda",
+  "CMAKE_HOME_DIRECTORY": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s2/src",
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+  "commit": "3655ccf (src.commit of a git-archive copy)",
+  "cuobjdump": "Build cuda_13.1.r13.1/compiler.37061995_0"
+ }
+}

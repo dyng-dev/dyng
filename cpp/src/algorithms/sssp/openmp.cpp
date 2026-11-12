@@ -45,6 +45,16 @@
  * instead of six. On a small batch the loop runs about a thousand rounds per objective and the
  * barriers were most of its time (road_usa, 10K local batch: sssp.loop 37 -> 19 ms per
  * objective with 28 threads; parity/results/M1b.md section 9).
+ *
+ * Exceptions (M11b, ADR 0094; the D13 class of ADR 0061): a per-thread list grows, and the
+ * gather's output is resized, inside a parallel region, where an exception must not escape. Every
+ * hook that runs such a region keeps one region_exceptions carrier: the lists are appended to with
+ * region_push_back() (push_back's capacity compare on the fast path; a full list grows on a cold,
+ * noexcept path that keeps a std::bad_alloc in the carrier), the gathers resize through it, every
+ * thread still passes every barrier and `single`, and the carrier is rethrown after each region,
+ * so the hook stops there and sssp.cpp's entry points translate the failure to
+ * out_of_memory_error with sssp.hpp's guarantee (mosp's OpenMP update runs this engine per
+ * objective and inherits it). Nothing changes when nothing fails.
  */
 #include "algorithms/sssp/problem.hpp"
 #include "graph/instantiate.hpp"
@@ -259,6 +269,7 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::identify_affected() {
     }
     auto load_state = [&](vertex_t v) { return __atomic_load_n(&state[v], __ATOMIC_RELAXED); };
     list_gather<vertex_t> invalid_gather(ws_.candidates, threads_);
+    region_exceptions errors;
     // A walk longer than n steps means the input tree has a parent cycle (e.g. a corrupt
     // imported tree): report it instead of looping forever.
     int cyclic = 0;
@@ -293,11 +304,12 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::identify_affected() {
         if (state[v] == 2) {
           packed_words[v] = packed_inf;
           stamp[v] = generation;
-          local_invalid.push_back(static_cast<vertex_t>(v));
+          region_push_back(local_invalid, static_cast<vertex_t>(v), errors);
         }
       }
-      invalid_gather.gather(local_invalid);
+      invalid_gather.gather(local_invalid, errors);
     }
+    errors.rethrow();
     DYNG_EXPECTS(cyclic == 0, "sssp: the input shortest-path tree has a parent cycle");
   }
   run_.counters.invalidated = static_cast<std::int64_t>(ws_.candidates.size());
@@ -305,6 +317,7 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::identify_affected() {
   if (num_heads > 0) {
     const vertex_t* insert_heads = changes.insert_heads;
     list_gather<vertex_t> head_gather(ws_.candidates, threads_);
+    region_exceptions errors;
 #pragma omp parallel num_threads(threads_)
     {
       thread_list<vertex_t>& local_heads = local_list(0);
@@ -312,11 +325,12 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::identify_affected() {
       for (std::int64_t i = 0; i < num_heads; ++i) {
         const vertex_t v = insert_heads[i];
         if (v != source && claim(stamp, v, generation)) {
-          local_heads.push_back(v);
+          region_push_back(local_heads, v, errors);
         }
       }
-      head_gather.gather(local_heads);
+      head_gather.gather(local_heads, errors);
     }
+    errors.rethrow();
   }
 }
 
@@ -335,6 +349,7 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::seed() {
   int* stamp = ws_.stamp.data();
   const packing<vertex_t> packed = packing_;
   list_gather<vertex_t> frontier_gather(ws_.frontier, threads_);
+  region_exceptions errors;
 #pragma omp parallel num_threads(threads_)
   {
     thread_list<vertex_t>& local_frontier = local_list(0);
@@ -354,12 +369,13 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::seed() {
       if (best < current) {
         const u64 old = atomic_min(&packed_words[v], best);
         if (packed.distance(best) < packed.distance(old) && claim(stamp, v, pull_generation)) {
-          local_frontier.push_back(v);
+          region_push_back(local_frontier, v, errors);
         }
       }
     }
-    frontier_gather.gather(local_frontier);
+    frontier_gather.gather(local_frontier, errors);
   }
+  errors.rethrow();
 }
 
 /// Step 2: near-far propagation from ws.frontier.
@@ -381,6 +397,7 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::loop() {
   char* in_far = ws_.in_far.data();
   const u64 smallest = smallest_distance(ws_.frontier, ws_.packed, packed, threads_);
   u64 threshold = (smallest == packed_inf ? 0 : smallest) + delta;
+  region_exceptions errors;  // every region below; rethrown after each
 
   std::vector<vertex_t>* current = &ws_.near_a;
   std::vector<vertex_t>* next = &ws_.near_b;
@@ -403,14 +420,15 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::loop() {
         const u64 d = word == packed_inf ? packed_inf : packed.distance(word);
         if (d < threshold) {
           if (claim(stamp, v, generation)) {
-            local_near.push_back(v);
+            region_push_back(local_near, v, errors);
           }
         } else if (__atomic_exchange_n(&in_far[v], 1, __ATOMIC_RELAXED) == 0) {
-          local_far.push_back(v);
+          region_push_back(local_far, v, errors);
         }
       }
-      list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far);
+      list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far, errors);
     }
+    errors.rethrow();
   }
 
   while (true) {
@@ -449,16 +467,17 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::loop() {
             if (nd < packed.distance(old)) {
               if (nd < threshold) {
                 if (claim(stamp, w, generation)) {
-                  local_near.push_back(w);
+                  region_push_back(local_near, w, errors);
                 }
               } else if (__atomic_exchange_n(&in_far[w], 1, __ATOMIC_RELAXED) == 0) {
-                local_far.push_back(w);
+                region_push_back(local_far, w, errors);
               }
             }
           }
         }
-        list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far);
+        list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far, errors);
       }
+      errors.rethrow();
       std::swap(current, next);
     }
     if (ws_.far.empty()) {
@@ -487,14 +506,15 @@ void sssp_openmp_engine<vertex_t, edge_t, weight_t>::loop() {
         if (d < threshold) {
           in_far[v] = 0;
           if (claim(stamp, v, generation)) {
-            local_near.push_back(v);
+            region_push_back(local_near, v, errors);
           }
         } else {
-          local_keep.push_back(v);
+          region_push_back(local_keep, v, errors);
         }
       }
-      list_gather<vertex_t>::gather_pair(near_gather, local_near, keep_gather, local_keep);
+      list_gather<vertex_t>::gather_pair(near_gather, local_near, keep_gather, local_keep, errors);
     }
+    errors.rethrow();
     ws_.far.swap(ws_.far2);
   }
 }

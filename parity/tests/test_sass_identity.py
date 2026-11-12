@@ -60,3 +60,20 @@ def test_the_base_commit_is_checked_against_its_archive_copy(tmp_path) -> None:
         assert not got["identical"] and got["differ"] == ["CMakeLists.txt"]
     finally:
         sass_identity.ARCHIVED = old
+
+
+def test_the_names_nvcc_derives_from_the_build_are_normalized() -> None:
+    """--all (M11b, ADR 0094): two builds of one source in two directories differ in the
+    temporary file's name, the internal and the anonymous namespaces' hashes only; different
+    functions stay different."""
+    a = "_ZN4dyng6detail47_GLOBAL__N__7_cuda_cu_d0616ebf_26297926nativeERKNS_9resourcesE"
+    b = "_ZN4dyng6detail47_GLOBAL__N__7_cuda_cu_68d7eaa2_28323296nativeERKNS_9resourcesE"
+    c = "_ZN4dyng6detail47_GLOBAL__N__7_cuda_cu_68d7eaa2_28323296otherERKNS_9resourcesE"
+    strip = sass_identity.strip_build_names
+    assert strip(a) == strip(b) != strip(c)
+    assert strip("_GLOBAL__sub_I_tmpxft_002820bb_00000000_6_cuda.cudafe1.cpp") == strip(
+        "_GLOBAL__sub_I_tmpxft_002b3808_00000000_6_cuda.cudafe1.cpp"
+    )
+    assert strip("_ZN45_INTERNAL_deb4a17c_7_cuda_cu_d0616ebf_26298399atomicAddEPyy") == strip(
+        "_ZN45_INTERNAL_0a1b2c3d_7_cuda_cu_68d7eaa2_28323291atomicAddEPyy"
+    )

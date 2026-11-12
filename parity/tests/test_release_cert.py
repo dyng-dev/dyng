@@ -1279,6 +1279,8 @@ def test_mutation_points_match_the_code_once() -> None:
         for path in sorted((REPO / directory).rglob("*")):
             if path.is_file():
                 hooks += path.read_text()
+    # The shared engine's twin of #2 (M11b criterion 4): in sssp's operators, which it runs.
+    hooks += (REPO / "cpp/src/algorithms/sssp/operators.cuh").read_text()
     assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "triad_count"} == {
         "triad_wrong_bin_sign",
         "triad_skip_frontier_filter_b",
@@ -1403,6 +1405,11 @@ def test_hyper_sssp_mutations_and_their_twins() -> None:
         "hsosp_pair_count_adds_deletions_host",
         "hsosp_delta_no_post_pass",
         "hsosp_delta_no_post_pass_host",
+        # M11b criterion 4: the shared engine's twins of #1 and #2, and sssp's skipped subtree
+        # invalidation in the shared operators
+        "hsosp_ops_pull_adds_neighbour_weight",
+        "hsosp_ops_non_tight_parent",
+        "sssp_roots_only_operators_hsosp",
     ]
     # #5 and #4's CBST counterpart are re-runs of M8a's mutations in the cbst suite.
     assert {"cbst_graph_own_ids", "cbst_unfill_drops_last"} <= {
@@ -1422,11 +1429,13 @@ def test_hyper_sssp_mutations_and_their_twins() -> None:
         by_key.setdefault(mutate.code_key(m), []).append(m)
     for twins in by_key.values():
         assert len({mutate.replay_key(m) for m in twins}) == len(twins)
-    assert len(by_key) == 7
+    # M11a's seven code changes and M11b's three (the twins and sssp's planted text)
+    assert len(by_key) == 10
     # the CTests of the same sites (cpp/tests/CMakeLists.txt) name every define
     ctests = (REPO / "cpp/tests/CMakeLists.txt").read_text()
     for m in rows:
-        assert m["defines"][0] in ctests, m["name"]
+        if "defines" in m:
+            assert m["defines"][0] in ctests, m["name"]
 
 
 def test_mutation_failures_read_both_matrix_layouts() -> None:
@@ -3560,16 +3569,25 @@ def test_a_04_certificate_needs_the_hyper_sssp_replays(cert, certified) -> None:
     assert entry["passed"] is True
     assert set(entry["required_coverage"]) == {
         f"{b}:hyper_sssp/{m}"
-        for b in ("cuda", "sequential")
+        for b in ("cuda", "cuda-operators", "sequential")
         for m in ("by_id", "by_id_public", "by_key")
     } | {"cuda:hyper_sssp/store"}
     assert entry["required_coverage"]["cuda:hyper_sssp/by_id"] == 25
+    assert entry["required_coverage"]["cuda-operators:hyper_sssp/by_id"] == 25
     assert entry["required_coverage"]["cuda:hyper_sssp/store"] == 25
     # One config missing: the certificate fails, naming it.
     for f in results.glob(f"parity-{HSOSP_SET}-cuda-hyper_sssp-by_key.json"):
         f.unlink()
     assert write("0.4.0") == 1
     assert "cuda:hyper_sssp/by_key" in problems()
+    for f in results.glob(f"parity-{HSOSP_SET}-*.json"):
+        f.unlink()
+    # M11b criterion 11: the shared engine's replays are required too (both CUDA engines).
+    _hsosp_replays(cert, results, head(), skip=("cuda-operators:hyper_sssp/by_id",))
+    assert write("0.4.0") == 1
+    assert "cuda-operators:hyper_sssp/by_id" in problems()
+    _hsosp_replays(cert, results, head())
+    assert write("0.4.0") == 0, problems()
     # One case missing from a config's matrix.
     path = next(results.glob(f"parity-{HSOSP_SET}-sequential-hyper_sssp-by_id.json"))
     record = json.loads(path.read_text())
@@ -3823,7 +3841,7 @@ def test_gpu_local_steps_of_04_hold_the_slack_csr_steps(cert) -> None:
         "slack_csr sanitizers (all four tools; a forced-overflow session)",
         "slack_csr replays (cuda, make test; ids, pairs, counters, device layout)",
         "hyper_sssp sanitizers (all four tools; the engine's tests, forced fallbacks)",
-        "hyper_sssp replays (cuda, make test; three modes, update == compute)",
+        "hyper_sssp replays (cuda, make test; three modes, both engines, update == compute)",
     ]
     steps = cert.gpu_local_steps("0.4.0")
     assert set(m11) <= set(steps)

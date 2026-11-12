@@ -25,6 +25,7 @@
 #include <dyng/hypergraph/hypergraph.hpp>
 
 #include <cstdint>
+#include <string>
 
 namespace dyng::detail::hyper_sssp_virtual {
 
@@ -37,6 +38,7 @@ namespace dyng::detail::hyper_sssp_virtual {
  * @param[in] opt        Options.
  * @param[in] block_size The recompute kernels' threads per block (B's UpdateConfig::blockSize):
  *                       a multiple of 32 in [32, 1024].
+ * @param[in] knobs      The shared engine's internal knobs (engine::operators; ADR 0095).
  * @return The result (its source() is -1: it has no source vertex).
  * @throws invalid_argument_error for a source row outside the ids or a bad block size; otherwise
  *         as hyper_sssp::compute().
@@ -44,7 +46,8 @@ namespace dyng::detail::hyper_sssp_virtual {
 hyper_sssp::result<std::int32_t> compute(const resources& res,
                                          const hypergraph<std::int32_t, std::int32_t>& h,
                                          const hyper_sssp_endpoints& endpoints,
-                                         const hyper_sssp::options& opt, int block_size = 256);
+                                         const hyper_sssp::options& opt, int block_size = 256,
+                                         const hyper_sssp_operators_knobs& knobs = {});
 
 /**
  * @brief A result of the virtual-endpoint mode with its arrays sized for `h` and nothing computed
@@ -55,13 +58,15 @@ hyper_sssp::result<std::int32_t> compute(const resources& res,
  * @param[in] endpoints  As compute().
  * @param[in] opt        Options.
  * @param[in] block_size As compute().
+ * @param[in] knobs      As compute().
  * @return The result.
  * @throws as compute().
  */
 hyper_sssp::result<std::int32_t> allocate(const resources& res,
                                           const hypergraph<std::int32_t, std::int32_t>& h,
                                           const hyper_sssp_endpoints& endpoints,
-                                          const hyper_sssp::options& opt, int block_size = 256);
+                                          const hyper_sssp::options& opt, int block_size = 256,
+                                          const hyper_sssp_operators_knobs& knobs = {});
 
 /**
  * @brief Recompute `r` from scratch on `h` into its own arrays (hsospRecompute into B's
@@ -82,6 +87,24 @@ void recompute(const resources& res, const hypergraph<std::int32_t, std::int32_t
  *                           it in both entry points before anything changes).
  */
 void set_block_size(hyper_sssp::result<std::int32_t>& r, int block_size);
+
+/**
+ * @brief Set the shared engine's internal knobs of a result (engine::operators on cuda; the next
+ *        calls; ADR 0095): the parity harness reads the engine's variants with them.
+ * @param[in,out] r     The result.
+ * @param[in]     knobs The knobs.
+ */
+void set_operators_knobs(hyper_sssp::result<std::int32_t>& r,
+                         const hyper_sssp_operators_knobs& knobs);
+
+/**
+ * @brief Parse knobs written as "warp=0|1,delta=N,shared_compute=0|1,seed_pairs=0|1,compute_delta=N" (any subset,
+ *        in any order; the others keep the values of `out`).
+ * @param[in]     text The text.
+ * @param[in,out] out  The knobs.
+ * @return Whether the text was well formed.
+ */
+bool parse_operators_knobs(const std::string& text, hyper_sssp_operators_knobs& out);
 
 /**
  * @brief The engine's counters of the last compute() / update() / recompute() of `r` (B's

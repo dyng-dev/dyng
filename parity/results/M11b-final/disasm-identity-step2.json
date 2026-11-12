@@ -1,0 +1,21 @@
+{
+ "what": "libdyng.so's host functions at the same addresses, instruction streams with the rip-relative displacements normalized (objdump -d)",
+ "a": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s2/src/build/parity-cuda/cpp/libdyng.so",
+ "b": "/home/sskg8/Projects/dyng-work/m11-builds/m11b-s4/src/build/parity-cuda/cpp/libdyng.so",
+ "functions_a": 8411,
+ "functions_b": 8411,
+ "instructions_a": 862065,
+ "instructions_b": 862065,
+ "normalized_sha256_a": "145d5b4303e486d3dd9a80d240ab6a196ddfd2087f1fac5e909e217962c6da86",
+ "normalized_sha256_b": "596754eac4fac3b250d7ac3197518af9ea41961b70bb8b3681c305106853c158",
+ "addresses_only_in_a": [],
+ "addresses_only_in_b": [],
+ "differing": [
+  {
+   "addr": "0xee270",
+   "a": "_ZN4dyng12_GLOBAL__N_110make_tableEv",
+   "b": "_ZN4dyng12_GLOBAL__N_110make_tableEv"
+  }
+ ],
+ "identical": false
+}

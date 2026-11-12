@@ -4,7 +4,7 @@
 and from 0.3 the hypergraph: `dyng.Hypergraph`, `dyng.HyperedgeBatch`,
 `dyng.HypergraphProperties`, `dyng.CapacityPolicy`, `dyng.HyperApplySummary`;
 {doc}`../../how_to/use_hypergraphs_from_python`) and the modules `dyng.sssp`,
-`dyng.cycle_count`, `dyng.mosp` (0.2), `dyng.triad_count` (0.3), the tutorial algorithms `dyng.dynamic_bfs` and
+`dyng.cycle_count`, `dyng.mosp` (0.2), `dyng.triad_count` (0.3), `dyng.hyper_sssp` (0.4), the tutorial algorithms `dyng.dynamic_bfs` and
 `dyng.triangle_delta` (0.2), `dyng.io`, `dyng.generators` and `dyng.testing`. The
 names mirror the C++ API ({doc}`../cpp/index`): `dyng::sssp::compute` is `dyng.sssp.compute`,
 `dyng::sssp::options` is `dyng.sssp.Options`, and option keywords are the C++ field names
@@ -86,7 +86,9 @@ inputs:
 
 ## Result arrays
 
-Result arrays (`tree.distances`, `tree.parents`, `hist.counts`, `paths.path_costs`; not
+Result arrays (`tree.distances`, `tree.parents`, `hist.counts`, `paths.path_costs`,
+`sp.hyperedge_distances`, `sp.hyperedge_parents` and `sp.vertex_distances()` of
+`dyng.hyper_sssp`; not
 `dyng.triad_count`'s `counts`, a read-only NumPy copy of at most 30 host values) are
 {py:class}`dyng.Array` objects (1-D, except the (n, K) path costs of `dyng.mosp`): read-only, zero-copy views with `__dlpack__`, `__dlpack_device__` and
 `__array_interface__`, so `np.asarray(a)`, `np.from_dlpack(a)` and `torch.from_dlpack(a)` see the
@@ -125,7 +127,9 @@ then stale, and using it raises {py:class}`dyng.StaleResultError`. To keep sever
 current, update them together: `dyng.update(g, batch, tree, hist)` applies the batch once and
 returns one `Stats` per result (any mix of `dyng.sssp`, `dyng.cycle_count` and `dyng.mosp`
 results; over a hypergraph, from 0.3, any number of `dyng.triad_count` results:
-`dyng.update(hg, hb, motifs, type1)`).
+`dyng.update(hg, hb, motifs, type1)`, and from 0.4 `dyng.hyper_sssp` results, of several sources:
+`dyng.update(hg, hb, from_a, from_b)`; triad_count refuses `storage="slack_csr"` and hyper_sssp
+needs it, so the two do not share a hypergraph in 0.4).
 
 ## Exceptions
 

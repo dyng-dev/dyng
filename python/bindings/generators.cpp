@@ -174,7 +174,14 @@ void bind_generators(nb::module_& m) {
       .value("dead_ids", generators::hyperedge_batch_mix::dead_ids)
       .value("skewed", generators::hyperedge_batch_mix::skewed)
       .value("limits", generators::hyperedge_batch_mix::limits)
-      .value("empty", generators::hyperedge_batch_mix::empty);
+      .value("empty", generators::hyperedge_batch_mix::empty)
+      .value("incidence_removals", generators::hyperedge_batch_mix::incidence_removals)
+      .value("incidence_additions", generators::hyperedge_batch_mix::incidence_additions)
+      .value("incidence_mixed", generators::hyperedge_batch_mix::incidence_mixed)
+      .value("incidence_emptying", generators::hyperedge_batch_mix::incidence_emptying)
+      .value("incidence_same_batch", generators::hyperedge_batch_mix::incidence_same_batch)
+      .value("incidence_repeats", generators::hyperedge_batch_mix::incidence_repeats)
+      .value("incidence_out_of_range", generators::hyperedge_batch_mix::incidence_out_of_range);
   nb::class_<generators::uniform_hypergraph_options>(m, "UniformHypergraphOptions",
                                                      "generators::uniform_hypergraph_options.")
       .def(nb::init<>())

@@ -6,8 +6,8 @@
  *        hypergraph, kept exact under hyperedge and incidence batches.
  * @ingroup hyper_sssp
  *
- * Draft for 0.4 (M11a): tracked by the API snapshot, frozen at the end of M11b, stable at 0.4.0
- * only on the author's confirmation (HD17; ADR 0090).
+ * New in 0.4: drafted in M11a (ADR 0090), reviewed and frozen at the end of M11b (ADR 0096; the
+ * API snapshot lists it as frozen), stable from 0.4.0 only on the author's confirmation (HD17).
  */
 #pragma once
 
@@ -58,12 +58,17 @@
  * compute() bit for bit).
  *
  * **The work budget** (options::work_budget, max_iterations, on_budget; MOSP_ESCHER's
- * UpdateConfig). The CUDA engine falls back to a recompute from scratch (stats::fallback_used,
- * stats::fallback_reason) when, before a push round, its relaxations exceed work_budget times the
- * live line-graph entries, or it has run max_iterations push rounds; and always when a distance
- * does not fit the engine's 32-bit packed words, or the invalidation's pointer jumping needs more
- * than 64 rounds. The host engine counts the relaxations the same way, checked before each
- * expansion, and has no iteration, width or depth limit. The fallback gives the same result as
+ * UpdateConfig). The CUDA engines fall back to a recompute from scratch (stats::fallback_used,
+ * stats::fallback_reason) when, before a push round, their relaxations exceed work_budget times
+ * the live line-graph entries, or they have run max_iterations push rounds; and always when a
+ * distance does not fit their packed words (engine::fused: 32 bits; engine::operators: the
+ * hyperedge id bound times the largest weight next to the parent bits, the largest weight being
+ * the largest the checks of options::validate_inputs have seen, or 2^31 - 1 once compute() or an
+ * update of the result ran without them), or the invalidation's
+ * pointer jumping does not end (engine::fused: 64 rounds; engine::operators: ceil(log2 n) + 1).
+ * The host engine counts the relaxations the same way, checked before each expansion, and has no
+ * iteration, width or depth limit. The work done before the first check (the invalidation, the
+ * seed's pulls and offers) is never refused. The fallback gives the same result as
  * the update would have (it is exact); under budget_action::error an exceeded work or iteration
  * budget throws convergence_error instead, after the commit.
  *
@@ -74,11 +79,13 @@
  * vertex-to-hyperedge rows (store_v2h). Any id_reuse order and capacity policy.
  *
  * **Backends** (HD14): sequential (MOSP_ESCHER's host emulation, emulateSospRecompute and
- * emulateSospUpdate) and cuda (MOSP_ESCHER's kernels as they are: engine::fused). There is no
- * openmp backend in 0.4: openmp resources raise not_supported_error. On cuda the hypergraph must be
- * built with (or cloned for) the CUDA resources and the result's arrays are device memory (copy
- * them with to_vector()); the engine synchronizes the stream once per push round and once per
- * pointer-jumping round.
+ * emulateSospUpdate) and cuda, with two engines that return the same bytes: MOSP_ESCHER's kernels
+ * as they are (engine::fused, the default) and the shared sssp engine (engine::operators: sssp's
+ * operators over the line graph with node weights). There is no openmp backend in 0.4: openmp
+ * resources raise not_supported_error. On cuda the hypergraph must be built with (or cloned for)
+ * the CUDA resources and the result's arrays are device memory (copy them with to_vector()); the
+ * engines synchronize the stream once per push round (engine::fused also once per
+ * pointer-jumping round).
  *
  * Types: int32_t vertex ids and int32_t weights (other hypergraph types fail to compile with a
  * static_assert naming these).
@@ -104,9 +111,11 @@ enum class fallback_reason : std::uint8_t {
   none,                ///< no fallback
   work_budget,         ///< the relaxations exceeded options::work_budget x the live entries
   iterations,          ///< the push rounds reached options::max_iterations (cuda)
-  distance_width,      ///< a distance did not fit the engine's 32-bit packed word (cuda)
-  invalidation_depth,  ///< the pointer jumping of the invalidation needed more than 64 rounds
-                       ///< (cuda)
+  distance_width,      ///< a distance did not fit the engine's packed word (cuda; engine::fused:
+                       ///< 32 bits; engine::operators: the bits next to the parent's, see the
+                       ///< work budget of @ref hyper_sssp)
+  invalidation_depth,  ///< the pointer jumping of the invalidation did not end within its rounds
+                       ///< (cuda; engine::fused: 64; engine::operators: ceil(log2 n) + 1)
 };
 
 /**
@@ -136,8 +145,10 @@ enum class fallback_reason : std::uint8_t {
 struct options {
   /// The work budget of an update, as a multiple of the live line-graph entries (MOSP_ESCHER's
   /// UpdateConfig::workBudget): before each push round (cuda) or expansion (sequential), an update
-  /// whose relaxations exceed work_budget x max(1, live entries) takes the on_budget action. 0
-  /// acts after any work; +infinity never. Finite, or +infinity, and >= 0.
+  /// whose relaxations exceed work_budget x max(1, live entries) takes the on_budget action. The
+  /// work before the first check (the invalidation, the seed's pulls and offers) is never refused:
+  /// an update whose work all lies in its seed completes even at 0, and 0 acts at the first push
+  /// round or expansion; +infinity never acts. Finite, or +infinity, and >= 0.
   double work_budget = 1.0;
   /// The push rounds an update may run before the on_budget action (MOSP_ESCHER's
   /// maxIterations; cuda only: the host engine has no rounds). Also the floor of the recompute's
@@ -147,8 +158,8 @@ struct options {
   /// invalidation depth always recompute).
   budget_action on_budget = budget_action::recompute;
   /// The CUDA engine: automatic and fused run MOSP_ESCHER's kernels (engine::fused);
-  /// engine::operators (the shared sssp engine) arrives in M11b and throws not_supported_error in
-  /// this release. Ignored by the sequential backend.
+  /// engine::operators runs the shared sssp engine (the same results). Ignored by the sequential
+  /// backend.
   engine cuda_engine = engine::automatic;
   /// Check the weights against [1, 2^28] (compute(): every live hyperedge; update(): the batch's
   /// insertions, before the commit). Without the check heavier weights still give exact results
@@ -162,15 +173,18 @@ struct options {
  * The inherited fields mean:
  *   - `affected`: the hyperedges whose subtree was invalidated (= invalidated; deterministic);
  *   - `iterations`: the push rounds (cuda) or the expansions (sequential) of Step 2;
- *     schedule-dependent on cuda, logged only;
+ *     schedule-dependent on cuda, logged only, and engine-dependent as `relaxations`;
  *   - `frontier_visits`: the largest frontier (cuda) or the expansions (sequential);
  *     schedule-dependent on cuda;
  *   - `fallback_used`: the update fell back to a recompute. **Deterministic on sequential;
  *     schedule-dependent on cuda near the budget**: the relaxations of a push round depend on the
  *     thread schedule, so a batch within a few percent of its budget may fall back in one run and
- *     not in another, with identical results (HD7; the weaker level core/stats.hpp allows);
+ *     not in another, with identical results (HD7; the weaker level core/stats.hpp allows); the
+ *     two CUDA engines count `relaxations` differently on equal-distance ties, so their decisions
+ *     near the budget can also differ from each other;
  *   - `converged`: always true;
- *   - `engine_used`: engine::fused on cuda, engine::operators on sequential.
+ *   - `engine_used`: the CUDA engine that ran (options::cuda_engine; automatic is fused), and
+ *     engine::operators on sequential.
  * @ingroup hyper_sssp
  */
 struct stats : update_stats {
@@ -183,7 +197,11 @@ struct stats : update_stats {
   /// Deterministic: the hyperedges in invalidated subtrees (the source excluded).
   std::int64_t invalidated = 0;
   /// The relaxations the budget counted (the neighbours read by the pulls and pushes).
-  /// Schedule-dependent on cuda; deterministic on sequential.
+  /// Schedule-dependent on cuda; deterministic on sequential. Engine-dependent: engine::fused
+  /// (MOSP_ESCHER's relax) pushes a hyperedge again whenever its packed word drops, a smaller
+  /// parent id at an equal distance included, engine::operators only when its distance drops, so
+  /// on inputs with equal-distance ties the shared engine counts fewer relaxations and push rounds
+  /// (the results are the same bit for bit).
   std::int64_t relaxations = 0;
   /// Why the update fell back (fallback_reason::none if it did not); schedule-dependent on cuda
   /// near the budget, as fallback_used.
@@ -234,9 +252,12 @@ namespace dyng::hyper_sssp {
  * for the cuda backend), its options, the hypergraph version it matches, and on cuda the engine's
  * device state (MOSP_ESCHER's HsospState: the packed words, the invalidation and frontier arrays).
  *
- * **Thread safety.** A result is not thread-safe: its accessors may run concurrently with each
- * other, but not with an update() of it (or a dyng::update() that includes it), which must also
- * not overlap another call on its hypergraph.
+ * **Thread safety.** A result is not thread-safe. Its accessors may run concurrently with each
+ * other, except distance_to() and vertex_distances(): they fill caches of the result (the vertex
+ * distances, and on cuda a host copy of the hyperedge distances) on their first call per
+ * hypergraph version, and read the hypergraph, so neither may overlap another call on the result
+ * or a change of its hypergraph. No call may overlap an update() of the result (or a
+ * dyng::update() that includes it), which must also not overlap another call on its hypergraph.
  *
  * @tparam vertex_t   Vertex id type (int32_t).
  * @tparam distance_t Distance type: std::int64_t, the only width (another value fails to compile).
@@ -354,7 +375,11 @@ class result {
    *
    * The copy belongs to the backend of `res` (its arrays are copied between host and device memory
    * as needed): this is how a result moves between sequential and cuda, with its hypergraph
-   * (hypergraph::to_backend()).
+   * (hypergraph::to_backend()). The copy matches the moved hypergraph at once (update() accepts
+   * it), but distance_to() and vertex_distances() keep reading the hypergraph this result matches
+   * until the copy's first update(), which links the copy to the hypergraph it is given: once that
+   * hypergraph is destroyed or changed they throw stale_result_error, so update the copy on the
+   * moved hypergraph first (an empty batch is enough) when the original may go.
    * @param[in] res Execution resources of the copy (sequential or cuda).
    * @return The copy.
    * @throws invalid_argument_error for a moved-from result.
@@ -418,8 +443,9 @@ namespace dyng::hyper_sssp {
  * Every hyperedge that contains `source` starts at its own weight with parent -1; then rounds of
  * pulls (every candidate takes its best (distance, lowest id) neighbour) and collections (the
  * neighbours of the improved hyperedges become the next candidates) run until nothing improves:
- * MOSP_ESCHER's hsospRecompute on cuda (one warp per candidate) and emulateSospRecompute on
- * sequential. Both give the canonical tree.
+ * MOSP_ESCHER's hsospRecompute on cuda under engine::fused (one warp per candidate) and
+ * emulateSospRecompute on sequential; engine::operators solves it with sssp's near-far loop over
+ * the line graph (node weights). All give the canonical tree.
  *
  * @tparam vertex_t Vertex id type (int32_t).
  * @tparam weight_t Hyperedge weight type (int32_t).
@@ -435,9 +461,8 @@ namespace dyng::hyper_sssp {
  *         (store_v2h = false), `h` belongs to another backend than `res`, or `h` was poisoned by a
  *         failed apply().
  * @throws not_supported_error    if the backend of `res` is openmp (hyper_sssp runs on
- *         sequential and cuda in 0.4; use dyng::resources::sequential()) or not built, `h` is
- *         not slack_csr storage with its line graph (line_graph_policy::none or sorted_merge), or
- *         options::cuda_engine is engine::operators on cuda.
+ *         sequential and cuda in 0.4; use dyng::resources::sequential()) or not built, or `h` is
+ *         not slack_csr storage with its line graph (escher storage, or line_graph_policy::none).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
  * @sync On cuda the stream is synchronized once per round of the recompute.
@@ -487,8 +512,9 @@ template <typename vertex_t, typename weight_t>
  * @throws out_of_memory_error    if host or device memory cannot be allocated (before the commit:
  *         nothing is changed; inside it: `h` is poisoned; after it: `r` is poisoned).
  * @throws cuda_error             if the CUDA runtime reports an error.
- * @sync On cuda the stream is synchronized once per pointer-jumping round and once per push round
- *       (the engine reads its counters), plus the commit's own synchronizations.
+ * @sync On cuda the stream is synchronized once per push round (the engine reads its counters)
+ *       and, under engine::fused, once per pointer-jumping round, plus the commit's own
+ *       synchronizations.
  * @backends sequential, cuda
  * @determinism Bit-exact across backends and runs (distances, parents, `invalidated`, the line
  *              graph counts); fallback_used, fallback_reason, relaxations and iterations are

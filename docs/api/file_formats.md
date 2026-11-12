@@ -204,8 +204,9 @@ weights per insertion has no `.dgb` form (`write_binary_batches` raises
 *, deleted_members, expected_ids, insert_first)` (graph or hypergraph batches, the flags from the
 arguments), `read_binary_batches(path)` and the streaming `BatchReader(path)` (records with
 `batch_id`, `batch`, `deleted_members` and `expected_ids`; host batches). The Python layer reads
-and writes incidence edits from M11b of 0.4: until then its readers refuse a file with
-`incidence_edits` or a `.dgt` batch with `+i` / `-i` (`NotSupportedError`).
+and writes incidence edits from 0.4 (`dyng.HyperedgeBatch.delete_incidences` /
+`insert_incidences`): `write_binary_batches` sets `incidence_edits` when a batch has an edit, and
+`BatchFileHeader.incidence_edits` reports the flag.
 
 ## Hypergraphs (`.hg`: `read_hypergraph` / `write_hypergraph`)
 

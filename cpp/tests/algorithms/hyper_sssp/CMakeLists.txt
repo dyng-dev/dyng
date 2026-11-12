@@ -33,3 +33,13 @@ dyng_add_test(
   LIBRARIES dyng::testing
 )
 target_include_directories(dyng_hyper_sssp_allocation_failure_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+# The C++ code of the "Shortest hyperpaths" tutorial (docs/tutorials/shortest_hyperpaths.md) beyond
+# its example program, on the example's data (M11b; quoted by marked ranges, ci/tutorial_quotes.py).
+dyng_add_test(
+  NAME dyng_hyper_sssp_tutorial_tests
+  SOURCES hyper_sssp_tutorial_test.cpp
+  LABELS cpu hyper_sssp examples
+  LIBRARIES dyng::testing
+)
+target_compile_definitions(dyng_hyper_sssp_tutorial_tests
+                           PRIVATE DYNG_EXAMPLES_DATA="${PROJECT_SOURCE_DIR}/examples/data")

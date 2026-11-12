@@ -382,6 +382,32 @@ def test_the_triad_count_header_is_frozen_and_a_change_is_breaking() -> None:
         assert all(b.startswith("[dyng/triad_count.hpp]") for b in breaking), breaking
 
 
+def test_the_hyper_sssp_header_is_frozen_and_a_change_is_breaking() -> None:
+    # The M11b freeze (ADR 0096): hyper_sssp's manifest says stable (pending the author's
+    # confirmation at 0.4.0, HD17), so dyng/hyper_sssp.hpp is frozen with its detail contract; its
+    # oracle stays tracked. A changed default of the options, a removed stats field, a changed
+    # parent width and a removed enumerator are breaking changes.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    assert secs["dyng/hyper_sssp.hpp"][0] == "frozen"
+    assert api_snapshot.status("dyng/hyper_sssp.hpp") == "frozen"
+    assert secs["dyng/testing/hyper_sssp_reference.hpp"][0] == "tracked"
+    assert any(
+        "update_traits<hyper_sssp::result" in line for line in secs["dyng/hyper_sssp.hpp"][1]
+    )
+    for old, new in (
+        ("double work_budget = 1.0", "double work_budget = 2.0"),
+        ("      std::int64_t relaxations = 0\n", ""),
+        (
+            "array_view< const std::int32_t > hyperedge_parents() const",
+            "array_view< const std::int64_t > hyperedge_parents() const",
+        ),
+        ("distance_width, invalidation_depth }", "distance_width }"),
+    ):
+        breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new))
+        assert breaking, old
+        assert all(b.startswith("[dyng/hyper_sssp.hpp]") for b in breaking), breaking
+
+
 def test_appended_lines_and_tracked_sections_are_not_breaking() -> None:
     lines = BASELINE_TEXT.splitlines(keepends=True)
     at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/mosp.hpp]"))

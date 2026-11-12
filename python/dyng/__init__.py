@@ -18,10 +18,11 @@ Quick start::
 
 The algorithms are :mod:`dyng.sssp` (dynamic single-source shortest paths) and
 :mod:`dyng.cycle_count` (exact directed simple-cycle histograms) since 0.1, :mod:`dyng.mosp`
-(dynamic multi-objective shortest paths) since 0.2, and :mod:`dyng.triad_count` (exact hypergraph
-triad counts) since 0.3; :func:`update` updates several results of a graph or a hypergraph with
-one batch. Backends: ``Resources("sequential")`` and ``Resources("openmp")`` in this
-wheel, and ``Resources.cuda()`` with a CUDA plugin wheel (``pip install "dyng[cu13]"`` or
+(dynamic multi-objective shortest paths) since 0.2, :mod:`dyng.triad_count` (exact hypergraph
+triad counts) since 0.3, and :mod:`dyng.hyper_sssp` (dynamic shortest hyperpaths) since 0.4;
+:func:`update` updates several results of a graph or a hypergraph with one batch. Backends:
+``Resources("sequential")`` and ``Resources("openmp")`` in this wheel, and ``Resources.cuda()``
+with a CUDA plugin wheel (``pip install "dyng[cu13]"`` or
 ``"dyng[cu12]"``). Cite with :func:`citation`.
 """
 
@@ -33,6 +34,7 @@ from . import (  # noqa: E402  (after the core names)
     cycle_count,
     dynamic_bfs,
     generators,
+    hyper_sssp,
     io,
     mosp,
     sssp,
@@ -119,6 +121,7 @@ __all__ = [
     "cycle_count",
     "mosp",
     "triad_count",
+    "hyper_sssp",
     "dynamic_bfs",
     "triangle_delta",
     # modules

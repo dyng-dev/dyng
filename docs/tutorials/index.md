@@ -9,6 +9,7 @@ sssp_mosp_files
 your_first_dynamic_algorithm
 hypergraph_triads
 count_a_new_hypergraph_pattern
+shortest_hyperpaths
 ```
 
 {doc}`hypergraph_triads` (0.3) does its task in C++ and in Python. For the graph algorithms,
@@ -25,6 +26,7 @@ Planned, each written when its code exists:
 | MOSP with preferences | later (planned for 0.2.x, which was not made) |
 | **Hypergraph triads** (`triad_count`, in C++ and Python): delivered, {doc}`hypergraph_triads` | 0.3 |
 | **Count a new hypergraph pattern (an Op)** (`experimental::count_local_patterns`): delivered, {doc}`count_a_new_hypergraph_pattern` | 0.3 |
+| **Shortest hyperpaths** (`hyper_sssp`, in C++ and Python): delivered, {doc}`shortest_hyperpaths` | 0.4 |
 | Streaming label propagation | 0.4 |
 
 {doc}`your_first_dynamic_algorithm` (0.2) builds `my_bfs`, a dynamic BFS, from a fresh clone to a
@@ -54,3 +56,11 @@ gate (`ci/gpu_local.sh`: it needs nvcc and a GPU), while hosted CI runs its host
 callbacks driven by hand, without nvcc); the page quotes it by marked ranges, and `ci/tutorial_quotes.py`
 (run by `ci/docs.sh`) pins every quote of the tutorials, so a quoted line that moves or changes
 without its page fails the documentation check.
+
+{doc}`shortest_hyperpaths` (0.4) builds a weighted hypergraph with `slack_csr` storage, computes
+the shortest hyperpaths from two source vertices, applies batches of hyperedge operations and
+incidence edits to both with one `dyng::update()`, reads the vertex distances and a path, tunes the
+work budget and checks the results against the oracle, in C++ and in Python with the same output;
+its code is `examples/cpp/hyper_sssp_update.cpp`, `examples/python/hyper_sssp.py` and two tests
+(`hyper_sssp_tutorial_test.cpp`, `test_shortest_hyperpaths_tutorial.py`), which CI runs against the
+committed expected output and the oracle.

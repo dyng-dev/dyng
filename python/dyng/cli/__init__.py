@@ -14,6 +14,7 @@ the utility commands ``prep`` (MOSP's ``mospPrep`` subcommands), ``convert`` and
         --num-insertions 40 --seed 1                              # = cycle-enum --task update
     dyng triad_count compute --input coauth-DBLP.hg --kind h_motif --format escher
     dyng triad_count update --input small.hg --batches b1.dgb b2.dgb --format escher
+    dyng hyper_sssp update --input small.hg --read-options hsosp --batches b1.dgt --out sp
     dyng prep mtx2csr roadNet-CA.mtx roadNet-CA_ 1 1 100 12345    # = mospPrep mtx2csr
     dyng convert g.mtx g.txt
     dyng generate cycle_enum_batch --graph DD_A.txt --num-deletions 5 --num-insertions 5
@@ -39,7 +40,7 @@ from typing import TextIO
 
 import dyng
 
-from ._algorithms import add_cycle_count, add_mosp, add_sssp
+from ._algorithms import add_cycle_count, add_hyper_sssp, add_mosp, add_sssp
 from ._common import CliError, UsageError
 from ._prep import add_prep, run_prep
 from ._tools import add_convert, add_generate
@@ -59,8 +60,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="dyng",
         description="dynG: dynamic graph and hypergraph algorithms that update their results "
         "under batches of changes. Commands: the algorithms (sssp, mosp, cycle_count, "
-        "triad_count) with the verbs compute and update, and the utilities prep, convert and "
-        "generate.",
+        "triad_count, hyper_sssp) with the verbs compute and update, and the utilities prep, "
+        "convert and generate.",
         epilog="Run 'dyng <command> --help' for the flags of a command.",
     )
     p.add_argument("--version", action="version", version=f"dyng {dyng.__version__}")
@@ -75,6 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_mosp(sub)
     add_cycle_count(sub)
     add_triad_count(sub)
+    add_hyper_sssp(sub)
     add_prep(sub)
     add_convert(sub)
     add_generate(sub)

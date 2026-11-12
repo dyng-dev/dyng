@@ -4,7 +4,8 @@
 
 The native oracles (:func:`dijkstra`, :func:`check_sssp_tree`, :func:`simple_cycles`,
 :func:`combined_graph`, :func:`mosp_path_costs`, :func:`rebuild_line_graph`,
-:func:`triad_reference`) share no code with the algorithms and containers they check.
+:func:`triad_reference`, :func:`hyper_sssp_reference`, :func:`check_hyper_sssp_tree`) share no
+code with the algorithms and containers they check.
 :mod:`dyng.testing.oracles` holds small pure-Python oracles (Dijkstra with lowest-id ties, a
 brute-force cycle count and a model of batch semantics), and
 :mod:`dyng.testing.strategies` Hypothesis strategies for random graphs and batches (it needs the
@@ -28,6 +29,7 @@ import numpy as np
 from .. import _dtypes
 from .._backend import native
 from .._convert import as_bool, as_int
+from ..errors import InvalidArgumentError
 from ..graph import CSR, Graph
 from ..hypergraph import Hypergraph, LineGraph
 from ..sssp import Result as SsspResult
@@ -42,6 +44,8 @@ __all__ = [
     "mosp_path_costs",
     "rebuild_line_graph",
     "triad_reference",
+    "hyper_sssp_reference",
+    "check_hyper_sssp_tree",
 ]
 
 
@@ -229,3 +233,69 @@ def triad_reference(
         as_int(threads, "triad_reference: threads", lo=0, hi=2**31 - 1),
     )
     return out
+
+
+def _hyper_sssp_inputs(hypergraph: Hypergraph, what: str) -> tuple[Any, ...]:
+    """The rows by id, the vertex count and the weights by id of a weighted hypergraph."""
+    if not isinstance(hypergraph, Hypergraph):
+        raise TypeError(f"{what}: hypergraph must be a dyng.Hypergraph")
+    weights = hypergraph.weights
+    if weights is None:
+        raise InvalidArgumentError(f"{what}: the hypergraph is unweighted (hyper_sssp's weights)")
+    h2v = hypergraph.h2v()
+    return (
+        np.ascontiguousarray(h2v.row_ptr, dtype=np.int64),
+        np.ascontiguousarray(h2v.col_ind, dtype=np.int32),
+        hypergraph.num_vertices,
+        np.ascontiguousarray(weights, dtype=np.int64),
+    )
+
+
+def hyper_sssp_reference(hypergraph: Hypergraph, source: int) -> tuple[np.ndarray, np.ndarray]:
+    """The shortest hyperpaths of a weighted hypergraph from a source vertex by
+    MOSP_ESCHER@4b86159's test oracle (C++ ``testing::hyper_sssp_reference``): a binary-heap
+    Dijkstra over the line graph rebuilt from the hyperedges, where entering hyperedge h costs its
+    weight; the oracle of :mod:`dyng.hyper_sssp`. It shares no code with the algorithm or the
+    container.
+
+    Args:
+        hypergraph: The hypergraph (read through host copies of its rows by id and its weights;
+            any storage).
+        source: The source vertex.
+
+    Returns:
+        ``(distances, parents)`` by hyperedge id, as ``Result.hyperedge_distances`` and
+        ``Result.hyperedge_parents``: int64 distances (:data:`dyng.hyper_sssp.INFINITE_DISTANCE`
+        for dead or unreachable ids) and int32 canonical parents (-1 for none).
+
+    Example:
+        >>> import dyng
+        >>> hg = dyng.Hypergraph.from_lists([[0, 1], [1, 2], [2, 3]], [2, 3, 1])
+        >>> d, p = dyng.testing.hyper_sssp_reference(hg, 0)
+        >>> d.tolist(), p.tolist()
+        ([2, 5, 6], [-1, 0, 1])
+    """
+    o, m, n, w = _hyper_sssp_inputs(hypergraph, "hyper_sssp_reference")
+    d, p = native.testing_hyper_sssp_reference(
+        o, m, n, w, as_int(source, "hyper_sssp_reference: source")
+    )
+    return d, p
+
+
+def check_hyper_sssp_tree(hypergraph: Hypergraph, result: Any) -> tuple[int, int]:
+    """Check a :class:`dyng.hyper_sssp.Result` against the oracle (MOSP_ESCHER's checkSosp; C++
+    ``testing::check_hyper_sssp_tree``): every distance must be the oracle's, every parent the
+    canonical one computed from the oracle's distances.
+
+    Returns:
+        ``(distance_mismatches, parent_errors)``; ``(0, 0)`` for a correct result.
+    """
+    from ..hyper_sssp import Result as HyperSsspResult
+
+    if not isinstance(result, HyperSsspResult):
+        raise TypeError("check_hyper_sssp_tree: result must be a dyng.hyper_sssp.Result")
+    o, m, n, w = _hyper_sssp_inputs(hypergraph, "check_hyper_sssp_tree")
+    d = np.ascontiguousarray(result.hyperedge_distances.to_numpy(), dtype=np.int64)
+    p = np.ascontiguousarray(result.hyperedge_parents.to_numpy(), dtype=np.int32)
+    mism, errors = native.testing_check_hyper_sssp_tree(o, m, n, w, result.source, d, p)
+    return int(mism), int(errors)
