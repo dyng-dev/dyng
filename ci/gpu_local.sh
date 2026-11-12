@@ -151,7 +151,10 @@
 #              M10b (ADR 0101) also the operators engine: its operator tests
 #              (dyng_label_propagation_operators_cuda_tests), its replay of P (operators: AD6's
 #              c x eps and identical counts), memcheck at 50k, initcheck and synccheck at 5k5, and
-#              racecheck on its hub golden
+#              racecheck on its hub golden; and (M10b, ADRs 0103-0104) row_layout::slack and the
+#              streaming mode: the slack suites at 5k5 and 50k (dyng_label_propagation_slack_cuda_
+#              tests and ..._slack_large_cuda_tests), memcheck of dyng-compat-dynlp --layout slack
+#              --streaming-tau at 50k (both schedules) and of the slack device apply's tests
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -638,6 +641,9 @@ if ! skipped label_propagation; then
   lpr_checker="${lpr_dir}/dyng_label_propagation_checker_cuda_tests"
   lpr_kit="${build_dir}/cpp/tests/dyng_label_propagation_conformance_cuda_tests"
   lpr_ops="${lpr_dir}/dyng_label_propagation_operators_cuda_tests"
+  # row_layout::slack and the streaming mode (M10b, ADRs 0103 and 0104): 5k5 and 50k.
+  lpr_slack="${lpr_dir}/dyng_label_propagation_slack_cuda_tests"
+  lpr_slack_large="${lpr_dir}/dyng_label_propagation_slack_large_cuda_tests"
   lpr_compat="${build_dir}/tools/compat/dyng-compat-dynlp"
   lpr_replay="${build_dir}/cpp/tests/dyng_lp_replay"
   lpr_p="5k5_d1e-4_s42,50k_d1e-4_s42,500k_d1e-4_s42,5k5_d1e-6_s42,50k_d1e-6_s42"
@@ -646,11 +652,12 @@ if ! skipped label_propagation; then
   mkdir -p "${lpr_out}"
   if [ -z "${sanitizer}" ] || [ ! -x "${lpr_unit}" ] || [ ! -x "${lpr_checker}" ] ||
     [ ! -x "${lpr_kit}" ] || [ ! -x "${lpr_ops}" ] || [ ! -x "${lpr_compat}" ] ||
-    [ ! -x "${lpr_replay}" ]; then
+    [ ! -x "${lpr_replay}" ] || [ ! -x "${lpr_slack}" ] || [ ! -x "${lpr_slack_large}" ]; then
     echo "compute-sanitizer or a label_propagation executable missing"
     lpr_ok=0
   else
-    for exe in "${lpr_unit}" "${lpr_checker}" "${lpr_kit}" "${lpr_ops}"; do
+    for exe in "${lpr_unit}" "${lpr_checker}" "${lpr_kit}" "${lpr_ops}" "${lpr_slack}" \
+      "${lpr_slack_large}"; do
       if ! heavy "${exe}" --gtest_brief=1; then
         echo "$(basename "${exe}"): FAILED"
         lpr_ok=0
@@ -727,6 +734,14 @@ if ! skipped label_propagation; then
       echo "memcheck / initcheck / synccheck dyng-compat-dynlp --cuda-engine operators: FAILED"
       lpr_ok=0
     fi
+    # Slack rows and the streaming threshold at 50k (M10b, ADR 0103): the moves and the arena's
+    # growth on the device.
+    for rule in damped inplace; do
+      if ! lpr_run memcheck 50000 10 "${rule}" --noValidate --layout slack --streaming-tau; then
+        echo "memcheck dyng-compat-dynlp 50k ${rule} --layout slack --streaming-tau: FAILED"
+        lpr_ok=0
+      fi
+    done
     rm -rf "${lpr_tmp}"
     # The sweep that fails every device allocation in turn is left out (its correct handling is
     # what the plain run checks; under memcheck it would take most of the step).
@@ -738,8 +753,8 @@ if ! skipped label_propagation; then
     # The slotted rows' device apply (the overflow near the int32 limit, the poison; M10a review).
     lpr_graph="${build_dir}/cpp/tests/dyng_graph_cuda_tests"
     if [ ! -x "${lpr_graph}" ] || ! heavy "${sanitizer}" --tool memcheck --error-exitcode 1 \
-      "${lpr_graph}" --gtest_brief=1 --gtest_filter='SlottedCuda.*'; then
-      echo "memcheck ${lpr_graph} (the slotted device apply): FAILED"
+      "${lpr_graph}" --gtest_brief=1 --gtest_filter='SlottedCuda.*:SlackCuda.*'; then
+      echo "memcheck ${lpr_graph} (the slotted and slack device applies): FAILED"
       lpr_ok=0
     fi
     if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all --error-exitcode 1 \
