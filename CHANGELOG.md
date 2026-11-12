@@ -247,6 +247,11 @@ Before 0.1.0 anything may change.
   the stream's threshold) stays the documented default; the streaming mode is an advanced mode
   with no gate, checked by the harmonic oracle, the host model and the kit (its float axis gains
   the preset "slack, net_effect(), half capacities").
+- M10b step 2 (Python, behaviour): `dyng.io.read_batches` and `dyng.io.BatchReader` raise
+  `NotSupportedError` for a batch file with vertex operations (`+v` / `-v`, the `.dgb` flag
+  `vertex_records`) or float32 weights instead of returning its batches without them (the Python
+  batches carry them from M10b's Python step, AD14); `dyng.io.write_batches` writes a batch's
+  vertex operations as `+v` / `-v` lines.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
