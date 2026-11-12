@@ -253,6 +253,52 @@ Before 0.1.0 anything may change.
   batches carry them from M10b's Python step, AD14); `dyng.io.write_batches` writes a batch's
   vertex operations as `+v` / `-v` lines.
 
+- M10b step 3 (Python, additive; ADR 0108; AD14 decided by the author on 2026-10-28): **float32
+  graphs in Python**: float32 weights select the float graphs (`(int32, int32 | int64,
+  float32)`); float64 weights only with an explicit `weight_dtype="float32"` (`Graph.from_edges`,
+  `Graph.from_csr`, `EdgeBatch`), checked (finite, within float32's range), never narrowed
+  silently; a float graph's batch weights other than float32 only when exactly float32 values.
+  `Graph.weighted` keeps its meaning (int32 weights); new `Graph.weight_dtype`.
+  `Graph.with_capacity(row_capacity, layout="slotted"|"slack", semantics="net_effect", ...)`,
+  `BatchSemantics.net_effect()` (field `as_net_effect`), the vertex arrays of `EdgeBatch` applied
+  (and read back: `insert_vertices`, `vertex_labels`, `delete_vertices`), `ApplySummary`'s
+  `dropped_insertions`, `relocated_rows`, `compactions`, `Graph.num_active_vertices`,
+  `Graph.vertex_status()` with `dyng.VertexStatus`.
+- M10b step 3 (Python, additive; ADR 0108): **`dyng.label_propagation`** (`Options`, `Stats`,
+  `Result`, `compute`, `update`; keywords equal to the C++ fields), `dyng.update` with its
+  results; `Result.labels` is a read-only float32 `dyng.Array`, zero-copy through DLPack
+  (`torch.from_dlpack`, `numpy.from_dlpack`), copy-on-write (an export keeps its labels; the next
+  update copies the per-vertex state once: 13 bytes per vertex on the host, 17 on cuda). OpenMP resources raise `NotSupportedError` naming 'sequential',
+  'cuda' and the fix `dyng.Resources("sequential")` (AD19). `dyng.generators.vertex_arrival_stream`
+  and `dyng.generators.legacy.dynlp_vertex_arrival_stream` (`VertexArrivalStream`, with
+  `write_graph_files()` in the original's bytes), `dyng.testing.harmonic_solution`
+  (`HarmonicResult`), `dyng.io.write_labels` / `read_labels`, and float edge lists and batch files
+  (`weight_dtype="float32"`, the `.dgb` weight code 3 and flag `vertex_records`) in `dyng.io`.
+- M10b step 3 (Python, behaviour): the batch readers return the vertex operations and float32
+  weights (they refused them since step 2); `EdgeBatch` accepts floating-point weights at
+  construction (an int32 graph refuses them at use, where 0.3 refused them at construction);
+  `write_binary_batches` sets the flag `vertex_records` only when a batch has vertex operations
+  (an edge-only file is 0.3's, byte for byte).
+- M10b step 3 (CLI; ADR 0108; AD12 with E1): **`dyng label_propagation compute|update`** (one
+  kebab-case flag per `Options` field; `update --generate legacy|library` or `--batches` with
+  `--capacity auto|FILE`; outputs `dynlp_labels.txt` in the original's bytes and a
+  `results.csv`-style `stats.csv`) and **`dyng generate vertex_arrival_stream` /
+  `dynlp_vertex_arrival_stream`** (batches, capacities, tau, true labels, optionally the
+  original's graph files); the `generate` group is no longer legacy-only. The CLI's damped labels
+  on the legacy 5k5 stream equal `dyng-compat-dynlp`'s sequential output byte for byte.
+  `dyng-compat-dynlp`'s tests pass the original's complete flag set and refuse `--maxIter -3`.
+- M10b step 3 (datasets; ADR 0108; AD18 decided by the author on 2026-10-28): **the kNN recipe**
+  `datasets/preprocess/knn_graph.py`: the symmetric cosine kNN graph (k = 5) of a feature matrix
+  with weights in (0, 1] (negative similarities dropped or shifted), scikit-learn (BSD-3-Clause)
+  an optional import with a NumPy fallback that writes identical files on tie-free inputs, an
+  optional vertex-arrival stream; no vendored code and no dataset.
+- M10b step 3 (examples, CI): `examples/cpp/label_propagation_stream.cpp` and
+  `examples/python/label_propagation_torch.py` (at most 60 lines, explicit resources), their labels
+  compared with committed digests (cuda: the original's own file) in CTest, against the installed
+  package (`ci/cmake_consumer.sh`) and in `test_examples.py`; the plugin smoke test runs
+  label_propagation's 5k5 damped stream on cuda under the oracle; `parity/wheel_vs_parity.py` has
+  a reported label_propagation row.
+
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
 - Added: `dyng::testing::hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`

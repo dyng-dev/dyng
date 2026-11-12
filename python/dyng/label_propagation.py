@@ -29,8 +29,9 @@ weight of the current graph) is an advanced mode, checked by the oracles but not
 :class:`dyng.Array` that views the result's memory (host or device): ``torch.from_dlpack``,
 ``numpy.from_dlpack`` and CuPy read it without a copy, ordered on the result's stream (ADR
 0031). An export (a tensor, a NumPy array, the Array itself) keeps showing the labels it was
-read from: the next :func:`update` then copies the result's state once (n float labels and n
-int8 seed labels) and writes the copy, so the export never changes under its reader. Drop the
+read from: the next :func:`update` then copies the result's per-vertex state once (the labels,
+the seed labels and the propagation tags: 13 bytes per vertex on the host, 17 on cuda) and
+writes the copy, so the export never changes under its reader. Drop the
 exports before the next update (``del t``) to update in place without the copy. A stale
 :class:`dyng.Array` (read before an update) raises :class:`~dyng.StaleResultError`; the tensor
 made from it stays valid with the old labels.
