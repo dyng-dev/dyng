@@ -15,6 +15,7 @@
 #include "algorithms/label_propagation/problem.hpp"
 #include "algorithms/label_propagation/trace.hpp"
 #include "core/budget_counters.hpp"
+#include "core/kernel_groups.hpp"
 #include "core/resources_access.hpp"
 #include "core/staging.hpp"
 #include "framework/composition.hpp"
@@ -63,6 +64,16 @@ std::uint64_t round_to_u64(double x) {
     std::fesetround(mode);
   }
   return static_cast<std::uint64_t>(r);
+}
+
+/// Load label_propagation's kernel group (ADR 0109 part B) before its first CUDA work, so that
+/// compute() pays for the modules and a timed update() never does; a no-op once loaded and in
+/// builds without groups.
+void load_kernels() {
+  static detail::kernel_group* const group = detail::kernel_groups::find("label_propagation");
+  if (group != nullptr && !group->loaded()) {
+    detail::kernel_groups::load({"label_propagation"});
+  }
 }
 
 /// Whether the backend `b` is one of label_propagation's (its manifest: sequential and cuda).
@@ -459,6 +470,7 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::before_apply(
   if (ctx.on_cuda()) {
     // Both CUDA engines (ADRs 0075, 0101): the affected flags cleared and launchMarkDeletions on
     // the device rows of G_t (Step 0 uploaded the batch).
+    load_kernels();
     if (!cuda_ws_) {
       cuda_ws_.emplace(ctx.lease_workspace<lp_cuda::workspace>());
     }
@@ -1031,6 +1043,7 @@ void label_propagation_problem<vertex_t, edge_t, weight_t>::compute_fused(framew
                                                                           new_graph g,
                                                                           stats_type& /*stats*/) {
   const label_propagation::options& opt = state_->opt;
+  load_kernels();
   auto cuda = std::make_shared<lp_cuda::state>();
   bool capped = false;
   const int iterations = lp_cuda::compute(

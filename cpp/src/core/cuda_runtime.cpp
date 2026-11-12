@@ -14,6 +14,7 @@
 
 #if DYNG_HAS_CUDA
 
+#include "core/kernel_groups.hpp"
 #include "util/cuda_check.hpp"
 #include "util/kernel_registry.hpp"
 
@@ -174,14 +175,30 @@ void cuda_synchronize(int device, stream_ref stream) {
   DYNG_CUDA_TRY(cudaStreamSynchronize(native(stream)));
 }
 
-std::size_t cuda_warm_up(int device, stream_ref stream, memory_resource_ref memory) {
+namespace {
+
+/// The body of both warm-ups: `all` loads every group, otherwise `groups`.
+std::size_t warm_up(int device, stream_ref stream, memory_resource_ref memory, bool all,
+                    std::initializer_list<std::string_view> groups) {
   const scoped_device guard(device);
   // The primary context (cudaSetDevice creates it since CUDA 12; cudaFree(nullptr) is the
   // traditional way to force it on every version).
   DYNG_CUDA_TRY(cudaFree(nullptr));
-  // cudaFuncGetAttributes loads a kernel's module under lazy loading.
+  if (all) {
+    kernel_groups::load_all();
+  } else {
+    kernel_groups::load(groups);
+  }
+  // cudaFuncGetAttributes loads a kernel's module under lazy loading. The kernels of a group that
+  // is not loaded are not registered with the runtime yet: they are skipped.
   std::size_t loaded = 0;
   for (const kernel_entry& kernel : registered_kernels()) {
+    if (kernel.group != nullptr) {
+      const kernel_group* group = kernel_groups::find(kernel.group);
+      if (group != nullptr && !group->loaded()) {
+        continue;
+      }
+    }
     cudaFuncAttributes attributes{};
     const cudaError_t status = cudaFuncGetAttributes(&attributes, kernel.function);
     if (status != cudaSuccess) {
@@ -195,6 +212,17 @@ std::size_t cuda_warm_up(int device, stream_ref stream, memory_resource_ref memo
   memory.deallocate(stream, probe, 256, 256);
   DYNG_CUDA_TRY(cudaStreamSynchronize(native(stream)));
   return loaded;
+}
+
+}  // namespace
+
+std::size_t cuda_warm_up(int device, stream_ref stream, memory_resource_ref memory) {
+  return warm_up(device, stream, memory, true, {});
+}
+
+std::size_t cuda_warm_up_groups(int device, stream_ref stream, memory_resource_ref memory,
+                                std::initializer_list<std::string_view> groups) {
+  return warm_up(device, stream, memory, false, groups);
 }
 
 void cuda_copy_bytes(void* dst, const void* src, std::size_t bytes, stream_ref stream, int device) {
@@ -316,6 +344,12 @@ scoped_device::~scoped_device() = default;
 void cuda_synchronize(int /*device*/, stream_ref /*stream*/) {}
 
 std::size_t cuda_warm_up(int /*device*/, stream_ref /*stream*/, memory_resource_ref /*memory*/) {
+  cuda_not_built();
+}
+
+std::size_t cuda_warm_up_groups(int /*device*/, stream_ref /*stream*/,
+                                memory_resource_ref /*memory*/,
+                                std::initializer_list<std::string_view> /*groups*/) {
   cuda_not_built();
 }
 

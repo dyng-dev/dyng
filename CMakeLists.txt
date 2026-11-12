@@ -89,6 +89,9 @@ option(DYNG_CUDA_DEBUG_SYNC "DYNG_CHECK_KERNEL also synchronizes the stream (Deb
        ${_dyng_debug_sync_default}
 )
 option(DYNG_CUDA_LINEINFO "Compile CUDA code with -lineinfo (always on in RelWithDebInfo)" OFF)
+option(DYNG_DEFER_KERNEL_GROUPS
+       "Register each algorithm's CUDA kernels when the process first uses them (ADR 0109)" ON
+)
 
 # CUDA: the architectures must be known before enable_language(CUDA) and before any target exists.
 if(DYNG_ENABLE_CUDA)
@@ -183,6 +186,7 @@ include(GNUInstallDirs)
 include(cmake/warnings.cmake)
 include(cmake/sanitizers.cmake)
 include(cmake/dependencies.cmake)
+include(cmake/kernel_groups.cmake)
 
 message(STATUS "dynG ${DYNG_VERSION_STRING}: OpenMP=${DYNG_ENABLE_OPENMP} CUDA=${DYNG_ENABLE_CUDA} "
                "shared=${BUILD_SHARED_LIBS} tests=${DYNG_BUILD_TESTS} Werror=${DYNG_WARNINGS_AS_ERRORS}")

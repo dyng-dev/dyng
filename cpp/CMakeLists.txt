@@ -85,13 +85,16 @@ function(dyng_set_cuda_options target)
   target_link_libraries(${target} PRIVATE ${DYNG_CUDART_TARGET})
 endfunction()
 
-# dyng_add_module(NAME <module> SOURCES <files...> [CUDA_SOURCES <files...>])
+# dyng_add_module(NAME <module> SOURCES <files...> [CUDA_SOURCES <files...>]
+#                 [KERNEL_GROUP <group>])
 #   Creates the private OBJECT library dyng_<module> with the library's include directories,
 #   warnings, OpenMP and CUDA flags, and adds its objects to libdyng. CUDA_SOURCES (.cu files) are
 #   compiled only when DYNG_ENABLE_CUDA is ON. Host files that call the CUDA runtime are ordinary
 #   SOURCES whose body is guarded by `#if DYNG_HAS_CUDA`, so every build (and clang-tidy) sees them.
+#   KERNEL_GROUP makes the CUDA sources a kernel group (cmake/kernel_groups.cmake, ADR 0109): their
+#   kernels are registered with the CUDA runtime when the process first uses them.
 function(dyng_add_module)
-  cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME" "SOURCES;CUDA_SOURCES")
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME;KERNEL_GROUP" "SOURCES;CUDA_SOURCES")
   set(target dyng_${arg_NAME})
   set(_sources ${arg_SOURCES})
   if(DYNG_ENABLE_CUDA)
@@ -116,6 +119,11 @@ function(dyng_add_module)
   # module rebuilt from mutated sources).
   set_property(GLOBAL APPEND PROPERTY DYNG_MODULE_TARGETS ${target})
   set_property(GLOBAL PROPERTY DYNG_MODULE_SOURCES_${target} ${_sources})
+  # After the sources are recorded: a mutant copy of the module compiles the plain sources, whose
+  # kernels are registered at load time, so it needs none of the group's functions.
+  if(arg_KERNEL_GROUP AND arg_CUDA_SOURCES)
+    dyng_defer_kernel_group(${target} ${arg_KERNEL_GROUP})
+  endif()
 endfunction()
 
 dyng_add_module(
@@ -126,6 +134,7 @@ dyng_add_module(
     src/core/citation.cpp
     src/core/cuda_runtime.cpp
     src/core/error.cpp
+    src/core/kernel_groups.cpp
     src/core/logging.cpp
     src/core/memory.cpp
     src/core/memory_cuda.cpp
@@ -173,6 +182,7 @@ dyng_add_module(
 # every build, the device store with CUDA.
 dyng_add_module(
   NAME hypergraph
+  KERNEL_GROUP hypergraph
   SOURCES
     src/hypergraph/capacity.cpp
     src/hypergraph/escher/store_policy.cpp

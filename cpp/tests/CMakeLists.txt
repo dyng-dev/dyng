@@ -1789,6 +1789,15 @@ if(DYNG_ENABLE_CUDA)
   target_include_directories(dyng_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   dyng_set_cuda_options(dyng_cuda_tests)
 
+  # Kernel groups (ADR 0109 part B): an executable of its own, so that CTest's process per test
+  # starts with no group loaded.
+  dyng_add_test(NAME dyng_kernel_groups_tests SOURCES cuda/kernel_groups_test.cpp LABELS gpu core)
+  target_include_directories(dyng_kernel_groups_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  target_link_libraries(dyng_kernel_groups_tests PRIVATE ${DYNG_CUDART_TARGET})
+  if(DYNG_DEFER_KERNEL_GROUPS)
+    target_compile_definitions(dyng_kernel_groups_tests PRIVATE DYNG_TEST_KERNEL_GROUPS=1)
+  endif()
+
   # sssp on the cuda backend: the shared sssp suites compiled with DYNG_TEST_CUDA=1 (their cases
   # run on cuda, the randomized ones against the host backends) plus the CUDA-only cases.
   if(TARGET dyng_sssp)

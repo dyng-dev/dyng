@@ -20,6 +20,14 @@
 #include <cstddef>
 #include <vector>
 
+/// The kernel group of the translation unit: cmake/dyng_kernel_groups.cmake defines
+/// DYNG_KERNEL_GROUP (a string literal) for the CUDA sources of a group.
+#ifdef DYNG_KERNEL_GROUP
+#define DYNG_KERNEL_REGISTRY_GROUP DYNG_KERNEL_GROUP
+#else
+#define DYNG_KERNEL_REGISTRY_GROUP nullptr
+#endif
+
 namespace dyng::detail {
 
 /**
@@ -28,14 +36,19 @@ namespace dyng::detail {
 struct kernel_entry {
   const void* function = nullptr;  ///< the kernel's host handle (what cudaFuncGetAttributes takes)
   const char* name = nullptr;      ///< its source name, for messages
+  /// its kernel group (core/kernel_groups.hpp), or nullptr for a kernel outside every group
+  const char* group = nullptr;
 };
 
 /**
  * @brief Add a kernel to the registry (called by kernel_registrar at load time).
  * @param[in] function The kernel's host handle.
  * @param[in] name     Its source name (a string literal).
+ * @param[in] group    Its kernel group (a string literal), or nullptr; the default is the
+ *                     calling translation unit's group (DYNG_KERNEL_REGISTRY_GROUP).
  */
-void register_kernel(const void* function, const char* name) noexcept;
+void register_kernel(const void* function, const char* name,
+                     const char* group = DYNG_KERNEL_REGISTRY_GROUP) noexcept;
 
 /**
  * @brief A snapshot of the registry.
@@ -51,9 +64,12 @@ struct kernel_registrar {
    * @brief Register a kernel.
    * @param[in] function The kernel's host handle.
    * @param[in] name     Its source name.
+   * @param[in] group    Its kernel group, or nullptr; the default is the constructing translation
+   *                     unit's group (DYNG_KERNEL_REGISTRY_GROUP).
    */
-  kernel_registrar(const void* function, const char* name) noexcept {
-    register_kernel(function, name);
+  kernel_registrar(const void* function, const char* name,
+                   const char* group = DYNG_KERNEL_REGISTRY_GROUP) noexcept {
+    register_kernel(function, name, group);
   }
 };
 
