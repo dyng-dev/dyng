@@ -88,8 +88,8 @@ def test_a_removed_mosp_result_accessor_is_breaking(tmp_path: Path) -> None:
     assert _in_mosp(_breakages(tmp_path, edit))
 
 
-# --- dyng.label_propagation (frozen at the end of M10b, ADR 0109; stable at 0.4.0 only on the ------
-# --- author's confirmation, AD15) ------------------------------------------------------------------
+# --- dyng.label_propagation (frozen at the end of M10b, ADR 0109; stable at 0.4.0 only on the -----
+# --- author's confirmation, AD15) -----------------------------------------------------------------
 
 
 def _in_label_propagation(breakages: list) -> list[str]:

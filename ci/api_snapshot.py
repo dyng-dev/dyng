@@ -116,10 +116,10 @@ def stable_algorithm_headers(algorithms_dir: Path = ALGORITHMS_DIR) -> list[str]
 
 # Headers frozen at the end of their milestone while their algorithm's maturity stays below stable
 # until the author confirms it at the release: label_propagation's header and the headers only it
-# adds (the generators' vertex-arrival stream and its oracles in dyng::testing), frozen at the end of
-# M10b (ADR 0109; AD15 / sheet F1, decided by the author on 2026-10-28: frozen at the end of M10b,
-# `stable` from 0.4.0 only on the author's confirmation at the release). Once the manifest says
-# stable, stable_algorithm_headers() lists the header as well.
+# adds (the generators' vertex-arrival stream and its oracles in dyng::testing), frozen at the end
+# of M10b (ADR 0109; AD15 / sheet F1, decided by the author on 2026-10-28: frozen at the end of
+# M10b, `stable` from 0.4.0 only on the author's confirmation at the release). Once the manifest
+# says stable, stable_algorithm_headers() lists the header as well.
 FROZEN_BEFORE_STABLE = [
     "dyng/label_propagation.hpp",
     "dyng/generators/vertex_arrival.hpp",
