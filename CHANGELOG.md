@@ -305,7 +305,11 @@ Before 0.1.0 anything may change.
   it runs (the core's and the graph container's at context creation). Nothing changes in the device
   or host code; `resources::warm_up()` still loads every kernel of the library (every group first).
   New CMake option `DYNG_DEFER_KERNEL_GROUPS` (default ON; OFF registers every module at load, as
-  before). The compatibility tools warm up only the groups they run.
+  before). The compatibility tools warm up only the groups they run. Loading a group loads every
+  kernel of it (`cudaFuncGetAttributes` per kernel after the registration): the runtime loads the
+  kernels of a fat binary registered after the context exists only at their first use, even under
+  `CUDA_MODULE_LOADING=EAGER`, which the step's first version missed (label_propagation's first
+  timed update paid about 7.6 ms for its modules; the final re-read caught it).
 - M10b step 4 (api-change: the freeze; ADR 0109; AD15 decided by the author on 2026-10-28):
   **`<dyng/label_propagation.hpp>`, `dyng.label_propagation` and `dyng label_propagation` are
   frozen**, with `<dyng/generators/vertex_arrival.hpp>` and the oracle headers
