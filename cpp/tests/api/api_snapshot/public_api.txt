@@ -598,6 +598,7 @@
       float similarity_threshold = 0.5F
       std::size_t max_batch_vertices = 0
       std::size_t max_batch_edges = 0
+  template <typename vertex_t = std::int32_t, typename edge_t = std::int32_t> [[nodiscard]] vertex_arrival_stream< vertex_t, edge_t > dyng::generators::generate_vertex_arrival_stream(const resources &res, const vertex_arrival_options &opt)
   template <typename vertex_t = std::int32_t, typename edge_t = std::int32_t> [[nodiscard]] vertex_arrival_stream< vertex_t, edge_t > dyng::generators::legacy::dynlp_vertex_arrival_stream(const resources &res, const vertex_arrival_options &opt)
 
 [dyng/graph/apply_summary.hpp] frozen
@@ -613,6 +614,8 @@
       std::int64_t num_vertices_after = 0
       std::int64_t ignored_insertions = 0
       std::int64_t dropped_insertions = 0
+      std::int64_t relocated_rows = 0
+      std::int64_t compactions = 0
 
 [dyng/graph/csr.hpp] frozen
   template <typename vertex_t, typename edge_t, typename weight_t> struct dyng::csr_view
@@ -987,14 +990,15 @@
       std::int64_t num_vertices = -1
   template <typename vertex_t, typename weight_t> [[nodiscard]] std::vector< hyperedge_batch< vertex_t, weight_t > > dyng::io::read_hyperedge_batches(const std::string &path, const hyperedge_batch_file_options &options={})
   template <typename vertex_t, typename weight_t> void dyng::io::write_hyperedge_batches(const std::string &path, const std::vector< hyperedge_batch_view< vertex_t, weight_t > > &batches)
-  enum class dyng::io::batch_dtype : std::uint8_t { none = 0, int32 = 1, int64 = 2 }
+  enum class dyng::io::batch_dtype : std::uint8_t { none = 0, int32 = 1, int64 = 2, float32 = 3 }
   [[nodiscard]] std::string_view dyng::io::to_string(batch_dtype dtype) noexcept
   struct dyng::io::batch_file_flags
       static constexpr std::uint64_t deleted_members = 1U
       static constexpr std::uint64_t expected_ids = 2U
       static constexpr std::uint64_t insert_first = 4U
       static constexpr std::uint64_t incidence_edits = 8U
-      static constexpr std::uint64_t known_graph = 0U
+      static constexpr std::uint64_t vertex_records = 16U
+      static constexpr std::uint64_t known_graph = 16U
       static constexpr std::uint64_t known_hypergraph = 15U
       static constexpr std::uint64_t known = known_graph | known_hypergraph
   struct dyng::io::batch_file_header
@@ -1121,6 +1125,8 @@
   template <typename distance_t> void dyng::io::write_path_costs(const std::string &path, array_view< const distance_t > costs, int num_objectives)
   template <typename distance_t> [[nodiscard]] std::vector< distance_t > dyng::io::read_distances(const std::string &path, std::int64_t num_vertices)
   template <typename vertex_t> [[nodiscard]] std::vector< vertex_t > dyng::io::read_parents(const std::string &path, std::int64_t num_vertices)
+  void dyng::io::write_labels(const std::string &path, array_view< const float > labels)
+  [[nodiscard]] std::vector< float > dyng::io::read_labels(const std::string &path, std::int64_t num_vertices)
   void dyng::io::write_histogram_csv(std::ostream &out, array_view< const std::uint64_t > counts, bool include_total=true)
   struct dyng::io::triad_bins
       std::string kind
