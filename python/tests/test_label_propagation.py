@@ -460,3 +460,12 @@ def test_clone_reserve_repr_and_pickle(stream5k5: dyng.generators.VertexArrivalS
         pickle.dumps(r)
     with pytest.raises(TypeError):
         dyng.label_propagation.Result()
+
+
+def test_the_docstring_examples() -> None:
+    """The examples of the module, Graph.with_capacity and testing.harmonic_solution run."""
+    import doctest
+
+    for module in (dyng.label_propagation, dyng.graph, dyng.testing):
+        failures, tests = doctest.testmod(module, optionflags=doctest.NORMALIZE_WHITESPACE)
+        assert tests > 0 and failures == 0, module.__name__
