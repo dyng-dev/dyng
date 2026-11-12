@@ -26,6 +26,8 @@
 #include <cuda_runtime_api.h>
 
 #include <string>
+#include <string_view>
+#include <unordered_map>
 
 // The CUDA runtime's registration entry points (crt/host_runtime.h declares them for nvcc's
 // generated host code only). The same declarations; called here with the arguments the group
@@ -110,6 +112,26 @@ record_t* as_record(void** handle) noexcept {
   return reinterpret_cast<record_t*>(handle);
 }
 
+// The kernels of the loaded groups by device name (kernel_group::ensure_for()'s redirections).
+// Never destroyed, as the groups. The names point into the fat binaries' static data.
+struct kernel_names {
+  std::mutex mutex;
+  std::unordered_map<std::string_view, const void*> host_function;
+};
+
+kernel_names& loaded_kernels() noexcept {
+  static auto* names = new kernel_names;
+  return *names;
+}
+
+// A loaded group's kernel of this device name, or nullptr.
+const void* loaded_kernel(const char* device_name) noexcept {
+  kernel_names& names = loaded_kernels();
+  const std::lock_guard<std::mutex> lock(names.mutex);
+  const auto it = names.host_function.find(device_name);
+  return it == names.host_function.end() ? nullptr : it->second;
+}
+
 }  // namespace
 
 void kernel_group::record_function(void** handle, const char* host_function, char* device_function,
@@ -189,11 +211,18 @@ int kernel_group::ensure() noexcept {
   // so that no later check takes it for its own.
   status_ = static_cast<int>(cudaFree(nullptr));
   if (status_ == 0) {
+    kernel_names& names = loaded_kernels();
+    const std::lock_guard<std::mutex> names_lock(names.mutex);
     for (const fatbin_record* record : fatbins_) {
       for (const function_record& f : record->functions) {
         cudaFuncAttributes attributes{};
         if (cudaFuncGetAttributes(&attributes, f.host_function) != cudaSuccess) {
           (void)cudaGetLastError();
+          continue;  // no image for this device: not a target of a redirection either
+        }
+        try {
+          names.host_function.emplace(f.device_name, f.host_function);
+        } catch (...) {  // NOLINT(bugprone-empty-catch): a call is then not redirected but loads
         }
       }
     }
@@ -205,6 +234,44 @@ int kernel_group::ensure() noexcept {
                                       std::to_string(kernels) + " kernels)");
   }
   return status_;
+}
+
+int kernel_group::ensure_for(const void** host_function) noexcept {
+  if (loaded_.load(std::memory_order_acquire) || *host_function == nullptr) {
+    return ensure();
+  }
+  const char* device_name = nullptr;
+  {
+    const std::lock_guard<std::mutex> lock(mutex_);
+    if (loaded_.load(std::memory_order_relaxed)) {
+      return status_;
+    }
+    for (std::size_t i = 0; i < redirections_; ++i) {
+      if (redirected_[i].first == *host_function) {
+        *host_function = redirected_[i].second;
+        return 0;
+      }
+    }
+    for (const fatbin_record* record : fatbins_) {
+      for (const function_record& f : record->functions) {
+        if (f.host_function == *host_function) {
+          device_name = f.device_name;
+        }
+      }
+    }
+  }
+  const void* target = device_name != nullptr ? loaded_kernel(device_name) : nullptr;
+  if (target == nullptr) {
+    return ensure();
+  }
+  {
+    const std::lock_guard<std::mutex> lock(mutex_);
+    if (redirections_ < redirected_.size()) {
+      redirected_[redirections_++] = {*host_function, target};
+    }
+  }
+  *host_function = target;
+  return 0;
 }
 
 void kernel_group::unregister(void** handle) noexcept {
@@ -229,6 +296,10 @@ int kernel_group::ensure() noexcept {
   status_ = 0;
   loaded_.store(true, std::memory_order_release);
   return status_;
+}
+
+int kernel_group::ensure_for(const void** /*host_function*/) noexcept {
+  return ensure();
 }
 
 void kernel_group::unregister(void** /*handle*/) noexcept {}

@@ -18,9 +18,11 @@
 
 #include <dyng/core/copy.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/generators/vertex_arrival.hpp>
 #include <dyng/graph/edge_list.hpp>
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
+#include <dyng/label_propagation.hpp>
 #include <dyng/sssp.hpp>
 
 #include <cuda.h>  // CUfunctionLoadingState (the driver function is fetched through the runtime)
@@ -186,6 +188,47 @@ TEST(KernelGroups, TheFirstUseOfAnAlgorithmLoadsItsGroupOnly) {
   EXPECT_FALSE(loaded("cycle_count"));
   EXPECT_FALSE(loaded("hypergraph"));
 }
+
+// The published flow of label_propagation (compute() on the capacity graph, then updates) loads
+// its own group and no other: its CUB calls (cub::DeviceScan::ExclusiveSum, ...) may run another
+// group's copy of the same template, which the linker kept (M10b step 4's final re-read found the
+// first update loading the hypergraph group through it, about 8 ms inside the timed update at
+// 50k); such a call goes to the runtime without loading that group (kernel_group::ensure_for()).
+#if DYNG_TEST_KG_LABEL_PROPAGATION
+TEST(KernelGroups, LabelPropagationLoadsItsGroupOnly) {
+  DYNG_SKIP_IF_NO_CUDA();
+  DYNG_SKIP_WITHOUT_KERNEL_GROUPS();
+  DYNG_SKIP_UNLESS_FRESH_PROCESS();
+  namespace lp = dyng::label_propagation;
+  using graph_t = dyng::graph<std::int32_t, std::int32_t, float>;
+  const auto res = dyng::resources::cuda();
+  dyng::generators::vertex_arrival_options o;
+  o.total_vertices = 2000;
+  o.num_batches = 3;
+  const auto stream =
+      dyng::generators::legacy::dynlp_vertex_arrival_stream(dyng::resources::sequential(), o);
+  dyng::graph_properties p;
+  p.directed = false;
+  p.layout = dyng::row_layout::slotted;
+  p.order = dyng::row_order::append;
+  p.parallel_edges = dyng::multi_edges::allow;
+  p.semantics = dyng::batch_semantics::net_effect();
+  graph_t g = graph_t::with_capacity(res, static_cast<std::int32_t>(o.total_vertices),
+                                     dyng::host_view(stream.row_capacity), p);
+  lp::options opt;
+  opt.update_schedule = lp::schedule::damped;
+  opt.similarity_threshold = stream.similarity_threshold;
+  lp::result<std::int32_t> r = lp::compute(res, g, {}, {}, opt);
+  EXPECT_TRUE(loaded("label_propagation"));
+  for (const auto& batch : stream.batches) {
+    (void)lp::update(res, g, batch.view(), r);
+  }
+  EXPECT_GT(g.num_active_vertices(), 0);
+  for (const kernel_group_info& group : kernel_groups::list()) {
+    EXPECT_EQ(group.loaded, group.name == "label_propagation") << group.name;
+  }
+}
+#endif
 
 TEST(KernelGroups, WarmUpLoadsEveryGroupAndKernel) {
   DYNG_SKIP_IF_NO_CUDA();

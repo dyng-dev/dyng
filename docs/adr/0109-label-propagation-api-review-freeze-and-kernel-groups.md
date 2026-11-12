@@ -216,7 +216,17 @@ included), and reads those regions again (2026-11-03, widened 2026-11-05).
    registered after the context exists at their first use, even under `CUDA_MODULE_LOADING=EAGER`
    (a kernel without an image for the device is skipped and its error cleared). The first version
    of this step made only the `cudaFree(nullptr)` call; the final re-read found the cost in
-   label_propagation's first timed update (section "Consequences"). Thread-safe; the groups are never destroyed (the runtime's
+   label_propagation's first timed update (section "Consequences"). **Redirection of another
+   group's copies** (the resumed step, after the merge of M11b): the linker keeps one copy of an
+   inline function or template that several groups' objects define (CUB's and Thrust's dispatch
+   functions instantiated with the same arguments, such as `cub::DeviceScan::ExclusiveSum<int*,
+   int*, int>`), and a template kernel's host function is local to its translation unit, so one
+   group's code can run another group's copy, which launches that group's own kernel. A renamed
+   call that hands the runtime a kernel of a group that is not loaded therefore first looks the
+   kernel up by its device name among the loaded groups' kernels (the same template instantiation,
+   the same device code); if one is found, the call goes to it and the group stays unloaded
+   (`kernel_group::ensure_for()`, the redirection remembered per kernel); otherwise the group is
+   loaded as before. Calls with a device symbol (no redirection) load the group. Thread-safe; the groups are never destroyed (the runtime's
    `atexit` unregistration may run after the static destructors). It works the same in shared and
    static builds (the wheels).
 3. **Warm-ups.** `resources::warm_up()` keeps its frozen contract ("loads every kernel of the
@@ -250,6 +260,16 @@ included), and reads those regions again (2026-11-03, widened 2026-11-05).
   ADR 0024's LP slotted path 1.072). Loading every kernel of the group in `ensure()` moves the cost
   back out of the timed region (`parity/results/M10b.md` section 4); a test checks that every
   registered kernel of a loaded group is loaded (`cuFuncIsLoaded`).
+- **The second miss (the resumed step 4, on the merged library).** With every kernel of the group
+  loaded, label_propagation's first update still read `update[b0]` 8.05 ms against 0.31 ms (ADR
+  0024's LP slotted path 1.073 at 50k, `parity/results/M10b.md` section 4): a debug run showed the
+  hypergraph group loaded inside batch 0 (16 translation units, 152 kernels), and a breakpoint on
+  its renamed `__cudaGetKernel` showed the path: `lp_cuda::launch_connected_components` ->
+  `cub::DeviceScan::ExclusiveSum<int*, int*, int>`, the hypergraph module's copy, which the
+  linker had kept -> its own `DeviceScanInitKernel` stub. The redirection of decision 2 fixes it;
+  the test `KernelGroups.LabelPropagationLoadsItsGroupOnly` runs the published flow on CUDA and
+  checks that no other group is loaded (it failed before the fix). The compatibility tools were
+  checked the same way (debug log of the groups each one loads; section 4).
 - Under lazy module loading (the CUDA 12.2+ default outside the gates) nothing changes for users
   but the moment a group's kernels load: all of them at the group's first use.
 - A new runtime entry point that takes a kernel or a device symbol must be added to
@@ -257,4 +277,7 @@ included), and reads those regions again (2026-11-03, widened 2026-11-05).
 - For M11 (the integrator): `dyng-compat-hsosp` may use the narrow warm-up as the other tools do
   (its `end_to_end` would then load hyper_sssp's, sssp's and the hypergraph containers' groups
   only); M11's mutant copies of the hypergraph module register at load, as every mutant copy does.
+  M10b, the integrator after M11b's merge, kept the tool's full `resources::warm_up()`: it loads
+  every kernel before any timed region, which is what M11b's readings measured, and a change of
+  the tool would have been a change of M11's frozen tool after its readings.
 - Later, outside 0.4: a vertex-capacity `graph::reserve()` (finding 10), for the author.

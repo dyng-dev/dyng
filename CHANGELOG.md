@@ -309,7 +309,13 @@ Before 0.1.0 anything may change.
   kernel of it (`cudaFuncGetAttributes` per kernel after the registration): the runtime loads the
   kernels of a fat binary registered after the context exists only at their first use, even under
   `CUDA_MODULE_LOADING=EAGER`, which the step's first version missed (label_propagation's first
-  timed update paid about 7.6 ms for its modules; the final re-read caught it).
+  timed update paid about 7.6 ms for its modules; the final re-read caught it). A call that hands
+  the runtime a kernel of a group that is not loaded goes to a loaded group's kernel of the same
+  device name when there is one (the linker keeps one copy of a CUB or Thrust dispatch function
+  that several groups define, so one algorithm can run another group's copy), instead of loading
+  that group: label_propagation's first update no longer loads the hypergraph containers' kernels
+  (about 8 ms at 50k; the resumed final re-read caught it). The groups cover hyper_sssp's kernels
+  after M11b's merge.
 - M10b step 4 (api-change: the freeze; ADR 0109; AD15 decided by the author on 2026-10-28):
   **`<dyng/label_propagation.hpp>`, `dyng.label_propagation` and `dyng label_propagation` are
   frozen**, with `<dyng/generators/vertex_arrival.hpp>` and the oracle headers

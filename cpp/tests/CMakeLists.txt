@@ -1825,6 +1825,9 @@ if(DYNG_ENABLE_CUDA)
   if(DYNG_DEFER_KERNEL_GROUPS)
     target_compile_definitions(dyng_kernel_groups_tests PRIVATE DYNG_TEST_KERNEL_GROUPS=1)
   endif()
+  if(TARGET dyng_label_propagation)
+    target_compile_definitions(dyng_kernel_groups_tests PRIVATE DYNG_TEST_KG_LABEL_PROPAGATION=1)
+  endif()
 
   # sssp on the cuda backend: the shared sssp suites compiled with DYNG_TEST_CUDA=1 (their cases
   # run on cuda, the randomized ones against the host backends) plus the CUDA-only cases.

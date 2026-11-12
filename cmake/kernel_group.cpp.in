@@ -5,7 +5,7 @@
 // group @DYNG_KERNEL_GROUP_NAME@; do not edit. The objects of the group call these functions in
 // place of the CUDA runtime's (kernel_group_launcher.sh renames the calls; ADR 0109 part B): the
 // registrations are recorded, and every call that hands the runtime a kernel or a device symbol
-// loads the group first.
+// loads the group first (a kernel a loaded group also has does not: loaded_for()).
 // NOLINTBEGIN
 #include "core/kernel_groups.hpp"
 
@@ -31,6 +31,15 @@ dyng::detail::kernel_group& group() noexcept {
 /// Load the group; a failure is the result of the call that asked.
 cudaError_t loaded() noexcept {
   return static_cast<cudaError_t>(group().ensure());
+}
+
+/// Load the group for a call that hands the runtime the kernel `*function`, unless a loaded group
+/// has the same kernel: the linker keeps one copy of an inline function or template that several
+/// groups' objects define (CUB's and Thrust's dispatch functions), so another group's code can run
+/// this group's copy, whose kernels (static per translation unit) only this group registers; the
+/// call then goes to the loaded group's kernel of the same name (kernel_group::ensure_for()).
+cudaError_t loaded_for(const void** function) noexcept {
+  return static_cast<cudaError_t>(group().ensure_for(function));
 }
 
 }  // namespace
@@ -79,7 +88,7 @@ char dyng_kg_@DYNG_KERNEL_GROUP_NAME@_init_module(void** handle) {
 }
 
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_get_kernel(cudaKernel_t* kernel, const void* function) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return __cudaGetKernel(kernel, function);
@@ -87,7 +96,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_get_kernel(cudaKernel_t* kernel, co
 
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_func_get_attributes(cudaFuncAttributes* attributes,
                                                                  const void* function) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaFuncGetAttributes(attributes, function);
@@ -96,7 +105,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_func_get_attributes(cudaFuncAttribu
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_func_set_attribute(const void* function,
                                                                 cudaFuncAttribute attribute,
                                                                 int value) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaFuncSetAttribute(function, attribute, value);
@@ -104,7 +113,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_func_set_attribute(const void* func
 
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_func_set_cache_config(const void* function,
                                                                    cudaFuncCache config) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaFuncSetCacheConfig(function, config);
@@ -114,7 +123,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_launch_kernel(const void* function,
                                                            dim3 block, void** args,
                                                            std::size_t shared_memory,
                                                            cudaStream_t stream) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaLaunchKernel(function, grid, block, args, shared_memory, stream);
@@ -125,7 +134,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_launch_cooperative_kernel(const voi
                                                                        void** args,
                                                                        std::size_t shared_memory,
                                                                        cudaStream_t stream) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaLaunchCooperativeKernel(function, grid, block, args, shared_memory, stream);
@@ -134,7 +143,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_launch_cooperative_kernel(const voi
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_launch_kernel_ex_c(const cudaLaunchConfig_t* config,
                                                                 const void* function,
                                                                 void** args) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaLaunchKernelExC(config, function, args);
@@ -144,7 +153,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_occupancy_max_active_blocks(int* bl
                                                                          const void* function,
                                                                          int block_size,
                                                                          std::size_t shared_memory) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaOccupancyMaxActiveBlocksPerMultiprocessor(blocks, function, block_size,
@@ -154,7 +163,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_occupancy_max_active_blocks(int* bl
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_occupancy_max_active_blocks_with_flags(
     int* blocks, const void* function, int block_size, std::size_t shared_memory,
     unsigned int flags) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(blocks, function, block_size,
@@ -163,7 +172,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_occupancy_max_active_blocks_with_fl
 
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_occupancy_available_dynamic_smem(
     std::size_t* shared_memory, const void* function, int blocks, int block_size) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&function); status != cudaSuccess) {
     return status;
   }
   return cudaOccupancyAvailableDynamicSMemPerBlock(shared_memory, function, blocks, block_size);
@@ -225,7 +234,7 @@ cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_memcpy_from_symbol_async(
 
 cudaError_t dyng_kg_@DYNG_KERNEL_GROUP_NAME@_get_func_by_symbol(cudaFunction_t* function,
                                                                 const void* symbol) {
-  if (const cudaError_t status = loaded(); status != cudaSuccess) {
+  if (const cudaError_t status = loaded_for(&symbol); status != cudaSuccess) {
     return status;
   }
   return cudaGetFuncBySymbol(function, symbol);

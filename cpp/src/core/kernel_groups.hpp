@@ -35,12 +35,14 @@
 
 #include <dyng/core/resources.hpp>
 
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <initializer_list>
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace dyng::detail {
@@ -89,6 +91,27 @@ class kernel_group {
    * @return 0 (cudaSuccess) or the CUDA runtime's error code of the module creation.
    */
   int ensure() noexcept;
+
+  /**
+   * @brief ensure() for a call of the group's objects that hands the runtime the kernel
+   *        `*host_function`, except when a loaded group has the same kernel.
+   *
+   * The linker keeps one copy of an inline function or a template that the objects of several
+   * groups define (CUB's and Thrust's dispatch functions, instantiated with the same arguments),
+   * so the code of one group can run another group's copy, whose calls come here with that
+   * group's own kernel (a template kernel's host function is local to its translation unit, so
+   * only this group registers it). If this group is not loaded and a loaded group registered a
+   * kernel of the same device name (the same template instantiation: the same device code), the
+   * call is redirected to that kernel (`*host_function` is replaced) and this group stays
+   * unloaded: a process loads only the kernels of the algorithms it runs (M10b step 4's final
+   * re-read found label_propagation's first update loading the hypergraph group through its copy
+   * of `cub::DeviceScan::ExclusiveSum`, about 8 ms inside the timed update at 50k). Otherwise the
+   * group is loaded (ensure()). Redirections are remembered (without a host allocation).
+   * @param[in,out] host_function The kernel's host function, as passed to the runtime call;
+   *                              replaced by the loaded group's when the call is redirected.
+   * @return 0 (cudaSuccess) or the CUDA runtime's error code of the module creation.
+   */
+  int ensure_for(const void** host_function) noexcept;
 
   // The recorders, called by the group's generated translation unit (the renamed registration
   // calls of the objects' static constructors and of their atexit handlers). `handle` is the value
@@ -143,6 +166,11 @@ class kernel_group {
   std::atomic<bool> loaded_{false};
   int status_ = 0;  // the module creation's error code (under mutex_)
   std::vector<fatbin_record*> fatbins_;
+  // ensure_for()'s redirections: this group's kernel -> a loaded group's of the same name (mutex_).
+  // A fixed array: a redirection happens inside an algorithm phase, which allocates nothing on the
+  // host once reserved (label_propagation's I9 budget); past its size a call looks up again.
+  std::array<std::pair<const void*, const void*>, 32> redirected_{};
+  std::size_t redirections_ = 0;
 };
 
 /**
