@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
 # SHA-256 of dynlp_labels.txt after the damped run of LabelPropagation-CUDA@a276a3a's 5k5 stream
 # (--totalNodes 5000 --numBatches 5 --avgDegree 5 --delta 0.0001 --seed 42 --update damped),
 # per backend: cuda is the original's own file (the fused engine is byte-identical to it, AD6;
