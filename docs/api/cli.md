@@ -10,11 +10,12 @@ dyng [--version] [--log-level LEVEL] COMMAND ...
 
   sssp compute | update         dynamic single-source shortest paths
   mosp compute | update         dynamic multi-objective shortest paths (0.2)
+  label_propagation compute | update   dynamic label propagation under vertex batches (0.4)
   cycle_count compute | update  directed simple-cycle histograms
   triad_count compute | update  hypergraph triad counts (0.3)
   prep SUBCOMMAND               MOSP's input preparation (the mospPrep subcommands)
   convert INPUT OUTPUT          convert a graph between formats
-  generate GENERATOR            the seeded batch generators of the original tools
+  generate GENERATOR            the seeded generators (the original tools' and dynG's)
   config                        the build and runtime configuration (dyng.show_config())
 ```
 
@@ -132,6 +133,65 @@ $ dyng mosp update --graph roadNet-CA_ --changes batch --init init --preferences
 obj0: invalidated ..., affected ..., iterations ..., engine fused
 ...
 combined: L=4, reachable ... of 1971281, ... edges, affected ...
+```
+
+## `dyng label_propagation`
+
+```text
+dyng label_propagation compute --graph EDGES --seeds FILE [--index-base B] [--num-vertices N]
+                               [options] [--backend sequential|cuda] --out DIR
+dyng label_propagation update  (--generate legacy|library [generator flags]
+                                | --batches FILE.. [--capacity auto|FILE] [--true-labels FILE])
+                               [--layout slotted|slack] [options] [--per-batch-labels]
+                               [--backend sequential|cuda] --out DIR
+```
+
+LabelPropagation-CUDA's DynLP (`dyng.label_propagation`, 0.4; ADR 0108). Options (the fields of
+`dyng.label_propagation.Options`, one flag each): `--similarity-threshold published|current|TAU`
+(tau: `published` is the stream's threshold, the average edge weight of the full graph, and the
+default of `update`; with `--batches` the average weight of the files' edges, as the original's
+`computeAvgEdgeWeight` sums them; `current` is the streaming mode's average of the current graph,
+the default of `compute`; or a number), `--tolerance` (delta), `--max-iterations`,
+`--on-iteration-limit error|report|fallback_recompute`, `--update-schedule in_place|damped` and
+`--cuda-engine automatic|fused|operators`. The backends are `sequential` and `cuda` (no OpenMP
+backend in 0.4; default: cuda when the active module has it, else sequential).
+
+`compute` reads an undirected edge list `u v w` with float weights (`dyng.io.read_edge_list(...,
+weight_dtype="float32", ids="as_is")`; `datasets/preprocess/knn_graph.py` writes one) and seed
+labels `v class` (class 0 or 1), runs IrLP and writes `DIR/dynlp_labels.txt`.
+
+`update` runs the published setup (ADR 0071): a graph with the stream's row capacities
+(`Graph.with_capacity`), `compute` on the empty graph, then one `update` per batch. The stream is
+generated (`--generate legacy`: LabelPropagation-CUDA's generator, byte for byte; `--generate
+library`: the library's; the generator flags `--total-vertices`, `--average-degree`,
+`--num-batches`, `--seed`, `--ground-truth-fraction`, `--deleted-fraction` are its keyword
+arguments) or read from `.dgt` / `.dgb` files (`--batches`, applied in order, with
+`--capacity auto`, each vertex's edges over every batch, or a file of one integer per vertex, and
+optionally `--true-labels` for the accuracy). `--layout slack` with `--similarity-threshold
+current` is the streaming mode. It writes `DIR/dynlp_labels.txt` (`i label`, the original's bytes:
+`dyng.io.write_labels`), with `--per-batch-labels` also `DIR/dynlp_labels_b<i>.txt`, and
+`DIR/stats.csv`: the original's `results.csv` columns `batch, time_ms, iterations,
+frontier_visits, components, accuracy, eval_ms` (the time is the host wall time of the
+`update` call; the accuracy over the active vertices without a seed label, as the original's
+`computeAccuracy`), then `affected, initial_frontier, sparsified_edges, converged, fallback_used,
+inserted_vertices, deleted_vertices, inserted_edges, dropped_insertions`. On the original's 5k5
+stream (`--generate legacy --total-vertices 5000 --num-batches 5 --update-schedule damped
+--backend sequential`) the labels are `dyng-compat-dynlp`'s sequential output byte for byte, and
+on cuda the original's own (the tests).
+
+| `dynLP` (LabelPropagation-CUDA) | `dyng label_propagation update --generate legacy` |
+|---|---|
+| `--totalNodes`, `--numBatches`, `--avgDegree`, `--seed`, `--gtFraction` | `--total-vertices`, `--num-batches`, `--average-degree`, `--seed`, `--ground-truth-fraction` |
+| `--tau T` (negative: automatic) | `--similarity-threshold T` (`published` for the automatic one) |
+| `--delta`, `--maxIter`, `--update inplace\|damped` | `--tolerance`, `--max-iterations`, `--update-schedule in_place\|damped` |
+| `--output DIR` | `--out DIR` |
+| `--validate`, `--noValidate`, `--noGraphFiles`, `--verbose`, `--quiet`, `--profile`, `--check` | not in `dyng` (`--quiet` excepted); `dyng-compat-dynlp` (tools/compat) takes every flag of the original for the parity harness; `dyng generate dynlp_vertex_arrival_stream --graph-files` writes the graph files |
+
+```console
+$ dyng label_propagation update --generate legacy --total-vertices 50000 --num-batches 10 \
+    --update-schedule damped --backend sequential --out run
+batch 0: ... ms, 0 iterations, 500 components, accuracy 100.00%
+...
 ```
 
 ## `dyng cycle_count`
@@ -285,6 +345,10 @@ dyng generate mosp_changes     --graph G --out DIR [--num-changes N] [--insertio
                                [--local-hops H] [--safe-deletions] [--source S]
 dyng generate cycle_enum_batch --graph G [--num-deletions D] [--num-insertions I] [--seed S]
                                [--locality-window W] [--out FILE]
+dyng generate vertex_arrival_stream       [generator flags] --out DIR [--format dgb|dgt]
+                                          [--graph-files]
+dyng generate dynlp_vertex_arrival_stream [generator flags] --out DIR [--format dgb|dgt]
+                                          [--graph-files]
 ```
 
 `mosp_changes` is MOSP's `generateChangeBatch` (the same batch as `dyng prep changes` and
@@ -292,3 +356,18 @@ dyng generate cycle_enum_batch --graph G [--num-deletions D] [--num-insertions I
 `DIR/delete.txt` and prints the report line. `cycle_enum_batch` is CycleEnumeration-GPU's
 `generate_batch`: the batch in graph ids, deletions first, as text on standard output or in FILE.
 Both are bit-exact with the originals for a fixed seed.
+
+The vertex-arrival generators of `dyng.label_propagation` (0.4) are named as their Python
+functions (AD12): `vertex_arrival_stream` is the library's
+(`dyng.generators.vertex_arrival_stream`, library-owned draws, bit-exact on every platform) and
+`dynlp_vertex_arrival_stream` LabelPropagation-CUDA's
+(`dyng.generators.legacy.dynlp_vertex_arrival_stream`, the original's stream byte for byte). The
+generator flags are their keyword arguments: `--total-vertices`, `--average-degree`,
+`--num-batches`, `--seed`, `--ground-truth-fraction`, `--deleted-fraction` and `--edge-dtype
+int32|int64`. Each writes `DIR/batches.dgb` (`--format dgt`: `DIR/batches.dgt`; the batches'
+vertex operations and float weights, AD13), `DIR/row_capacity.txt` (one integer per vertex: the
+full degrees), `DIR/true_labels.txt` (`i class`), `DIR/stream.json` (the published
+`similarity_threshold`, the sizes and the options) and, with `--graph-files`, the original's
+`DIR/graph/csr{RowPtr,ColInd,Values,TrueLabels}.txt` byte for byte. `dyng label_propagation update
+--batches DIR/batches.dgb --capacity DIR/row_capacity.txt --true-labels DIR/true_labels.txt
+--similarity-threshold <stream.json's>` replays the stream.
