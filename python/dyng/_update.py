@@ -163,15 +163,15 @@ def update(
         if isinstance(r, sssp.Result):
             sssp._check_graph(graph)
             kinds.append(sssp.Stats)
+        elif isinstance(r, label_propagation.Result):
+            label_propagation._check_graph(graph)
+            kinds.append(label_propagation.Stats)
         elif isinstance(r, cycle_count.Result):
             cycle_count._check_graph(graph)
             kinds.append(cycle_count.Stats)
         elif isinstance(r, mosp.Result):
             mosp._check_graph(graph)
             kinds.append(mosp.Stats)
-        elif isinstance(r, label_propagation.Result):
-            label_propagation._check_graph(graph)
-            kinds.append(label_propagation.Stats)
         elif isinstance(r, triad_count.Result):
             # DYNG_TRIAD_COUNT_CONTAINER_MESSAGE of <dyng/triad_count.hpp>, in Python's names
             raise TypeError(
