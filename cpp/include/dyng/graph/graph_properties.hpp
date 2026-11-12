@@ -200,7 +200,7 @@ struct graph_properties {
    *         and graph::from_csr() take the number of columns from their input and overwrite this
    *         field. */
   int num_weights = 1;
-  row_layout layout = row_layout::compact;           ///< storage layout of the rows
+  row_layout layout = row_layout::compact;  ///< storage layout of the rows
   /** @brief Spare capacity of row_layout::slack: a row gets ceil(k * (1 + headroom)) slots for
    *         its k expected entries (in [0, 16]; ignored by the other layouts). */
   double headroom = 0.125;
