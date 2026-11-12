@@ -15,7 +15,7 @@ ported file ({doc}`../developer/provenance`).
 | {doc}`cycle_enumeration_gpu` | `cycle_count` | `0a976ad` | `baseline-2026-09` = `da2067d` | 0.1 |
 | {doc}`escher_gpu` | the ESCHER hypergraph store, `triad_count`, `experimental::count_local_patterns` | `abcf9b2` | `baseline-2026-09` = `6a44c1c` | 0.3 |
 | MOSP_ESCHER | `hyper_sssp`, the sssp operators engine | `4b86159` | | 0.2 (the operators engine) / 0.4 (`hyper_sssp`, planned) |
-| LabelPropagation-CUDA | `label_propagation` | `a276a3a` | | 0.4 (planned) |
+| {doc}`label_propagation_cuda` | `label_propagation` | `a276a3a` | `baseline-2026-09` = `f0a665e` | 0.4 |
 
 Every original is public under `https://github.com/SMShovan/<repository>`. The originals carried
 no license; the basis for publishing their code under Apache-2.0 is recorded in
@@ -28,4 +28,5 @@ mosp_openmp
 mosp_cuda
 cycle_enumeration_gpu
 escher_gpu
+label_propagation_cuda
 ```

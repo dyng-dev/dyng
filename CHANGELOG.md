@@ -298,6 +298,29 @@ Before 0.1.0 anything may change.
   package (`ci/cmake_consumer.sh`) and in `test_examples.py`; the plugin smoke test runs
   label_propagation's 5k5 damped stream on cuda under the oracle; `parity/wheel_vs_parity.py` has
   a reported label_propagation row.
+- M10b step 4 (CUDA, behaviour; ADR 0109 part B; the author's decisions of 2026-11-03 and
+  2026-11-05): **kernel groups**. Each algorithm's CUDA kernels (and the hypergraph containers')
+  are registered with the CUDA runtime when the process first uses them instead of when libdyng is
+  loaded, so under `CUDA_MODULE_LOADING=EAGER` a process loads only the kernels of the algorithms
+  it runs (the core's and the graph container's at context creation). Nothing changes in the device
+  or host code; `resources::warm_up()` still loads every kernel of the library (every group first).
+  New CMake option `DYNG_DEFER_KERNEL_GROUPS` (default ON; OFF registers every module at load, as
+  before). The compatibility tools warm up only the groups they run.
+- M10b step 4 (api-change: the freeze; ADR 0109; AD15 decided by the author on 2026-10-28):
+  **`<dyng/label_propagation.hpp>`, `dyng.label_propagation` and `dyng label_propagation` are
+  frozen**, with `<dyng/generators/vertex_arrival.hpp>` and the oracle headers
+  `<dyng/testing/harmonic_solution.hpp>`, `union_find.hpp` and `lp_host_model.hpp`
+  (`ci/api_snapshot.py`'s `FROZEN_BEFORE_STABLE`; the API baseline lists their sections as
+  frozen; the frozen command-line flags are pinned by a test). No signature changed. The maturity
+  stays `experimental` until the author confirms `stable` at the 0.4.0 release.
+- M10b step 4 (docs): `docs/algorithms/label_propagation.md` in the ten sections of the algorithm
+  pages (differences from the paper and "paper vs fixed code" quoting the original's CHANGES.md and
+  README, AD17; every `DynLPConfig` field mapped); the C++ and Python API pages; the history page
+  `docs/history/label_propagation_cuda.md`; the concept page `docs/concepts/row_layouts.md`
+  (compact, slotted and slack rows, vertex status, net-effect batches, the published and streaming
+  setups, the compact-only algorithms); the tutorial `docs/tutorials/streaming_label_propagation.md`
+  (quoting `examples/python/label_propagation_torch.py` and
+  `python/tests/test_label_propagation_tutorial.py`); the sketch marked frozen.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
