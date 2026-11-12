@@ -146,7 +146,9 @@ inline ::testing::AssertionResult near(const snapshot& a, const snapshot& b) {
 /// The kit's graph properties of label_propagation: slotted rows under net_effect().
 inline void require_slotted(graph_properties& p) {
   p.directed = false;
-  p.layout = row_layout::slotted;
+  if (p.layout != row_layout::slack) {  // slack rows (M10b) are kept: the kit's second preset
+    p.layout = row_layout::slotted;
+  }
   p.order = row_order::append;
   p.parallel_edges = multi_edges::allow;
   p.semantics = batch_semantics::net_effect();

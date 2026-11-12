@@ -424,12 +424,17 @@ struct container_traits<slotted_axis<graph<vertex_t, edge_t, weight_t>>> {
     return p;
   }
 
-  /// One preset: net_effect() is the only semantics of slotted rows in 0.4 (AD11).
+  /// Two presets: slotted rows, and slack rows (M10b, ADR 0103; build() gives them half of the
+  /// capacities, so rows move to the tail); net_effect() is the only semantics of both in 0.4
+  /// (AD11).
   template <typename traits_t>
   static std::vector<kit_preset<graph_properties>> presets() {
     graph_properties p = slotted_properties();
     traits_t::require(p);
-    return {{"slotted, net_effect()", p}};
+    graph_properties q = slotted_properties();
+    q.layout = row_layout::slack;
+    traits_t::require(q);
+    return {{"slotted, net_effect()", p}, {"slack, net_effect(), half capacities", q}};
   }
 
   /// The mixes of each check.
@@ -471,7 +476,14 @@ struct container_traits<slotted_axis<graph<vertex_t, edge_t, weight_t>>> {
   /// arrived (the seeds labelled) and every delivered edge, then one with the departed vertices.
   static container_type build(const model_type& m, const resources& res,
                               const graph_properties& props) {
-    const std::vector<edge_t>& cap = m.capacity;
+    std::vector<edge_t> half;
+    if (props.layout == row_layout::slack) {
+      half.reserve(m.capacity.size());
+      for (const edge_t c : m.capacity) {
+        half.push_back(c / 2);
+      }
+    }
+    const std::vector<edge_t>& cap = props.layout == row_layout::slack ? half : m.capacity;
     container_type g =
         container_type::with_capacity(res, static_cast<vertex_t>(m.n), host_view(cap), props);
     batch_type arrive(1);
