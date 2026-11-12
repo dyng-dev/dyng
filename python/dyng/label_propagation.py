@@ -156,7 +156,7 @@ class Stats:
         batch: What applying the batch did to the graph.
         components: Connected components of the batch's sparsified subgraph.
         sparsified_edges: Edges of the sparsified subgraph.
-        initial_frontier: The affected vertices the propagation started from (|V_aff|).
+        initial_frontier: The affected vertices the propagation started from (``|V_aff|``).
     """
 
     affected: int
@@ -219,8 +219,8 @@ class Result:
 
     @property
     def seed_labels(self) -> Array:
-        """One seed label per vertex (int8: -1 none, else the class 0 or 1): compute's seeds and
-        the labels of the batches' arrivals."""
+        """One seed label per vertex (int8; -1 none, else the class 0 or 1), from compute's
+        seeds and the labels of the batches' arrivals."""
         return self._array(self._native.seed_labels, "seed_labels")
 
     @property

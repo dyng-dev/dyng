@@ -681,13 +681,13 @@ class Graph:
     # -- properties ----------------------------------------------------------------------------
     @property
     def num_vertices(self) -> int:
-        """The vertex count (slot rows: the vertex capacity, whatever the states)."""
+        """The vertex count (for slot rows the vertex capacity, whatever the states)."""
         return int(self._native.num_vertices)
 
     @property
     def num_active_vertices(self) -> int:
-        """The active vertices (0.4): :attr:`num_vertices` for compact rows (every vertex is
-        active), the vertices whose state is ``VertexStatus.active`` for slot rows."""
+        """The number of active vertices (0.4), which is :attr:`num_vertices` for compact rows
+        (every vertex is active) and the vertices in ``VertexStatus.active`` for slot rows."""
         return int(self._native.num_active_vertices)
 
     def vertex_status(self) -> np.ndarray:
@@ -752,8 +752,8 @@ class Graph:
 
     @property
     def weight_dtype(self) -> np.dtype | None:
-        """The weight type: int32, float32 (0.4: label_propagation's graphs), or None for an
-        unweighted graph."""
+        """The weight type (int32, float32 for label_propagation's graphs of 0.4, or None for an
+        unweighted graph)."""
         return self._type.weight
 
     @property

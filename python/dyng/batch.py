@@ -173,8 +173,8 @@ class EdgeBatch:
 
     @property
     def insert_weights(self) -> np.ndarray | None:
-        """Weights of the insertions, shape (n, K), or None: int32 for integer weights (a view
-        when given as a C-contiguous int32 array); floating-point weights (0.4) as given (a
+        """Weights of the insertions, shape (n, K), or None. Integer weights are int32 (a view
+        when given as a C-contiguous int32 array); floating-point weights (0.4) are as given (a
         float32 array after ``weight_dtype="float32"``)."""
         if self._ins_w is None:
             return None
@@ -189,7 +189,7 @@ class EdgeBatch:
 
     @property
     def vertex_labels(self) -> np.ndarray | None:
-        """The labels of the inserted vertices (int8: -1 none, 0 or 1; 0.4), or None."""
+        """The labels of the inserted vertices (int8; -1 none, 0 or 1; 0.4), or None."""
         if self._labels is None:
             return None
         return _dtypes.checked_cast(self._labels, np.dtype(np.int8), "vertex_labels")

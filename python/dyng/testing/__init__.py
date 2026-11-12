@@ -245,7 +245,7 @@ class HarmonicResult:
         determined: Per vertex, whether it is present, unlabelled and in a component with a
             present seed (bool).
         converged: The preconditioned conjugate gradient reached ``relative_tolerance``.
-        relative_residual: |r| / |b| at the end.
+        relative_residual: ``|r| / |b|`` at the end.
         iterations: PCG iterations.
         num_seeds: Present vertices with a seed label.
         num_unlabelled: Present vertices without one.
@@ -264,7 +264,7 @@ class HarmonicResult:
     num_excluded: int
 
     def error(self, labels: Any) -> tuple[float, float]:
-        """(mean, max) of |F - F*| over the determined vertices (0.0 when there are none)."""
+        """(mean, max) of ``|F - F*|`` over the determined vertices (0.0 when there are none)."""
         from ..array import Array
 
         f = labels.to_numpy() if isinstance(labels, Array) else np.asarray(labels)
@@ -295,7 +295,7 @@ def harmonic_solution(
         graph: A float32 graph.
         seed_labels: One seed label per vertex (int8: -1 none, else 0 or 1), e.g.
             ``result.seed_labels`` of :mod:`dyng.label_propagation`.
-        relative_tolerance: Stop when |r| <= relative_tolerance * |b|.
+        relative_tolerance: Stop when ``|r| <= relative_tolerance * |b|``.
         max_iterations: The PCG iteration cap (> 0).
         num_threads: Host threads (>= 1); the result does not depend on it.
         resources: The resources of the graph's host copy (default: the graph's).
