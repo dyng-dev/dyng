@@ -1883,6 +1883,15 @@ def label_propagation_update(resources: Resources, graph: GraphI32I32F32, batch:
 @overload
 def label_propagation_update(resources: Resources, graph: GraphI32I64F32, batch: EdgeBatchI32F32, result: LabelPropagationResult) -> LpStats: ...
 
+@overload
+def testing_harmonic_solution(resources: Resources, graph: GraphI32I32F32, seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], relative_tolerance: float, max_iterations: int, num_threads: int) -> tuple: ...
+
+@overload
+def testing_harmonic_solution(resources: Resources, graph: GraphI32I64F32, seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], relative_tolerance: float, max_iterations: int, num_threads: int) -> tuple:
+    """
+    testing::harmonic_solution of the graph's current edges: (solution float64, determined uint8, the counters).
+    """
+
 class DynamicBfsOptions:
     """dynamic_bfs::options."""
 
@@ -3140,15 +3149,6 @@ def testing_simple_cycles(graph: GraphI32I32U, max_length: int, brute_force: boo
 
 @overload
 def testing_simple_cycles(graph: GraphI32I64U, max_length: int, brute_force: bool) -> Annotated[NDArray[numpy.uint64], dict(shape=(None,))]: ...
-
-@overload
-def testing_harmonic_solution(resources: Resources, graph: GraphI32I32F32, seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], relative_tolerance: float, max_iterations: int, num_threads: int) -> tuple: ...
-
-@overload
-def testing_harmonic_solution(resources: Resources, graph: GraphI32I64F32, seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], relative_tolerance: float, max_iterations: int, num_threads: int) -> tuple:
-    """
-    testing::harmonic_solution of the graph's current edges: (solution float64, determined uint8, the counters).
-    """
 
 def testing_combined_graph_i32(parents: Sequence[Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)]], source: int, preferences: Sequence[int]) -> tuple: ...
 

@@ -198,6 +198,30 @@ if(TARGET dyng_triad_count)
   endif()
 endif()
 
+include("${PROJECT_SOURCE_DIR}/cmake/dyng_doc_snippet.cmake")
+dyng_extract_doc_snippet(
+  "${PROJECT_SOURCE_DIR}/README.md" quickstart-cpp
+  "${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.cpp"
+  "${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.expected"
+)
+add_executable(dyng_example_readme_quickstart "${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.cpp")
+target_link_libraries(dyng_example_readme_quickstart PRIVATE dyng::dyng)
+target_compile_features(dyng_example_readme_quickstart PRIVATE cxx_std_17)
+set_target_properties(dyng_example_readme_quickstart PROPERTIES OUTPUT_NAME readme_quickstart)
+dyng_set_warnings(dyng_example_readme_quickstart)
+dyng_enable_sanitizers(dyng_example_readme_quickstart)
+if(DYNG_BUILD_TESTS)
+  add_test(
+    NAME example.readme_quickstart
+    COMMAND
+      ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:dyng_example_readme_quickstart>"
+      "-DEXPECTED=${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.expected" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/compare_output.cmake"
+  )
+  set_tests_properties(example.readme_quickstart PROPERTIES LABELS "cpu;sssp;examples"
+                       ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
+endif()
+
 # label_propagation (0.4): left out of a subset build without it (DYNG_ALGORITHMS). The published
 # setup on LabelPropagation-CUDA's 5k5 stream (damped); the labels it writes equal the committed
 # digests of examples/data/label_propagation_5k5_damped.sha256 per backend (cuda: the original's
@@ -236,28 +260,4 @@ if(TARGET dyng_label_propagation)
                            ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
     endforeach()
   endif()
-endif()
-
-include("${PROJECT_SOURCE_DIR}/cmake/dyng_doc_snippet.cmake")
-dyng_extract_doc_snippet(
-  "${PROJECT_SOURCE_DIR}/README.md" quickstart-cpp
-  "${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.cpp"
-  "${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.expected"
-)
-add_executable(dyng_example_readme_quickstart "${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.cpp")
-target_link_libraries(dyng_example_readme_quickstart PRIVATE dyng::dyng)
-target_compile_features(dyng_example_readme_quickstart PRIVATE cxx_std_17)
-set_target_properties(dyng_example_readme_quickstart PROPERTIES OUTPUT_NAME readme_quickstart)
-dyng_set_warnings(dyng_example_readme_quickstart)
-dyng_enable_sanitizers(dyng_example_readme_quickstart)
-if(DYNG_BUILD_TESTS)
-  add_test(
-    NAME example.readme_quickstart
-    COMMAND
-      ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:dyng_example_readme_quickstart>"
-      "-DEXPECTED=${CMAKE_CURRENT_BINARY_DIR}/readme_quickstart.expected" -P
-      "${CMAKE_CURRENT_SOURCE_DIR}/compare_output.cmake"
-  )
-  set_tests_properties(example.readme_quickstart PROPERTIES LABELS "cpu;sssp;examples"
-                       ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
 endif()

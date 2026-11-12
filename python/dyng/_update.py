@@ -16,9 +16,12 @@ from .hypergraph import HyperedgeBatch, Hypergraph
 from .resources import Resources
 
 if TYPE_CHECKING:
-    from . import cycle_count, label_propagation, mosp, sssp, triad_count
+    from . import cycle_count, mosp, sssp, triad_count
 
 __all__ = ["update"]
+
+if TYPE_CHECKING:
+    from . import label_propagation
 
 
 @overload
@@ -140,7 +143,7 @@ def update(
         >>> motifs.total, type1.total, st_type1.batch.deleted_hyperedges
         (1, 3, 1)
     """
-    from . import cycle_count, label_propagation, mosp, sssp, triad_count
+    from . import cycle_count, mosp, sssp, triad_count
 
     if isinstance(graph, Hypergraph):
         return _update_hypergraph(graph, batch, results, resources)
@@ -153,6 +156,8 @@ def update(
             "dyng.update: no results (applying a batch without updating any result would leave "
             "every result of the graph stale; use Graph.apply())"
         )
+    from . import label_propagation
+
     kinds: list[Any] = []
     for i, r in enumerate(results):
         if isinstance(r, sssp.Result):

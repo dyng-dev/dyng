@@ -3,16 +3,14 @@
 /**
  * @file testing.cpp
  * @brief dyng::testing: the host oracles (Dijkstra with lowest-id ties, the sssp tree check, the
- *        simple-cycle oracles, the mosp references, the line-graph oracle of hypergraphs and, in
- *        0.4, label_propagation's harmonic solution), which share no code with the algorithms they
- *        check.
+ *        simple-cycle oracles, the mosp references and the line-graph oracle of hypergraphs), which
+ *        share no code with the algorithms they check.
  */
 #include "types.hpp"
 
 #include <dyng/testing/check_sssp.hpp>
 #include <dyng/testing/cycle_oracle.hpp>
 #include <dyng/testing/dijkstra.hpp>
-#include <dyng/testing/harmonic_solution.hpp>
 #include <dyng/testing/line_graph_oracle.hpp>
 #include <dyng/testing/mosp_oracle.hpp>
 #include <dyng/testing/triad_reference.hpp>
@@ -27,57 +25,6 @@
 
 namespace dyng::python {
 namespace {
-
-/// testing::harmonic_solution of a float graph's current edges (0.4, label_propagation's oracle):
-/// the present vertices are the active ones (every vertex of compact rows), the edges those of
-/// to_csr(), and the seed labels one per vertex (-1: none).
-template <typename vertex_t, typename edge_t>
-void bind_harmonic_solution(nb::module_& m) {
-  using graph_t = graph_holder<vertex_t, edge_t, float>;
-  m.def(
-      "testing_harmonic_solution",
-      [](const resources& res, const graph_t& g, const in_array<std::int8_t>& seed_labels,
-         double relative_tolerance, std::int64_t max_iterations, int num_threads) {
-        auto out = without_gil([&] {
-          lock_set locks;
-          locks.add(g.mutex, false);
-          locks.lock();
-          const std::size_t n = static_cast<std::size_t>(g.value.num_vertices());
-          DYNG_EXPECTS(seed_labels.shape(0) == n, "harmonic_solution: ", seed_labels.shape(0),
-                       " seed labels for ", n, " vertices");
-          auto csr = g.value.to_csr(res);
-          std::vector<std::uint8_t> present(n, 1);
-          const auto status = g.value.view().status;
-          if (!status.empty()) {
-            for (std::size_t v = 0; v < n; ++v) {
-              present[v] = status[v] == vertex_status::active ? 1 : 0;
-            }
-          }
-          std::vector<std::int8_t> seeds(seed_labels.data(), seed_labels.data() + n);
-          testing::harmonic_options opt;
-          opt.relative_tolerance = relative_tolerance;
-          opt.max_iterations = max_iterations;
-          opt.num_threads = num_threads;
-          std::vector<std::int32_t> col(csr.col_ind.begin(), csr.col_ind.end());
-          return testing::harmonic_solution(csr.row_ptr, col, csr.weights, present, seeds, opt);
-        });
-        std::vector<std::uint8_t> determined = std::move(out.determined);
-        nb::dict d;
-        d["converged"] = out.converged;
-        d["relative_residual"] = out.relative_residual;
-        d["iterations"] = out.iterations;
-        d["num_seeds"] = out.num_seeds;
-        d["num_unlabelled"] = out.num_unlabelled;
-        d["num_determined"] = out.num_determined;
-        d["num_excluded"] = out.num_excluded;
-        return nb::make_tuple(to_numpy(std::move(out.solution)), to_numpy(std::move(determined)),
-                              d);
-      },
-      nb::arg("resources"), nb::arg("graph"), nb::arg("seed_labels").noconvert(),
-      nb::arg("relative_tolerance"), nb::arg("max_iterations"), nb::arg("num_threads"),
-      "testing::harmonic_solution of the graph's current edges: (solution float64, determined "
-      "uint8, the counters).");
-}
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void bind_testing_type(nb::module_& m) {
@@ -133,9 +80,9 @@ void bind_testing_type(nb::module_& m) {
         nb::arg("graph"), nb::arg("parents").noconvert(), nb::arg("source"),
         nb::arg("num_objectives"));
   }
-  if constexpr (std::is_same_v<weight_t, float>) {
-    bind_harmonic_solution<vertex_t, edge_t>(m);
-  } else {
+  // The float graphs' oracle, testing::harmonic_solution (0.4), is bound with label_propagation
+  // (label_propagation.cpp); cycles are counted on the other graphs.
+  if constexpr (!std::is_same_v<weight_t, float>) {
     m.def(
         "testing_simple_cycles",
         [](const graph_t& g, int max_length, bool brute_force) {

@@ -8,8 +8,7 @@
  * a list. As ADR 0023 (note 1) prescribes, the binding builds the type-erased participants of the
  * results itself, with the factories each algorithm header declares for dyng::update()
  * (detail::make_sssp_participant, detail::make_cycle_count_participant,
- * detail::make_mosp_participant, detail::make_label_propagation_participant (0.4); over a
- * hypergraph detail::make_triad_count_participant), and
+ * detail::make_mosp_participant; over a hypergraph detail::make_triad_count_participant), and
  * runs them through detail::participant_of<graph>::run() (participant_of<hypergraph>::run()), the
  * path dyng::update() takes: every before-apply step on G_t, one commit, then every after-apply
  * step on G_{t+1}.
@@ -38,6 +37,8 @@ void bind_update_type(nb::module_& m) {
   constexpr bool sssp_ok = detail::sssp_supported_v<vertex_t, edge_t, weight_t>;
   constexpr bool cycle_ok = detail::cycle_count_supported_v<vertex_t, edge_t, weight_t>;
   constexpr bool mosp_ok = detail::mosp_supported_v<vertex_t, edge_t, weight_t>;
+  // label_propagation (0.4): its results on the float graphs, through
+  // detail::make_label_propagation_participant.
   constexpr bool lp_ok = detail::label_propagation_supported_v<vertex_t, edge_t, weight_t>;
   using lp_holder = result_holder<label_propagation::result<std::int32_t>>;
 

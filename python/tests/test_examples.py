@@ -106,6 +106,38 @@ _CUDA = pytest.param(
 )
 
 
+@pytest.mark.parametrize("backend", ["sequential", _CUDA])
+def test_label_propagation_torch_writes_the_committed_labels(backend: str, tmp_path: Path) -> None:
+    # examples/data/label_propagation_5k5_damped.sha256: the labels of LabelPropagation-CUDA's 5k5
+    # stream, damped (cuda: the original's own file; sequential: dyng-compat-dynlp's), which
+    # examples/cpp/label_propagation_stream.cpp writes too (the CTests
+    # example.label_propagation_stream.*)
+    import hashlib
+
+    out = _run(EXAMPLES / "label_propagation_torch.py", tmp_path, backend).stdout
+    lines = out.splitlines()
+    assert lines[0] == "batch 0: 0 iterations, 50 components, 50 active"
+    assert lines[-1].startswith("accuracy ") and "active unlabelled vertices" in lines[-1]
+    digests = dict(
+        reversed(line.split())
+        for line in (REPO / "examples" / "data" / "label_propagation_5k5_damped.sha256")
+        .read_text()
+        .splitlines()
+        if line and not line.startswith("#")
+    )
+    got = hashlib.sha256((tmp_path / "dynlp_labels.txt").read_bytes()).hexdigest()
+    assert got == digests[backend]
+
+
+def test_the_label_propagation_examples_fit_plan_9_6() -> None:
+    # PLAN 9.6: one runnable example per algorithm, at most 60 lines (M10b step 3).
+    for path in (
+        REPO / "examples" / "cpp" / "label_propagation_stream.cpp",
+        EXAMPLES / "label_propagation_torch.py",
+    ):
+        assert len(path.read_text().splitlines()) <= 60, path
+
+
 @pytest.mark.parametrize("backend", [*BACKENDS, _CUDA])
 def test_triad_count_prints_the_expected_counts(backend: str) -> None:
     # examples/data/triad_count_update.expected.txt: the counts of a brute force over every
@@ -203,36 +235,4 @@ def test_the_triad_count_expected_output_is_the_brute_force() -> None:
 def test_the_triad_count_examples_fit_plan_9_6() -> None:
     # PLAN 9.6: one runnable example per algorithm, at most 60 lines.
     for path in (REPO / "examples" / "cpp" / "triad_count_update.cpp", EXAMPLES / "triad_count.py"):
-        assert len(path.read_text().splitlines()) <= 60, path
-
-
-@pytest.mark.parametrize("backend", ["sequential", _CUDA])
-def test_label_propagation_torch_writes_the_committed_labels(backend: str, tmp_path: Path) -> None:
-    # examples/data/label_propagation_5k5_damped.sha256: the labels of LabelPropagation-CUDA's 5k5
-    # stream, damped (cuda: the original's own file; sequential: dyng-compat-dynlp's), which
-    # examples/cpp/label_propagation_stream.cpp writes too (the CTests
-    # example.label_propagation_stream.*)
-    import hashlib
-
-    out = _run(EXAMPLES / "label_propagation_torch.py", tmp_path, backend).stdout
-    lines = out.splitlines()
-    assert lines[0] == "batch 0: 0 iterations, 50 components, 50 active"
-    assert lines[-1].startswith("accuracy ") and "active unlabelled vertices" in lines[-1]
-    digests = dict(
-        reversed(line.split())
-        for line in (REPO / "examples" / "data" / "label_propagation_5k5_damped.sha256")
-        .read_text()
-        .splitlines()
-        if line and not line.startswith("#")
-    )
-    got = hashlib.sha256((tmp_path / "dynlp_labels.txt").read_bytes()).hexdigest()
-    assert got == digests[backend]
-
-
-def test_the_label_propagation_examples_fit_plan_9_6() -> None:
-    # PLAN 9.6: one runnable example per algorithm, at most 60 lines (M10b step 3).
-    for path in (
-        REPO / "examples" / "cpp" / "label_propagation_stream.cpp",
-        EXAMPLES / "label_propagation_torch.py",
-    ):
         assert len(path.read_text().splitlines()) <= 60, path
