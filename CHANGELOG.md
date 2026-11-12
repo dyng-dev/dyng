@@ -228,6 +228,26 @@ Before 0.1.0 anything may change.
   (committed digests in the CPU suites); the same `vertex_arrival_options` (the `seed` field's
   documentation names both seedings) and `vertex_arrival_stream`. The legacy stream is unchanged.
 
+- M10b step 2 (api-change, additive, the frozen `graph/` headers; ADR 0103; AD16 decided by the
+  author on 2026-10-28): **`row_layout::slack`** on the host and CUDA, built by
+  `graph::with_capacity()` from empty, partial or full capacity hints (each row
+  `ceil(k * (1 + graph_properties::headroom))` slots): a row that overflows moves to the tail of
+  the slot arena with its entries in order, a batch compacts the rows when the dead slots
+  outnumber the owned ones (rows rewritten without the entries of deleted vertices), vertex growth
+  under `batch_semantics::allow_vertex_growth`, `capacity_error` only at the `edge_t` limit. For
+  slack rows `graph_view::out.row_ptr[v]` is row v's start and is not monotone (documented in
+  `graph_view.hpp`). New: `apply_summary::relocated_rows` and `apply_summary::compactions`
+  (appended). Every compact-only algorithm refuses slack rows (ADR 0070's guard).
+- M10b step 2 (api-change, documentation and behaviour of `options::similarity_threshold =
+  std::nullopt`; ADRs 0103, 0104): **`label_propagation` on slack rows** (both backends and
+  engines; a batch that would grow the vertex set is refused before anything changes) and **the
+  streaming mode's threshold**, now a double sum and a count maintained by the result with a
+  documented accumulation order (bitwise the same on every backend) instead of a sum over the
+  whole graph in every update. The published setup (with_capacity from the stream's degrees,
+  the stream's threshold) stays the documented default; the streaming mode is an advanced mode
+  with no gate, checked by the harmonic oracle, the host model and the kit (its float axis gains
+  the preset "slack, net_effect(), half capacities").
+
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
 - Added: `dyng::testing::hyper_sssp_reference`, `check_hyper_sssp_tree` and `line_graph_delta`

@@ -1,0 +1,54 @@
+{
+ "what": "the 0.3.0 reader (tag v0.3.0, git archive, a static CPU build of its library, removed after) reading 0.4 files written by this branch's io (M10b step 2, AD13)",
+ "date": "2026-11-11",
+ "writer": "runs/m10b-slack-streaming-generator-io/oldreader/writer.cpp (this branch's library)",
+ "reader": "runs/m10b-slack-streaming-generator-io/oldreader/old_reader.cpp (v0.3.0's library)",
+ "files": {
+  "edges_int32_k1": "an edge batch of an integer graph: no addition (written as 0.3 writes it)",
+  "vertex_int32_k1": "a vertex batch of an integer graph: .dgb flag bit 4 / .dgt +v lines",
+  "float_edges": "an edge batch of a float graph: .dgb weight code 3 / .dgt float token",
+  "float_vertex": "a vertex batch of a float graph: code 3 and bit 4"
+ },
+ "results": [
+  {
+   "file": "edges_int32_k1.dgb",
+   "result": "read"
+  },
+  {
+   "file": "vertex_int32_k1.dgb",
+   "result": "refused",
+   "type": "io_error",
+   "message": "dyng: <files>/vertex_int32_k1.dgb: invalid header: unknown flags 16 (written by a newer dynG?)"
+  },
+  {
+   "file": "float_edges.dgb",
+   "result": "refused",
+   "type": "io_error",
+   "message": "dyng: <files>/float_edges.dgb: invalid header: weight type 3 (none = 0, int32 = 1 or int64 = 2)"
+  },
+  {
+   "file": "float_vertex.dgb",
+   "result": "refused",
+   "type": "io_error",
+   "message": "dyng: <files>/float_vertex.dgb: invalid header: weight type 3 (none = 0, int32 = 1 or int64 = 2)"
+  },
+  {
+   "file": "edges_int32_k1.dgt",
+   "result": "read"
+  },
+  {
+   "file": "vertex_int32_k1.dgt",
+   "result": "refused",
+   "type": "io_error",
+   "message": "dyng: <files>/vertex_int32_k1.dgt:3:1: the vertex operation '+v' is reserved for the vertex batches of label_propagation (0.4); this release reads edge operations ('+e', '-e') and hyperedge operations ('+h', '-h') only"
+  },
+  {
+   "file": "float_edges.dgt",
+   "result": "refused",
+   "type": "io_error",
+   "message": "dyng: <files>/float_edges.dgt:3:8: invalid weight '0.5' (expected a decimal integer)"
+  }
+ ],
+ "verdict": "every file without an addition reads; every file with one is refused with an io_error (no silent read)",
+ "verdict_holds": true
+}
