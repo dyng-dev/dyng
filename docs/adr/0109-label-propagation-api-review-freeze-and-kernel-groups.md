@@ -6,9 +6,11 @@
   public names), both decided by the author on 2026-10-28 (GOVERNANCE.md, approvals log, P040's
   rows "The 0.4.0 plan ..." and "The new public names of 0.4 (AD12, HD8, HD12; sheet E1)"), by the
   method of ADRs 0023, 0047 and 0060 and the checklist `docs/developer/api_review_checklist.md`.
-  **Pending the author:** the stability confirmation at 0.4.0 (AD15) and every public name beyond
-  AD12's list (section "The new public names"; the author's decision of 2026-10-29 that M10b's API
-  ADR lists them for approval at the freeze), both in GOVERNANCE.md's open decisions, M10 (AD).
+  **Pending the author:** the stability confirmation at 0.4.0 (AD15), in GOVERNANCE.md's open
+  decisions, M10 (AD). Every public name beyond AD12's list (section "The new public names"; the
+  author's decision of 2026-10-29 that M10b's API ADR lists them for approval at the freeze) was
+  **approved by the author on 2026-11-12** (GOVERNANCE.md, approvals log, the row "M10's public
+  names beyond AD12's list"): frozen with the API, a rename is an api-change.
   Part B carries out the author's decisions of 2026-11-03 and 2026-11-05 (the rows "The D14-path
   excursions of M10a step 5" and "The cycle_count module-loading excursions of the merged
   library"); its mechanism is a technical choice under delegation. Neither part changes a rule the
@@ -16,8 +18,8 @@
   `CUDA_MODULE_LOADING=EAGER` on both sides included), the parity rules and the frozen headers
   (additive changes only) are untouched.
 - **Date:** 2026-11-12
-- **Deciders:** the AI assistant, on the author's behalf (M10b, step 4); the stability and the
-  names beyond AD12: S M Shovan (pending)
+- **Deciders:** the AI assistant, on the author's behalf (M10b, step 4); the names beyond AD12:
+  S M Shovan (approved 2026-11-12); the stability: S M Shovan (pending, at the release)
 - **Builds on:** ADR 0023 (the method, the snapshot), ADR 0035 (the freeze enforced against the
   base branch), ADR 0047 (the freeze's Doxygen rules), ADR 0060 (the last algorithm freeze),
   ADRs 0063-0079 and 0100-0108 (label_propagation, its container additions, formats, Python and
@@ -124,9 +126,10 @@ generators `generators::generate_vertex_arrival_stream` and
 label_propagation`, `dyng generate vertex_arrival_stream`, `dyng generate
 dynlp_vertex_arrival_stream`; the tool `dyng-compat-dynlp`; the suite `ics26_dynlp`.
 
-**Beyond AD12's list, pending the author** (the author's decision of 2026-10-29; GOVERNANCE.md,
-open decisions, M10 (AD), the row "A public name beyond AD12's list", which keeps the full list
-by step): the generators' and oracles' auxiliary types (`vertex_arrival_options`,
+**Beyond AD12's list, approved by the author on 2026-11-12** (the author's decision of 2026-10-29;
+GOVERNANCE.md, approvals log, the row "M10's public names beyond AD12's list", which closes the
+row "A public name beyond AD12's list" of open decisions, M10 (AD), that keeps the full list by
+step): the generators' and oracles' auxiliary types (`vertex_arrival_options`,
 `vertex_arrival_batch` with `view()`, `vertex_arrival_stream`; `testing::harmonic_options`,
 `harmonic_result`, `label_error`, `label_error_against`, `class_agreement`,
 `class_agreement_with`, `lp_model_batch`, `lp_model_report`,
