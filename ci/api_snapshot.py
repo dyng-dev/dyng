@@ -114,8 +114,23 @@ def stable_algorithm_headers(algorithms_dir: Path = ALGORITHMS_DIR) -> list[str]
     return headers
 
 
-# The frozen headers: the core and the stable algorithms.
-FROZEN = CORE_FROZEN + stable_algorithm_headers()
+# Headers frozen at the end of their milestone while their algorithm's maturity stays below stable
+# until the author confirms it at the release: label_propagation's header and the headers only it
+# adds (the generators' vertex-arrival stream and its oracles in dyng::testing), frozen at the end of
+# M10b (ADR 0109; AD15 / sheet F1, decided by the author on 2026-10-28: frozen at the end of M10b,
+# `stable` from 0.4.0 only on the author's confirmation at the release). Once the manifest says
+# stable, stable_algorithm_headers() lists the header as well.
+FROZEN_BEFORE_STABLE = [
+    "dyng/label_propagation.hpp",
+    "dyng/generators/vertex_arrival.hpp",
+    "dyng/testing/harmonic_solution.hpp",
+    "dyng/testing/lp_host_model.hpp",
+    "dyng/testing/union_find.hpp",
+]
+
+# The frozen headers: the core, the stable algorithms and the headers frozen before their
+# algorithm is stable.
+FROZEN = CORE_FROZEN + stable_algorithm_headers() + FROZEN_BEFORE_STABLE
 
 HEADER = """\
 # SPDX-FileCopyrightText: 2026 The dynG Authors

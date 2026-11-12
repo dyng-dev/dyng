@@ -172,7 +172,11 @@ def test_an_algorithm_header_is_frozen_exactly_when_its_manifest_says_stable() -
         data = api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))
         header = f"dyng/{data['name']}.hpp"
         assert (api_snapshot.INCLUDE_DIR / header).is_file(), header
-        expected = "frozen" if data["maturity"] == "stable" else "tracked"
+        expected = (
+            "frozen"
+            if data["maturity"] == "stable" or header in api_snapshot.FROZEN_BEFORE_STABLE
+            else "tracked"
+        )
         assert api_snapshot.status(header) == expected, (header, data["maturity"])
         seen[data["name"]] = api_snapshot.status(header)
     assert seen["sssp"] == seen["cycle_count"] == seen["mosp"] == "frozen"
@@ -353,6 +357,38 @@ def test_the_hypergraph_headers_are_frozen_and_a_change_is_breaking() -> None:
         "[dyng/hypergraph/hypergraph_properties.hpp] - id_reuse reuse = id_reuse::erase_first"
     )
     assert all(b.startswith("[dyng/hypergraph/hypergraph_properties.hpp]") for b in breaking)
+
+
+def test_the_label_propagation_headers_are_frozen_and_a_change_is_breaking() -> None:
+    # The M10b freeze (ADR 0109; AD15): label_propagation's header and the headers only it adds
+    # are frozen while its manifest stays below stable (the author confirms stability at 0.4.0);
+    # io/* and the other testing headers stay tracked. A changed default of the options, a
+    # removed stats field, a changed generator option and a changed oracle signature are breaking.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    for header in api_snapshot.FROZEN_BEFORE_STABLE:
+        assert secs[header][0] == "frozen", header
+        assert api_snapshot.status(header) == "frozen", header
+    manifest = api_snapshot.ALGORITHMS_DIR / "label_propagation" / "manifest.toml"
+    assert api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))["maturity"] != "stable"
+    for tracked in ("dyng/io/result_io.hpp", "dyng/io/batch_io.hpp", "dyng/testing/dijkstra.hpp"):
+        assert secs[tracked][0] == "tracked", tracked
+    assert any(
+        "update_traits<label_propagation::result" in line
+        for line in secs["dyng/label_propagation.hpp"][1]
+    )
+    for header, old, new in (
+        ("dyng/label_propagation.hpp", "float tolerance = 1e-4F", "float tolerance = 1e-5F"),
+        ("dyng/label_propagation.hpp", "      std::int64_t initial_frontier = 0\n", ""),
+        (
+            "dyng/generators/vertex_arrival.hpp",
+            "std::int32_t num_batches = 10",
+            "std::int32_t num_batches = 11",
+        ),
+    ):
+        assert old in BASELINE_TEXT, old
+        breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new))
+        assert breaking, old
+        assert all(b.startswith(f"[{header}]") for b in breaking), breaking
 
 
 def test_the_triad_count_header_is_frozen_and_a_change_is_breaking() -> None:

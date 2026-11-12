@@ -574,7 +574,7 @@
       template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const resources &res, const hypergraph< vertex_t, weight_t > &h)
       template <typename weight_t = unweighted, typename vertex_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const escher_host_model< vertex_t > &model)
 
-[dyng/generators/vertex_arrival.hpp] tracked
+[dyng/generators/vertex_arrival.hpp] frozen
   struct dyng::generators::vertex_arrival_options
       std::int64_t total_vertices = 50000
       std::int32_t average_degree = 5
@@ -1138,7 +1138,7 @@
   void dyng::io::write_triad_bins_json(const std::string &path, const triad_bins &bins)
   [[nodiscard]] triad_bins dyng::io::read_triad_bins_json(const std::string &path)
 
-[dyng/label_propagation.hpp] tracked
+[dyng/label_propagation.hpp] frozen
   enum class dyng::label_propagation::schedule : std::uint8_t { in_place, damped }
   enum class dyng::label_propagation::on_limit : std::uint8_t { error, report, fallback_recompute }
   struct dyng::label_propagation::options
@@ -1376,7 +1376,7 @@
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const csr_view< vertex_t, edge_t, weight_t > &out, vertex_t source, int objective=0)
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, int objective=0)
 
-[dyng/testing/harmonic_solution.hpp] tracked
+[dyng/testing/harmonic_solution.hpp] frozen
   struct dyng::testing::harmonic_options
       double relative_tolerance = 1e-12
       std::int64_t max_iterations = 100000
@@ -1419,7 +1419,7 @@
       [[nodiscard]] std::vector< std::int64_t > row(std::int64_t id) const
   [[nodiscard]] line_graph_rows dyng::testing::rebuild_line_graph(const std::vector< std::int64_t > &h2v_offsets, const std::vector< std::int32_t > &h2v_members, std::int32_t num_vertices)
 
-[dyng/testing/lp_host_model.hpp] tracked
+[dyng/testing/lp_host_model.hpp] frozen
   struct dyng::testing::lp_model_batch
       std::vector< std::int32_t > insert_vertices
       std::vector< std::int8_t > insert_labels
@@ -1486,7 +1486,7 @@
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_removed(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_added(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
 
-[dyng/testing/union_find.hpp] tracked
+[dyng/testing/union_find.hpp] frozen
   class dyng::testing::union_find
       explicit union_find(std::int64_t size)
       [[nodiscard]] std::int64_t size() const noexcept

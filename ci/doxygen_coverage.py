@@ -157,6 +157,7 @@ def is_move_assignment(member: ET.Element) -> bool:
 # ADR 0058: PLAN 9.1's group `experimental`), and the group their entities belong to.
 FROZEN_GROUP_HEADERS = {
     "dyng/hypergraph/": "hypergraph",
+    "dyng/label_propagation.hpp": "label_propagation",  # frozen at the end of M10b (ADR 0109)
     "dyng/experimental/": "experimental",
     "dyng/triad_count.hpp": "triad_count",
 }

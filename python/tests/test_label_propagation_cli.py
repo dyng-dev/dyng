@@ -276,3 +276,37 @@ def test_streaming_mode_runs(capsys: pytest.CaptureFixture[str], tmp_path: Path)
     assert (tmp_path / "dynlp_labels_b2.txt").read_bytes() == (
         tmp_path / "dynlp_labels.txt"
     ).read_bytes()
+
+
+# The command line frozen at the end of M10b (ADR 0109; AD15: stable from 0.4.0 only on the
+# author's confirmation): every flag below stays, with its name (PLAN 5.9: CLI flags are stable-tier
+# API); a flag may be added (an additive change with a CHANGELOG entry), never removed or renamed.
+FROZEN_FLAGS = {
+    ("label_propagation", "compute"): (
+        "--backend --cuda-engine --device --graph --help --index-base --max-iterations "
+        "--num-vertices --on-iteration-limit --out --quiet --seeds --similarity-threshold "
+        "--tolerance --update-schedule -h"
+    ),
+    ("label_propagation", "update"): (
+        "--average-degree --backend --batches --capacity --cuda-engine --deleted-fraction --device "
+        "--generate --ground-truth-fraction --help --layout --max-iterations --num-batches "
+        "--on-iteration-limit --out --per-batch-labels --quiet --seed --similarity-threshold "
+        "--tolerance --total-vertices --true-labels --update-schedule -h"
+    ),
+    ("generate", "vertex_arrival_stream"): (
+        "--average-degree --deleted-fraction --edge-dtype --format --graph-files "
+        "--ground-truth-fraction --help --num-batches --out --quiet --seed --total-vertices -h"
+    ),
+    ("generate", "dynlp_vertex_arrival_stream"): (
+        "--average-degree --deleted-fraction --edge-dtype --format --graph-files "
+        "--ground-truth-fraction --help --num-batches --out --quiet --seed --total-vertices -h"
+    ),
+}
+
+
+def test_the_frozen_flags_are_kept() -> None:
+    for path, frozen in FROZEN_FLAGS.items():
+        p = _subparser(build_parser(), *path)
+        flags = {o for a in p._actions for o in a.option_strings}
+        missing = set(frozen.split()) - flags
+        assert not missing, (path, sorted(missing))
