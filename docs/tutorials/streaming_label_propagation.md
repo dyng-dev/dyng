@@ -105,7 +105,7 @@ without capacity hints (a row that outgrows its slots moves to the tail of the s
 arena is compacted when the dead slots outnumber the live ones) and tau of the current graph
 (`similarity_threshold` left unset):
 
-% quote: python/tests/test_label_propagation_tutorial.py#streaming 5c7d47dee77c
+% quote: python/tests/test_label_propagation_tutorial.py#streaming 463c4c600ecf
 ```{literalinclude} ../../python/tests/test_label_propagation_tutorial.py
 :language: python
 :start-after: "# [tutorial: streaming]"
