@@ -473,6 +473,19 @@ struct graph_access {
                         normalized_batch<vertex_t>& out);
 
   /**
+   * @brief Compact the rows of a slack graph now (ADR 0103), outside any batch: the host rows, or
+   *        the device copy with the host mirror. The graph's edges, version and state do not
+   *        change (the tests force a compaction between updates with it).
+   * @tparam vertex_t Vertex id type.
+   * @tparam edge_t   Edge offset type.
+   * @tparam weight_t Weight type.
+   * @param[in]     res Execution resources (the graph's).
+   * @param[in,out] g   The graph (row_layout::slack).
+   */
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  static void compact_slack(const resources& res, graph<vertex_t, edge_t, weight_t>& g);
+
+  /**
    * @brief Finish a device apply of a slotted graph (ADR 0074): if its report is still pending,
    *        synchronize the stream of `res` and settle it; then complete `summary` (the appended
    *        and dropped insertions) and throw what the device recorded.

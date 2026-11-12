@@ -319,6 +319,16 @@ apply_summary apply_vertex_batch_slack_device(const resources& res,
                                               apply_delta<vertex_t>* delta);
 
 /**
+ * @brief A compaction of a slack graph's device copy outside any batch (graph_access::
+ *        compact_slack(): the tests force one between updates), with the host mirror.
+ * @throws out_of_memory_error, cuda_error, not_supported_error.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void compact_device_slack(const resources& res, device_slotted<vertex_t, edge_t, weight_t>& g,
+                          csr<vertex_t, edge_t, weight_t>& slots,
+                          slotted_rows<vertex_t, edge_t>& rows);
+
+/**
  * @brief Copy the rows of the device copy into the host storage (the download of a stale host
  *        copy): the slot columns and weights and the row ends; ordered on the copy's stream, then
  *        a synchronization of it.

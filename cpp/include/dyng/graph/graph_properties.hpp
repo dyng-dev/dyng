@@ -25,8 +25,13 @@ enum class row_layout : std::uint8_t {
    *  by graph::with_capacity(), it takes vertex batches under batch_semantics::net_effect().
    *  Only label_propagation reads it; every other algorithm refuses it (not_supported_error). */
   slotted,
-  /** per-row headroom with a tail region for streams without known capacities (the 0.4
-   *  representation of ADR 0069; implemented in M10b); refused at construction until then. */
+  /** per-row headroom with a tail region for streams without known capacities (0.4, ADR
+   *  0103): built by graph::with_capacity() from empty, partial or full capacity hints, each row
+   *  gets ceil(k * (1 + headroom)) slots for its k expected entries; a row that overflows moves
+   *  to the tail of the slot arena with its entries in order, and a batch compacts the rows when
+   *  their dead slots outnumber the owned ones. Vertex batches under
+   *  batch_semantics::net_effect() (with allow_vertex_growth if wanted). Only label_propagation
+   *  reads it; every other algorithm refuses it (not_supported_error). */
   slack,
 };
 
@@ -196,7 +201,9 @@ struct graph_properties {
    *         field. */
   int num_weights = 1;
   row_layout layout = row_layout::compact;           ///< storage layout of the rows
-  double headroom = 0.125;                           ///< spare capacity for row_layout::slack
+  /** @brief Spare capacity of row_layout::slack: a row gets ceil(k * (1 + headroom)) slots for
+   *         its k expected entries (in [0, 16]; ignored by the other layouts). */
+  double headroom = 0.125;
   row_order order = row_order::sorted;               ///< the general default: sorted rows
   multi_edges parallel_edges = multi_edges::forbid;  ///< the general default: a simple graph
   batch_semantics semantics = batch_semantics::upsert_last_wins();  ///< how batches are applied
