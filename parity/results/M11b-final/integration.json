@@ -1,4 +1,5 @@
 {
+ "superseded": "by parity/results/M11b-merged/integration.json (the M11b review fixes): the author merged M10a as 9bf1bd3 (#23) after this record was written, so origin/main and m10a-label-propagation (a0734e1) are no longer the refs named here, and M11b is the first of M10b / M11b to freeze. This record stays as written at step 4 (parity/results/M11b.md section 4.9).",
  "what": "M11b criterion 11, integration (the second of M10b / M11b to freeze): the trial merges, the generated files on the merged tree, the scoped dry runs and the 0.1-0.3 certificate tests",
  "date": "2026-11-11",
  "head": "a30fe48 (m11b-hyper-sssp; the later commits change records only)",

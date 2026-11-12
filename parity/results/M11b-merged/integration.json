@@ -1,0 +1,42 @@
+{
+ "what": "M11b criterion 11 after the review fixes: the refs, the merge of origin/main, the trial merge with the other track's latest ref (read-only, for M10b), and who owes the integration duties",
+ "date": "2026-11-12",
+ "origin_main": {
+  "commit": "9bf1bd3cdf54d7fbf6b559b4d2a9fe69f7283af9",
+  "what": "the author's merge of M10a (dyng-dev/dyng#23); its tree equals m10a-label-propagation at a0734e1"
+ },
+ "merge_of_origin_main": {
+  "commit": "c854f69",
+  "conflicts": {
+   "GOVERNANCE.md": "Markdown (the approvals log): combined in date order",
+   "docs/adr/README.md": "Markdown (the index rows): 0094-0097, then 0100",
+   "docs/developer/plan.md": "Markdown: M10's row from main, M11's row from the branch"
+  },
+  "code_conflicts": 0,
+  "anchor_block_conflicts": 0,
+  "generated_files": "rerun on the merged tree (scripts/regen.py, the stubs, ci/api_snapshot.py): unchanged",
+  "markers_after_resolution": "git grep -nE '^(<<<<<<<|>>>>>>>)( |$)' empty"
+ },
+ "trial_merge_origin_main": "empty (origin/main 9bf1bd3 is an ancestor of HEAD)",
+ "m10_refs": {
+  "m10a-label-propagation": "a0734e1e (merged as 9bf1bd3)",
+  "m10b-label-propagation": "c3e4309c (in progress; it freezes after M11b)"
+ },
+ "trial_merge_m10b": {
+  "ref": "m10b-label-propagation at c3e4309c",
+  "command": "git merge-tree --write-tree HEAD m10b-label-propagation (read-only)",
+  "conflicts": {
+   "GOVERNANCE.md": "Markdown",
+   "docs/developer/plan.md": "Markdown"
+  },
+  "code_conflicts": 0,
+  "anchor_block_conflicts": 0,
+  "note": "for M10b, the integrator; it resolves them"
+ },
+ "first_to_freeze": "M11b: M10a merged first, and M10b freezes after M11b, so the integration duties of criterion 11 (the trial merge with the other track, the scoped dry runs of hyper_sssp and label_propagation on the final tree, the 0.1-0.3 certificate tests on it) are M10b's, as its branch note provides; recorded as owed by M10b",
+ "on_the_branch": {
+  "scoped_dry_run_hyper_sssp": "parity/results/M11b-merged/dry-certify.json (the merged library's records)",
+  "certificate_tests_0.1-0.4": "parity/tests/test_release_cert.py in ci/check.sh's harness step at 6658b0e: passed",
+  "planned_toml": "neither hyper_sssp's nor label_propagation's [[planned]] block"
+ }
+}

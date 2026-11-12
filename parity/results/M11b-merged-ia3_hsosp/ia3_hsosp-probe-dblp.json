@@ -1,0 +1,384 @@
+{
+ "algorithm": "hyper_sssp",
+ "what": "the clock probe per dataset and B's quiet pre-read (HD4; records only)",
+ "reference": {
+  "name": "MOSP_ESCHER",
+  "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+  "variant": "unpatched",
+  "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench"
+ },
+ "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+ "exe": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched/bin/hsospBench",
+ "gpu": 0,
+ "env": {
+  "CUDA_MODULE_LOADING": "EAGER",
+  "OMP_*": "unset"
+ },
+ "lock": {
+  "DYNG_PERF_LOCK": "",
+  "DYNG_PERF_LOCK_HELD": "1"
+ },
+ "layout": "one (--out <work>/hsosp-ab.csv on every run)",
+ "versions": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "probe": {
+  "dblp": {
+   "config": "dblp_hyperedge_200000",
+   "clock_lock": {
+    "control": "boost",
+    "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+    "how": "ncu --clock-control boost on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+    "before": {
+     "pstate": "P3",
+     "sm_mhz": 1695,
+     "memory_mhz": 8001
+    },
+    "locked": {
+     "pstate": "P2",
+     "sm_mhz": 1695,
+     "memory_mhz": 7601
+    },
+    "check": "every busy GPU sample of every accepted round at the locked clocks",
+    "after_reset": {
+     "pstate": "P0",
+     "sm_mhz": 1920,
+     "memory_mhz": 7601
+    }
+   },
+   "rounds": [
+    {
+     "round": 1,
+     "window": {
+      "wall_s": 9.549031734466553,
+      "program_cpu_s": 39.901141,
+      "foreign_cpu_cores": 1.2779841285222926,
+      "procs_running": {
+       "median": 3.0,
+       "min": 3,
+       "max": 60
+      },
+      "foreign_runnable": {
+       "median": 1.0,
+       "min": 0,
+       "max": 48
+      },
+      "gpu": {
+       "samples": 190,
+       "busy_samples": 64,
+       "pstates_busy": {
+        "P2": 64
+       },
+       "sm_mhz": {
+        "median": 1695.0,
+        "min": 1695,
+        "max": 1695
+       },
+       "memory_mhz": {
+        "median": 7601.0,
+        "min": 7601,
+        "max": 7601
+       },
+       "foreign_processes": [],
+       "clocks_locked": true
+      },
+      "contaminated": false,
+      "reasons": []
+     },
+     "load": {
+      "start": [
+       15.1513671875,
+       0
+      ],
+      "end": [
+       13.208984375,
+       0
+      ],
+      "during": {
+       "samples": 19,
+       "load_average_max": 15.1513671875,
+       "procs_blocked_max": 0
+      }
+     },
+     "csv": [
+      {
+       "t_csr_apply_ms": 30.457,
+       "t_delta_ms": 189.081,
+       "t_dynamic_total_ms": 574.182,
+       "t_escher_ms": 334.384,
+       "t_sosp_update_ms": 20.2602,
+       "t_static_ms": 81.9238,
+       "fallback": "0",
+       "h2h_pairs": "124712653",
+       "seeds": "647372",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 29.4204,
+       "t_delta_ms": 207.891,
+       "t_dynamic_total_ms": 544.309,
+       "t_escher_ms": 285.525,
+       "t_sosp_update_ms": 21.4721,
+       "t_static_ms": 82.2271,
+       "fallback": "0",
+       "h2h_pairs": "124043888",
+       "seeds": "694858",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 29.4961,
+       "t_delta_ms": 262.076,
+       "t_dynamic_total_ms": 587.174,
+       "t_escher_ms": 275.659,
+       "t_sosp_update_ms": 19.9425,
+       "t_static_ms": 84.6188,
+       "fallback": "0",
+       "h2h_pairs": "123277705",
+       "seeds": "633418",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      }
+     ],
+     "e2e": {
+      "load": 6654.0,
+      "dynamic": 1706.0,
+      "static": 249.0,
+      "wall": 8994.0,
+      "batches": 3
+     }
+    },
+    {
+     "round": 2,
+     "window": {
+      "wall_s": 9.601518154144287,
+      "program_cpu_s": 40.260605999999996,
+      "foreign_cpu_cores": 1.3344218898099776,
+      "procs_running": {
+       "median": 3,
+       "min": 3,
+       "max": 58
+      },
+      "foreign_runnable": {
+       "median": 1,
+       "min": 0,
+       "max": 5
+      },
+      "gpu": {
+       "samples": 192,
+       "busy_samples": 83,
+       "pstates_busy": {
+        "P2": 83
+       },
+       "sm_mhz": {
+        "median": 1695,
+        "min": 1680,
+        "max": 1695
+       },
+       "memory_mhz": {
+        "median": 7601,
+        "min": 7601,
+        "max": 7601
+       },
+       "foreign_processes": [],
+       "clocks_locked": false
+      },
+      "contaminated": true,
+      "reasons": [
+       "GPU 0 busy at (SM, memory) MHz [(1680, 7601)], not at the locked (1695, 7601)"
+      ]
+     },
+     "load": {
+      "start": [
+       13.208984375,
+       0
+      ],
+      "end": [
+       11.80517578125,
+       0
+      ],
+      "during": {
+       "samples": 19,
+       "load_average_max": 13.208984375,
+       "procs_blocked_max": 0
+      }
+     },
+     "csv": [
+      {
+       "t_csr_apply_ms": 30.4161,
+       "t_delta_ms": 191.894,
+       "t_dynamic_total_ms": 583.443,
+       "t_escher_ms": 340.951,
+       "t_sosp_update_ms": 20.1812,
+       "t_static_ms": 81.7655,
+       "fallback": "0",
+       "h2h_pairs": "124712653",
+       "seeds": "647372",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 29.3976,
+       "t_delta_ms": 213.684,
+       "t_dynamic_total_ms": 535.801,
+       "t_escher_ms": 271.247,
+       "t_sosp_update_ms": 21.4733,
+       "t_static_ms": 82.6561,
+       "fallback": "0",
+       "h2h_pairs": "124043888",
+       "seeds": "694858",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 29.5079,
+       "t_delta_ms": 262.846,
+       "t_dynamic_total_ms": 589.487,
+       "t_escher_ms": 277.203,
+       "t_sosp_update_ms": 19.9299,
+       "t_static_ms": 83.5654,
+       "fallback": "0",
+       "h2h_pairs": "123277705",
+       "seeds": "633418",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      }
+     ],
+     "e2e": {
+      "load": 6706.0,
+      "dynamic": 1709.0,
+      "static": 248.0,
+      "wall": 9048.0,
+      "batches": 3
+     }
+    },
+    {
+     "round": 3,
+     "window": {
+      "wall_s": 9.590198040008545,
+      "program_cpu_s": 40.50515300000001,
+      "foreign_cpu_cores": 1.256175623327828,
+      "procs_running": {
+       "median": 3,
+       "min": 3,
+       "max": 59
+      },
+      "foreign_runnable": {
+       "median": 1,
+       "min": 0,
+       "max": 9
+      },
+      "gpu": {
+       "samples": 191,
+       "busy_samples": 60,
+       "pstates_busy": {
+        "P2": 60
+       },
+       "sm_mhz": {
+        "median": 1695.0,
+        "min": 1695,
+        "max": 1695
+       },
+       "memory_mhz": {
+        "median": 7601.0,
+        "min": 7601,
+        "max": 7601
+       },
+       "foreign_processes": [],
+       "clocks_locked": true
+      },
+      "contaminated": false,
+      "reasons": []
+     },
+     "load": {
+      "start": [
+       11.80517578125,
+       0
+      ],
+      "end": [
+       10.296875,
+       0
+      ],
+      "during": {
+       "samples": 19,
+       "load_average_max": 11.80517578125,
+       "procs_blocked_max": 0
+      }
+     },
+     "csv": [
+      {
+       "t_csr_apply_ms": 30.4351,
+       "t_delta_ms": 193.512,
+       "t_dynamic_total_ms": 579.939,
+       "t_escher_ms": 335.782,
+       "t_sosp_update_ms": 20.2106,
+       "t_static_ms": 82.3427,
+       "fallback": "0",
+       "h2h_pairs": "124712653",
+       "seeds": "647372",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 29.412,
+       "t_delta_ms": 210.696,
+       "t_dynamic_total_ms": 522.822,
+       "t_escher_ms": 261.292,
+       "t_sosp_update_ms": 21.4218,
+       "t_static_ms": 82.4432,
+       "fallback": "0",
+       "h2h_pairs": "124043888",
+       "seeds": "694858",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      },
+      {
+       "t_csr_apply_ms": 29.5118,
+       "t_delta_ms": 262.34,
+       "t_dynamic_total_ms": 588.287,
+       "t_escher_ms": 276.524,
+       "t_sosp_update_ms": 19.9113,
+       "t_static_ms": 84.9519,
+       "fallback": "0",
+       "h2h_pairs": "123277705",
+       "seeds": "633418",
+       "overflow_rebuilds": "0",
+       "mismatch_static": "0"
+      }
+     ],
+     "e2e": {
+      "load": 6722.0,
+      "dynamic": 1691.0,
+      "static": 250.0,
+      "wall": 9051.0,
+      "batches": 3
+     }
+    }
+   ],
+   "holds": false,
+   "clock": "base"
+  }
+ },
+ "pre_read": {},
+ "datasets_sha256": {
+  "dblp": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+ },
+ "pre_read_clock_lock": null,
+ "quiet_maxima": {
+  "load_average": null,
+  "procs_blocked": null,
+  "load_average_median": null
+ },
+ "audit": {
+  "load_average": 16.0,
+  "procs_blocked": 4,
+  "quiet_max": null,
+  "quiet_max_source": null,
+  "why": "no quiet maximum of B in this run (no pre-read): ADR 0056's thresholds"
+ },
+ "clocks": {
+  "dblp": "base"
+ }
+}

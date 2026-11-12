@@ -1,0 +1,60 @@
+{
+ "set": "hyper_sssp_mosp_escher",
+ "kind": "hyper_sssp",
+ "date": "2026-11-12T02:49:37+00:00",
+ "goldens": {
+  "manifest_sha256": "6211339456bbd391e1054caec3e936184433ccc43b41e722124de5b2effec872"
+ },
+ "port": {
+  "commit": "f6c19115cfddea9099fbfc698e579ec50200dd02"
+ },
+ "executable": "parity/compare.py hyper_sssp --part results",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "sequential:hyper_sssp/by_id"
+ ],
+ "checks": {
+  "verified": false,
+  "oracle": true,
+  "check_compute": false
+ },
+ "matrix": {
+  "test/01-test_h2h_construction": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/02-test_h2h_delta": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/03-test_hsosp_matches_dijkstra": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/04-test_hsosp_scale": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/05-hsospStress": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/06-hsospStress_escher": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/07-hsospBench_smoke": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/08-hsospBench_real_hyperedge": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "test/09-hsospBench_real_vertex": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "paper/dblp_hyperedge_50000": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "paper/dblp_vertex_50000": {
+   "sequential:hyper_sssp/by_id": "equal"
+  },
+  "paper/geology_hyperedge_50000": {
+   "sequential:hyper_sssp/by_id": "equal"
+  }
+ },
+ "passed": true
+}
