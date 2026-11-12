@@ -99,6 +99,7 @@ nanobind_add_module(
   bindings/sssp.cpp
   bindings/cycle_count.cpp
   bindings/mosp.cpp
+  bindings/label_propagation.cpp
   bindings/dynamic_bfs.cpp
   bindings/triangle_delta.cpp
   bindings/triad_count.cpp
@@ -111,7 +112,8 @@ nanobind_add_module(
   bindings/arrays.cpp
 )
 target_compile_features(_core PRIVATE cxx_std_17)
-# cpp/src: the private header util/rng.hpp (MOSP's weight stream of `dyng prep widen`).
+# cpp/src: the private headers util/rng.hpp (MOSP's weight stream of `dyng prep widen`) and
+# io/dynlp_text.hpp (LabelPropagation-CUDA's graph text files, 0.4).
 target_include_directories(_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/bindings"
                                          "${PROJECT_SOURCE_DIR}/cpp/src"
 )

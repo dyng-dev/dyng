@@ -16,7 +16,7 @@ from .hypergraph import HyperedgeBatch, Hypergraph
 from .resources import Resources
 
 if TYPE_CHECKING:
-    from . import cycle_count, mosp, sssp, triad_count
+    from . import cycle_count, label_propagation, mosp, sssp, triad_count
 
 __all__ = ["update"]
 
@@ -73,9 +73,16 @@ def update(
 def update(
     graph: Graph,
     batch: EdgeBatch,
-    *results: sssp.Result | cycle_count.Result | mosp.Result,
+    *results: label_propagation.Result,
     resources: Resources | None = None,
-) -> tuple[sssp.Stats | cycle_count.Stats | mosp.Stats, ...]: ...
+) -> tuple[label_propagation.Stats, ...]: ...
+@overload
+def update(
+    graph: Graph,
+    batch: EdgeBatch,
+    *results: sssp.Result | cycle_count.Result | mosp.Result | label_propagation.Result,
+    resources: Resources | None = None,
+) -> tuple[sssp.Stats | cycle_count.Stats | mosp.Stats | label_propagation.Stats, ...]: ...
 @overload
 def update(
     graph: Hypergraph,
@@ -101,13 +108,14 @@ def update(
         batch: The batch (an :class:`~dyng.EdgeBatch` for a graph, a
             :class:`~dyng.HyperedgeBatch` for a hypergraph).
         *results: One or more results of this graph (``dyng.sssp.Result``,
-            ``dyng.cycle_count.Result``, ``dyng.mosp.Result``; of a hypergraph
-            ``dyng.triad_count.Result``), each at most once.
+            ``dyng.cycle_count.Result``, ``dyng.mosp.Result``, ``dyng.label_propagation.Result``
+            (0.4: float32 graphs); of a hypergraph ``dyng.triad_count.Result``), each at most
+            once.
         resources: Default: the resources the graph was built with.
 
     Returns:
         One stats object per result, in order (``dyng.sssp.Stats``, ``dyng.cycle_count.Stats``,
-        ``dyng.mosp.Stats``, ``dyng.triad_count.Stats``).
+        ``dyng.mosp.Stats``, ``dyng.label_propagation.Stats``, ``dyng.triad_count.Stats``).
 
     Raises:
         StaleResultError: a result does not match the graph.
@@ -132,7 +140,7 @@ def update(
         >>> motifs.total, type1.total, st_type1.batch.deleted_hyperedges
         (1, 3, 1)
     """
-    from . import cycle_count, mosp, sssp, triad_count
+    from . import cycle_count, label_propagation, mosp, sssp, triad_count
 
     if isinstance(graph, Hypergraph):
         return _update_hypergraph(graph, batch, results, resources)
@@ -145,7 +153,7 @@ def update(
             "dyng.update: no results (applying a batch without updating any result would leave "
             "every result of the graph stale; use Graph.apply())"
         )
-    kinds: list[type[sssp.Stats] | type[cycle_count.Stats] | type[mosp.Stats]] = []
+    kinds: list[Any] = []
     for i, r in enumerate(results):
         if isinstance(r, sssp.Result):
             sssp._check_graph(graph)
@@ -156,6 +164,9 @@ def update(
         elif isinstance(r, mosp.Result):
             mosp._check_graph(graph)
             kinds.append(mosp.Stats)
+        elif isinstance(r, label_propagation.Result):
+            label_propagation._check_graph(graph)
+            kinds.append(label_propagation.Stats)
         elif isinstance(r, triad_count.Result):
             # DYNG_TRIAD_COUNT_CONTAINER_MESSAGE of <dyng/triad_count.hpp>, in Python's names
             raise TypeError(
@@ -175,6 +186,8 @@ def update(
             name = "an sssp" if isinstance(r, sssp.Result) else "a mosp"
             raise StaleResultError(f"dyng.update: {name} result was computed on another graph")
     res = resolve_on(graph, resources)
+    if any(isinstance(r, label_propagation.Result) for r in results):
+        label_propagation._check_backend(res, "dyng.update")
     nb = batch._native_for(graph)
     with writing(results, res):
         out = native.update(res._native, graph._native, nb, [r._native for r in results])

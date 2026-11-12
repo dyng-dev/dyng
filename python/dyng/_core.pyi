@@ -185,6 +185,15 @@ class RowLayout(enum.Enum):
 
     slack = 2
 
+class VertexStatus(enum.Enum):
+    """The state of a vertex of slot rows (0.4)."""
+
+    active = 0
+
+    deleted = 1
+
+    inactive = 2
+
 class RowOrder(enum.Enum):
     """The order of the neighbours in a row."""
 
@@ -265,11 +274,20 @@ class BatchSemantics:
     @as_sets.setter
     def as_sets(self, arg: bool, /) -> None: ...
 
+    @property
+    def as_net_effect(self) -> bool: ...
+
+    @as_net_effect.setter
+    def as_net_effect(self, arg: bool, /) -> None: ...
+
     @staticmethod
     def upsert_last_wins() -> BatchSemantics: ...
 
     @staticmethod
     def set() -> BatchSemantics: ...
+
+    @staticmethod
+    def net_effect() -> BatchSemantics: ...
 
 class GraphProperties:
     """The properties of a graph."""
@@ -363,6 +381,15 @@ class ApplySummary:
     @property
     def ignored_insertions(self) -> int: ...
 
+    @property
+    def dropped_insertions(self) -> int: ...
+
+    @property
+    def relocated_rows(self) -> int: ...
+
+    @property
+    def compactions(self) -> int: ...
+
 class GraphI32I32I32:
     """A dyng::graph instantiation (private)."""
 
@@ -374,8 +401,18 @@ class GraphI32I32I32:
     def from_csr(resources: Resources, row_ptr: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I32I32:
         """Build a graph from a CSR of the out-edges (objective-major weights)."""
 
+    @staticmethod
+    def with_capacity(resources: Resources, vertex_capacity: int, row_capacity: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], properties: GraphProperties) -> GraphI32I32I32:
+        """An empty graph with slot rows (graph::with_capacity; 0.4)."""
+
     @property
     def num_vertices(self) -> int: ...
+
+    @property
+    def num_active_vertices(self) -> int: ...
+
+    def vertex_status(self) -> Annotated[NDArray[numpy.uint8], dict(shape=(None,))]:
+        """A host copy of the vertex states (uint8; empty for compact rows)."""
 
     @property
     def num_edges(self) -> int: ...
@@ -427,8 +464,18 @@ class GraphI32I64I32:
     def from_csr(resources: Resources, row_ptr: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I64I32:
         """Build a graph from a CSR of the out-edges (objective-major weights)."""
 
+    @staticmethod
+    def with_capacity(resources: Resources, vertex_capacity: int, row_capacity: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], properties: GraphProperties) -> GraphI32I64I32:
+        """An empty graph with slot rows (graph::with_capacity; 0.4)."""
+
     @property
     def num_vertices(self) -> int: ...
+
+    @property
+    def num_active_vertices(self) -> int: ...
+
+    def vertex_status(self) -> Annotated[NDArray[numpy.uint8], dict(shape=(None,))]:
+        """A host copy of the vertex states (uint8; empty for compact rows)."""
 
     @property
     def num_edges(self) -> int: ...
@@ -480,8 +527,18 @@ class GraphI64I64I32:
     def from_csr(resources: Resources, row_ptr: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI64I64I32:
         """Build a graph from a CSR of the out-edges (objective-major weights)."""
 
+    @staticmethod
+    def with_capacity(resources: Resources, vertex_capacity: int, row_capacity: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], properties: GraphProperties) -> GraphI64I64I32:
+        """An empty graph with slot rows (graph::with_capacity; 0.4)."""
+
     @property
     def num_vertices(self) -> int: ...
+
+    @property
+    def num_active_vertices(self) -> int: ...
+
+    def vertex_status(self) -> Annotated[NDArray[numpy.uint8], dict(shape=(None,))]:
+        """A host copy of the vertex states (uint8; empty for compact rows)."""
 
     @property
     def num_edges(self) -> int: ...
@@ -533,8 +590,18 @@ class GraphI32I32U:
     def from_csr(resources: Resources, row_ptr: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I32U:
         """Build a graph from a CSR of the out-edges (objective-major weights)."""
 
+    @staticmethod
+    def with_capacity(resources: Resources, vertex_capacity: int, row_capacity: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], properties: GraphProperties) -> GraphI32I32U:
+        """An empty graph with slot rows (graph::with_capacity; 0.4)."""
+
     @property
     def num_vertices(self) -> int: ...
+
+    @property
+    def num_active_vertices(self) -> int: ...
+
+    def vertex_status(self) -> Annotated[NDArray[numpy.uint8], dict(shape=(None,))]:
+        """A host copy of the vertex states (uint8; empty for compact rows)."""
 
     @property
     def num_edges(self) -> int: ...
@@ -586,8 +653,18 @@ class GraphI32I64U:
     def from_csr(resources: Resources, row_ptr: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I64U:
         """Build a graph from a CSR of the out-edges (objective-major weights)."""
 
+    @staticmethod
+    def with_capacity(resources: Resources, vertex_capacity: int, row_capacity: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], properties: GraphProperties) -> GraphI32I64U:
+        """An empty graph with slot rows (graph::with_capacity; 0.4)."""
+
     @property
     def num_vertices(self) -> int: ...
+
+    @property
+    def num_active_vertices(self) -> int: ...
+
+    def vertex_status(self) -> Annotated[NDArray[numpy.uint8], dict(shape=(None,))]:
+        """A host copy of the vertex states (uint8; empty for compact rows)."""
 
     @property
     def num_edges(self) -> int: ...
@@ -622,6 +699,132 @@ class GraphI32I64U:
         """A deep copy for `resources`."""
 
     def to_backend(self, resources: Resources) -> GraphI32I64U:
+        """The graph for the backend of `resources`."""
+
+    def reserve(self, resources: Resources, edge_capacity: int) -> None: ...
+
+    def check_integrity(self, resources: Resources) -> None: ...
+
+class GraphI32I32F32:
+    """A dyng::graph instantiation (private)."""
+
+    @staticmethod
+    def from_edges(resources: Resources, num_vertices: int, src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I32F32:
+        """Build a graph from an edge list (edge-major weights)."""
+
+    @staticmethod
+    def from_csr(resources: Resources, row_ptr: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I32F32:
+        """Build a graph from a CSR of the out-edges (objective-major weights)."""
+
+    @staticmethod
+    def with_capacity(resources: Resources, vertex_capacity: int, row_capacity: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], properties: GraphProperties) -> GraphI32I32F32:
+        """An empty graph with slot rows (graph::with_capacity; 0.4)."""
+
+    @property
+    def num_vertices(self) -> int: ...
+
+    @property
+    def num_active_vertices(self) -> int: ...
+
+    def vertex_status(self) -> Annotated[NDArray[numpy.uint8], dict(shape=(None,))]:
+        """A host copy of the vertex states (uint8; empty for compact rows)."""
+
+    @property
+    def num_edges(self) -> int: ...
+
+    @property
+    def num_weights(self) -> int: ...
+
+    @property
+    def directed(self) -> bool: ...
+
+    @property
+    def has_transposed(self) -> bool: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    @property
+    def version(self) -> int: ...
+
+    @property
+    def properties(self) -> GraphProperties: ...
+
+    def to_csr(self, resources: Resources) -> tuple:
+        """
+        (row_ptr, col_ind, weights of shape (K, m) or None): a host copy of the out-edges.
+        """
+
+    def apply(self, resources: Resources, batch: EdgeBatchI32F32) -> ApplySummary:
+        """Apply a batch to the graph."""
+
+    def clone(self, resources: Resources) -> GraphI32I32F32:
+        """A deep copy for `resources`."""
+
+    def to_backend(self, resources: Resources) -> GraphI32I32F32:
+        """The graph for the backend of `resources`."""
+
+    def reserve(self, resources: Resources, edge_capacity: int) -> None: ...
+
+    def check_integrity(self, resources: Resources) -> None: ...
+
+class GraphI32I64F32:
+    """A dyng::graph instantiation (private)."""
+
+    @staticmethod
+    def from_edges(resources: Resources, num_vertices: int, src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I64F32:
+        """Build a graph from an edge list (edge-major weights)."""
+
+    @staticmethod
+    def from_csr(resources: Resources, row_ptr: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int, properties: GraphProperties) -> GraphI32I64F32:
+        """Build a graph from a CSR of the out-edges (objective-major weights)."""
+
+    @staticmethod
+    def with_capacity(resources: Resources, vertex_capacity: int, row_capacity: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], properties: GraphProperties) -> GraphI32I64F32:
+        """An empty graph with slot rows (graph::with_capacity; 0.4)."""
+
+    @property
+    def num_vertices(self) -> int: ...
+
+    @property
+    def num_active_vertices(self) -> int: ...
+
+    def vertex_status(self) -> Annotated[NDArray[numpy.uint8], dict(shape=(None,))]:
+        """A host copy of the vertex states (uint8; empty for compact rows)."""
+
+    @property
+    def num_edges(self) -> int: ...
+
+    @property
+    def num_weights(self) -> int: ...
+
+    @property
+    def directed(self) -> bool: ...
+
+    @property
+    def has_transposed(self) -> bool: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    @property
+    def version(self) -> int: ...
+
+    @property
+    def properties(self) -> GraphProperties: ...
+
+    def to_csr(self, resources: Resources) -> tuple:
+        """
+        (row_ptr, col_ind, weights of shape (K, m) or None): a host copy of the out-edges.
+        """
+
+    def apply(self, resources: Resources, batch: EdgeBatchI32F32) -> ApplySummary:
+        """Apply a batch to the graph."""
+
+    def clone(self, resources: Resources) -> GraphI32I64F32:
+        """A deep copy for `resources`."""
+
+    def to_backend(self, resources: Resources) -> GraphI32I64F32:
         """The graph for the backend of `resources`."""
 
     def reserve(self, resources: Resources, edge_capacity: int) -> None: ...
@@ -982,6 +1185,20 @@ class EdgeBatchI32U:
     """A batch of edge changes over arrays (private)."""
 
     def __init__(self, insert_src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], delete_dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_weights: int, insert_vertices: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, insert_vertex_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_vertices: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None) -> None: ...
+
+    @property
+    def num_insertions(self) -> int: ...
+
+    @property
+    def num_deletions(self) -> int: ...
+
+    @property
+    def num_weights(self) -> int: ...
+
+class EdgeBatchI32F32:
+    """A batch of edge changes over arrays (private)."""
+
+    def __init__(self, insert_src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_weights: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], delete_dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_weights: int, insert_vertices: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, insert_vertex_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_vertices: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None) -> None: ...
 
     @property
     def num_insertions(self) -> int: ...
@@ -1532,6 +1749,140 @@ def mosp_from_arrays(resources: Resources, graph: GraphI32I64I32, source: int, d
 @overload
 def mosp_from_arrays(resources: Resources, graph: GraphI64I64I32, source: int, distances: Sequence[Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)]], parents: Sequence[Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)]], canonicalize: bool, options: MospOptions) -> MospResultI64: ...
 
+class LpSchedule(enum.Enum):
+    """label_propagation::schedule."""
+
+    in_place = 0
+
+    damped = 1
+
+class LpOnLimit(enum.Enum):
+    """label_propagation::on_limit."""
+
+    error = 0
+
+    report = 1
+
+    fallback_recompute = 2
+
+class LpOptions:
+    """label_propagation::options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def similarity_threshold(self) -> float | None: ...
+
+    @similarity_threshold.setter
+    def similarity_threshold(self, arg: float | None, /) -> None: ...
+
+    @property
+    def tolerance(self) -> float: ...
+
+    @tolerance.setter
+    def tolerance(self, arg: float, /) -> None: ...
+
+    @property
+    def max_iterations(self) -> int: ...
+
+    @max_iterations.setter
+    def max_iterations(self, arg: int, /) -> None: ...
+
+    @property
+    def on_iteration_limit(self) -> LpOnLimit: ...
+
+    @on_iteration_limit.setter
+    def on_iteration_limit(self, arg: LpOnLimit, /) -> None: ...
+
+    @property
+    def update_schedule(self) -> LpSchedule: ...
+
+    @update_schedule.setter
+    def update_schedule(self, arg: LpSchedule, /) -> None: ...
+
+    @property
+    def cuda_engine(self) -> Engine: ...
+
+    @cuda_engine.setter
+    def cuda_engine(self, arg: Engine, /) -> None: ...
+
+class LpStats:
+    """label_propagation::stats."""
+
+    @property
+    def affected(self) -> int: ...
+
+    @property
+    def iterations(self) -> int: ...
+
+    @property
+    def frontier_visits(self) -> int: ...
+
+    @property
+    def fallback_used(self) -> bool: ...
+
+    @property
+    def converged(self) -> bool: ...
+
+    @property
+    def engine_used(self) -> Engine: ...
+
+    @property
+    def batch(self) -> ApplySummary: ...
+
+    @property
+    def components(self) -> int: ...
+
+    @property
+    def sparsified_edges(self) -> int: ...
+
+    @property
+    def initial_frontier(self) -> int: ...
+
+class LabelPropagationResult:
+    """A label_propagation::result (private)."""
+
+    def labels(self) -> Annotated[Any, dict(dtype='float32', shape=(None,), writable=False)]: ...
+
+    def seed_labels(self) -> Annotated[Any, dict(dtype='int8', shape=(None,), writable=False)]: ...
+
+    @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
+
+    @property
+    def generation(self) -> int:
+        """The number of updates of this result (dyng.Array's staleness check)."""
+
+    @property
+    def options(self) -> LpOptions: ...
+
+    def set_options(self, options: LpOptions) -> None: ...
+
+    @property
+    def graph_version(self) -> int: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    def clone(self, resources: Resources) -> LabelPropagationResult: ...
+
+    def reserve(self, resources: Resources, max_batch_vertices: int, max_batch_edges: int) -> None: ...
+
+@overload
+def label_propagation_compute(resources: Resources, graph: GraphI32I32F32, seed_vertices: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], options: LpOptions) -> LabelPropagationResult: ...
+
+@overload
+def label_propagation_compute(resources: Resources, graph: GraphI32I64F32, seed_vertices: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], options: LpOptions) -> LabelPropagationResult: ...
+
+@overload
+def label_propagation_update(resources: Resources, graph: GraphI32I32F32, batch: EdgeBatchI32F32, result: LabelPropagationResult) -> LpStats: ...
+
+@overload
+def label_propagation_update(resources: Resources, graph: GraphI32I64F32, batch: EdgeBatchI32F32, result: LabelPropagationResult) -> LpStats: ...
+
 class DynamicBfsOptions:
     """dynamic_bfs::options."""
 
@@ -1863,7 +2214,13 @@ def update(resources: Resources, graph: GraphI64I64I32, batch: EdgeBatchI64I32, 
 def update(resources: Resources, graph: GraphI32I32U, batch: EdgeBatchI32U, results: list) -> list: ...
 
 @overload
-def update(resources: Resources, graph: GraphI32I64U, batch: EdgeBatchI32U, results: list) -> list:
+def update(resources: Resources, graph: GraphI32I64U, batch: EdgeBatchI32U, results: list) -> list: ...
+
+@overload
+def update(resources: Resources, graph: GraphI32I32F32, batch: EdgeBatchI32F32, results: list) -> list: ...
+
+@overload
+def update(resources: Resources, graph: GraphI32I64F32, batch: EdgeBatchI32F32, results: list) -> list:
     """Apply one batch and update every result (a list of result objects)."""
 
 @overload
@@ -2113,13 +2470,24 @@ class BatchReader:
         """
 
 def write_binary_batches_i32_i32(path: str, num_weights: int, batches: list) -> None:
-    """Write native edge batches as a .dgb file."""
+    """
+    Write native edge batches as a .dgb file (with vertex records when a batch has vertex operations).
+    """
 
 def write_binary_batches_i64_i32(path: str, num_weights: int, batches: list) -> None:
-    """Write native edge batches as a .dgb file."""
+    """
+    Write native edge batches as a .dgb file (with vertex records when a batch has vertex operations).
+    """
 
 def write_binary_batches_i32_u(path: str, num_weights: int, batches: list) -> None:
-    """Write native edge batches as a .dgb file."""
+    """
+    Write native edge batches as a .dgb file (with vertex records when a batch has vertex operations).
+    """
+
+def write_binary_batches_i32_f32(path: str, num_weights: int, batches: list) -> None:
+    """
+    Write native edge batches as a .dgb file (with vertex records when a batch has vertex operations).
+    """
 
 def read_edge_list_i32_i32(path: str, options: EdgeListOptions) -> tuple: ...
 
@@ -2136,6 +2504,36 @@ def write_edge_list_i32_u(path: str, num_vertices: int, src: Annotated[NDArray[n
 def read_edge_list_i64_u(path: str, options: EdgeListOptions) -> tuple: ...
 
 def write_edge_list_i64_u(path: str, num_vertices: int, src: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], dst: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int) -> None: ...
+
+def read_edge_list_i32_f32(path: str, options: EdgeListOptions) -> tuple: ...
+
+def write_edge_list_i32_f32(path: str, num_vertices: int, src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int) -> None: ...
+
+def read_batches_i32_f32(path: str, num_weights: int, num_vertices: int) -> list:
+    """
+    The batches of a .dgt file of a float graph, each as the tuple of batch_to_numpy().
+    """
+
+def write_batches_i32_f32(path: str, batches: list) -> None:
+    """Write native float batches as a .dgt file."""
+
+def write_labels(path: str, labels: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)]) -> None:
+    """
+    io::write_labels: 'i label' per vertex, LabelPropagation-CUDA's dynlp_labels.txt bytes.
+    """
+
+def read_labels(path: str, num_vertices: int) -> Annotated[NDArray[numpy.float32], dict(shape=(None,))]:
+    """io::read_labels."""
+
+def write_dynlp_graph_files_i32(prefix: str, row_ptr: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], values: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)], true_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)]) -> None:
+    """
+    LabelPropagation-CUDA's graph text files <prefix>{RowPtr,ColInd,Values,TrueLabels}.txt.
+    """
+
+def write_dynlp_graph_files_i64(prefix: str, row_ptr: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], col_ind: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], values: Annotated[NDArray[numpy.float32], dict(shape=(None,), order='C', device='cpu', writable=False)], true_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)]) -> None:
+    """
+    LabelPropagation-CUDA's graph text files <prefix>{RowPtr,ColInd,Values,TrueLabels}.txt.
+    """
 
 def read_matrix_market_i32_i32(path: str, options: MatrixMarketOptions) -> tuple: ...
 
@@ -2560,6 +2958,63 @@ class EscherBatchGenerator:
     @overload
     def next(self, resources: Resources, hypergraph: HypergraphI32I32) -> tuple: ...
 
+class VertexArrivalOptions:
+    """generators::vertex_arrival_options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def total_vertices(self) -> int: ...
+
+    @total_vertices.setter
+    def total_vertices(self, arg: int, /) -> None: ...
+
+    @property
+    def average_degree(self) -> int: ...
+
+    @average_degree.setter
+    def average_degree(self, arg: int, /) -> None: ...
+
+    @property
+    def num_batches(self) -> int: ...
+
+    @num_batches.setter
+    def num_batches(self, arg: int, /) -> None: ...
+
+    @property
+    def seed(self) -> int: ...
+
+    @seed.setter
+    def seed(self, arg: int, /) -> None: ...
+
+    @property
+    def ground_truth_fraction(self) -> float: ...
+
+    @ground_truth_fraction.setter
+    def ground_truth_fraction(self, arg: float, /) -> None: ...
+
+    @property
+    def deleted_fraction(self) -> float: ...
+
+    @deleted_fraction.setter
+    def deleted_fraction(self, arg: float, /) -> None: ...
+
+def vertex_arrival_stream_i32(resources: Resources, options: VertexArrivalOptions) -> tuple:
+    """generators::generate_vertex_arrival_stream (library-owned draws)."""
+
+def dynlp_vertex_arrival_stream_i32(resources: Resources, options: VertexArrivalOptions) -> tuple:
+    """
+    generators::legacy::dynlp_vertex_arrival_stream (LabelPropagation-CUDA's stream).
+    """
+
+def vertex_arrival_stream_i64(resources: Resources, options: VertexArrivalOptions) -> tuple:
+    """generators::generate_vertex_arrival_stream (library-owned draws)."""
+
+def dynlp_vertex_arrival_stream_i64(resources: Resources, options: VertexArrivalOptions) -> tuple:
+    """
+    generators::legacy::dynlp_vertex_arrival_stream (LabelPropagation-CUDA's stream).
+    """
+
 def standard_library_matches_legacy_streams() -> bool: ...
 
 def uniform_hypergraph_i32_u(options: UniformHypergraphOptions) -> tuple:
@@ -2685,6 +3140,15 @@ def testing_simple_cycles(graph: GraphI32I32U, max_length: int, brute_force: boo
 
 @overload
 def testing_simple_cycles(graph: GraphI32I64U, max_length: int, brute_force: bool) -> Annotated[NDArray[numpy.uint64], dict(shape=(None,))]: ...
+
+@overload
+def testing_harmonic_solution(resources: Resources, graph: GraphI32I32F32, seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], relative_tolerance: float, max_iterations: int, num_threads: int) -> tuple: ...
+
+@overload
+def testing_harmonic_solution(resources: Resources, graph: GraphI32I64F32, seed_labels: Annotated[NDArray[numpy.int8], dict(shape=(None,), order='C', device='cpu', writable=False)], relative_tolerance: float, max_iterations: int, num_threads: int) -> tuple:
+    """
+    testing::harmonic_solution of the graph's current edges: (solution float64, determined uint8, the counters).
+    """
 
 def testing_combined_graph_i32(parents: Sequence[Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)]], source: int, preferences: Sequence[int]) -> tuple: ...
 

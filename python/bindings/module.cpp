@@ -76,6 +76,7 @@ NB_MODULE(_core, m) {
   bind_sssp(m);
   bind_cycle_count(m);
   bind_mosp(m);
+  bind_label_propagation(m);
   bind_dynamic_bfs(m);
   bind_triangle_delta(m);
   bind_triad_count(m);

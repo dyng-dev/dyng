@@ -7,8 +7,11 @@ coordinate files, and MOSP's text CSR (``<prefix>{RowPtr,ColInd,Values}.txt``). 
 ``.hg`` files (one hyperedge per line), with the preprocessing of ESCHER-GPU and of H-SOSP as
 option sets. Batches: the text format ``.dgt`` (graph and hypergraph batches), the binary format
 ``.dgb`` (with a streaming :class:`BatchReader`), and MOSP's ``insert.txt`` / ``delete.txt``.
-Results: MOSP's distance, tree and path-cost files, CycleEnumeration-GPU's histogram CSV and
-(0.3) triad bins as JSON (:class:`TriadBins`). The writers produce the originals' bytes. Every
+Results: MOSP's distance, tree and path-cost files, CycleEnumeration-GPU's histogram CSV,
+(0.3) triad bins as JSON (:class:`TriadBins`) and (0.4) LabelPropagation-CUDA's label files
+(:func:`write_labels`, :func:`read_labels`). Since 0.4 edge lists and batch files also carry the
+float32 weights of label_propagation's graphs (``weight_dtype="float32"``) and the batch files
+the vertex operations of its vertex batches. The writers produce the originals' bytes. Every
 reader validates its input and raises :class:`~dyng.FileFormatError` with ``.path`` and
 ``.line`` (and ``.column`` where known).
 The formats are specified in the documentation, "File formats".
@@ -87,6 +90,9 @@ __all__ = [
     "triad_bins_json",
     "write_triad_bins",
     "read_triad_bins",
+    # label files (0.4)
+    "write_labels",
+    "read_labels",
 ]
 
 PathLike = str | os.PathLike[str]
@@ -117,7 +123,7 @@ class EdgeList:
         num_vertices: Ids lie in [0, num_vertices).
         src: Source of each edge.
         dst: Destination of each edge.
-        weights: Shape (m, K) int32, or None for an unweighted list.
+        weights: Shape (m, K) int32, (m, 1) float32 (0.4), or None for an unweighted list.
         info: Only from :func:`read_edge_list_arrays`.
     """
 
@@ -188,8 +194,22 @@ def read_edge_list_arrays(
     duplicates: Literal["merge", "keep"] = "merge",
     threads: int = 0,
     vertex_dtype: Any = "int32",
+    weight_dtype: Any = None,
 ) -> EdgeList:
     """Read a directed edge list as arrays (see :func:`read_edge_list` for the arguments)."""
+    float_weights = False
+    if weight_dtype is not None:
+        wdt = _dtypes.weight_dtype_of(weight_dtype, "read_edge_list: weight_dtype")
+        float_weights = wdt == _dtypes.FLOAT32
+        if float_weights:
+            if weighted is False:
+                raise InvalidArgumentError("read_edge_list: weighted=False with float32 weights")
+            if num_weights == 0:
+                num_weights = 1
+            if _dtypes.id_dtype(vertex_dtype, "vertex_dtype") != _dtypes.INT32:
+                raise NotSupportedError(
+                    "read_edge_list: float32 weights with int32 vertex ids only (the float graphs)"
+                )
     if weighted is True and num_weights == 0:
         num_weights = 1
     if weighted is False and num_weights != 0:
@@ -202,7 +222,7 @@ def read_edge_list_arrays(
     opt.drop_self_loops = as_bool(drop_self_loops, "read_edge_list: drop_self_loops")
     opt.duplicates = enum_member(native.DuplicateEdges, duplicates, "read_edge_list: duplicates")
     opt.threads = as_int(threads, "read_edge_list: threads")
-    wcode = "i32" if num_weights > 0 else "u"
+    wcode = "f32" if float_weights else "i32" if num_weights > 0 else "u"
     reader = getattr(native, f"read_edge_list_{_vcode(vertex_dtype)}_{wcode}")
     parts, info = reader(_path(path), opt)
     n, src, dst, w = _edge_list(parts)
@@ -232,6 +252,7 @@ def read_edge_list(
     duplicates: Literal["merge", "keep"] = "merge",
     threads: int = 0,
     vertex_dtype: Any = "int32",
+    weight_dtype: Any = None,
     properties: GraphProperties | str | None = None,
     directed: bool | None = None,
     semantics: BatchSemantics | str | None = None,
@@ -258,6 +279,9 @@ def read_edge_list(
         duplicates: ``"merge"`` (one edge per pair) or ``"keep"``.
         threads: Parser threads (0: the hardware concurrency); the result does not depend on it.
         vertex_dtype: ``"int32"`` (default) or ``"int64"``.
+        weight_dtype: None or ``"int32"`` (integer weight tokens), or ``"float32"`` (0.4: one
+            column of decimal floating-point weights, NaN and infinities rejected, read into a
+            float graph for :mod:`dyng.label_propagation`; int32 ids).
         properties: Graph properties (a preset name or :class:`dyng.GraphProperties`), e.g.
             ``"cycle_enum_compatible"``.
         directed: Overrides ``properties.directed``.
@@ -279,6 +303,7 @@ def read_edge_list(
         duplicates=duplicates,
         threads=threads,
         vertex_dtype=vertex_dtype,
+        weight_dtype=weight_dtype,
     )
     return edges.to_graph(
         properties=properties,
@@ -300,11 +325,13 @@ def _edges_of(
     if isinstance(edges, tuple) and len(edges) in (2, 3):
         s = _dtypes.to_numpy(edges[0], "src")
         d = _dtypes.to_numpy(edges[1], "dst")
-        w = (
-            None
-            if len(edges) == 2 or edges[2] is None
-            else _dtypes.weights_matrix(edges[2], s.size, "weights")
-        )
+        w = None
+        if len(edges) == 3 and edges[2] is not None:
+            w = (
+                _dtypes.float_weights_matrix(edges[2], s.size, "weights")
+                if _dtypes.is_float_weights(edges[2])
+                else _dtypes.weights_matrix(edges[2], s.size, "weights")
+            )
         n = int(max(s.max(initial=-1), d.max(initial=-1))) + 1
         return n, s, d, w
     raise TypeError("expected a dyng.Graph, a dyng.io.EdgeList or a (src, dst[, weights]) tuple")
@@ -318,12 +345,17 @@ def _prepared(
     s = _dtypes.checked_cast(s, vertex, "src")
     d = _dtypes.checked_cast(d, vertex, "dst")
     k = 0 if w is None else int(w.shape[1])
-    flat = None if w is None else np.ascontiguousarray(w, dtype=np.int32).reshape(-1)
+    wdt = np.float32 if w is not None and w.dtype.kind == "f" else np.int32
+    flat = None if w is None else np.ascontiguousarray(w, dtype=wdt).reshape(-1)
     return ("i32" if vertex == _dtypes.INT32 else "i64"), n, s, d, flat, k
 
 
 def write_edge_list(path: PathLike, edges: Graph | EdgeList | tuple[Any, ...]) -> None:
     """Write edges as text, one line ``src dst [w1..wK]`` per edge (0-based, single spaces).
+
+    float32 weights (0.4) are written as the shortest decimal that reads back as the same float
+    (C++ ``std::to_chars``), so :func:`read_edge_list` with ``weight_dtype="float32"`` reads the
+    same graph.
 
     Args:
         path: The file (its parent directory is created).
@@ -331,7 +363,13 @@ def write_edge_list(path: PathLike, edges: Graph | EdgeList | tuple[Any, ...]) -
             ``(src, dst[, weights])`` tuple.
     """
     vcode, n, s, d, w, k = _prepared(edges)
-    writer = getattr(native, f"write_edge_list_{vcode}_{'i32' if w is not None else 'u'}")
+    if w is not None and w.dtype == np.float32:
+        if vcode != "i32":
+            raise NotSupportedError("write_edge_list: float32 weights with int32 vertex ids only")
+        wcode = "f32"
+    else:
+        wcode = "i32" if w is not None else "u"
+    writer = getattr(native, f"write_edge_list_{vcode}_{wcode}")
     writer(_path(path), n, s, d, w, k)
 
 
@@ -527,25 +565,31 @@ def read_batches(
     *,
     num_weights: int | None = None,
     num_vertices: int = -1,
+    weight_dtype: Any = None,
     resources: Resources | None = None,
 ) -> list[EdgeBatch]:
     """Read a ``.dgt`` batch text file: its batches, in file order (PLAN Section 5.7).
 
-    One operation per line: ``+e u v [w1 .. wK]`` (an edge insertion) or ``-e u v`` (an edge
-    deletion); ``%batch <id>`` starts a batch, an optional first line ``%dgt 1`` names the
-    format version, and lines starting with ``#`` are comments. The format is specified in
-    :doc:`/api/file_formats`.
+    One operation per line: ``+e u v [w1 .. wK]`` (an edge insertion), ``-e u v`` (an edge
+    deletion), and (0.4) ``+v u [label]`` / ``-v u`` (a vertex insertion with its optional label
+    -1, 0 or 1, and a vertex deletion: label_propagation's vertex batches); ``%batch <id>``
+    starts a batch, an optional first line ``%dgt 1`` names the format version, and lines
+    starting with ``#`` are comments. The format is specified in :doc:`/api/file_formats`.
 
     Args:
         path: The file.
         num_weights: K, the weights of every insertion; None: taken from the first insertion.
         num_vertices: Ids must be < num_vertices (-1: only ids >= 0 are checked).
+        weight_dtype: None or ``"int32"``: integer weight tokens (a float token is an error);
+            ``"float32"`` (0.4): the batches of a float graph, whose weight tokens are decimal
+            floating-point numbers (NaN and infinities rejected; int32 ids).
         resources: Accepted for symmetry with the graph readers; batches are host objects that
             are converted to the graph's types and memory space when they are used.
 
     Returns:
-        One :class:`dyng.EdgeBatch` per batch (int64 ids, int32 weights; converted with range
-        checks to the types of the graph each is applied to).
+        One :class:`dyng.EdgeBatch` per batch (int64 ids and int32 weights, or int32 ids and
+        float32 weights; converted with range checks to the types of the graph each is applied
+        to), with its vertex operations.
 
     Raises:
         FileFormatError: the file is missing or malformed (with ``.path`` and ``.line``).
@@ -560,35 +604,44 @@ def read_batches(
     if resources is not None:
         resolve(resources)  # type check only
     k = -1 if num_weights is None else as_int(num_weights, "read_batches: num_weights")
-    parts = native.read_batches_i64_i32(
-        _path(path), k, as_int(num_vertices, "read_batches: num_vertices")
-    )
-    out = []
-    for ins_src, ins_dst, w, del_src, del_dst, kk in parts:
-        weights = None if kk == 0 else w
-        out.append(EdgeBatch._from_arrays((ins_src, ins_dst, weights, del_src, del_dst, kk)))
-    return out
+    reader = native.read_batches_i64_i32
+    if weight_dtype is not None:
+        wdt = _dtypes.weight_dtype_of(weight_dtype, "read_batches: weight_dtype")
+        if wdt == _dtypes.FLOAT32:
+            reader = native.read_batches_i32_f32
+    parts = reader(_path(path), k, as_int(num_vertices, "read_batches: num_vertices"))
+    return [EdgeBatch._from_arrays(tuple(p)) for p in parts]
 
 
 def write_batches(path: PathLike, batches: Iterable[EdgeBatch]) -> None:
     """Write batches as a ``.dgt`` batch text file (read back by :func:`read_batches`).
 
     Writes ``%dgt 1``, then per batch ``%batch <i>``, its deletions (``-e u v``) and its
-    insertions (``+e u v w1 .. wK``); a batch's vertex operations (0.4, label_propagation's vertex
-    batches) as ``+v u [label]`` and ``-v u`` lines (:doc:`/api/file_formats`), which
-    :func:`read_batches` does not return yet (it raises :class:`~dyng.NotSupportedError`). Every
-    batch with insertions must have the same K.
+    insertions (``+e u v w1 .. wK``), and its vertex operations (0.4, label_propagation's vertex
+    batches) as ``+v u [label]`` and ``-v u`` lines (:doc:`/api/file_formats`). Batches with
+    floating-point weights (0.4) are written as a float graph's batches (int32 ids; each weight
+    the shortest decimal that reads back as the same float32), read back by
+    :func:`read_batches` with ``weight_dtype="float32"``. Every batch with insertions must have
+    the same K.
 
     Raises:
-        InvalidArgumentError: a batch has a different K.
+        InvalidArgumentError: a batch has a different K, or float weights are not float32
+            values.
     """
-    gtype = _dtypes.GraphType(_dtypes.INT64, _dtypes.INT64, True)
-    native_batches = []
-    for i, b in enumerate(batches):
+    items = list(batches)
+    for i, b in enumerate(items):
         if not isinstance(b, EdgeBatch):
             raise TypeError(f"write_batches: item {i} is not a dyng.EdgeBatch")
-        native_batches.append(b._native_for_type(gtype, b.num_weights))
-    native.write_batches_i64_i32(_path(path), native_batches)
+    if any(b._has_float_weights() for b in items):
+        gtype = _dtypes.GraphType(_dtypes.INT32, _dtypes.INT32, _dtypes.FLOAT32)
+        native.write_batches_i32_f32(
+            _path(path), [b._native_for_type(gtype, b.num_weights) for b in items]
+        )
+        return
+    gtype = _dtypes.GraphType(_dtypes.INT64, _dtypes.INT64, _dtypes.INT32)
+    native.write_batches_i64_i32(
+        _path(path), [b._native_for_type(gtype, b.num_weights) for b in items]
+    )
 
 
 def write_legacy_batch(insert_path: PathLike, delete_path: PathLike, batch: EdgeBatch) -> None:
@@ -601,7 +654,7 @@ def write_legacy_batch(insert_path: PathLike, delete_path: PathLike, batch: Edge
     )
     vcode = "i32" if vertex == _dtypes.INT32 else "i64"
     gtype = _dtypes.GraphType(
-        vertex, _dtypes.INT64 if vertex == _dtypes.INT64 else _dtypes.INT32, True
+        vertex, _dtypes.INT64 if vertex == _dtypes.INT64 else _dtypes.INT32, _dtypes.INT32
     )
     nb = batch._native_for_type(gtype, batch.num_weights)
     getattr(native, f"write_legacy_batch_{vcode}_i32")(_path(insert_path), _path(delete_path), nb)
@@ -670,6 +723,36 @@ def write_path_costs(path: PathLike, costs: Any) -> None:
         np.ascontiguousarray(c).reshape(-1), _dtypes.INT64, "write_path_costs"
     )
     native.write_path_costs(_path(path), flat, k)
+
+
+def write_labels(path: PathLike, labels: Any) -> None:
+    """Write labels as LabelPropagation-CUDA's ``dynlp_labels.txt`` (C++ ``io::write_labels``;
+    0.4): one line ``i label`` per vertex, the label in fixed notation with 6 decimals (C's
+    ``"%d %.6f"`` of the float), byte-identical to the original's file.
+
+    Args:
+        path: The file (parent directories are created).
+        labels: One float32 label per vertex (``dyng.label_propagation.Result.labels``, a NumPy
+            array, ...); other dtypes are converted only when every value is exactly a float32.
+    """
+    a = _host_array(labels, "write_labels: labels")
+    native.write_labels(_path(path), _dtypes.to_float32(a, "write_labels: labels", explicit=False))
+
+
+def read_labels(path: PathLike, num_vertices: int) -> np.ndarray:
+    """Read a label file (``i label`` per vertex, each vertex exactly once; C++
+    ``io::read_labels``; 0.4) as float32.
+
+    A label written with 6 decimals reads back as the float nearest to its decimal, which is not
+    in general the float that was written (compare files, or labels within 5e-7).
+
+    Raises:
+        FileFormatError: a vertex out of range, listed twice or missing, or a malformed line.
+    """
+    out: np.ndarray = native.read_labels(
+        _path(path), as_int(num_vertices, "read_labels: num_vertices")
+    )
+    return out
 
 
 def histogram_csv(counts: Any, *, include_total: bool = True) -> str:
@@ -1211,10 +1294,7 @@ class BatchReader:
         if self._header.kind == "hypergraph":
             batch = HyperedgeBatch._from_arrays(parts)
         else:
-            ins_src, ins_dst, w, del_src, del_dst, k = parts
-            batch = EdgeBatch._from_arrays(
-                (ins_src, ins_dst, None if k == 0 else w, del_src, del_dst, k)
-            )
+            batch = EdgeBatch._from_arrays(tuple(parts))
         return BinaryBatchRecord(
             batch_id=int(batch_id),
             batch=batch,
@@ -1267,6 +1347,12 @@ def write_binary_batches(
             ``id_reuse="insert_first"``).
         vertex_dtype: Graph batches: ``"int32"`` or ``"int64"`` (default: int32 when every id
             fits).
+
+    Graph batches with vertex operations (0.4) set the flag ``vertex_records`` (every record
+    then carries the batch's vertex insertions, labels and deletions); batches with
+    floating-point weights (0.4) are written with float32 weights (weight code 3, int32 ids).
+    A file without either is written byte for byte as 0.3 wrote it; readers of 0.3 refuse the
+    additions loudly (:doc:`/api/file_formats`).
     """
     items = list(batches)
     if items and all(isinstance(b, HyperedgeBatch) for b in items):
@@ -1283,14 +1369,38 @@ def write_binary_batches(
                 f"write_binary_batches: item {i} is not a dyng.EdgeBatch (batches of one kind)"
             )
     edge_batches: list[EdgeBatch] = items  # type: ignore[assignment]
+    if any(b._has_float_weights() for b in edge_batches):
+        if vertex_dtype is not None and (
+            _dtypes.id_dtype(vertex_dtype, "write_binary_batches: vertex_dtype") != _dtypes.INT32
+        ):
+            raise NotSupportedError(
+                "write_binary_batches: float32 weights with int32 vertex ids only"
+            )
+        ks = {b.num_weights for b in edge_batches if b.num_insertions > 0}
+        if ks != {1}:
+            raise InvalidArgumentError(
+                f"write_binary_batches: float32 batches have one weight column (got {sorted(ks)})"
+            )
+        ftype = _dtypes.GraphType(_dtypes.INT32, _dtypes.INT32, _dtypes.FLOAT32)
+        native.write_binary_batches_i32_f32(
+            _path(path), 1, [b._native_for_type(ftype, 1) for b in edge_batches]
+        )
+        return
     if vertex_dtype is not None:
         vertex = _dtypes.id_dtype(vertex_dtype, "write_binary_batches: vertex_dtype")
     else:  # the file's id type: int32 when every id fits (the batches' arrays may be int64)
         ids = [
             a
             for b in edge_batches
-            for a in (b.insert_src, b.insert_dst, b.delete_src, b.delete_dst)
-            if a.size
+            for a in (
+                b.insert_src,
+                b.insert_dst,
+                b.delete_src,
+                b.delete_dst,
+                b.insert_vertices,
+                b.delete_vertices,
+            )
+            if a is not None and a.size
         ]
         fits = all(int(a.max()) <= 2**31 - 1 and int(a.min()) >= -(2**31) for a in ids)
         vertex = _dtypes.INT32 if fits else _dtypes.INT64
@@ -1307,7 +1417,9 @@ def write_binary_batches(
             "(int32 ids, or weighted batches)"
         )
     gtype = _dtypes.GraphType(
-        vertex, vertex if vertex == _dtypes.INT64 else _dtypes.INT32, weighted
+        vertex,
+        vertex if vertex == _dtypes.INT64 else _dtypes.INT32,
+        _dtypes.INT32 if weighted else None,
     )
     natives = [b._native_for_type(gtype, k) for b in edge_batches]
     writer = getattr(

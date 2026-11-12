@@ -203,25 +203,32 @@ def _dgb_graph_file(weight_code: int, flags: int, vertices: bool) -> bytes:
     return head + struct.pack("<QII", len(payload), zlib.crc32(payload), 0) + payload
 
 
-def test_vertex_operations_and_float_weights_are_refused_not_dropped(tmp_path: Path) -> None:
+def test_vertex_operations_and_float_weights_are_read(tmp_path: Path) -> None:
     """0.4 (AD13): the batch files' vertex operations and float32 weights (label_propagation's)
-    are not carried by the Python layer yet: the readers refuse them instead of dropping them."""
+    are carried by the Python batches (M10b step 3; until then the readers refused them rather
+    than drop them)."""
     path = tmp_path / "v.dgt"
-    path.write_text("%batch 0\n+e 0 1 3\n+v 4 1\n")
-    with pytest.raises(dyng.NotSupportedError, match="vertex operations"):
-        dyng.io.read_batches(path)
-    for name, code, flags, vertices, match in (
-        ("v.dgb", 1, 16, True, "vertex records"),
-        ("f.dgb", 3, 0, False, "float32 weights"),
-    ):
-        path = tmp_path / name
-        path.write_bytes(_dgb_graph_file(code, flags, vertices))
-        with pytest.raises(dyng.NotSupportedError, match=match):
-            dyng.io.read_binary_batches(path)
+    path.write_text("%batch 0\n+e 0 1 3\n+v 4 1\n-v 2\n")
+    (batch,) = dyng.io.read_batches(path)
+    assert batch.insert_vertices is not None and batch.insert_vertices.tolist() == [4]
+    assert batch.vertex_labels is not None and batch.vertex_labels.tolist() == [1]
+    assert batch.delete_vertices is not None and batch.delete_vertices.tolist() == [2]
+    path = tmp_path / "v.dgb"
+    path.write_bytes(_dgb_graph_file(1, 16, True))
+    (batch,) = dyng.io.read_binary_batches(path)
+    assert batch.insert_vertices is not None and batch.insert_vertices.tolist() == [0, 1]
+    assert batch.delete_vertices is not None and batch.delete_vertices.tolist() == []
+    path = tmp_path / "f.dgb"
+    path.write_bytes(_dgb_graph_file(3, 0, False))
+    (batch,) = dyng.io.read_binary_batches(path)
+    w = batch.insert_weights
+    assert w is not None and w.dtype == np.float32 and w.tolist() == [[2.0]]
+    assert batch.insert_vertices is None
     path = tmp_path / "e.dgb"
     path.write_bytes(_dgb_graph_file(1, 0, False))
     (batch,) = dyng.io.read_binary_batches(path)
     assert batch.insert_src.tolist() == [0] and batch.insert_dst.tolist() == [1]
+    assert batch.insert_vertices is None
 
 
 def test_batch_text_files_apply_to_graphs_of_every_id_type(tmp_path: Path) -> None:

@@ -32,8 +32,12 @@ def test_invalid_batches() -> None:
         dyng.EdgeBatch(delete=([0], [1], [2]))
     with pytest.raises(dyng.InvalidArgumentError, match="integers"):
         dyng.EdgeBatch(insert=([0.5], [1]))
-    with pytest.raises(dyng.InvalidArgumentError, match="weights must be integers"):
-        dyng.EdgeBatch(insert=([0], [1], [0.5]))
+    with pytest.raises(dyng.InvalidArgumentError, match="NaN or infinite"):
+        dyng.EdgeBatch(insert=([0], [1], [float("nan")]))
+    # floating-point weights are a float graph's (0.4, AD14): an int32 graph refuses them
+    b = dyng.EdgeBatch(insert=([0], [1], [0.5]))
+    with pytest.raises(dyng.InvalidArgumentError, match="weights are int32"):
+        dyng.Graph.from_edges([0], [1], [1]).apply(b)
 
 
 def test_int64_batch_ids_are_checked_for_an_int32_graph() -> None:

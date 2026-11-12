@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
@@ -21,10 +22,11 @@ from .resources import Resources, resolve
 if TYPE_CHECKING:
     from .batch import EdgeBatch
 
-__all__ = ["BatchSemantics", "GraphProperties", "ApplySummary", "CSR", "Graph"]
+__all__ = ["BatchSemantics", "GraphProperties", "ApplySummary", "CSR", "Graph", "VertexStatus"]
 
 PresetName = Literal["default", "mosp_compatible", "cycle_enum_compatible"]
-SemanticsName = Literal["upsert_last_wins", "set"]
+SemanticsName = Literal["upsert_last_wins", "set", "net_effect"]
+LayoutName = Literal["slotted", "slack"]
 
 _INT32_MAX = int(np.iinfo(np.int32).max)
 
@@ -36,6 +38,9 @@ class BatchSemantics:
     The default is :meth:`upsert_last_wins` (MOSP's ``applyChangeBatch()``): deletions first, each
     removing the first remaining (u, v); then insertions, an insertion of an existing edge
     overwriting its weights. :meth:`set` is CycleEnumeration-GPU's: the two lists are sets.
+    :meth:`net_effect` (0.4) is LabelPropagation-CUDA's, for graphs with slot rows
+    (:meth:`Graph.with_capacity`): the net effect of each batch on the vertex set, its edges
+    appended.
 
     Attributes:
         on_existing_insert: ``"upsert"``, ``"error"`` or ``"ignore"``.
@@ -44,6 +49,8 @@ class BatchSemantics:
         deletions_first: Deletions, then insertions (False: the reverse).
         allow_vertex_growth: An insertion naming v >= num_vertices grows the vertex set.
         as_sets: Read the deletions and the insertions as two sets (Step 0 of :meth:`set`).
+        as_net_effect: Apply the net effect of each batch on the vertex set, its edges appended
+            (Step 0 of :meth:`net_effect`; slot rows only; 0.4).
     """
 
     on_existing_insert: Literal["upsert", "error", "ignore"] = "upsert"
@@ -52,6 +59,7 @@ class BatchSemantics:
     deletions_first: bool = True
     allow_vertex_growth: bool = True
     as_sets: bool = False
+    as_net_effect: bool = False
 
     @classmethod
     def upsert_last_wins(cls) -> BatchSemantics:
@@ -62,6 +70,14 @@ class BatchSemantics:
     def set(cls) -> BatchSemantics:
         """CycleEnumeration-GPU's semantics: a batch is two sets."""
         return cls._from_native(native.BatchSemantics.set())
+
+    @classmethod
+    def net_effect(cls) -> BatchSemantics:
+        """LabelPropagation-CUDA's semantics (0.4): a batch's vertex insertions and deletions by
+        their net effect (an id in both lists ends deleted), its edges appended to the rows of
+        both endpoints; self-loops kept, no vertex growth. Only graphs with slot rows
+        (:meth:`Graph.with_capacity`) take it; edge deletions are not supported."""
+        return cls._from_native(native.BatchSemantics.net_effect())
 
     @classmethod
     def _from_native(cls, s: Any) -> BatchSemantics:
@@ -81,6 +97,7 @@ class BatchSemantics:
             self.allow_vertex_growth, "BatchSemantics.allow_vertex_growth"
         )
         s.as_sets = as_bool(self.as_sets, "BatchSemantics.as_sets")
+        s.as_net_effect = as_bool(self.as_net_effect, "BatchSemantics.as_net_effect")
         return s
 
 
@@ -93,8 +110,10 @@ class GraphProperties:
         directed: False: stored symmetric; a batch edge (u, v) changes both directions.
         store_transposed: Keep the in-edges (sssp needs them).
         num_weights: Weight columns (taken from the input when a graph is built).
-        layout: ``"compact"`` (the only layout of 0.1).
-        headroom: Spare capacity of the ``"slack"`` layout (0.4).
+        layout: ``"compact"`` (the default; the only layout of 0.1), or the slot rows of 0.4
+            built by :meth:`Graph.with_capacity`: ``"slotted"`` (fixed rows) or ``"slack"``
+            (rows that move when they overflow).
+        headroom: Spare capacity of the ``"slack"`` layout (0.4; default 0.125).
         order: ``"sorted"`` (rows sorted by neighbour) or ``"append"`` (MOSP).
         parallel_edges: ``"forbid"`` (a simple graph) or ``"allow"``.
         semantics: How batches are applied.
@@ -161,8 +180,11 @@ def _semantics(value: BatchSemantics | SemanticsName) -> BatchSemantics:
         return BatchSemantics.upsert_last_wins()
     if value == "set":
         return BatchSemantics.set()
+    if value == "net_effect":
+        return BatchSemantics.net_effect()
     raise InvalidArgumentError(
-        f"semantics: {value!r} is not 'upsert_last_wins', 'set' or a dyng.BatchSemantics"
+        f"semantics: {value!r} is not 'upsert_last_wins', 'set', 'net_effect' or a "
+        "dyng.BatchSemantics"
     )
 
 
@@ -215,6 +237,11 @@ class ApplySummary:
         deleted_vertices: Vertices removed.
         num_vertices_after: The vertex count after the batch.
         ignored_insertions: Insertions of existing edges left unchanged (ignore).
+        dropped_insertions: Insertions not applied because an endpoint is not active after the
+            batch (``net_effect``; 0.4).
+        relocated_rows: Rows moved to the tail of the slot arena because the batch overflowed
+            them (``"slack"`` rows; 0.4).
+        compactions: Compactions of the rows the batch ran (``"slack"`` rows: 0 or 1; 0.4).
     """
 
     inserted_edges: int = 0
@@ -227,6 +254,9 @@ class ApplySummary:
     deleted_vertices: int = 0
     num_vertices_after: int = 0
     ignored_insertions: int = 0
+    dropped_insertions: int = 0
+    relocated_rows: int = 0
+    compactions: int = 0
 
     @classmethod
     def _from_native(cls, s: Any) -> ApplySummary:
@@ -239,12 +269,59 @@ class CSR(NamedTuple):
     Attributes:
         row_ptr: The num_vertices + 1 row offsets (the edge offset dtype).
         col_ind: The neighbour of each edge, in row order (the vertex dtype).
-        weights: Shape (num_edges, K) int32 (a view), or None if unweighted.
+        weights: Shape (num_edges, K) int32 or float32 (0.4; a view), or None if unweighted.
     """
 
     row_ptr: np.ndarray
     col_ind: np.ndarray
     weights: np.ndarray | None
+
+
+class VertexStatus(enum.IntEnum):
+    """The state of a vertex of a graph with slot rows (C++ ``dyng::vertex_status``; 0.4).
+
+    :meth:`Graph.vertex_status` returns these codes. A vertex of :meth:`Graph.with_capacity`
+    starts ``inactive``; a batch's vertex insertion makes it ``active``, a deletion ``deleted``.
+    The codes are this enumeration's, mapped from the library's by name.
+    """
+
+    active = 0
+    deleted = 1
+    inactive = 2
+
+
+def _status_codes() -> np.ndarray:
+    """The Python code (VertexStatus) of each native vertex_status value, by name."""
+    table = np.zeros(256, dtype=np.uint8)
+    for name in ("active", "deleted", "inactive"):
+        table[int(getattr(native.VertexStatus, name).value)] = int(VertexStatus[name])
+    return table
+
+
+def _weights_for(
+    weights: Any, m: int, weight_dtype: Any, what: str
+) -> tuple[np.ndarray | None, int, np.dtype | None]:
+    """(flat weights or None, K, weight dtype or None) of a graph's weights (AD14, ADR 0108)."""
+    if weights is None:
+        if weight_dtype is not None:
+            raise InvalidArgumentError(f"{what}: weight_dtype without weights")
+        return None, 0, None
+    wdt = None if weight_dtype is None else _dtypes.weight_dtype_of(weight_dtype, what)
+    if wdt == _dtypes.FLOAT32 or (wdt is None and _dtypes.is_float_weights(weights)):
+        if wdt is None:
+            view = _dtypes.weights_view(weights, m, what, allow_float=True)
+            if view.dtype != _dtypes.FLOAT32:
+                # float64 (or another floating type) without weight_dtype: never narrowed
+                raise InvalidArgumentError(
+                    f"{what}: {view.dtype.name} weights; the float graphs hold float32 weights: "
+                    "pass weights.astype(numpy.float32), or weight_dtype='float32' to convert "
+                    "them (checked: finite and within float32's range)"
+                )
+            weights = view
+        w2 = _dtypes.float_weights_matrix(weights, m, what, explicit=True)
+        return w2.reshape(-1), int(w2.shape[1]), _dtypes.FLOAT32
+    w2 = _dtypes.weights_matrix(weights, m, what)
+    return w2.reshape(-1), int(w2.shape[1]), _dtypes.INT32
 
 
 def _edge_dtype(requested: Any, vertex: np.dtype, stored_edges: int) -> np.dtype:
@@ -256,13 +333,17 @@ def _edge_dtype(requested: Any, vertex: np.dtype, stored_edges: int) -> np.dtype
 
 
 class Graph:
-    """A dynamic directed (or symmetric) graph with K integer weight columns.
+    """A dynamic directed (or symmetric) graph with K integer weight columns, or (0.4) one
+    float32 weight column.
 
-    Build one with :meth:`from_edges`, :meth:`from_csr` or a reader of :mod:`dyng.io`. The graph
-    holds a version counter that grows by one with every applied batch; results remember the
-    version (and the graph state) they match. The instantiation (id and weight types) is chosen
-    from the input dtypes (the dtype rules of the Python API guide in the documentation);
-    :attr:`vertex_dtype`, :attr:`edge_dtype` and :attr:`weighted` report it.
+    Build one with :meth:`from_edges`, :meth:`from_csr`, :meth:`with_capacity` (slot rows, 0.4)
+    or a reader of :mod:`dyng.io`. The graph holds a version counter that grows by one with every
+    applied batch; results remember the version (and the graph state) they match. The
+    instantiation (id and weight types) is chosen from the input dtypes (the dtype rules of the
+    Python API guide in the documentation): float32 weights select the float graphs of
+    :mod:`dyng.label_propagation`, float64 weights only with ``weight_dtype="float32"``.
+    :attr:`vertex_dtype`, :attr:`edge_dtype`, :attr:`weight_dtype` and :attr:`weighted` report
+    it.
 
     A graph is not thread-safe in C++; the Python binding serializes calls that change it
     (:meth:`apply`, the algorithms' ``update``) against every other call on it.
@@ -306,6 +387,7 @@ class Graph:
         semantics: BatchSemantics | SemanticsName | None = None,
         vertex_dtype: Any = None,
         edge_dtype: Any = None,
+        weight_dtype: Any = None,
         resources: Resources | None = None,
     ) -> Graph:
         """Build a graph from an edge list.
@@ -319,7 +401,8 @@ class Graph:
             src: Source of each edge (any integer array: NumPy, DLPack, buffer protocol, list).
             dst: Destination of each edge.
             weights: None (an unweighted graph), shape (m,) (one weight column) or (m, K);
-                integers in [1, 2^31 - 1] for sssp.
+                integers in [1, 2^31 - 1] for sssp; float32 (one column) selects a float graph
+                (0.4, :mod:`dyng.label_propagation`).
             num_vertices: The vertex count (default: the largest id + 1).
             properties: A preset name (``"default"``, ``"mosp_compatible"``,
                 ``"cycle_enum_compatible"``) or a :class:`GraphProperties`; the keywords below
@@ -334,6 +417,10 @@ class Graph:
                 checked). Default: from the dtypes of ``src`` and ``dst``.
             edge_dtype: Force the edge offset type. Default: int32 when the edge count fits
                 (int64 with int64 ids).
+            weight_dtype: ``"float32"``: a float graph from floating-point (e.g. float64) or
+                integer weights, converted and checked (finite, within float32's range); None:
+                from the weights' dtype (float32 or integers; float64 is refused rather than
+                narrowed silently). 0.4.
             resources: The resources the graph belongs to (default: the default resources).
 
         Returns:
@@ -341,7 +428,8 @@ class Graph:
 
         Raises:
             InvalidArgumentError: an id out of range, arrays of different lengths, non-integer
-                ids or weights.
+                ids, invalid weights (NaN or infinite floats; float64 without
+                ``weight_dtype``).
             NotSupportedError: an unsupported type combination (listing the supported ones) or
                 property.
             CapacityError: more edges than the edge offset type holds.
@@ -368,13 +456,8 @@ class Graph:
         m = int(s.size)
         stored = m if props.directed else 2 * m
         edge = _edge_dtype(edge_dtype, vertex, stored)
-        w = None
-        k = 0
-        if weights is not None:
-            w2 = _dtypes.weights_matrix(weights, m, "Graph.from_edges: weights")
-            k = int(w2.shape[1])
-            w = w2.reshape(-1)
-        gtype = _dtypes.find_graph_type(vertex, edge, weights is not None)
+        w, k, wdt = _weights_for(weights, m, weight_dtype, "Graph.from_edges: weights")
+        gtype = _dtypes.find_graph_type(vertex, edge, wdt)
         if num_vertices is None:
             num_vertices = int(max(s.max(initial=-1), d.max(initial=-1))) + 1
         else:
@@ -401,6 +484,7 @@ class Graph:
         semantics: BatchSemantics | SemanticsName | None = None,
         vertex_dtype: Any = None,
         edge_dtype: Any = None,
+        weight_dtype: Any = None,
         resources: Resources | None = None,
     ) -> Graph:
         """Build a graph from a CSR of the out-edges (e.g. ``scipy.sparse.csr_array``'s
@@ -414,7 +498,7 @@ class Graph:
             row_ptr: num_vertices + 1 offsets; its dtype selects the edge offset type (int32 or
                 int64) unless ``edge_dtype`` is given.
             col_ind: The neighbour of each edge; its dtype selects the vertex id type.
-            weights: None, shape (m,) or (m, K) integers.
+            weights: None, shape (m,) or (m, K) integers, or float32 (0.4: a float graph).
             properties: As for :meth:`from_edges` (and the keywords that override it).
             directed: See :meth:`from_edges`.
             store_transposed: See :meth:`from_edges`.
@@ -424,6 +508,7 @@ class Graph:
             semantics: See :meth:`from_edges`.
             vertex_dtype: Force the vertex id type (values are checked).
             edge_dtype: Force the edge offset type (values are checked).
+            weight_dtype: As for :meth:`from_edges` (0.4).
             resources: The resources the graph belongs to.
 
         Returns:
@@ -431,18 +516,17 @@ class Graph:
         """
         c = _dtypes.to_numpy(col_ind, "Graph.from_csr: col_ind")
         m = int(c.size)
+        flat, k, wdt = _weights_for(weights, m, weight_dtype, "Graph.from_csr: weights")
         w = None
-        k = 0
-        if weights is not None:
-            w2 = _dtypes.weights_matrix(weights, m, "Graph.from_csr: weights")
-            k = int(w2.shape[1])
-            w = np.ascontiguousarray(w2.T)  # objective-major, as the library stores weights
+        if flat is not None:
+            # objective-major, as the library stores weights
+            w = np.ascontiguousarray(flat.reshape(m, k).T)
         return cls._from_csr_objective_major(
             row_ptr,
             c,
             w,
             k,
-            weights is not None,
+            wdt,
             make_properties(
                 properties,
                 directed=directed,
@@ -465,7 +549,7 @@ class Graph:
         col_ind: np.ndarray,
         weights_km: np.ndarray | None,
         num_weights: int,
-        weighted: bool,
+        weighted: bool | np.dtype | None,
         props: GraphProperties,
         vertex_dtype: Any,
         edge_dtype: Any,
@@ -487,16 +571,133 @@ class Graph:
         gtype = _dtypes.find_graph_type(vertex, edge, weighted)
         r = _dtypes.checked_cast(r, edge, "Graph.from_csr: row_ptr")
         c = _dtypes.checked_cast(col_ind, vertex, "Graph.from_csr: col_ind")
-        w = None if weights_km is None else np.ascontiguousarray(weights_km, np.int32).reshape(-1)
+        wdt = np.int32 if gtype.weight is None else gtype.weight
+        w = None if weights_km is None else np.ascontiguousarray(weights_km, wdt).reshape(-1)
         props.num_weights = num_weights
         handle = gtype.native_class.from_csr(res._native, r, c, w, num_weights, props._to_native())
+        return cls._wrap(handle, gtype, res)
+
+    @classmethod
+    def with_capacity(
+        cls,
+        row_capacity: Any,
+        *,
+        vertex_capacity: int | None = None,
+        directed: bool = False,
+        layout: LayoutName = "slotted",
+        semantics: BatchSemantics | SemanticsName = "net_effect",
+        headroom: float = 0.125,
+        edge_dtype: Any = None,
+        weight_dtype: Any = "float32",
+        resources: Resources | None = None,
+    ) -> Graph:
+        """An empty graph with slot rows (C++ ``graph::with_capacity``; 0.4): ``vertex_capacity``
+        vertices, all inactive, vertex v owning ``row_capacity[v]`` slots.
+
+        Vertices arrive and leave with the vertex arrays of the batches
+        (``EdgeBatch(insert_vertices=..., vertex_labels=..., delete_vertices=...)``) under the
+        ``"net_effect"`` semantics; a batch's edges are appended to the rows of both endpoints.
+        This is LabelPropagation-CUDA's device graph and the published setup of
+        :mod:`dyng.label_propagation` (``row_capacity``: a vertex-arrival stream's
+        :attr:`~dyng.generators.VertexArrivalStream.row_capacity`, the full graph's degrees).
+
+        ``layout="slotted"`` rows are fixed: an append past a row's capacity raises
+        :class:`~dyng.CapacityError` before anything changes. ``layout="slack"`` rows (the
+        streaming mode) get ``ceil(row_capacity[v] * (1 + headroom))`` slots; a row that
+        overflows moves to the end of the slot arena with its order kept, and the rows are
+        compacted when the slots left by moved rows outnumber the slots the rows own; there
+        ``row_capacity`` is a hint that may be shorter than ``vertex_capacity`` (or empty).
+
+        Args:
+            row_capacity: The slots of each vertex (integers >= 0; the edge offset dtype).
+            vertex_capacity: The vertex count (default: ``len(row_capacity)``).
+            directed: Must be False in 0.4 (the rows are symmetric).
+            layout: ``"slotted"`` (the default) or ``"slack"``.
+            semantics: ``"net_effect"`` (the default; required in 0.4) or a
+                :class:`BatchSemantics` equal to :meth:`BatchSemantics.net_effect` (with
+                ``allow_vertex_growth`` set or not for ``"slack"`` rows).
+            headroom: The spare share of the ``"slack"`` rows (in [0, 16]).
+            edge_dtype: The edge offset type (default: int32 when the sum of the capacities
+                fits it, for ``"slack"`` rows twice the sum with the headroom; else int64).
+            weight_dtype: ``"float32"`` (the default: label_propagation's graphs), ``"int32"``,
+                or None for an unweighted graph.
+            resources: The resources the graph belongs to (default: the default resources).
+
+        Returns:
+            The graph at version 0, every vertex inactive and every row empty.
+
+        Raises:
+            InvalidArgumentError: a negative capacity, ``row_capacity`` of another length
+                (``"slotted"``), or a headroom outside [0, 16].
+            CapacityError: the sum of the capacities does not fit the edge offset type.
+            NotSupportedError: a property the 0.4 slot rows do not support (named).
+
+        Example:
+            >>> import numpy as np, dyng
+            >>> g = dyng.Graph.with_capacity([1, 1, 0], resources=dyng.Resources("sequential"))
+            >>> b = dyng.EdgeBatch(insert=([0], [1], np.array([0.5], dtype=np.float32)),
+            ...                    insert_vertices=[0, 1], vertex_labels=[1, -1])
+            >>> g.apply(b).inserted_vertices, g.num_active_vertices, g.num_edges
+            (2, 2, 2)
+        """
+        res = resolve(resources)
+        cap = _dtypes.to_numpy(row_capacity, "Graph.with_capacity: row_capacity")
+        if cap.size and (cap.dtype.kind == "b" or cap.dtype.kind not in "iu"):
+            raise InvalidArgumentError(
+                f"Graph.with_capacity: row_capacity must be integers, got {cap.dtype.name}"
+            )
+        n = (
+            int(cap.size)
+            if vertex_capacity is None
+            else as_int(vertex_capacity, "Graph.with_capacity: vertex_capacity")
+        )
+        if edge_dtype is None:
+            # int32 when the slots fit it; slack rows keep room for moved rows (twice the slots)
+            total = int(cap.astype(np.int64).sum()) if cap.size else 0
+            if layout == "slack":
+                total = 2 * (int(total * (1.0 + float(headroom))) + int(cap.size))
+            edge = _dtypes.INT32 if total <= _INT32_MAX else _dtypes.INT64
+        else:
+            edge = _dtypes.id_dtype(edge_dtype, "Graph.with_capacity: edge_dtype")
+        cap = _dtypes.checked_cast(cap, edge, "Graph.with_capacity: row_capacity")
+        if weight_dtype is None:
+            wdt: np.dtype | None = None
+        else:
+            wdt = _dtypes.weight_dtype_of(weight_dtype, "Graph.with_capacity: weight_dtype")
+        gtype = _dtypes.find_graph_type(_dtypes.INT32, edge, wdt)
+        props = GraphProperties(
+            directed=as_bool(directed, "Graph.with_capacity: directed"),
+            store_transposed=False,
+            num_weights=0 if wdt is None else 1,
+            layout=layout,
+            headroom=float(headroom),
+            order="append",
+            parallel_edges="allow",
+            semantics=_semantics(semantics),
+        )
+        handle = gtype.native_class.with_capacity(res._native, n, cap, props._to_native())
         return cls._wrap(handle, gtype, res)
 
     # -- properties ----------------------------------------------------------------------------
     @property
     def num_vertices(self) -> int:
-        """The vertex count."""
+        """The vertex count (slot rows: the vertex capacity, whatever the states)."""
         return int(self._native.num_vertices)
+
+    @property
+    def num_active_vertices(self) -> int:
+        """The active vertices (0.4): :attr:`num_vertices` for compact rows (every vertex is
+        active), the vertices whose state is ``VertexStatus.active`` for slot rows."""
+        return int(self._native.num_active_vertices)
+
+    def vertex_status(self) -> np.ndarray:
+        """A host copy of the vertex states (0.4): one :class:`VertexStatus` code per vertex
+        (uint8); every vertex ``active`` for compact rows."""
+        raw = self._native.vertex_status()
+        if raw.size == 0:
+            return np.full(self.num_vertices, int(VertexStatus.active), dtype=np.uint8)
+        out: np.ndarray = _status_codes()[raw]
+        return out
 
     @property
     def num_edges(self) -> int:
@@ -545,8 +746,15 @@ class Graph:
 
     @property
     def weighted(self) -> bool:
-        """Whether the weight type is int32 (otherwise the unweighted instantiation)."""
+        """Whether the weight type is int32 (otherwise the unweighted instantiation, or a float32
+        graph of 0.4: see :attr:`weight_dtype`)."""
         return self._type.weighted
+
+    @property
+    def weight_dtype(self) -> np.dtype | None:
+        """The weight type: int32, float32 (0.4: label_propagation's graphs), or None for an
+        unweighted graph."""
+        return self._type.weight
 
     @property
     def resources(self) -> Resources:
@@ -618,7 +826,7 @@ class Graph:
         )
 
     def __repr__(self) -> str:
-        w = "int32" if self.weighted else "unweighted"
+        w = "unweighted" if self.weight_dtype is None else self.weight_dtype.name
         return (
             f"dyng.Graph(num_vertices={self.num_vertices}, num_edges={self.num_edges}, "
             f"num_weights={self.num_weights}, directed={self.directed}, version={self.version}, "

@@ -91,3 +91,28 @@ def test_triad_count_example(tmp_path: Path) -> None:
     assert st.delta.size == 30 and tri.num_bins == 30
     assert tri.counts.tolist() == dyng.triad_count.compute(hg).counts.tolist()
     assert "escher2026" in dyng.citation("triad_count")
+
+
+def test_label_propagation_example() -> None:
+    """PLAN 5.5's label_propagation example, adapted to the API of ADR 0071 (the published setup:
+    with_capacity from the stream's full degrees, compute on the empty graph, update per batch;
+    PLAN's stream.initial / seed_vertices are b0, an ordinary batch) and to AD19 (explicit
+    resources: sequential here, cuda in test_label_propagation_cuda.py), on 5k5 instead of 50k."""
+    res = dyng.Resources("sequential")  # or dyng.Resources.cuda(device=0); no OpenMP backend
+    stream = dyng.generators.vertex_arrival_stream(
+        total_vertices=5_000, average_degree=5, num_batches=5, seed=42, resources=res
+    )
+    lg = dyng.Graph.with_capacity(
+        stream.row_capacity, directed=False, layout="slotted", semantics="net_effect", resources=res
+    )
+    labels = dyng.label_propagation.compute(
+        lg,
+        tolerance=1e-4,
+        update_schedule="damped",
+        similarity_threshold=stream.similarity_threshold,
+    )
+    for b in stream.batches:
+        st = dyng.label_propagation.update(lg, b, labels)
+    assert st.converged and lg.version == len(stream.batches)
+    F = np.from_dlpack(labels.labels)  # float32 on the host, no copy (torch.from_dlpack alike)
+    assert F.dtype == np.float32 and F.shape == (5_000,) and not F.flags.writeable

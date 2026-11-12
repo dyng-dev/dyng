@@ -40,13 +40,25 @@ class EdgeBatch:
     whatever their dtypes: refilling the arrays between two uses applies the new values. Do not
     change them while a call that uses the batch runs.
 
+    Weights are integers (int32 graphs) or, since 0.4, floating point (the float32 graphs of
+    :mod:`dyng.label_propagation`; ADR 0108, AD14): float32 weights are used as they are, and
+    float64 weights only when every value is exactly a float32, unless ``weight_dtype="float32"``
+    asks for the conversion (then checked: finite and within float32's range). Nothing is
+    narrowed silently.
+
+    Vertex batches (0.4): ``insert_vertices`` (with optional ``vertex_labels``, -1 for none, else
+    the class 0 or 1) and ``delete_vertices`` are applied by graphs with slot rows
+    (:meth:`dyng.Graph.with_capacity`, ``semantics="net_effect"``); a graph with compact rows
+    raises :class:`~dyng.NotSupportedError` for them.
+
     Args:
         insert: ``(src, dst)`` or ``(src, dst, weights)``; weights of shape (n,) or (n, K).
         delete: ``(src, dst)``.
-        insert_vertices: Vertices to insert (0.4; applying such a batch raises
-            :class:`~dyng.NotSupportedError` in 0.1).
-        vertex_labels: Labels of the inserted vertices (int8; 0.4).
-        delete_vertices: Vertices to delete (0.4).
+        insert_vertices: Vertices to insert (0.4; slot rows only).
+        vertex_labels: Labels of the inserted vertices (int8: -1 none, 0 or 1; 0.4).
+        delete_vertices: Vertices to delete (0.4; slot rows only).
+        weight_dtype: ``"float32"``: convert floating-point weights to float32 now (checked);
+            None (the default): keep the weights as given (0.4).
 
     Examples:
         >>> import numpy as np, dyng
@@ -65,6 +77,7 @@ class EdgeBatch:
         "_labels",
         "_del_v",
     )
+    _ins_w: np.ndarray | None
 
     def __init__(
         self,
@@ -74,6 +87,7 @@ class EdgeBatch:
         insert_vertices: Any = None,
         vertex_labels: Any = None,
         delete_vertices: Any = None,
+        weight_dtype: Any = None,
     ) -> None:
         s, d, w = _pair(insert, "insert")
         ds, dd, extra = _pair(delete, "delete")
@@ -83,11 +97,25 @@ class EdgeBatch:
         self._ins_dst = self._ids(d, "insert dst")
         if self._ins_src.size != self._ins_dst.size:
             raise InvalidArgumentError("EdgeBatch: the insert src and dst differ in length")
-        self._ins_w: np.ndarray | None = None
+        self._ins_w = None
+        if weight_dtype is not None:
+            wdt = _dtypes.weight_dtype_of(weight_dtype, "EdgeBatch: weight_dtype")
+            if wdt != _dtypes.FLOAT32:
+                raise InvalidArgumentError(
+                    "EdgeBatch: weight_dtype is 'float32' or None (integer weights keep their "
+                    "rule: int32, checked)"
+                )
         if w is not None:
             n = int(self._ins_src.size)
-            self._ins_w = _dtypes.weights_view(w, n, "EdgeBatch: weights")
-            _dtypes.weights_matrix(self._ins_w, n, "EdgeBatch: weights")  # early range check
+            view = _dtypes.weights_view(w, n, "EdgeBatch: weights", allow_float=True)
+            if weight_dtype is not None:
+                # the conversion the caller asked for, checked (AD14)
+                view = _dtypes.float_weights_matrix(view, n, "EdgeBatch: weights", explicit=True)
+            elif view.size and view.dtype.kind == "f":
+                _dtypes.float_weights_matrix(view, n, "EdgeBatch: weights", explicit=True)  # finite
+            else:
+                _dtypes.weights_matrix(view, n, "EdgeBatch: weights")  # early range check
+            self._ins_w = view
         self._del_src = self._ids(ds, "delete src")
         self._del_dst = self._ids(dd, "delete dst")
         if self._del_src.size != self._del_dst.size:
@@ -115,9 +143,21 @@ class EdgeBatch:
 
     @classmethod
     def _from_arrays(cls, parts: tuple[Any, ...]) -> EdgeBatch:
-        """A batch from a native reader's or generator's (src, dst, w, dsrc, ddst, K) tuple."""
-        ins_src, ins_dst, w, del_src, del_dst, _k = parts
+        """A batch from a native reader's or generator's (src, dst, w, dsrc, ddst, K) tuple, or
+        its 9-tuple with (insert_vertices, vertex_labels, delete_vertices) (None: no vertex
+        operations; 0.4)."""
+        ins_src, ins_dst, w, del_src, del_dst, k = parts[:6]
+        if k == 0:
+            w = None
         insert = (ins_src, ins_dst) if w is None else (ins_src, ins_dst, w)
+        if len(parts) == 9 and parts[6] is not None:
+            return cls(
+                insert=insert,
+                delete=(del_src, del_dst),
+                insert_vertices=parts[6],
+                vertex_labels=parts[7],
+                delete_vertices=parts[8],
+            )
         return cls(insert=insert, delete=(del_src, del_dst))
 
     # -- properties ----------------------------------------------------------------------------
@@ -133,11 +173,42 @@ class EdgeBatch:
 
     @property
     def insert_weights(self) -> np.ndarray | None:
-        """Weights of the insertions, shape (n, K) int32 (a view when given as a C-contiguous
-        int32 array), or None."""
+        """Weights of the insertions, shape (n, K), or None: int32 for integer weights (a view
+        when given as a C-contiguous int32 array); floating-point weights (0.4) as given (a
+        float32 array after ``weight_dtype="float32"``)."""
         if self._ins_w is None:
             return None
+        if self._ins_w.dtype.kind == "f":
+            return self._ins_w
         return _dtypes.weights_matrix(self._ins_w, self.num_insertions, "EdgeBatch: weights")
+
+    @property
+    def insert_vertices(self) -> np.ndarray | None:
+        """The vertices the batch inserts (0.4), or None."""
+        return self._ins_v
+
+    @property
+    def vertex_labels(self) -> np.ndarray | None:
+        """The labels of the inserted vertices (int8: -1 none, 0 or 1; 0.4), or None."""
+        if self._labels is None:
+            return None
+        return _dtypes.checked_cast(self._labels, np.dtype(np.int8), "vertex_labels")
+
+    @property
+    def delete_vertices(self) -> np.ndarray | None:
+        """The vertices the batch deletes (0.4), or None."""
+        return self._del_v
+
+    def _has_vertex_operations(self) -> bool:
+        """Whether the batch inserts or deletes vertices (0.4)."""
+        return bool(
+            (self._ins_v is not None and self._ins_v.size)
+            or (self._del_v is not None and self._del_v.size)
+        )
+
+    def _has_float_weights(self) -> bool:
+        """Whether the batch's weights are floating point (0.4: for the float32 graphs)."""
+        return self._ins_w is not None and self._ins_w.dtype.kind == "f"
 
     @property
     def delete_src(self) -> np.ndarray:
@@ -175,9 +246,14 @@ class EdgeBatch:
         )
 
     def __repr__(self) -> str:
+        extra = ""
+        if self._has_vertex_operations():
+            ni = 0 if self._ins_v is None else int(self._ins_v.size)
+            nd = 0 if self._del_v is None else int(self._del_v.size)
+            extra = f", inserted_vertices={ni}, deleted_vertices={nd}"
         return (
             f"dyng.EdgeBatch(insertions={self.num_insertions}, deletions={self.num_deletions}, "
-            f"num_weights={self.num_weights})"
+            f"num_weights={self.num_weights}{extra})"
         )
 
     # -- native --------------------------------------------------------------------------------
@@ -198,7 +274,14 @@ class EdgeBatch:
 
         w: np.ndarray | None = None
         k = self.num_weights
-        if gtype.weighted:
+        if gtype.is_float:
+            if self._ins_w is not None:
+                w = _dtypes.float_weights_matrix(
+                    self._ins_w, self.num_insertions, "EdgeBatch: weights"
+                ).reshape(-1)
+            elif self.num_insertions == 0:
+                k = k_graph  # no insertions: nothing to weigh
+        elif gtype.weighted:
             if self._ins_w is not None:
                 w = _dtypes.weights_matrix(
                     self._ins_w, self.num_insertions, "EdgeBatch: weights"

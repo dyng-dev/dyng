@@ -4,6 +4,9 @@
 
 - :func:`uniform_hypergraph` and :func:`random_hyperedge_batch` (0.3): hypergraphs and hyperedge
   batches with distributions owned by the library, bit-exact per (seed, major version).
+- :func:`vertex_arrival_stream` (0.4): vertex-arrival streams for
+  :mod:`dyng.label_propagation` (:class:`VertexArrivalStream`), with distributions owned by the
+  library.
 - :mod:`dyng.generators.legacy`: the bit-exact reproductions of the original tools' random
   streams, so the inputs of published experiments can be regenerated.
 """
@@ -17,6 +20,7 @@ from .hypergraphs import (
     uniform_hypergraph,
     uniform_hypergraph_arrays,
 )
+from .vertex_arrival import VertexArrivalStream, vertex_arrival_stream
 
 __all__ = [
     "legacy",
@@ -24,4 +28,6 @@ __all__ = [
     "uniform_hypergraph",
     "uniform_hypergraph_arrays",
     "random_hyperedge_batch",
+    "VertexArrivalStream",
+    "vertex_arrival_stream",
 ]

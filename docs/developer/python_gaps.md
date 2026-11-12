@@ -3,8 +3,8 @@
 PLAN Section 5.4, rule 8: every stable C++ symbol has a Python counterpart, or it is listed here.
 The Python API is described in {doc}`../adr/0011-python-bindings` (ADR 0011). This page lists what
 the Python package does not bind, and why; each entry names the release that closes it, or
-"by design". The hypergraph rows (0.3, M8b) and those of `triad_count` (0.3, M9b) are in their own
-tables below.
+"by design". The hypergraph rows (0.3, M8b), those of `triad_count` (0.3, M9b) and those of
+`label_propagation` (0.4, M10b) are in their own tables below.
 
 ## C++ symbols without a Python counterpart
 
@@ -38,7 +38,7 @@ tables below.
 | Inputs that only have `__cuda_array_interface__` (Numba device arrays) | inputs in device memory are read through DLPack (CuPy, PyTorch, JAX); `cupy.asarray(x)` wraps a Numba array without a copy | 0.3 |
 | `dyng.interop.from_networkx()`, `from_scipy()`, `from_cudf()` (rule 6) | `Graph.from_csr(csr.indptr, csr.indices, csr.data)` covers SciPy | after 0.2.0 (not in 0.2.0) |
 | `.dgb` binary batch files and the streaming `batch_reader` (PLAN 5.7) | done in 0.3 (M8b): `dyng.io.write_binary_batches()`, `read_binary_batches()` and the streaming `dyng.io.BatchReader` (graph and hypergraph batches, the annotations); the batches are host objects (see the hypergraph table) | – |
-| `Graph.with_capacity()`, vertex insertions and deletions | `EdgeBatch(insert_vertices=...)` exists; applying it raises `NotSupportedError` | 0.4 |
+| `Graph.with_capacity()`, vertex insertions and deletions | done in 0.4 (M10b; ADR 0108): `dyng.Graph.with_capacity(row_capacity, layout="slotted"\|"slack", semantics="net_effect")`, the vertex arrays of `dyng.EdgeBatch` applied, `ApplySummary`'s vertex fields, `Graph.num_active_vertices`, `Graph.vertex_status()` with `dyng.VertexStatus`, the float32 graphs (`Graph.weight_dtype`), `dyng.label_propagation`, the vertex-arrival generators, `dyng.testing.harmonic_solution`, and the batch and label files of AD13 | – |
 | `dyng::update(res, h, batch, results...)` over a hypergraph (`participant_of<hypergraph<V,W>>`, `hyper_update_participant`, `run_update`) | done in 0.3 (M9b; ADR 0059): `dyng.update(hypergraph, batch, *results)` with `dyng.triad_count` results (one apply for every result, as over a graph); `Hypergraph.apply()` applies a batch to the structure alone | – |
 | `dyng.Hypergraph`, `HyperedgeBatch` | done in 0.3 (M8b): `dyng.Hypergraph.from_hyperedges()` / `from_lists()`, `dyng.HyperedgeBatch`, `dyng.HypergraphProperties`, `dyng.CapacityPolicy` with its presets, `dyng.HyperApplySummary` (`inserted_ids` an int64 array), `dyng.io.read_hypergraph()` / `write_hypergraph()`, the `.dgt` hyperedge batches, the generators (legacy included) and the Hypothesis strategies | – |
 
@@ -85,3 +85,20 @@ names as strings), `MAX_BINS`, `Options` (`kind`, `cuda_engine`), `Stats`, `Resu
 | `io::triad_bins` (`kind`, `graph_version`, `counts`, `deltas` as vectors) | `dyng.io.TriadBins` (`counts` uint64, `deltas` an int64 array of shape `(batches, num_bins)`) | by design |
 | `io::triad_bins_size()` | none | by design: `30 if kind == "h_motif" else 1`, or `Result.num_bins` |
 | `testing::triad_reference_all()`, `triad_reference_removed()`, `triad_reference_added()`, `triad_reference_counts`, the class-map helpers (`triad_motif_class()`, `triad_venn_id()`, ...) (tracked, ADR 0049) | `dyng.testing.triad_reference(hypergraph, kind, threads=)` | the counts of one pattern cover the Python tests; the rest after 0.3 if asked |
+
+## `label_propagation` symbols without a Python counterpart (0.4, M10b)
+
+Every symbol of `<dyng/label_propagation.hpp>`, of the graph additions of 0.4 (ADR 0069, 0103),
+of `<dyng/generators/vertex_arrival.hpp>`, of `<dyng/testing/harmonic_solution.hpp>` and of the
+label files has a counterpart in `dyng.label_propagation`, `dyng.Graph`, `dyng.EdgeBatch`,
+`dyng.ApplySummary`, `dyng.BatchSemantics`, `dyng.VertexStatus`, `dyng.generators`,
+`dyng.testing` and `dyng.io` (ADR 0108), except:
+
+| C++ | Python in 0.4 | Why, and when |
+|---|---|---|
+| `graph_view::status`, `graph_view::row_end` (zero-copy views) | `Graph.vertex_status()` (a host copy); none for `row_end` | the zero-copy graph view is not bound (the `graph::view()` row above) |
+| `edge_batch::insert_vertex()`, `delete_vertex()` | `dyng.EdgeBatch(insert_vertices=..., vertex_labels=..., delete_vertices=...)` from arrays | by design (as `insert_edge()`) |
+| `generators::vertex_arrival_batch`, `vertex_arrival_batch::view()`, `vertex_arrival_options` | `dyng.generators.VertexArrivalStream.batches` (`dyng.EdgeBatch` objects); the options are the generators' keyword arguments | by design |
+| `testing::harmonic_options`, `label_error`, `label_error_against()`, `class_agreement`, `class_agreement_with()` | `dyng.testing.harmonic_solution(graph, seed_labels, relative_tolerance=, max_iterations=, num_threads=)`, `HarmonicResult.error(labels)` (mean and max \|F - F*\|) | the class comparisons are the parity harness's (C++); after 0.4 if users ask |
+| `testing::union_find`, `testing::lp_host_model` | none | the conformance kit's and the parity harness's models (C++ tests); by design |
+| `detail::label_propagation_supported_v`, `DYNG_LABEL_PROPAGATION_TYPES_MESSAGE` | `NotSupportedError` naming the float32 graphs | by design (dtype dispatch) |

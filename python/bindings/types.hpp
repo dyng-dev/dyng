@@ -95,7 +95,8 @@ struct batch_arrays {
  * @tparam weight_t Weight type.
  * @param[in] b The batch.
  * @return (insert_src, insert_dst, insert_weights of shape (n, K) or None, delete_src, delete_dst,
- *         K).
+ *         K, insert_vertices, insert_vertex_labels, delete_vertices); the last three are None
+ *         for a batch without vertex operations (0.4).
  */
 template <typename vertex_t, typename weight_t>
 nb::tuple batch_to_numpy(const edge_batch<vertex_t, weight_t>& b) {
@@ -110,8 +111,19 @@ nb::tuple batch_to_numpy(const edge_batch<vertex_t, weight_t>& b) {
   std::vector<vertex_t> id = b.insert_dst();
   std::vector<vertex_t> ds = b.delete_src();
   std::vector<vertex_t> dd = b.delete_dst();
+  nb::object ins_v = nb::none();
+  nb::object labels = nb::none();
+  nb::object del_v = nb::none();
+  if (!b.insert_vertices().empty() || !b.delete_vertices().empty()) {
+    std::vector<vertex_t> iv = b.insert_vertices();
+    std::vector<std::int8_t> il = b.insert_vertex_labels();
+    std::vector<vertex_t> dv = b.delete_vertices();
+    ins_v = nb::cast(to_numpy(std::move(iv)));
+    labels = nb::cast(to_numpy(std::move(il)));
+    del_v = nb::cast(to_numpy(std::move(dv)));
+  }
   return nb::make_tuple(to_numpy(std::move(is)), to_numpy(std::move(id)), weights,
-                        to_numpy(std::move(ds)), to_numpy(std::move(dd)), k);
+                        to_numpy(std::move(ds)), to_numpy(std::move(dd)), k, ins_v, labels, del_v);
 }
 
 /// The holder of hypergraph<V,W>.
@@ -254,20 +266,24 @@ hyperedge_list_view<vertex_t, weight_t> hyperedge_list_view_of(
 
 /**
  * @brief Call `X(V, E, W)` for every graph type the Python package binds (the library's
- *        instantiations, PLAN Section 4.4.3).
+ *        instantiations, PLAN Section 4.4.3; the float graphs of label_propagation since 0.4,
+ *        ADR 0108).
  */
 #define DYNG_PY_FOR_EACH_GRAPH_TYPE(X)              \
   X(std::int32_t, std::int32_t, std::int32_t)       \
   X(std::int32_t, std::int64_t, std::int32_t)       \
   X(std::int64_t, std::int64_t, std::int32_t)       \
   X(std::int32_t, std::int32_t, ::dyng::unweighted) \
-  X(std::int32_t, std::int64_t, ::dyng::unweighted)
+  X(std::int32_t, std::int64_t, ::dyng::unweighted) \
+  X(std::int32_t, std::int32_t, float)              \
+  X(std::int32_t, std::int64_t, float)
 
 /// Call `X(V, W)` for every batch type (the (vertex, weight) pairs of the graph types).
 #define DYNG_PY_FOR_EACH_BATCH_TYPE(X) \
   X(std::int32_t, std::int32_t)        \
   X(std::int64_t, std::int32_t)        \
-  X(std::int32_t, ::dyng::unweighted)
+  X(std::int32_t, ::dyng::unweighted)  \
+  X(std::int32_t, float)
 
 /// Call `X(V, W)` for every hypergraph type (the library's instantiations, PLAN Section 4.4.3).
 #define DYNG_PY_FOR_EACH_HYPERGRAPH_TYPE(X) \
