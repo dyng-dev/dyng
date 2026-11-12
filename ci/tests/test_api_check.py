@@ -97,7 +97,9 @@ def _in_label_propagation(breakages: list) -> list[str]:
 
 def test_a_renamed_parameter_of_label_propagation_update_is_breaking(tmp_path: Path) -> None:
     def edit(text: str) -> str:
-        return text.replace("def update(\n    graph: Graph, batch:", "def update(\n    g: Graph, batch:", 1)
+        return text.replace(
+            "def update(\n    graph: Graph, batch:", "def update(\n    g: Graph, batch:", 1
+        )
 
     assert _in_label_propagation(_breakages(tmp_path, edit, "label_propagation"))
 

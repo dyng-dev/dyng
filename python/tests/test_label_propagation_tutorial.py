@@ -56,8 +56,10 @@ def _run(out: Path, res: dyng.Resources) -> tuple[dyng.label_propagation.Result,
     lp = dyng.label_propagation.compute(g, update_schedule="damped")  # tau: the current graph's
     for i, batch in enumerate(dyng.io.read_binary_batches(out / "g.dgb")):
         st = dyng.label_propagation.update(g, batch, lp)
-        print(f"batch {i}: {g.num_active_vertices} active, {st.iterations} iterations, "
-              f"{st.batch.relocated_rows} rows moved, {st.batch.compactions} compactions")
+        print(
+            f"batch {i}: {g.num_active_vertices} active, {st.iterations} iterations, "
+            f"{st.batch.relocated_rows} rows moved, {st.batch.compactions} compactions"
+        )
     # [tutorial: streaming end]
     return lp, g
 
