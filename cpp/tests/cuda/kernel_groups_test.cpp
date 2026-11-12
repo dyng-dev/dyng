@@ -23,6 +23,7 @@
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/sssp.hpp>
 
+#include <cuda.h>  // CUfunctionLoadingState (the driver function is fetched through the runtime)
 #include <cuda_runtime_api.h>
 
 #include <gtest/gtest.h>
@@ -114,6 +115,50 @@ TEST(KernelGroups, LoadLoadsTheNamedGroupsOnly) {
   kernel_groups::load({"cycle_count"});  // idempotent
   EXPECT_TRUE(loaded("cycle_count"));
   EXPECT_EQ(cudaGetLastError(), cudaSuccess);
+}
+
+TEST(KernelGroups, LoadingAGroupLoadsEveryKernelOfIt) {
+  // A group's load is the eager loading of its modules (M10b step 4): the runtime does not load
+  // the kernels of a fat binary registered after the context exists until their first use, which
+  // put label_propagation's module loading into the first timed update. Every kernel of a loaded
+  // group must be loaded (cuFuncIsLoaded, CUDA 12.4 and later) before any of them runs.
+  DYNG_SKIP_IF_NO_CUDA();
+  DYNG_SKIP_WITHOUT_KERNEL_GROUPS();
+  DYNG_SKIP_UNLESS_FRESH_PROCESS();
+#if CUDART_VERSION >= 12050
+  using is_loaded_fn = CUresult (*)(CUfunctionLoadingState*, CUfunction);
+  void* entry = nullptr;
+  cudaDriverEntryPointQueryResult found{};
+  if (cudaGetDriverEntryPointByVersion("cuFuncIsLoaded", &entry, 12040, cudaEnableDefault,
+                                       &found) != cudaSuccess ||
+      found != cudaDriverEntryPointSuccess || entry == nullptr) {
+    (void)cudaGetLastError();
+    GTEST_SKIP() << "the driver has no cuFuncIsLoaded";
+  }
+  const auto is_loaded = reinterpret_cast<is_loaded_fn>(entry);
+  const auto state_of = [&](const void* host_function) {
+    cudaFunction_t f = nullptr;
+    EXPECT_EQ(cudaGetFuncBySymbol(&f, host_function), cudaSuccess);
+    CUfunctionLoadingState state = CU_FUNCTION_LOADING_STATE_MAX;
+    EXPECT_EQ(is_loaded(&state, reinterpret_cast<CUfunction>(f)), CUDA_SUCCESS);
+    return state;
+  };
+  const auto res = dyng::resources::cuda();
+  ASSERT_EQ(cudaFree(nullptr), cudaSuccess);
+  kernel_groups::load({"cycle_count"});
+  ASSERT_TRUE(loaded("cycle_count"));
+  std::size_t checked = 0;
+  for (const auto& kernel : dyng::detail::registered_kernels()) {
+    if (kernel.group != nullptr && std::strcmp(kernel.group, "cycle_count") == 0) {
+      EXPECT_EQ(state_of(kernel.function), CU_FUNCTION_LOADING_STATE_LOADED) << kernel.name;
+      ++checked;
+    }
+  }
+  EXPECT_GT(checked, 0u);
+  EXPECT_EQ(cudaGetLastError(), cudaSuccess);
+#else
+  GTEST_SKIP() << "cuFuncIsLoaded needs CUDA 12.5's cudaGetDriverEntryPointByVersion";
+#endif
 }
 
 TEST(KernelGroups, TheFirstUseOfAnAlgorithmLoadsItsGroupOnly) {

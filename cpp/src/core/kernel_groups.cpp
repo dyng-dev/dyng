@@ -178,11 +178,26 @@ int kernel_group::ensure() noexcept {
     __cudaRegisterFatBinaryEnd(record->runtime);
     kernels += record->functions.size();
   }
-  // The runtime creates the modules of fat binaries registered after the context exists at its
-  // next call (eagerly under CUDA_MODULE_LOADING=EAGER): make that call here, so that the cost is
-  // paid by the call that loads the group and not by the next timed one. cudaFree(nullptr)
-  // creates the current device's context if there is none yet.
+  // cudaFree(nullptr) creates the current device's context if there is none yet. The runtime
+  // does not create the modules of fat binaries registered after the context exists at that call,
+  // not even under CUDA_MODULE_LOADING=EAGER: it loads each kernel when it is first used (the
+  // first update of label_propagation's published flow paid about 7.6 ms for that at 50k; M10b
+  // step 4's final re-read). Ask for every kernel's attributes here, which loads it, so that the
+  // call that loads the group pays for its modules, as the context creation does for the
+  // modules registered at load time, and the next (timed) call does not. A kernel without an
+  // image for this device (its first launch reports that) is skipped, and its error is cleared
+  // so that no later check takes it for its own.
   status_ = static_cast<int>(cudaFree(nullptr));
+  if (status_ == 0) {
+    for (const fatbin_record* record : fatbins_) {
+      for (const function_record& f : record->functions) {
+        cudaFuncAttributes attributes{};
+        if (cudaFuncGetAttributes(&attributes, f.host_function) != cudaSuccess) {
+          (void)cudaGetLastError();
+        }
+      }
+    }
+  }
   loaded_.store(true, std::memory_order_release);
   if (log_enabled(log_level::debug)) {
     log_message(log_level::debug, "dyng: kernel group " + name_ + " loaded (" +
@@ -209,8 +224,11 @@ void** kernel_group::runtime_handle(void** handle) noexcept {
 #else  // !DYNG_HAS_CUDA
 
 int kernel_group::ensure() noexcept {
+  // Without CUDA there is nothing to register: the group is loaded, with no error.
+  const std::lock_guard<std::mutex> lock(mutex_);
+  status_ = 0;
   loaded_.store(true, std::memory_order_release);
-  return 0;
+  return status_;
 }
 
 void kernel_group::unregister(void** /*handle*/) noexcept {}

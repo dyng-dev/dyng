@@ -16,7 +16,7 @@
  * (`cudaFuncGetAttributes`, the occupancy queries, the kernel handle of a launch, ...) to
  * functions of a generated translation unit of the group, which call the kernel_group below.
  * The group records the registrations at load time instead of passing them on, and replays them
- * (then creates the modules with one runtime call) the first time:
+ * (then has the runtime load every kernel of the group) the first time:
  *
  * - a program asks for it (kernel_groups::load(), the warm-ups below), or
  * - any object of the group calls one of the renamed runtime functions: the first launch of one

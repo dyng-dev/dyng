@@ -210,8 +210,13 @@ included), and reads those regions again (2026-11-03, widened 2026-11-05).
    refuses (nm) an object that still calls such a function unrenamed, so a new use cannot slip past
    the group. The group records the registrations at load time; the first renamed call (the
    safety net: a group can never be used unloaded), `kernel_groups::load()` or a warm-up replays
-   them and makes one runtime call (`cudaFree(nullptr)`) so that the modules are created there, not
-   inside the next (timed) call. Thread-safe; the groups are never destroyed (the runtime's
+   them, creates the context if there is none (`cudaFree(nullptr)`) and asks for every recorded
+   kernel's attributes (`cudaFuncGetAttributes`), which loads it, so that the modules are created
+   there, not inside the next (timed) call: the runtime loads the kernels of a fat binary
+   registered after the context exists at their first use, even under `CUDA_MODULE_LOADING=EAGER`
+   (a kernel without an image for the device is skipped and its error cleared). The first version
+   of this step made only the `cudaFree(nullptr)` call; the final re-read found the cost in
+   label_propagation's first timed update (section "Consequences"). Thread-safe; the groups are never destroyed (the runtime's
    `atexit` unregistration may run after the static destructors). It works the same in shared and
    static builds (the wheels).
 3. **Warm-ups.** `resources::warm_up()` keeps its frozen contract ("loads every kernel of the
@@ -238,7 +243,15 @@ included), and reads those regions again (2026-11-03, widened 2026-11-05).
   its first use: a label_propagation process no longer loads cycle_count's 6 MB of fat binaries or
   the hypergraph containers', and an sssp process none of label_propagation's or M11's. The
   re-read regions and the context probe are `parity/results/M10b.md` section 4.
-- Under lazy module loading (the CUDA 12.2+ default outside the gates) nothing changes for users.
+- **The first version's miss (M10b step 4's final re-read).** With only `cudaFree(nullptr)` after
+  the replay, the runtime created label_propagation's modules at their first launch: in the
+  published flow, inside the first timed update (`update[b0]` 0.31 ms on M10a's library, 7.9 ms
+  on `b359d20`'s at 50k, 8.0 ms at 500k; the gate's `update[sum]` 1.077 at 50k, above 1.05, and
+  ADR 0024's LP slotted path 1.072). Loading every kernel of the group in `ensure()` moves the cost
+  back out of the timed region (`parity/results/M10b.md` section 4); a test checks that every
+  registered kernel of a loaded group is loaded (`cuFuncIsLoaded`).
+- Under lazy module loading (the CUDA 12.2+ default outside the gates) nothing changes for users
+  but the moment a group's kernels load: all of them at the group's first use.
 - A new runtime entry point that takes a kernel or a device symbol must be added to
   `DYNG_KERNEL_GROUP_SYMBOLS` and the template; the launcher's check fails the build until it is.
 - For M11 (the integrator): `dyng-compat-hsosp` may use the narrow warm-up as the other tools do
