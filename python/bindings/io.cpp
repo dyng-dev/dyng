@@ -151,6 +151,15 @@ void bind_weighted_io(nb::module_& m) {
         auto batches = without_gil([&] { return io::read_batches<vertex_t, weight_t>(path, opt); });
         nb::list out;
         for (const auto& b : batches) {
+          // 0.4 (AD13): '+v' / '-v' lines (label_propagation's vertex batches). The Python layer
+          // does not carry them yet: refuse the file rather than drop them.
+          if (!b.insert_vertices().empty() || !b.delete_vertices().empty()) {
+            throw not_supported_error(
+                "dyng: " + path +
+                ": the file has vertex operations ('+v' / '-v': label_propagation's vertex "
+                "batches): planned for the Python layer of 0.4; until then read the file from "
+                "C++");
+          }
           out.append(batch_to_numpy(b));
         }
         return out;
@@ -399,6 +408,18 @@ nb::tuple current_batch(const io::batch_reader& r) {
     return nb::make_tuple(copied(b.insert_src), copied(b.insert_dst), weights, copied(b.delete_src),
                           copied(b.delete_dst), is_unweighted_v<weight_t> ? 0 : b.num_weights);
   };
+  // 0.4 (AD13): the vertex records and float32 weights of label_propagation's batch files. The
+  // Python layer does not carry them yet: refuse the file rather than drop them.
+  if ((h.flags & io::batch_file_flags::vertex_records) != 0) {
+    throw not_supported_error(
+        "dyng: a .dgb file with vertex records (flag vertex_records: label_propagation's vertex "
+        "batches): planned for the Python layer of 0.4; until then read the file from C++");
+  }
+  if (h.weight_type == io::batch_dtype::float32) {
+    throw not_supported_error(
+        "dyng: a .dgb file with float32 weights (label_propagation's float graphs): planned for "
+        "the Python layer of 0.4; until then read the file from C++");
+  }
   DYNG_EXPECTS(h.weight_type != io::batch_dtype::int64,
                "the Python package reads graph .dgb files with int32 weights or none");
   nb::object batch;
