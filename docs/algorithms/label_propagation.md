@@ -8,8 +8,9 @@ OpenMP backend in 0.4). Paper: DynLP (ICS 2026); the port of LabelPropagation-CU
 (ADRs 0069-0075).
 
 :::{note}
-This page describes the state of M10a step 4; M10b completes it (Python, the command line, the
-formats, the streaming mode). The decisions behind it are the author's of 2026-10-28
+This page describes the state of M10b step 2 (the operators engine, the streaming mode on slack
+rows, the batch files' vertex records and the label files); M10b completes it (Python, the command
+line, the ten sections of the algorithm pages). The decisions behind it are the author's of 2026-10-28
 (GOVERNANCE.md, approvals log).
 :::
 
@@ -97,14 +98,27 @@ the original's timers. `result::reserve()` sizes the result's workspaces and, on
 batch's vertex ids and the page-locked staging of its pageable arrays grow on demand (the first
 vertex batch's size exactly, a later larger batch with 1.5x headroom), so the published stream
 allocates in its first two vertex batches at most. Leaving `options::similarity_threshold` unset
-computes tau from the current graph in every update; on cuda that downloads the rows first (a
-device-to-host copy of the slot storage per update): pass the stream's published tau. The gates
-against the original (AD2) are read on the CUDA backend (M10a step 5).
+is the streaming mode's threshold (ADR 0104): the average weight of the current graph's live
+entries, maintained by the result as a double sum and a count (on cuda each such update reads the
+deleted vertices' rows on the host, a download of the rows): the published setup passes the
+stream's tau. The gates against the original (AD2) are read on the CUDA backend (M10a step 5).
+
+**The streaming mode** (an advanced mode with no gate; the author's decision AD16 of 2026-10-28;
+ADRs 0103, 0104): when the degrees are not known up front, build the graph with
+`row_layout::slack` (`graph::with_capacity()` with no or partial capacity hints: each row gets
+`ceil(k * (1 + graph_properties::headroom))` slots, a row that outgrows them moves to the tail of
+the slot arena with its entries in order, and the rows are compacted when the dead slots
+outnumber the owned ones) and leave `similarity_threshold` unset. Damped on slack rows is bitwise
+slotted's while no compaction has run (a compaction changes the slot order of a row, and so the
+order of its sum); the harmonic oracle holds on every batch. Against the published setup at 500k
+it took 1.39x the update time (1.48x with the streaming threshold) and 1.59x the device memory
+(`parity/results/M10b.md` section 2.8; reported, never gated).
 
 ## 6. Limitations
 
-- `update()` needs `row_layout::slotted` (`graph::with_capacity()`, the full graph's degrees as
-  capacities); the streaming mode (`row_layout::slack`) arrives in M10b.
+- `update()` needs `row_layout::slotted` or `row_layout::slack` (`graph::with_capacity()`); it
+  refuses a batch that would grow the vertex set of a slack graph (`allow_vertex_growth`): build
+  the graph with the stream's final vertex count.
 - Edge deletions are not supported (vertices leave with their edges).
 - After a seed is deleted, labels far from it can stay stale. The propagation starts at the
   deleted seed's neighbours and stops where the changes fall below `options::tolerance` (under
