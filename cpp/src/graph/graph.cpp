@@ -551,7 +551,7 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
       if (delta != nullptr) {
         fill_set_delta(*normalized, *delta);
       }
-      state.replace_device_edges(std::move(next));
+      state.replace_device_edges(res, std::move(next));
       ++state.version;
       state.state_id = next_graph_state_id();
       return normalized->summary;
@@ -561,8 +561,10 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
   const apply_summary summary = apply_batch_host(state.host_edges(), batch, state.props, updated,
                                                  delta, host_threads(res), normalized);
   state.host_edges_for_write() = std::move(updated);
-  state.drop_in_edges();      // rebuilt on first use (graph_access::view, graph::view)
-  state.drop_device_edges();  // uploaded again on first use (graph_access::device)
+  state.drop_in_edges();  // rebuilt on first use (graph_access::view, graph::view)
+  // Uploaded again on first use (graph_access::device). The copy of G_t is released on the stream
+  // of `res`, after what this call queued there (ADR 0120).
+  state.drop_device_edges(res);
   ++state.version;
   state.state_id = next_graph_state_id();
   return summary;
@@ -681,17 +683,29 @@ graph_impl<vertex_t, edge_t, weight_t>::device_edges(const resources& res, bool 
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void graph_impl<vertex_t, edge_t, weight_t>::drop_device_edges() noexcept {
+void graph_impl<vertex_t, edge_t, weight_t>::release_device_on(const resources& res) noexcept {
+  // ADR 0120: a call that drops G_t's copy may have queued work that reads it on its own stream
+  // (cycle_count's delete phase, before the commit); released on the streams the copy was built
+  // on, the memory could return to the pool before that work ran.
+  if (device_ != nullptr && res.get_backend() == backend::cuda && res.device() == device_->device) {
+    device_->release_on(res.stream());
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void graph_impl<vertex_t, edge_t, weight_t>::drop_device_edges(const resources& res) noexcept {
   device_built_.store(false, std::memory_order_release);
   device_in_built_.store(false, std::memory_order_release);
+  release_device_on(res);
   device_.reset();
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void graph_impl<vertex_t, edge_t, weight_t>::replace_device_edges(
-    std::unique_ptr<device_type> next) noexcept {
+    const resources& res, std::unique_ptr<device_type> next) noexcept {
   host_current_.store(false, std::memory_order_release);
   drop_in_edges();
+  release_device_on(res);
   device_ = std::move(next);
   device_in_built_.store(device_->has_in_edges, std::memory_order_release);
   device_built_.store(true, std::memory_order_release);

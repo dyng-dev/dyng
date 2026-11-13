@@ -394,6 +394,9 @@ class graph {
    * hold (resident device copy, batch_semantics::set(), no weight columns, 32-bit vertex ids):
    * the host CSR is then left stale and downloaded on the next host read. Otherwise it is applied
    * to the host CSR and the device copy is dropped (uploaded again on first use). ADR 0020.
+   * With CUDA resources of the graph's device, the device copy of the previous version is
+   * released in the order of the stream of `res`, after the work already queued there (which may
+   * still read it), whichever stream it was built on (ADR 0120).
    *
    * @param[in] res   Execution resources (host threads; for the device merge, CUDA resources of
    *                  the graph's device).

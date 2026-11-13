@@ -47,3 +47,10 @@ reference entry says whether it is synchronous or stream-ordered, and which call
 scratch memory of the algorithms belongs to the `resources` handle and is reused across calls
 (ADR 0015, ADR 0016). `resources::warm_up()` pays the one-time costs (context creation, kernel
 loading) before a timed region.
+
+A graph and its results may be used through handles on different streams of the same device,
+one call after another, when the caller orders the calls (an event or a synchronization between
+a call on one stream and the next call on another; containers and results are not thread-safe).
+Memory that a call replaces, such as the device copy of the graph's previous version or a
+result's arrays outgrown by new vertices, is released in the order of that call's stream, after
+the work the call queued there, whichever stream it was allocated on (ADR 0016, ADR 0120).
