@@ -133,6 +133,10 @@ Deferred beyond 0.3.0:
   an as-is update with the shared static solve (0.69-0.74 of the ported recompute); and the
   rename-only move of `invalidate_subtree` and `packed_min` into `cpp/src/operators/` (two users
   now), with its own SASS record.
+- After 0.4.0 (from M10b's per-algorithm kernel loading, ADR 0109; the author's decision of
+  2026-11-13): a device allocation order independent of which kernel modules are resident. With
+  fewer modules loaded, sssp's persistent kernel reads about 4 % slower on roadNet-PA's 50k
+  batches (1.035-1.041 against `ae5fc47`; 1.000-1.001 with every kernel group loaded at start-up).
 - conda-forge packages; aarch64 wheels.
 
 ## Towards 1.0
