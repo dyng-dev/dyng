@@ -31,20 +31,23 @@
 
 // The CUDA runtime's registration entry points (crt/host_runtime.h declares them for nvcc's
 // generated host code only). The same declarations; called here with the arguments the group
-// recorded.
+// recorded. Their names are the runtime's ABI, so the naming checks are suppressed line by line.
 extern "C" {
-void** __cudaRegisterFatBinary(void* fatbin);    // NOLINT(bugprone-reserved-identifier)
-void __cudaRegisterFatBinaryEnd(void** handle);  // NOLINT(bugprone-reserved-identifier)
-void __cudaUnregisterFatBinary(void** handle);   // NOLINT(bugprone-reserved-identifier)
-// NOLINTNEXTLINE(bugprone-reserved-identifier)
+// NOLINTNEXTLINE(bugprone-reserved-identifier,readability-identifier-naming)
+void** __cudaRegisterFatBinary(void* fatbin);
+// NOLINTNEXTLINE(bugprone-reserved-identifier,readability-identifier-naming)
+void __cudaRegisterFatBinaryEnd(void** handle);
+// NOLINTNEXTLINE(bugprone-reserved-identifier,readability-identifier-naming)
+void __cudaUnregisterFatBinary(void** handle);
+// NOLINTNEXTLINE(bugprone-reserved-identifier,readability-identifier-naming)
 void __cudaRegisterFunction(void** handle, const char* host_function, char* device_function,
                             const char* device_name, int thread_limit, uint3* tid, uint3* bid,
                             dim3* block_dim, dim3* grid_dim, int* warp_size);
-// NOLINTNEXTLINE(bugprone-reserved-identifier)
+// NOLINTNEXTLINE(bugprone-reserved-identifier,readability-identifier-naming)
 void __cudaRegisterVar(void** handle, char* host_variable, char* device_address,
                        const char* device_name, int ext, std::size_t size, int constant,
                        int global);
-// NOLINTNEXTLINE(bugprone-reserved-identifier)
+// NOLINTNEXTLINE(bugprone-reserved-identifier,readability-identifier-naming)
 void __cudaRegisterManagedVar(void** handle, void** host_variable_address, char* device_address,
                               const char* device_name, int ext, std::size_t size, int constant,
                               int global);
