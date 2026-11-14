@@ -228,6 +228,10 @@ class result {
 
   /**
    * @brief Change the options (every field is a tunable).
+   *
+   * The options are checked here one by one; a combination a backend refuses is refused by the
+   * next update() (on cuda, options::cuda_engine = engine::operators with schedule::in_place:
+   * not_supported_error, nothing changed).
    * @param[in] opt The new options.
    * @throws invalid_argument_error if an option is out of range (tolerance <= 0 or NaN,
    *         max_iterations <= 0, a NaN similarity_threshold), or for a moved-from result.
@@ -255,7 +259,8 @@ class result {
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    * @throws not_supported_error    if the backend of `res` is not available for
    *         label_propagation (OpenMP: use dyng.Resources("sequential") or cuda).
-   * @throws out_of_memory_error    if the copy cannot be allocated.
+   * @throws out_of_memory_error    if the copy cannot be allocated (host or device memory).
+   * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
    * @sync
    */
   [[nodiscard]] result clone(const resources& res) const;
@@ -280,7 +285,8 @@ class result {
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    * @throws not_supported_error    if the backend of `res` is not available for
    *         label_propagation.
-   * @throws out_of_memory_error    if the workspaces cannot be allocated.
+   * @throws out_of_memory_error    if the workspaces cannot be allocated (host or device memory).
+   * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
    * @sync
    */
   void reserve(const resources& res, std::size_t max_batch_vertices, std::size_t max_batch_edges);
@@ -380,10 +386,13 @@ namespace dyng::label_propagation {
  *         seed is out of range, listed twice, not active, or its label is not 0 or 1, or `g` is
  *         not host storage for host resources.
  * @throws not_supported_error    if the backend of `res` is not available for label_propagation
- *         (OpenMP in 0.4: the message names sequential and cuda; use dyng.Resources("sequential")).
+ *         (OpenMP in 0.4: the message names sequential and cuda; use dyng.Resources("sequential")),
+ *         or on cuda options::cuda_engine is engine::operators with schedule::in_place (the
+ *         operators engine runs schedule::damped only).
  * @throws convergence_error      if the cap is reached and options::on_iteration_limit is
  *         on_limit::error or on_limit::fallback_recompute (compute() is the recomputation).
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
  * @sync
  * @backends sequential, cuda (IrLP's kernel verbatim: per snapshot bitwise the original's)
  * @determinism Bitwise per backend and build (Jacobi from fixed starting labels).
@@ -451,10 +460,14 @@ template <typename vertex_t, typename edge_t>
  * @throws not_supported_error    if `g` does not have row_layout::slotted or slack, the batch
  *         deletes edges or would grow the vertex set (nothing is changed),
  *         or the backend of `res` is not available for label_propagation (OpenMP in 0.4: use
- *         dyng.Resources("sequential")).
+ *         dyng.Resources("sequential")), or on cuda options::cuda_engine is engine::operators with
+ *         schedule::in_place (the operators engine runs schedule::damped only; nothing is
+ *         changed).
  * @throws convergence_error      if the cap is reached under on_limit::error (after the batch was
  *         applied: `r` is left unusable).
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error (cuda backend; after the
+ *         batch was applied, `r` is left unusable).
  * @sync
  * @backends sequential, cuda (the fused engine: the original's pipeline on the resources' one
  *           stream, the graph's rows resident on the device; ADR 0075)

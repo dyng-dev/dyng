@@ -602,7 +602,9 @@ class Graph:
         :attr:`~dyng.generators.VertexArrivalStream.row_capacity`, the full graph's degrees).
 
         ``layout="slotted"`` rows are fixed: an append past a row's capacity raises
-        :class:`~dyng.CapacityError` before anything changes. ``layout="slack"`` rows (the
+        :class:`~dyng.CapacityError`; on the host backends before anything changes, on cuda after
+        the batch was applied on the device (the graph is then updated and poisoned, and a result
+        of it unusable; ADR 0074). ``layout="slack"`` rows (the
         streaming mode) get ``ceil(row_capacity[v] * (1 + headroom))`` slots; a row that
         overflows moves to the end of the slot arena with its order kept, and the rows are
         compacted when the slots left by moved rows outnumber the slots the rows own; there

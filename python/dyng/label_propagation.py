@@ -34,7 +34,11 @@ the seed labels and the propagation tags: 13 bytes per vertex on the host, 17 on
 writes the copy, so the export never changes under its reader. Drop the
 exports before the next update (``del t``) to update in place without the copy. A stale
 :class:`dyng.Array` (read before an update) raises :class:`~dyng.StaleResultError`; the tensor
-made from it stays valid with the old labels.
+made from it stays valid with the old labels. Copy-on-write protects the export from the result,
+not the result from the export: PyTorch and CuPy have no read-only arrays, so a tensor from
+``torch.from_dlpack(r.labels)`` (or ``r.labels.to_torch()``) aliases the result's labels and must
+not be written (a write changes the state the next :func:`update` starts from); ``clone()`` it to
+modify it.
 
 Example:
     >>> import dyng
@@ -141,10 +145,12 @@ class Options:
 class Stats:
     """Counters of one :func:`update` (C++ ``dyng::label_propagation::stats``).
 
-    Under ``"damped"`` every field is deterministic per backend; under ``"in_place"``
-    ``affected``, ``converged``, ``fallback_used``, ``iterations`` and ``frontier_visits``
-    depend on the schedule (``batch``, ``components``, ``sparsified_edges`` and
-    ``initial_frontier`` stay deterministic).
+    The determinism levels of the C++ stats (AD20): ``affected``, ``converged`` and
+    ``fallback_used`` are deterministic per backend under ``"damped"`` and schedule-dependent
+    under ``"in_place"``; ``iterations`` and ``frontier_visits`` are schedule-dependent (under
+    ``"damped"`` they repeat from run to run on one backend); ``engine_used`` is deterministic per
+    backend; ``batch``, ``components``, ``sparsified_edges`` and ``initial_frontier`` are
+    deterministic.
 
     Attributes:
         affected: Vertices whose label bits changed.
@@ -358,10 +364,13 @@ def compute(
     Raises:
         InvalidArgumentError: a seed is not an active vertex, listed twice, or its class is not
             0 or 1; an invalid option.
-        NotSupportedError: a graph of another type, or OpenMP resources (use
-            ``dyng.Resources("sequential")``).
+        NotSupportedError: a graph of another type, OpenMP resources (use
+            ``dyng.Resources("sequential")``), or on cuda ``cuda_engine="operators"`` with
+            ``update_schedule="in_place"`` (the operators engine runs ``"damped"`` only).
         ConvergenceError: the iteration cap was reached under ``on_iteration_limit`` other than
             ``"report"``.
+        OutOfMemoryError: host or device memory cannot be allocated.
+        CudaError: the CUDA runtime reports an error (cuda backend).
     """
     _check_graph(graph)
     opt = with_options(Options, options, kwargs, "label_propagation.compute")
@@ -393,8 +402,16 @@ def update(
         StaleResultError: ``result`` does not match the graph's current state.
         InvalidArgumentError: an invalid id, label or weight in the batch (nothing is changed).
         NotSupportedError: compact rows, OpenMP resources, or an engine the schedule does not
-            have.
-        CapacityError: a slotted row overflows (nothing is changed).
+            have (on cuda ``cuda_engine="operators"`` with ``update_schedule="in_place"``);
+            nothing is changed.
+        CapacityError: a slotted row overflows: on the sequential backend nothing is changed; on
+            cuda the overflow is found on the device after the batch was applied, so the graph is
+            updated and poisoned and ``result`` is unusable.
+        ConvergenceError: the iteration cap was reached under ``on_iteration_limit="error"``
+            (after the batch was applied: ``result`` is left unusable).
+        OutOfMemoryError: host or device memory cannot be allocated.
+        CudaError: the CUDA runtime reports an error (cuda backend; after the batch was applied,
+            ``result`` is left unusable).
     """
     _check_graph(graph)
     if not isinstance(result, Result):
