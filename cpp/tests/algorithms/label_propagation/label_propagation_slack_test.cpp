@@ -17,6 +17,9 @@
  *   model; with half the capacities, a headroom of 0 and a compaction forced after every second
  *   batch (graph_access::compact_slack: the rows of a 5k5 stream never outgrow their dead slots
  *   in 5 batches), the oracles still pass;
+ * - compactions inside update() (no hints, a headroom of 0, 24 batches of a 5k stream): the
+ *   states, the rows, the seeds and the label range every batch, and damped's labels against
+ *   slotted rows (bitwise until the first compaction, then within 100 delta on average);
  * - the vertex growth of slack rows is refused by update() before anything changes.
  */
 #include "graph/graph_impl.hpp"
@@ -374,6 +377,111 @@ void check_streaming(std::int64_t n, std::int32_t batches, lp::schedule rule, in
 
 #if !defined(DYNG_TEST_SLACK_LARGE)
 
+/// Compactions inside update() (no capacity hints, a headroom of 0, a long stream: the dead slots
+/// of the moved rows outgrow the owned ones, and apply() compacts within the batch, after the
+/// engines' workspaces were sized for the batch). The published threshold; every batch: the
+/// states against lp_host_model, the rows against the slack model, the seeds exact, every label in
+/// [0, 1], converged; under damped also the labels against the same stream on slotted rows (dynG
+/// against dynG: bitwise until the first compaction, then within 100 delta on average, since a
+/// compaction changes the order in which the device sums a row's entries; in_place is not
+/// repeatable on cuda, so its labels have no slotted reference here). The harmonic
+/// oracle's bound (AD7) is calibrated on corpus C's short streams (5 and 10 batches); on a stream
+/// this long O's incremental rule drifts past it on slotted rows as well (ADR 0104), so it is not
+/// the reference here.
+void check_natural_compactions(std::int64_t n, std::int32_t batches, lp::schedule rule) {
+  const float delta = 1e-6F;
+  const dyng::resources res = test_resources();
+  const stream_t s = make_stream(n, batches);
+  const bool damped = rule == lp::schedule::damped;
+  const run_record slotted =
+      damped ? run_published(s, dyng::row_layout::slotted, 100, rule) : run_record{};
+  lp_graph g = make_graph(res, s, dyng::row_layout::slack, 0, 0.0);
+  lp::options opt;
+  opt.similarity_threshold = s.similarity_threshold;
+  opt.update_schedule = rule;
+  auto r = lp::compute(res, g, dyng::array_view<const std::int32_t>(),
+                       dyng::array_view<const std::int8_t>(), opt);
+  std::vector<std::int64_t> cap64(s.row_capacity.begin(), s.row_capacity.end());
+  dt::lp_host_model model(cap64);
+  dyng::test::slack_model rows(n);
+  std::int64_t compactions = 0;
+  double worst_mean = 0.0;
+  float worst_max = 0.0F;
+  for (std::size_t b = 0; b < s.batches.size(); ++b) {
+    SCOPED_TRACE("batch " + std::to_string(b));
+    const auto& batch = s.batches[b];
+    const lp::stats st = lp::update(res, g, batch.view(), r);
+    dt::lp_model_batch mb;
+    mb.insert_vertices = batch.insert_vertices;
+    mb.insert_labels = batch.insert_vertex_labels;
+    mb.delete_vertices = batch.delete_vertices;
+    mb.edge_sources = batch.edge_sources;
+    mb.edge_destinations = batch.edge_destinations;
+    mb.edge_weights = batch.edge_weights;
+    (void)model.apply(mb, s.similarity_threshold);
+    rows.apply(batch.view(), st.batch.compactions > 0);
+    compactions += st.batch.compactions;
+    EXPECT_TRUE(st.converged);
+    const auto view = g.view();
+    std::int64_t status_diff = 0;
+    for (std::int32_t v = 0; v < model.num_vertices(); ++v) {
+      const auto vv = static_cast<std::size_t>(v);
+      const auto ms = model.states()[vv];
+      const auto gs = view.status[vv];
+      const bool same =
+          (ms == dt::lp_host_model::vertex_state::inactive &&
+           gs == dyng::vertex_status::inactive) ||
+          (ms == dt::lp_host_model::vertex_state::active && gs == dyng::vertex_status::active) ||
+          (ms == dt::lp_host_model::vertex_state::deleted && gs == dyng::vertex_status::deleted);
+      status_diff += same ? 0 : 1;
+    }
+    EXPECT_EQ(status_diff, 0);
+    rows.expect_equal(g, "batch " + std::to_string(b));
+    const std::vector<float> labels = host_labels(res, r);
+    std::vector<float> reference = labels;
+    if (damped) {
+      std::memcpy(reference.data(), slotted.bits[b].data(), reference.size() * sizeof(float));
+    }
+    std::int64_t outside = 0;
+    std::int64_t seeds_wrong = 0;
+    double sum = 0.0;
+    float largest = 0.0F;
+    std::int64_t present = 0;
+    for (std::size_t v = 0; v < labels.size(); ++v) {
+      outside += (labels[v] >= 0.0F && labels[v] <= 1.0F) ? 0 : 1;
+      const std::int8_t seed = model.seed_labels()[v];
+      seeds_wrong += (seed >= 0 && labels[v] != static_cast<float>(seed)) ? 1 : 0;
+      if (model.present()[v] != 0) {
+        const float d =
+            labels[v] > reference[v] ? labels[v] - reference[v] : reference[v] - labels[v];
+        sum += static_cast<double>(d);
+        largest = std::max(largest, d);
+        ++present;
+      }
+    }
+    EXPECT_EQ(outside, 0);
+    EXPECT_EQ(seeds_wrong, 0);
+    const double mean = present > 0 ? sum / static_cast<double>(present) : 0.0;
+    worst_mean = std::max(worst_mean, mean);
+    worst_max = std::max(worst_max, largest);
+    if (compactions == 0) {
+      EXPECT_EQ(labels, reference) << "no compaction yet: bitwise slotted";
+    }
+    // The tolerance's scale: the two runs stop within delta of each other's iterates.
+    EXPECT_LE(mean, 100.0 * static_cast<double>(delta)) << "mean |F_slack - F_slotted|";
+    if (::testing::Test::HasFatalFailure()) return;
+  }
+  ::testing::Test::RecordProperty("compactions", static_cast<int>(compactions));
+  ::testing::Test::RecordProperty("worst_mean", std::to_string(worst_mean));
+  ::testing::Test::RecordProperty("worst_max", std::to_string(worst_max));
+  EXPECT_GT(compactions, 0) << "the stream ran no compaction inside update()";
+  EXPECT_NO_THROW(g.check_integrity(res));
+}
+
+#endif  // !DYNG_TEST_SLACK_LARGE
+
+#if !defined(DYNG_TEST_SLACK_LARGE)
+
 TEST(LabelPropagationSlack, DampedIsBitwiseSlottedWhileNoCompactionRan5k5) {
   expect_bitwise_slotted(5000, 5);
 }
@@ -389,6 +497,11 @@ TEST(LabelPropagationSlack, StreamingInPlace5k5) {
 TEST(LabelPropagationSlack, ForcedCompactionsAndTheOracles5k5) {
   check_streaming(5000, 5, lp::schedule::damped, 50, 0.0, true, true);
   check_streaming(5000, 5, lp::schedule::in_place, 50, 0.0, true, false);
+}
+
+TEST(LabelPropagationSlack, NaturalCompactionsInsideUpdate5k24) {
+  check_natural_compactions(5000, 24, lp::schedule::damped);
+  check_natural_compactions(5000, 24, lp::schedule::in_place);
 }
 
 TEST(LabelPropagationSlack, VertexGrowthIsRefusedBeforeAnythingChanges) {
