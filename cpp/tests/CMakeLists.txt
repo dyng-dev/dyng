@@ -1620,9 +1620,15 @@ if(DYNG_LP_MUTATION_TESTS AND TARGET dyng_label_propagation AND TARGET dyng_grap
       "LabelPropagation.*:LabelPropagationChecker.*5k5:LabelPropagationCuda.HubGolden")
   # M10b (ADR 0101): every mutant but inplace_plain_jacobi (the operators engine has no in_place
   # schedule, so that mutant has no code to act on there) must also fail the operators engine's own
-  # cases alone (label_propagation.mutation.cuda_operators.<name>).
+  # cases alone (label_propagation.mutation.cuda_operators.<name>): the cases that judge the
+  # operators engine against fixed truth (the checker's oracles and the hub golden), not the ones
+  # that compare it with the fused engine, which a mutant of the fused engine alone also fails.
+  # Those run in the control-only row label_propagation.mutation.cuda_operators_vs_fused.control.
   set(_dyng_lp_mutant_operators_filter
-      "LabelPropagationChecker.DampedOperators5k5:LabelPropagationCuda.OperatorsEngine*")
+      "LabelPropagationChecker.DampedOperators5k5:LabelPropagationCuda.OperatorsEngineHubGolden")
+  set(_dyng_lp_mutant_operators_vs_fused_filter
+      "LabelPropagationCuda.OperatorsEngineIsTheFusedEnginesBitsAndCounts:LabelPropagationCuda.OperatorsEngineLimitsAndScope"
+  )
   foreach(_entry IN LISTS _dyng_lp_mutants)
     string(REPLACE "|" ";" _mutant "${_entry}")
     list(GET _mutant 0 _name)
@@ -1724,6 +1730,19 @@ if(DYNG_LP_MUTATION_TESTS AND TARGET dyng_label_propagation AND TARGET dyng_grap
           )
           set_tests_properties(
             label_propagation.mutation.cuda_operators.${_name}
+            PROPERTIES LABELS "gpu;mutation;label_propagation" ENVIRONMENT
+                       "${DYNG_TEST_ENVIRONMENT}"
+          )
+        endif()
+        if(_name STREQUAL "control")
+          add_test(NAME label_propagation.mutation.cuda_operators_vs_fused.control
+                   COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=pass
+                           -DNAME=label_propagation.cuda_operators_vs_fused.control
+                           "-DFILTER=${_dyng_lp_mutant_operators_vs_fused_filter}" -P
+                           "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+          )
+          set_tests_properties(
+            label_propagation.mutation.cuda_operators_vs_fused.control
             PROPERTIES LABELS "gpu;mutation;label_propagation" ENVIRONMENT
                        "${DYNG_TEST_ENVIRONMENT}"
           )
