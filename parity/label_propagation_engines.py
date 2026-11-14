@@ -51,6 +51,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from pathlib import Path
@@ -182,6 +183,13 @@ def runs_dir() -> Path:
     return d
 
 
+def work_dir(prefix: str) -> Path:
+    """A work directory of this invocation under runs_dir(): concurrent runs of the comparator
+    (ci/gpu_local.sh, reviewers, verifiers) share $DYNG_SCRATCH, and a fixed directory would let
+    one run delete or read another's dumps."""
+    return Path(tempfile.mkdtemp(prefix=prefix, dir=runs_dir()))
+
+
 def heavy(argv: list[str]) -> list[str]:
     """A build under the shared perf lock, niced (no lock inside a window that holds it)."""
     lock = os.environ.get("DYNG_PERF_LOCK", str(g.scratch() / "perf.lock"))
@@ -290,6 +298,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     overall = 0.0
     counts_changed = []
     control_ok = True
+    work = work_dir("calibrate-")
     # One variant at a time: build (a reconfigure recompiles label_propagation's CUDA sources),
     # then every case on it (the tree's shared library is the variant's until the next build).
     for v in args.variants:
@@ -297,7 +306,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
         per_case = {}
         for case in cases:
             t0 = time.monotonic()
-            mine = run_case(exe, case, "fused", runs_dir() / f"calibrate-{v}")
+            mine = run_case(exe, case, "fused", work / v)
             gold = golden_of(case)
             dfs = per_batch_max_abs(mine["bits"], gold["bits"], case.n)
             counts = count_mismatches(mine["counts"], gold["counts"])
@@ -319,8 +328,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
                 if counts:
                     counts_changed.append({"variant": v, "case": case.name, "first": counts[0]})
         variants[v] = per_case
-    for v in args.variants:
-        shutil.rmtree(runs_dir() / f"calibrate-{v}", ignore_errors=True)
+    shutil.rmtree(work, ignore_errors=True)
     perturbed = [v for v in args.variants if v != "control"]
     c = constant_c(overall) if perturbed else None
     doc = {
@@ -364,9 +372,10 @@ def cmd_operators(args: argparse.Namespace) -> int:
     bound = frozen_bound()
     cases = [c for c in g.P_CASES if not args.cases or c.name in args.cases]
     results, ok = [], True
+    work = work_dir("operators-")
     for case in cases:
         t0 = time.monotonic()
-        mine = run_case(args.exe, case, "operators", runs_dir() / "operators")
+        mine = run_case(args.exe, case, "operators", work / "operators")
         gold = golden_of(case)
         counts = count_mismatches(mine["counts"], gold["counts"])
         row = {"case": case.name}
@@ -376,12 +385,12 @@ def cmd_operators(args: argparse.Namespace) -> int:
             if identical:
                 dfs = [0.0] * case.batches
             else:  # the fused engine's dump of the same case is the reference
-                ref = run_case(args.exe, case, "fused", runs_dir() / "operators-fused")
+                ref = run_case(args.exe, case, "fused", work / "operators-fused")
                 if per_batch_digests(ref["bits"], case.n) != gold["digests"]:
                     raise EngineError(f"{case.name}: the fused engine is not the golden's bits")
                 dfs = per_batch_max_abs(mine["bits"], ref["bits"], case.n)
                 row["first_divergence"] = first_divergence(mine["bits"], ref["bits"], case.n)
-                shutil.rmtree(runs_dir() / "operators-fused", ignore_errors=True)
+                shutil.rmtree(work / "operators-fused", ignore_errors=True)
         else:
             dfs = per_batch_max_abs(mine["bits"], gold["bits"], case.n)
             row["first_divergence"] = first_divergence(mine["bits"], gold["bits"], case.n)
@@ -401,7 +410,7 @@ def cmd_operators(args: argparse.Namespace) -> int:
         print(f"{case.name}: {'within' if verdict['equal'] else 'OUTSIDE'} (max |dF| = "
               f"{max(dfs):.3e}, bound {bound['bound']:.3e}; counts "
               f"{'identical' if not counts else counts[:3]})", flush=True)  # fmt: skip
-    shutil.rmtree(runs_dir() / "operators", ignore_errors=True)
+    shutil.rmtree(work, ignore_errors=True)
     if args.json:
         g.write_json(
             args.json,
