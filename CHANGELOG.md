@@ -331,6 +331,26 @@ Before 0.1.0 anything may change.
   setups, the compact-only algorithms); the tutorial `docs/tutorials/streaming_label_propagation.md`
   (quoting `examples/python/label_propagation_torch.py` and
   `python/tests/test_label_propagation_tutorial.py`); the sketch marked frozen.
+- M10b review fixes (fixed): **the `dyng-cu12` plugin's CUDA backend works again**: CUDA 12's
+  static runtime cannot use a fat binary registered after the context exists, so a CUDA 12 build
+  with the static runtime registers every module at load (`DYNG_DEFER_KERNEL_GROUPS` off; the cu13
+  plugin and the shared-runtime builds keep the kernel groups; ADR 0109); `ci/gpu_local.sh` builds
+  and tests the cu12 plugin too when a CUDA 12 toolkit is found. The legacy vertex-arrival
+  generator and `io::write_labels` regain M10a's speed (the legacy stream's integer draw out of
+  line again; the label lines formatted in chunks; the same bytes). A slack-row compaction keeps
+  the capacity of an active vertex's empty row (ADR 0103). `--edge-dtype` of `dyng generate
+  vertex_arrival_stream` / `dynlp_vertex_arrival_stream` lists its choices `int32` / `int64`.
+  `knn_graph.py --method sklearn` without scikit-learn ends in a message, not a traceback.
+- M10b review fixes (api-check): `ci/api_snapshot.py`'s `FROZEN_DECLARATIONS` guards the frozen
+  io declarations (`io::write_labels`, `read_labels`, `batch_dtype::float32`,
+  `batch_file_flags::vertex_records`, `known_graph`) inside the tracked io headers; the frozen
+  command-line flags keep their choices and defaults (a test); `ci/docs.sh` fails on an unreplaced
+  `*_PLACEHOLDER` token.
+- M10b review fixes (docs): the algorithm page's gate table and a checked Python snippet; the
+  complete error contracts of `<dyng/label_propagation.hpp>` and `dyng.label_propagation`
+  (`cuda_error`, device memory, the operators engine with `in_place`, `CapacityError` on cuda);
+  the stats' determinism levels in Python as in C++ (AD20); a tensor of the labels must not be
+  written; the generators page, the format page's flags and label normalization.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
