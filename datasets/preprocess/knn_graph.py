@@ -135,7 +135,13 @@ def neighbours_numpy(unit: np.ndarray, k: int) -> np.ndarray:
 def neighbours_sklearn(unit: np.ndarray, k: int) -> np.ndarray:
     """n x k neighbour ids: scikit-learn's brute-force cosine search finds k + 1 candidates per
     point, which the rule of the module description ranks with this script's similarities."""
-    from sklearn.neighbors import NearestNeighbors  # optional, BSD-3-Clause
+    try:
+        from sklearn.neighbors import NearestNeighbors  # optional, BSD-3-Clause
+    except ImportError:
+        raise SystemExit(
+            "--method sklearn needs scikit-learn (pip install scikit-learn); "
+            "use --method numpy or --method auto"
+        ) from None
 
     nn = NearestNeighbors(n_neighbors=k + 1, metric="cosine", algorithm="brute").fit(unit)
     _, cand = nn.kneighbors(unit)

@@ -160,6 +160,25 @@ def test_negative_similarities_and_bad_inputs(knn: ModuleType, tmp_path: Path) -
         )
 
 
+def test_method_sklearn_without_scikit_learn_is_a_clean_error(
+    knn: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--method sklearn where scikit-learn is missing (stubbed as absent) ends in a message that
+    names the fix, not a traceback; --method auto falls back to NumPy."""
+    import sys
+
+    for name in [m for m in sys.modules if m == "sklearn" or m.startswith("sklearn.")]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setitem(sys.modules, "sklearn", None)  # an import of it raises ImportError
+    x = np.array([[1.0, 0.0], [-1.0, 0.1], [0.9, 0.1], [-0.9, -0.2]])
+    np.savetxt(tmp_path / "x.csv", x, delimiter=",")
+    with pytest.raises(SystemExit, match="needs scikit-learn.*--method numpy"):
+        knn.main(
+            [str(tmp_path / "x.csv"), str(tmp_path / "s.txt"), "-k", "1", "--method", "sklearn"]
+        )
+    assert knn.main([str(tmp_path / "x.csv"), str(tmp_path / "a.txt"), "-k", "1"]) == 0
+
+
 def test_the_cli_equals_the_python_api(
     capsys: pytest.CaptureFixture[str],
     knn: ModuleType,
