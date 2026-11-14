@@ -301,12 +301,27 @@ inline const char* parse_token_float(const char* p, const char* end, float& valu
 void write_labels(const std::string& path, array_view<const float> labels) try {
   expect_host_array(labels, "write_labels");
   detail::text_writer out(path);
+  // The lines are formatted straight into a chunk and handed to the writer a chunk at a time, as
+  // the M10a compatibility tool's writer did (the bytes of text_writer::put() / put_fixed6()):
+  // a put per token cost about 20 % more on 5M labels (M10b's review of the end_to_end readings).
+  constexpr std::size_t chunk_size = std::size_t{1} << 20;
+  constexpr std::size_t line_size = 96;  // 20 digits, ' ', 39 + 1 + 6 characters, '\n'
+  std::string chunk(chunk_size + line_size, '\0');
+  char* const begin = chunk.data();
+  char* const end = begin + chunk.size();
+  char* const limit = begin + chunk_size;
+  char* p = begin;
   for (std::size_t v = 0; v < labels.size(); ++v) {
-    out.put(static_cast<std::int64_t>(v));
-    out.put_char(' ');
-    out.put_fixed6(labels[v]);
-    out.put_char('\n');
+    p = std::to_chars(p, end, static_cast<std::int64_t>(v)).ptr;
+    *p++ = ' ';
+    p = std::to_chars(p, end, static_cast<double>(labels[v]), std::chars_format::fixed, 6).ptr;
+    *p++ = '\n';
+    if (p >= limit) {
+      out.put(std::string_view(begin, static_cast<std::size_t>(p - begin)));
+      p = begin;
+    }
   }
+  out.put(std::string_view(begin, static_cast<std::size_t>(p - begin)));
   out.close();
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_labels (", path, ")")
