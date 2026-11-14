@@ -60,7 +60,9 @@ headers, reviewed for 0.1 in ADR 0023; the hypergraph container's headers hyperg
 and frozen at M8b for 0.3 in ADR 0047; and the header dyng/<name>.hpp of every algorithm whose
 manifest says maturity "stable": sssp and cycle_count since 0.1, mosp since 0.2, ADR 0035),
 `tracked` (io/*, generators/*, testing/* and the algorithms at another maturity, such as the
-tutorial algorithms: listed and checked the same way, but not frozen) or `experimental` (the
+tutorial algorithms: listed and checked the same way, but not frozen, except the declarations of
+FROZEN_DECLARATIONS: io::write_labels / read_labels and AD13's .dgb codes, frozen by name inside
+the tracked io headers at the end of M10b) or `experimental` (the
 experimental tier of PLAN 5.9, dyng/experimental/*: count_local_patterns, M9b, ADR 0058; its .hpp
 and .cuh headers are listed, and a difference from the baseline is reported but never fails the
 check, since an experimental API may change in any minor release with a CHANGELOG note). An
@@ -131,6 +133,42 @@ FROZEN_BEFORE_STABLE = [
 # The frozen headers: the core, the stable algorithms and the headers frozen before their
 # algorithm is stable.
 FROZEN = CORE_FROZEN + stable_algorithm_headers() + FROZEN_BEFORE_STABLE
+
+# Declarations frozen inside headers that stay tracked as a whole (io/* is not frozen): the M10b
+# additions to the formats and the label files (ADR 0109 finding 13; AD13 with D2, AD15: frozen at
+# the end of M10b). Per header, (name, pattern): once a base revision has a line that matches the
+# pattern (re.fullmatch on the stripped line), the current listing must have one too, so a changed
+# signature, default or value is a breaking change as in a frozen section. The enumerations may
+# gain enumerators after the frozen ones, and known_graph may gain flags besides vertex_records.
+FROZEN_DECLARATIONS: dict[str, list[tuple[str, str]]] = {
+    "dyng/io/result_io.hpp": [
+        (
+            "io::write_labels",
+            r"void dyng::io::write_labels\(const std::string &path, "
+            r"array_view< const float > labels\)",
+        ),
+        (
+            "io::read_labels",
+            r"\[\[nodiscard\]\] std::vector< float > dyng::io::read_labels\("
+            r"const std::string &path, std::int64_t num_vertices\)",
+        ),
+    ],
+    "dyng/io/batch_io.hpp": [
+        (
+            "io::batch_dtype::float32 = 3",
+            r"enum class dyng::io::batch_dtype : std::uint8_t "
+            r"\{ none = 0, int32 = 1, int64 = 2, float32 = 3(, .*)? \}",
+        ),
+        (
+            "io::batch_file_flags::vertex_records = 16U",
+            r"static constexpr std::uint64_t vertex_records = 16U",
+        ),
+        (
+            "io::batch_file_flags::known_graph (with vertex_records)",
+            r"static constexpr std::uint64_t known_graph = (16U|.*\bvertex_records\b.*)",
+        ),
+    ],
+}
 
 HEADER = """\
 # SPDX-FileCopyrightText: 2026 The dynG Authors
@@ -462,6 +500,11 @@ def without_experimental(text: str) -> str:
     return "".join(out)
 
 
+def has_line(lines: list[str], pattern: str) -> bool:
+    """Whether a declaration line of a section matches `pattern` (FROZEN_DECLARATIONS)."""
+    return any(re.fullmatch(pattern, line.strip()) for line in lines)
+
+
 def frozen_changes(base: str, current: str) -> tuple[list[str], list[str]]:
     """(breaking, added) changes of the frozen API between two listings: for every section
     frozen in either, the base's declaration lines that the current section no longer has (in
@@ -473,6 +516,9 @@ def frozen_changes(base: str, current: str) -> tuple[list[str], list[str]]:
         o_status, o_lines = old.get(header, ("tracked", []))
         n_status, n_lines = new.get(header, ("tracked", []))
         if "frozen" not in (o_status, n_status):
+            for name, pattern in FROZEN_DECLARATIONS.get(header, []):
+                if has_line(o_lines, pattern) and not has_line(n_lines, pattern):
+                    breaking.append(f"[{header}] {name}: a frozen declaration changed or removed")
             continue
         if header not in new:
             breaking.append(f"[{header}] removed")

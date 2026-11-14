@@ -320,7 +320,9 @@ TEST(VertexBatchBinary, Float32AndVertexRecordsRoundTrip) {
   io::write_binary_batches(dir.path("v.dgb"), views_of(batches));
   const std::string bytes = read_text(dir.path("v.dgb"));
   EXPECT_EQ(static_cast<unsigned char>(bytes[18]), 3U);  // weight code 3 = float32
-  EXPECT_EQ(u64_at(bytes, 24), io::batch_file_flags::vertex_records);
+  // AD13's on-disk flag: bit 4, the literal (the enumerator is frozen to it, ADR 0109).
+  EXPECT_EQ(u64_at(bytes, 24), std::uint64_t{16});
+  EXPECT_EQ(io::batch_file_flags::vertex_records, std::uint64_t{16});
   // The first record: the 48-byte count block (id, deletions, insertions, inserted vertices,
   // labels, deleted vertices), then the arrays.
   EXPECT_EQ(u64_at(bytes, 64 + 16 + 8), 0U);

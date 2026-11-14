@@ -551,3 +551,39 @@ def test_an_experimental_change_is_reported_not_failed(tmp_path, monkeypatch, ca
     assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 1
     # Never a frozen change.
     assert api_snapshot.frozen_changes(base, changed) == ([], [])
+
+
+def test_the_frozen_io_declarations_are_guarded_in_their_tracked_headers() -> None:
+    # The M10b freeze of io::write_labels / read_labels and AD13's .dgb codes (ADR 0109 finding
+    # 13): io/* stays tracked, but these declarations are frozen by name (FROZEN_DECLARATIONS). A
+    # new defaulted parameter, a changed enumerator or flag value is breaking; an appended
+    # enumerator, another graph flag in known_graph and other tracked edits are not.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    for header, entries in api_snapshot.FROZEN_DECLARATIONS.items():
+        assert secs[header][0] == "tracked", header
+        for name, pattern in entries:
+            assert api_snapshot.has_line(secs[header][1], pattern), name
+    for old, new in (
+        (
+            "array_view< const float > labels)\n",
+            "array_view< const float > labels, int precision=6)\n",
+        ),
+        (
+            "read_labels(const std::string &path, std::int64_t num_vertices)\n",
+            "read_labels(const std::string &path, std::int64_t num_vertices, bool strict=true)\n",
+        ),
+        ("int64 = 2, float32 = 3 }", "int64 = 2, float32 = 4 }"),
+        ("vertex_records = 16U\n", "vertex_records = 32U\n"),
+        ("known_graph = 16U\n", "known_graph = 32U\n"),
+    ):
+        assert old in BASELINE_TEXT, old
+        breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new))
+        assert breaking and all(b.startswith("[dyng/io/") for b in breaking), (old, breaking)
+    for old, new in (
+        ("int64 = 2, float32 = 3 }", "int64 = 2, float32 = 3, float64 = 4 }"),
+        ("known_graph = 16U\n", "known_graph = vertex_records | 32U\n"),
+    ):
+        assert api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new)) == (
+            [],
+            [],
+        ), old
