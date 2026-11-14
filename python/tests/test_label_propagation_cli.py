@@ -304,9 +304,98 @@ FROZEN_FLAGS = {
 }
 
 
+# And each frozen flag's choices, argparse default and required-ness (ADR 0109 decision 1: the
+# flags are frozen with their values; a flag whose default is None takes the Options field's or
+# the generator argument's default, which the griffe baseline guards). Adding a choice is
+# additive (update the table with the CHANGELOG entry); removing one or changing a default fails.
+FROZEN_FLAG_SPECS = {
+    ("label_propagation", "compute"): {
+        "--graph": (None, None, True),
+        "--seeds": (None, None, True),
+        "--index-base": (None, 0, False),
+        "--num-vertices": (None, None, False),
+        "--tolerance": (None, None, False),
+        "--max-iterations": (None, None, False),
+        "--on-iteration-limit": (("error", "report", "fallback_recompute"), None, False),
+        "--update-schedule": (("in_place", "damped"), None, False),
+        "--cuda-engine": (("automatic", "fused", "operators"), None, False),
+        "--similarity-threshold": (None, None, False),
+        "--out": (None, None, True),
+        "--quiet": (None, False, False),
+        "--backend": (("sequential", "cuda"), None, False),
+        "--device": (None, 0, False),
+    },
+    ("label_propagation", "update"): {
+        "--generate": (("legacy", "library"), None, False),
+        "--total-vertices": (None, None, False),
+        "--average-degree": (None, None, False),
+        "--num-batches": (None, None, False),
+        "--seed": (None, None, False),
+        "--ground-truth-fraction": (None, None, False),
+        "--deleted-fraction": (None, None, False),
+        "--batches": (None, None, False),
+        "--capacity": (None, "auto", False),
+        "--true-labels": (None, None, False),
+        "--layout": (("slotted", "slack"), "slotted", False),
+        "--tolerance": (None, None, False),
+        "--max-iterations": (None, None, False),
+        "--on-iteration-limit": (("error", "report", "fallback_recompute"), None, False),
+        "--update-schedule": (("in_place", "damped"), None, False),
+        "--cuda-engine": (("automatic", "fused", "operators"), None, False),
+        "--similarity-threshold": (None, None, False),
+        "--out": (None, None, True),
+        "--per-batch-labels": (None, False, False),
+        "--quiet": (None, False, False),
+        "--backend": (("sequential", "cuda"), None, False),
+        "--device": (None, 0, False),
+    },
+    ("generate", "vertex_arrival_stream"): {
+        "--total-vertices": (None, None, False),
+        "--average-degree": (None, None, False),
+        "--num-batches": (None, None, False),
+        "--seed": (None, None, False),
+        "--ground-truth-fraction": (None, None, False),
+        "--deleted-fraction": (None, None, False),
+        "--edge-dtype": (("int32", "int64"), None, False),
+        "--out": (None, None, True),
+        "--format": (("dgb", "dgt"), "dgb", False),
+        "--graph-files": (None, False, False),
+        "--quiet": (None, False, False),
+    },
+    ("generate", "dynlp_vertex_arrival_stream"): {
+        "--total-vertices": (None, None, False),
+        "--average-degree": (None, None, False),
+        "--num-batches": (None, None, False),
+        "--seed": (None, None, False),
+        "--ground-truth-fraction": (None, None, False),
+        "--deleted-fraction": (None, None, False),
+        "--edge-dtype": (("int32", "int64"), None, False),
+        "--out": (None, None, True),
+        "--format": (("dgb", "dgt"), "dgb", False),
+        "--graph-files": (None, False, False),
+        "--quiet": (None, False, False),
+    },
+}
+
+
 def test_the_frozen_flags_are_kept() -> None:
     for path, frozen in FROZEN_FLAGS.items():
         p = _subparser(build_parser(), *path)
         flags = {o for a in p._actions for o in a.option_strings}
         missing = set(frozen.split()) - flags
         assert not missing, (path, sorted(missing))
+
+
+def test_the_frozen_flags_keep_their_choices_and_defaults() -> None:
+    for path, specs in FROZEN_FLAG_SPECS.items():
+        p = _subparser(build_parser(), *path)
+        actions = {a.option_strings[0]: a for a in p._actions if a.option_strings}
+        for flag, (choices, default, required) in specs.items():
+            a = actions[flag]
+            got = tuple(a.choices) if a.choices is not None else None
+            if choices is None:  # a new restriction narrows what the flag accepts
+                assert got is None, (path, flag, got)
+            else:  # a choice may be added, never removed
+                assert got is not None and set(choices) <= set(got), (path, flag, got)
+            assert a.default == default, (path, flag, a.default)
+            assert a.required == required, (path, flag, a.required)

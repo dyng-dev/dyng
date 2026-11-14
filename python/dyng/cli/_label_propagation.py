@@ -500,6 +500,11 @@ def add_generate_vertex_arrival(gens: argparse._SubParsersAction[argparse.Argume
             "DIR/graph/csr{RowPtr,ColInd,Values,TrueLabels}.txt.",
         )
         names = add_function_flags(g, fn, "generator", skip=("resources",))
+        # edge_dtype takes any NumPy dtype-like in Python; the command line names the two.
+        for action in g._actions:
+            if action.dest == "arg_edge_dtype":
+                action.choices = ("int32", "int64")
+                action.help = "the edge offset type of the stream's graph (default: int32)"
         g.add_argument("--out", required=True, metavar="DIR", help="output directory")
         g.add_argument(
             "--format",
