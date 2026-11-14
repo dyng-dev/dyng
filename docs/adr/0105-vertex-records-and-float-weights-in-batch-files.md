@@ -52,8 +52,11 @@ and flag bit 4 rejected as unknown). Both formats are stable tier at version 1 (
    labels (0 or n) and x deleted vertices; after 0.3's arrays (deletions, insertions, weights)
    follow the inserted vertices [n] (vertex type), the labels [l] (int8 in {-1, 0, 1},
    zero-padded to 8 bytes) and the deleted vertices [x] (vertex type). Storing l separately keeps
-   a batch with no label array distinct from one whose labels are all -1, so both formats give
-   back exactly the batch that was written. `known_graph = vertex_records` (an api-change line in
+   a view with no label array distinct from one whose labels are all -1 in `.dgb` (amended after
+   M10b's review: `batch_reader`'s views give back l = 0 as written; the two mean the same, no
+   seed, and the owning paths normalize them: `edge_batch` always holds one label per inserted
+   vertex, so `read_binary_batches` gives -1 labels for l = 0, and `.dgt` writes no token for
+   either; docs/api/file_formats.md). `known_graph = vertex_records` (an api-change line in
    `batch_io.hpp`; `known` stays the union). A hypergraph file with bit 4 is refused ("unknown
    flags 16 for a file of hypergraph batches", so that M11a's test of that refusal is unchanged),
    a graph file with bit 3 too ("flags 8 in a file of graph batches").

@@ -148,7 +148,7 @@ little-endian.
 | 40 | 20 | reserved, zero |
 | 60 | 4 | CRC32 of bytes 0-59 |
 
-**Flags** (hypergraph files; graph files have none): bit 0 `deleted_members` (every deletion
+**Flags** (bits 0-3: hypergraph files; bit 4: graph files): bit 0 `deleted_members` (every deletion
 also carries the member set of the hyperedge it deleted when the batch was generated: replay by
 content), bit 1 `expected_ids` (every insertion carries the id the generating run gave it: replay
 by key, checked against `inserted_ids`), bit 2 `insert_first` (those ids hold under
@@ -267,7 +267,11 @@ of them is written byte for byte as 0.3 writes it.
   an `io_error`.
 
 Converting a batch of vertex operations between `.dgt` and `.dgb` gives the same batch (the
-float weights bit for bit); the legacy generator's batches (`dynlp_vertex_arrival_stream`) at
+float weights bit for bit), with one normalization: a batch without a label array and one whose
+labels are all -1 mean the same (no seed), and only `.dgb` with `batch_reader`'s views keeps them
+apart (l = 0 against l = n); `.dgt` writes no label token for either, and the owning readers
+(`read_batches`, `read_binary_batches`, whose `edge_batch` always holds one label per inserted
+vertex) give every inserted vertex a label, -1 for none. The legacy generator's batches (`dynlp_vertex_arrival_stream`) at
 5k5 and 50k round-trip through both. The command line and Python read and write them from M10b
 of 0.4 (`dyng label_propagation`, `dyng.io`).
 

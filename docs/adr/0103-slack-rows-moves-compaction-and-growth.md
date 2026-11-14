@@ -45,7 +45,11 @@ overflowing rows move to a tail region; compaction when needed") and `graph_prop
 4. **Compaction.** When the dead slots after the planned moves would outnumber the owned slots
    (2 x dead > arena), the batch compacts instead: every row is rewritten in vertex order with
    the entries whose neighbour is not deleted (a deleted vertex's row is emptied), each row with
-   `slack_capacity(kept + appends)` slots (a row never written keeps its hint). It runs inside
+   `slack_capacity(kept + appends)` slots (a row never written keeps its hint; *amended after
+   M10b's review*: every row without entries that is not a deleted vertex's keeps its capacity, an
+   active vertex whose edges have not arrived included: before, only an inactive row kept it, so a
+   compaction dropped the hint of an arrived vertex and its first edge moved the row;
+   `Slack.ACompactionKeepsTheHintOfAnActiveEmptyRow`). It runs inside
    `apply()`, after the batch's vertex states and before its appends, outside any kernel, at
    most once per batch; it is amortized (a compaction follows at least as many dead slots as it
    rewrites). **It changes the summation order of a row on the device**: the kept entries sit at
@@ -96,7 +100,14 @@ overflowing rows move to a tail region; compaction when needed") and `graph_prop
     each row as the sequence of its entries); `graph/slack_cuda_test.cpp` (the device apply's
     layout equals the host apply's after every batch, growth, clones);
     `label_propagation_slack_test.cpp` (bitwise slotted while no compaction ran, the streaming mode
-    against the oracles on corpus C, forced compactions); the kit's float axis gains the preset
+    against the oracles on corpus C, forced compactions; after M10b's review also compactions
+    inside `update()`, `NaturalCompactionsInsideUpdate5k24`: no hints, a headroom of 0, 24 batches,
+    the states, the rows, the seeds and the label range every batch, and damped's labels against
+    slotted rows, bitwise until the compaction and within 100 delta on average after it). The
+    harmonic oracle's bound (AD7, ADR 0068) is calibrated on corpus C's short streams (5 and 10
+    batches): on a 40-batch 5k stream O's incremental rule drifts past it from batch 9 on slotted
+    rows as much as on slack rows (mean |F - F*| 5.2e-3 against 2000 delta = 2e-3; M10b's review),
+    so the long-stream test compares with slotted rows, not with that bound; the kit's float axis gains the preset
     "slack, net_effect(), half capacities" on both backends (C7's row overflow becomes a move).
 
 13. **M11a's slack-row accessor is not reused** (the step's instruction: reuse it if it is on

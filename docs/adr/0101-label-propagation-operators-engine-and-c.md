@@ -33,7 +33,7 @@ rule; PLAN 4.5.4 makes the operators twin optional for in-place label propagatio
    library build) and `both`. Every batch of P (the nine non-digest cases of P+), damped, fused,
    against the twin's per-batch label bits. The control must be exact. Record
    `parity/results/M10b-calibration.json` (on `cc9641b`): the control exact; max |dF| = 2.411e-2
-   (`permuted`, 500k, batch 1) = 202,210.75 ε; **c = 2^20, c·ε = 0.125**, frozen with the
+   (`permuted`, 500k, batch 5; batch 1 is the first divergence, vertex 1295) = 202,210.75 ε; **c = 2^20, c·ε = 0.125**, frozen with the
    record's SHA-256 in `parity/goldens.toml` `[sets.label_propagation_damped.refactored]`
    (commit `242be2d`, before the engine). Every perturbed run changed a count (frontier_visits,
    some iterations): only an engine whose arithmetic is the fused engine's to the bit can keep
