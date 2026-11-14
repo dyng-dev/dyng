@@ -159,12 +159,14 @@ Open decisions, M10 (AD)): names of M10b that neither list above named when the 
 them: the keyword `edge_dtype` of the Python generators `dyng.generators.vertex_arrival_stream` and
 `legacy.dynlp_vertex_arrival_stream` (the lists named it for `Graph.with_capacity` only); its flag
 `--edge-dtype int32|int64` of `dyng generate vertex_arrival_stream` / `dynlp_vertex_arrival_stream`
-(the 0.3 commands spell the same idea `--edge-type`: a naming choice for the author); the kNN
-recipe's `--labels`; `Graph.with_capacity`'s keyword `directed` (the constructors' keyword); and
-`dyng-compat-dynlp`'s diagnostic flags `--backend`, `--cuda-engine`, `--label-dump`, `--trace` and
-`--sync-stages` (ADR 0073's, beside `--phases`, `--layout` and `--streaming-tau`; finding 16 said
-they were listed, and they were not). They ship frozen as they are until the author acknowledges
-them.
+(the 0.3 commands spell the same idea `--edge-type`: a naming choice for the author; **renamed
+`--edge-type`** by the author's decision of 2026-11-14, before the freeze, Python keeping
+`edge_dtype`); the kNN recipe's `--labels`; `Graph.with_capacity`'s keyword `directed` (the
+constructors' keyword); and `dyng-compat-dynlp`'s diagnostic flags `--backend`, `--cuda-engine`,
+`--label-dump`, `--trace` and `--sync-stages` (ADR 0073's, beside `--phases`, `--layout` and
+`--streaming-tau`; finding 16 said they were listed, and they were not). The author acknowledged
+them on 2026-11-14 (GOVERNANCE.md, approvals log, the row "The public names of M10b's review"),
+with the flag spelled `--edge-type`; they are frozen with their surfaces.
 
 ### Outcome
 
@@ -193,7 +195,8 @@ recorded in `parity/results/M10b.md` section 4 (the C++ default of `options::tol
   change (`ci/tests/test_api_snapshot.py`); the format test pins bit 4 with a literal.
 - **Finding 15 (command line).** The freeze test pinned the flags' names only; it now pins each
   frozen flag's choices (a choice may be added), argparse default and required-ness, and
-  `--edge-dtype` lists its choices.
+  the generators' flag lists its choices, spelled `--edge-type` (the author's decision of
+  2026-11-14).
 - **Finding 16 and the names.** The delta above.
 
 ## Part B: kernel groups

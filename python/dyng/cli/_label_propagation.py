@@ -499,12 +499,17 @@ def add_generate_vertex_arrival(gens: argparse._SubParsersAction[argparse.Argume
             "similarity_threshold and the sizes) and, with --graph-files, the original's "
             "DIR/graph/csr{RowPtr,ColInd,Values,TrueLabels}.txt.",
         )
-        names = add_function_flags(g, fn, "generator", skip=("resources",))
-        # edge_dtype takes any NumPy dtype-like in Python; the command line names the two.
-        for action in g._actions:
-            if action.dest == "arg_edge_dtype":
-                action.choices = ("int32", "int64")
-                action.help = "the edge offset type of the stream's graph (default: int32)"
+        names = add_function_flags(g, fn, "generator", skip=("resources", "edge_dtype"))
+        # Python's edge_dtype (any NumPy dtype-like) is --edge-type int32|int64 on the command
+        # line, as the 0.3 commands spell it (the author's decision of 2026-11-14).
+        g._action_groups[-1].add_argument(
+            "--edge-type",
+            dest="arg_edge_dtype",
+            choices=("int32", "int64"),
+            default=None,
+            help="the edge offset type of the stream's graph (default: int32)",
+        )
+        names.append("edge_dtype")
         g.add_argument("--out", required=True, metavar="DIR", help="output directory")
         g.add_argument(
             "--format",

@@ -338,8 +338,10 @@ Before 0.1.0 anything may change.
   and tests the cu12 plugin too when a CUDA 12 toolkit is found. The legacy vertex-arrival
   generator and `io::write_labels` regain M10a's speed (the legacy stream's integer draw out of
   line again; the label lines formatted in chunks; the same bytes). A slack-row compaction keeps
-  the capacity of an active vertex's empty row (ADR 0103). `--edge-dtype` of `dyng generate
-  vertex_arrival_stream` / `dynlp_vertex_arrival_stream` lists its choices `int32` / `int64`.
+  the capacity of an active vertex's empty row (ADR 0103). The edge offset flag of `dyng generate
+  vertex_arrival_stream` / `dynlp_vertex_arrival_stream` is `--edge-type int32|int64`, as the 0.3
+  commands spell it (renamed from `--edge-dtype` before the freeze, the author's decision of
+  2026-11-14; Python keeps `edge_dtype`).
   `knn_graph.py --method sklearn` without scikit-learn ends in a message, not a traceback.
 - M10b review fixes (api-check): `ci/api_snapshot.py`'s `FROZEN_DECLARATIONS` guards the frozen
   io declarations (`io::write_labels`, `read_labels`, `batch_dtype::float32`,

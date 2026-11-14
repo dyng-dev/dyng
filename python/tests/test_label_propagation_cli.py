@@ -294,11 +294,11 @@ FROZEN_FLAGS = {
         "--tolerance --total-vertices --true-labels --update-schedule -h"
     ),
     ("generate", "vertex_arrival_stream"): (
-        "--average-degree --deleted-fraction --edge-dtype --format --graph-files "
+        "--average-degree --deleted-fraction --edge-type --format --graph-files "
         "--ground-truth-fraction --help --num-batches --out --quiet --seed --total-vertices -h"
     ),
     ("generate", "dynlp_vertex_arrival_stream"): (
-        "--average-degree --deleted-fraction --edge-dtype --format --graph-files "
+        "--average-degree --deleted-fraction --edge-type --format --graph-files "
         "--ground-truth-fraction --help --num-batches --out --quiet --seed --total-vertices -h"
     ),
 }
@@ -356,7 +356,7 @@ FROZEN_FLAG_SPECS = {
         "--seed": (None, None, False),
         "--ground-truth-fraction": (None, None, False),
         "--deleted-fraction": (None, None, False),
-        "--edge-dtype": (("int32", "int64"), None, False),
+        "--edge-type": (("int32", "int64"), None, False),
         "--out": (None, None, True),
         "--format": (("dgb", "dgt"), "dgb", False),
         "--graph-files": (None, False, False),
@@ -369,7 +369,7 @@ FROZEN_FLAG_SPECS = {
         "--seed": (None, None, False),
         "--ground-truth-fraction": (None, None, False),
         "--deleted-fraction": (None, None, False),
-        "--edge-dtype": (("int32", "int64"), None, False),
+        "--edge-type": (("int32", "int64"), None, False),
         "--out": (None, None, True),
         "--format": (("dgb", "dgt"), "dgb", False),
         "--graph-files": (None, False, False),

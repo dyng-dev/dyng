@@ -423,8 +423,8 @@ functions (AD12): `vertex_arrival_stream` is the library's
 `dynlp_vertex_arrival_stream` LabelPropagation-CUDA's
 (`dyng.generators.legacy.dynlp_vertex_arrival_stream`, the original's stream byte for byte). The
 generator flags are their keyword arguments: `--total-vertices`, `--average-degree`,
-`--num-batches`, `--seed`, `--ground-truth-fraction`, `--deleted-fraction` and `--edge-dtype
-int32|int64`. Each writes `DIR/batches.dgb` (`--format dgt`: `DIR/batches.dgt`; the batches'
+`--num-batches`, `--seed`, `--ground-truth-fraction`, `--deleted-fraction` and `--edge-type
+int32|int64` (Python's `edge_dtype`; spelled as the 0.3 commands spell it). Each writes `DIR/batches.dgb` (`--format dgt`: `DIR/batches.dgt`; the batches'
 vertex operations and float weights, AD13), `DIR/row_capacity.txt` (one integer per vertex: the
 full degrees), `DIR/true_labels.txt` (`i class`), `DIR/stream.json` (the published
 `similarity_threshold`, the sizes and the options) and, with `--graph-files`, the original's
