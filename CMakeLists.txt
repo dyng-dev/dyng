@@ -133,6 +133,20 @@ if(DYNG_ENABLE_CUDA)
     message(FATAL_ERROR "dynG: CMAKE_CUDA_RUNTIME_LIBRARY must be Shared or Static, not "
                         "'${CMAKE_CUDA_RUNTIME_LIBRARY}'")
   endif()
+  # Kernel groups (ADR 0109 part B): the static runtime of CUDA 12 cannot use a fat binary that is
+  # registered after the device's context exists (every call that names one of its kernels fails
+  # with cudaErrorInvalidResourceHandle; the shared runtime of CUDA 12 and both runtimes of CUDA 13
+  # can), so such builds (the dyng-cu12 plugin wheel) register every module when libdyng is loaded,
+  # as before 0.4. A normal variable: it shadows the cache option in this directory and below.
+  if(DYNG_DEFER_KERNEL_GROUPS
+     AND _dyng_cudart_kind STREQUAL "static"
+     AND CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 13.0
+  )
+    message(STATUS "dynG: kernel groups off (CUDA ${CMAKE_CUDA_COMPILER_VERSION} with the static "
+                   "runtime cannot register a group after the context exists; ADR 0109)"
+    )
+    set(DYNG_DEFER_KERNEL_GROUPS OFF)
+  endif()
   unset(_dyng_cudart_kind)
   if(NOT CMAKE_CUDA_STANDARD)
     set(CMAKE_CUDA_STANDARD 17)

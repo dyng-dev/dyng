@@ -38,7 +38,8 @@
 #              hazards of its kernels and of the CUB scans; DYNG_TEST_SEEDS=2)
 #   plugin     the CUDA plugin wheel from Python (ADR 0030/0031): ci/plugin_wheels.sh builds the
 #              core wheel and the dyng-cu13 plugin wheel of this tree (DYNG_GPU_PLUGINS, default
-#              cu13; the toolchain of ci/wheel-toolchain.yml; about 4 minutes) into
+#              cu13, and "cu12 cu13" when a CUDA 12 toolkit is found: DYNG_CUDA12_ROOT or
+#              $DYNG_SCRATCH/tools/cuda-12.9; the toolchain of ci/wheel-toolchain.yml) into
 #              build/<preset>/plugin-wheels, installs them into a fresh venv (one Python,
 #              DYNG_GPU_PLUGIN_PYTHONS, default python3.12) and runs the install smoke test, the
 #              GPU tests of python/tests (pytest -m gpu: CUDA == sequential, goldens, device
@@ -913,6 +914,15 @@ if ! skipped plugin; then
     record "plugin wheel (pytest -m gpu)" skipped
   else
     pythons="${DYNG_GPU_PLUGIN_PYTHONS:-$(command -v python3.12 || command -v python3)}"
+    # Both plugins when a CUDA 12 toolkit is at hand (DYNG_CUDA12_ROOT, or the development
+    # machine's ${scratch}/tools/cuda-12.9): the dyng-cu12 plugin links CUDA 12's static runtime,
+    # whose kernel registration differs from CUDA 13's (ADR 0109 part B), so its install test runs
+    # the CUDA backend of its own build.
+    cuda12="${DYNG_CUDA12_ROOT:-${scratch}/tools/cuda-12.9}"
+    if [ -z "${DYNG_GPU_PLUGINS:-}" ] && [ -x "${cuda12}/bin/nvcc" ]; then
+      DYNG_GPU_PLUGINS="cu12 cu13"
+      export DYNG_CUDA12_ROOT="${cuda12}"
+    fi
     # The step's own GPU selection: plugin_wheels.sh sets CUDA_VISIBLE_DEVICES itself.
     if [ -n "${wheels}" ]; then
       plugin_env=(DYNG_PLUGIN_TEST_ONLY=1 "DYNG_PLUGIN_OUT=${wheels}")
