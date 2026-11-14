@@ -154,6 +154,18 @@ constructors and `Graph.with_capacity`'s keywords, `EdgeBatch`'s vertex properti
 compat tool's diagnostic flags (`--phases`, `--layout`, `--streaming-tau`); and, from this step,
 the build option **`DYNG_DEFER_KERNEL_GROUPS`** (part B).
 
+**The delta after M10b's review (2026-11-14; for the author's acknowledgement,** GOVERNANCE.md,
+Open decisions, M10 (AD)): names of M10b that neither list above named when the author approved
+them: the keyword `edge_dtype` of the Python generators `dyng.generators.vertex_arrival_stream` and
+`legacy.dynlp_vertex_arrival_stream` (the lists named it for `Graph.with_capacity` only); its flag
+`--edge-dtype int32|int64` of `dyng generate vertex_arrival_stream` / `dynlp_vertex_arrival_stream`
+(the 0.3 commands spell the same idea `--edge-type`: a naming choice for the author); the kNN
+recipe's `--labels`; `Graph.with_capacity`'s keyword `directed` (the constructors' keyword); and
+`dyng-compat-dynlp`'s diagnostic flags `--backend`, `--cuda-engine`, `--label-dump`, `--trace` and
+`--sync-stages` (ADR 0073's, beside `--phases`, `--layout` and `--streaming-tau`; finding 16 said
+they were listed, and they were not). They ship frozen as they are until the author acknowledges
+them.
+
 ### Outcome
 
 **The deliberate changes** (a throwaway clone of this branch at the freeze commit, reverted and
@@ -162,6 +174,27 @@ recorded in `parity/results/M10b.md` section 4 (the C++ default of `options::tol
 `ci/docs.sh --doxygen-only` fails against the baseline, and with the baseline regenerated
 `ci/api_check.sh` fails against the base; the Python default of `Options.tolerance` changed:
 `ci/api_check.sh` fails; reverted: both pass).
+
+### Amendments after M10b's review (2026-11-14)
+
+- **Finding 5 / 6 (exceptions).** The header's `@throws` were incomplete next to the sibling
+  headers: `compute()`, `update()`, `clone()` and `reserve()` now document `cuda_error` (cuda
+  backend) and device memory in `out_of_memory_error`, and `compute()` / `update()` the refusal of
+  `engine::operators` with `schedule::in_place` on cuda (which `set_options()` accepts and the next
+  update refuses); `dyng.label_propagation`'s `Raises` say the same, with `update()`'s
+  `ConvergenceError` and `CapacityError` on cuda (the graph updated and poisoned, as
+  `graph::apply()` documents). Documentation only: the baselines are unchanged.
+- **Finding 13 (io and the formats).** "Enforced by the format tests" held for the bytes, not for
+  the declarations: a new defaulted parameter of `write_labels` or another value of
+  `vertex_records` passed every check. `ci/api_snapshot.py` gains `FROZEN_DECLARATIONS`: inside the
+  tracked io headers, `io::write_labels`, `read_labels`, `batch_dtype::float32 = 3` (the enumeration
+  may gain enumerators after it), `batch_file_flags::vertex_records = 16U` and `known_graph` (with
+  `vertex_records`) are frozen by declaration: once the base has them, a changed line is a breaking
+  change (`ci/tests/test_api_snapshot.py`); the format test pins bit 4 with a literal.
+- **Finding 15 (command line).** The freeze test pinned the flags' names only; it now pins each
+  frozen flag's choices (a choice may be added), argparse default and required-ness, and
+  `--edge-dtype` lists its choices.
+- **Finding 16 and the names.** The delta above.
 
 ## Part B: kernel groups
 
@@ -239,7 +272,16 @@ included), and reads those regions again (2026-11-03, widened 2026-11-05).
    `compute()` and before an update's first CUDA work (its compat tool uses public headers only),
    so the published flow pays for its modules in the untimed `compute()`.
 4. **`DYNG_DEFER_KERNEL_GROUPS`** (CMake option, default ON) turns the mechanism off: every module
-   is registered at load, as before 0.4. Builds without CUDA have no group.
+   is registered at load, as before 0.4. Builds without CUDA have no group. *Amended after M10b's
+   review:* a CUDA 12 build with the static runtime (the `dyng-cu12` plugin wheel) turns it off
+   (`CMakeLists.txt`, with a configure message): that runtime cannot use a fat binary registered
+   after the device's context exists (every call that names one of its kernels fails with
+   `cudaErrorInvalidResourceHandle`; the cu12 plugin of step 4 failed its install smoke on
+   `sssp.compute`). A two-file reproduction (a kernel, its registration renamed and replayed after
+   `cudaFree(nullptr)`) fails under CUDA 12.9's static runtime and passes under 12.9's shared
+   runtime and under both runtimes of 13.1; `__cudaInitModule` after the replay does not help. The
+   cu13 plugin, the shared-runtime builds and every gate keep the groups; `ci/gpu_local.sh`'s plugin
+   step builds and tests the cu12 plugin too when a CUDA 12 toolkit is at hand.
 5. **Tests.** `dyng_kernel_groups_tests` (each test a process of its own under CTest): every
    algorithm with CUDA kernels and the hypergraph containers have a group; creating a context loads
    none; `load()` loads only the named groups; the first `sssp::compute()` loads sssp's group and no
