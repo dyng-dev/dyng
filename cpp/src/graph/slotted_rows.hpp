@@ -175,9 +175,10 @@ void slack_append_counts(const std::vector<vertex_status>& status,
 
 /**
  * @brief The capacities a compaction gives the rows (ADR 0103): a row with entries to keep or to
- *        receive gets slack_capacity(kept + appended); a row that never received an entry keeps
- *        its capacity (a hint of with_capacity()); every other row (a deleted vertex's, or one
- *        left without entries) gets none.
+ *        receive gets slack_capacity(kept + appended); a deleted vertex's row gets none; every
+ *        other row without entries (an inactive vertex's, or an active vertex's whose edges have
+ *        not arrived or are gone) keeps its capacity (a hint of with_capacity() for a row never
+ *        written); a row grown in this batch (beyond the rows before it) starts without slots.
  * @param[in]  slots    The slot storage (row starts and the arena) before the batch.
  * @param[in]  rows     The rows before the batch (their capacities).
  * @param[in]  status   The vertex states after the batch (its vertex count after a growth).

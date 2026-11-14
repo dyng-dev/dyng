@@ -247,6 +247,50 @@ TEST(Slack, ForcedCompactionKeepsTheLiveEntriesInOrder) {
   EXPECT_EQ(gi.slotted.dead_slots, 0);
 }
 
+/// A compaction keeps the capacity of every row without entries that is not a deleted vertex's:
+/// an active vertex whose edges have not arrived keeps the hint of with_capacity() (ADR 0103 point
+/// 4), so its first edge does not move its row.
+TEST(Slack, ACompactionKeepsTheHintOfAnActiveEmptyRow) {
+  const dyng::resources res = dyng::resources::sequential();
+  graph_properties p = slack_props();
+  p.headroom = 0.0;
+  const std::vector<std::int32_t> hints = {0, 8, 0, 0};
+  lp_graph g = lp_graph::with_capacity(res, 4, host_view(hints), p);
+  dyng::test::slack_model model(4);
+  lp_batch b0(1);
+  for (std::int32_t v = 0; v < 4; ++v) b0.insert_vertex(v);
+  dyng::apply_summary s = g.apply(res, b0.view());
+  model.apply(b0.view(), s.compactions > 0);
+  EXPECT_EQ(row_of(g, 1), (std::vector<std::int64_t>{0, 0, 8}));
+  // Rows 0 and 2 (no hint, no headroom) move at every edge until the dead slots force a
+  // compaction; rows 1 and 3 stay empty.
+  std::int64_t compactions = 0;
+  for (int i = 0; i < 40 && compactions == 0; ++i) {
+    lp_batch b(1);
+    b.insert_edge(0, 2, {0.5F});
+    s = g.apply(res, b.view());
+    model.apply(b.view(), s.compactions > 0);
+    compactions += s.compactions;
+  }
+  ASSERT_EQ(compactions, 1);
+  model.expect_equal(g, "after the compaction");
+  g.check_integrity(res);
+  const std::vector<std::int64_t> row1 = row_of(g, 1);
+  EXPECT_EQ(row1[1], row1[0]);      // still empty
+  EXPECT_EQ(row1[2] - row1[0], 8);  // and its 8 slots kept
+  const std::vector<std::int64_t> row3 = row_of(g, 3);
+  EXPECT_EQ(row3[2] - row3[0], 0);  // no hint: no slots
+  // The first edge of vertex 1 fits its row; only row 3 (no slots) moves.
+  lp_batch b1(1);
+  b1.insert_edge(1, 3, {0.25F});
+  s = g.apply(res, b1.view());
+  model.apply(b1.view(), s.compactions > 0);
+  EXPECT_EQ(s.relocated_rows, 1);
+  EXPECT_EQ(s.compactions, 0);
+  model.expect_equal(g, "the first edge of vertex 1");
+  g.check_integrity(res);
+}
+
 TEST(Slack, VertexGrowthUnderAllowVertexGrowth) {
   const dyng::resources res = dyng::resources::sequential();
   lp_graph fixed = make<lp_graph>(res, 2, {});

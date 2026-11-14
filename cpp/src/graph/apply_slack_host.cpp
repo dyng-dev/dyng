@@ -471,8 +471,10 @@ void slack_compaction_layout(const csr<vertex_t, edge_t, weight_t>& slots,
     std::int64_t cap = 0;
     if (entries > 0) {
       cap = slack_capacity(entries, rows.headroom);
-    } else if (status[v] == vertex_status::inactive && v < rows_before) {
-      cap = row_capacity_of(slots, rows, v);  // never written: its hint stays
+    } else if (status[v] != vertex_status::deleted && v < rows_before) {
+      // No entry to keep or receive, and not a deleted vertex's: the row keeps its capacity (the
+      // hint of with_capacity() of a vertex that has not arrived or whose edges have not, ADR 0103).
+      cap = row_capacity_of(slots, rows, v);
     }
     if (cap > edge_limit<edge_t>() - total) {
       throw_arena_limit<edge_t>(total + cap);
