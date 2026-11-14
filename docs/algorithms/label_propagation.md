@@ -67,6 +67,8 @@ The template card's four challenges (thesis Chapter 3):
 ```cpp
 #include <dyng/dyng.hpp>
 
+#include <iostream>
+
 const auto res = dyng::resources::cuda();  // or dyng::resources::sequential(); no OpenMP backend
 dyng::generators::vertex_arrival_options va;  // 50,000 vertices, 10 batches, degree 5, seed 42
 const auto stream = dyng::generators::generate_vertex_arrival_stream(res, va);
@@ -86,6 +88,7 @@ auto r = dyng::label_propagation::compute(res, g, {}, {}, opt);  // the empty gr
 r.reserve(res, stream.max_batch_vertices, stream.max_batch_edges);
 for (const auto& batch : stream.batches) {
   const dyng::label_propagation::stats s = dyng::label_propagation::update(res, g, batch.view(), r);
+  std::cout << s.iterations << ' ' << s.components << '\n';
 }
 const std::vector<float> labels = dyng::to_vector(res, r.labels());
 ```
@@ -105,7 +108,37 @@ lp = dyng.label_propagation.compute(g, update_schedule="damped",
                                     similarity_threshold=stream.similarity_threshold)
 for batch in stream.batches:
     st = dyng.label_propagation.update(g, batch, lp)
-F = torch.from_dlpack(lp.labels)  # float32 on cuda:0, no copy
+F = torch.from_dlpack(lp.labels)  # float32 on cuda:0, no copy; read it, do not write it
+```
+
+A small run on the sequential backend, checked by the documentation tests (the deterministic
+stages per batch: active vertices, components of G', its edges and the initial frontier):
+
+<!-- snippet: label-propagation-python -->
+```python
+import dyng
+
+res = dyng.Resources("sequential")  # or dyng.Resources.cuda(); no OpenMP backend
+s = dyng.generators.vertex_arrival_stream(total_vertices=2000, num_batches=4, seed=7,
+                                          resources=res)
+g = dyng.Graph.with_capacity(s.row_capacity, layout="slotted", semantics="net_effect",
+                             resources=res)
+lp = dyng.label_propagation.compute(g, update_schedule="damped",
+                                    similarity_threshold=s.similarity_threshold)
+for b in s.batches:
+    st = dyng.label_propagation.update(g, b, lp)
+    print(g.num_active_vertices, st.components, st.sparsified_edges, st.initial_frontier)
+F = lp.labels.to_numpy()  # lp.labels: a read-only zero-copy view; .to_numpy() copies
+print(F.dtype, len(F), bool(((F >= 0) & (F <= 1)).all()))
+```
+
+<!-- snippet-output: label-propagation-python -->
+```text
+20 20 0 0
+621 335 266 595
+1222 388 247 1090
+1823 388 248 1579
+float32 2000 True
 ```
 
 `compute(res, g, seed_vertices, seed_labels, opt)` takes the seeds of the graph's present
@@ -116,7 +149,10 @@ vertices (the seeds of later arrivals come with their batch: `edge_batch_view::i
 the seeds (-1 none). In Python `Result.labels` is a read-only float32 `dyng.Array` that views the
 result's memory (DLPack, `__cuda_array_interface__` on cuda); while a view is alive an update
 copies the result's per-vertex state first (copy-on-write), so a view keeps showing the labels it
-was made from ({doc}`../api/python/index`).
+was made from ({doc}`../api/python/index`). Copy-on-write protects the view from the result, not
+the result from the view: PyTorch and CuPy have no read-only arrays, so a tensor from
+`torch.from_dlpack(lp.labels)` aliases the result's labels and must not be written (a write
+changes the state the next update starts from); `clone()` it to modify it.
 
 | `options` field | Default | Meaning |
 |---|---|---|
@@ -178,12 +214,21 @@ at most 1.10x (the whole process, graph files written); device memory at most 1.
 of live allocations, D1). The record of the final library is `parity/results/M10b.md` section 4
 (M10a's is section 12 of `parity/results/M10a.md`); in short:
 
-GATE_TABLE_PLACEHOLDER
+| Case | Rounds, clocks | damped `update[sum]` (bar 1.05) | `end_to_end` (bar 1.10) | device memory (bar 1.05) |
+|---|---|---|---|---|
+| 50k | 21, boost lock | 1.006 | 1.050 | 1.002 |
+| 500k | 21, boost lock | 1.008 | 1.030 | 1.002 |
+| 5m | 11, boost lock | 0.987 | 1.040 | 1.002 |
+| 5m1 | 11, boost lock | 1.013 | 1.086 | 1.012 |
+| 50m (recorded, AD4; gated once in the release reading at 5 rounds) | 3, base lock | 1.013 | 1.105 | |
+
+(The ratios are dynG's over the original's, measured in the same session.)
 
 `in_place`, the default clocks and the kernels are reported, not gated. Each algorithm's CUDA
 kernels are registered with the CUDA runtime only when a process first runs that algorithm (ADR
 0109 part B), so a label_propagation process no longer loads the kernels of the other algorithms
-at its start-up.
+at its start-up (not with CUDA 12's static runtime, the `dyng-cu12` plugin, which registers every
+module at load time as before 0.4).
 
 **The streaming mode** against the published setup (dynG against dynG, reported, never gated;
 `parity/results/M10b.md` section 2.8): at 500k 1.39x the update time (1.48x with the streaming

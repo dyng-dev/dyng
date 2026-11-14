@@ -199,7 +199,8 @@ rows (`dyng.Graph.with_capacity(row_capacity, layout="slotted" | "slack", semant
 `dyng.generators.legacy.dynlp_vertex_arrival_stream` (LabelPropagation-CUDA's, byte for byte).
 `Result.labels` is a read-only float32 `dyng.Array`: `torch.from_dlpack(lp.labels)` views it
 without a copy (on cuda, device memory), and while such a view is alive an update copies the
-result's per-vertex state first (copy-on-write). There is no OpenMP backend in 0.4:
+result's per-vertex state first (copy-on-write); the tensor aliases the result's labels and must
+not be written (`clone()` it to modify it). There is no OpenMP backend in 0.4:
 `dyng.Resources("openmp")` raises `NotSupportedError` naming `"sequential"`, `"cuda"` and the fix
 `dyng.Resources("sequential")` (AD19). The names are frozen since the end of M10b (ADR 0109) and
 become stable at 0.4.0 on the author's confirmation. The tutorial is

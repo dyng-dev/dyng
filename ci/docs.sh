@@ -77,6 +77,12 @@ python3 ci/doxygen_coverage.py "${DYNG_DOXYGEN_OUTPUT}/xml"
 # The executable snippets of the READMEs and the pages (PLAN 9.6): the quickstarts exist and keep
 # their size; pytest runs the Python ones, CTest builds and runs the C++ quickstart.
 python3 ci/doc_snippets.py --check
+# An unreplaced placeholder (an ALL-CAPS token ending in _PLACEHOLDER) in a page or a README would
+# be published as text: Sphinx, the links and the snippets do not see it (M10b's review).
+if grep -rnE --include='*.md' --include='*.rst' '\b[A-Z][A-Z0-9_]*_PLACEHOLDER\b' docs README.md; then
+  echo "ci/docs.sh: the pages above still hold a placeholder token" >&2
+  exit 1
+fi
 # The tutorials' quotes of tested code (PLAN 9.2-9.3, ADR 0058): a quoted line that moves or
 # changes without its page fails here.
 python3 ci/tutorial_quotes.py --check

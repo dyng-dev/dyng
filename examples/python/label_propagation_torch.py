@@ -40,7 +40,7 @@ truth = stream.true_labels
 try:
     import torch
 
-    F = torch.from_dlpack(lp.labels)  # float32 on the result's device, no copy
+    F = torch.from_dlpack(lp.labels)  # float32 on the result's device, no copy: read-only use
     predicted = (F >= 0.5).cpu().numpy()
     del F  # no export outlives the result's next update (it would copy the labels once)
 except ImportError:

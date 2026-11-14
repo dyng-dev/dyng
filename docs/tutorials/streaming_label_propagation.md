@@ -133,7 +133,9 @@ it without a copy.
 
 On the two blobs the accuracy is above 95 % (the test checks it, and that the labels are within
 2000 delta of the harmonic solution of the final graph). With PyTorch, `torch.from_dlpack` views
-the same memory (on cuda, device memory on `cuda:0`):
+the same memory (on cuda, device memory on `cuda:0`). PyTorch has no read-only tensors, so the
+tensor aliases the result's labels and must not be written (a write changes the state the next
+update starts from); `clone()` it to modify it:
 
 % quote: python/tests/test_label_propagation_tutorial.py#torch f5db32097bd7
 ```{literalinclude} ../../python/tests/test_label_propagation_tutorial.py
