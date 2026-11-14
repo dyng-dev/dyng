@@ -210,7 +210,8 @@ __device__ __forceinline__ void processVertexGroup(const GraphView<edge_t>& g, c
   float wAll, weightedLabel;
   accumulateNeighbors(g, rowStart, rowEnd, lane, LANES, damped, wAll, weightedLabel);
 #if defined(DYNG_CALIBRATION_LP_PERMUTED_REDUCTION)
-  // CALIBRATION (AD6; parity/label_propagation_calibrate.py, never in a library build): the lane
+  // CALIBRATION (AD6; parity/label_propagation_engines.py calibrate, i.e. compare.py
+  // label_propagation calibrate; never in a library build): the lane
   // tree in the other association order, (p0 + p1) + (p2 + p3) + ... instead of (p0 + p4) + ...
 #pragma unroll
   for (int offset = 1; offset < LANES; offset <<= 1) {
