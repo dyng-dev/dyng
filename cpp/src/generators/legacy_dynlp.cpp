@@ -106,13 +106,17 @@ void check_options(const generators::vertex_arrival_options& opt, const char* wh
 /// The draws of the legacy stream: std::mt19937 with libstdc++ 12's algorithms on top of it
 /// (util/rng.hpp's twins; ADR 0067).
 struct legacy_draws {
+  using seed_type = std::uint32_t;  ///< the engine's seed
   std::mt19937 engine;
   explicit legacy_draws(std::uint32_t seed) : engine(seed) {}
   template <typename value_t>
   void shuffle(std::vector<value_t>& v) {
     legacy_shuffle32(v, engine);
   }
-  std::int64_t uniform_int(std::int64_t lo, std::int64_t hi) {
+  // Out of line, as M10a's generator called legacy_uniform_int(): inlined (with the engine's
+  // refill) into the random-edge loop of generate_graph() it made the loop about 30 % slower, and
+  // the legacy stream's generation about 11 % (5m1; M10b's review of the end_to_end readings).
+  [[gnu::noinline]] std::int64_t uniform_int(std::int64_t lo, std::int64_t hi) {
     return legacy_uniform_int(engine, lo, hi);
   }
   float uniform_float(float lo, float hi) {
@@ -129,6 +133,7 @@ struct legacy_draws {
 /// product of two 24-bit significands is exact in double, so a contracted fused multiply-add gives
 /// the same value).
 struct library_draws {
+  using seed_type = std::uint64_t;  ///< the engine's seed
   std::mt19937_64 engine;
   explicit library_draws(std::uint64_t seed) : engine(seed) {}
   template <typename value_t>
@@ -139,7 +144,8 @@ struct library_draws {
       std::swap(v[static_cast<std::size_t>(i)], v[j]);
     }
   }
-  std::int64_t uniform_int(std::int64_t lo, std::int64_t hi) {
+  [[gnu::noinline]] std::int64_t uniform_int(std::int64_t lo,
+                                             std::int64_t hi) {  // as legacy_draws'
     const std::uint64_t width = static_cast<std::uint64_t>(hi) - static_cast<std::uint64_t>(lo);
     return static_cast<std::int64_t>(static_cast<std::uint64_t>(lo) +
                                      legacy_uniform_int64(engine, 0, width));
@@ -158,10 +164,11 @@ std::int64_t scaled_count(std::size_t count, float fraction) {
 }
 
 /// generateSparseGraph: the true labels, the edge list (with weights) and the CSR (the draws of
-/// `rng`: the legacy stream's or the library's).
+/// draws_t: the legacy stream's or the library's, a local engine seeded with `seed`).
 template <typename draws_t>
-void generate_graph(const generators::vertex_arrival_options& opt, int threads, draws_t& rng,
-                    dynlp_legacy_output& out) {
+void generate_graph(const generators::vertex_arrival_options& opt, int threads,
+                    typename draws_t::seed_type seed, dynlp_legacy_output& out) {
+  draws_t rng(seed);
   const auto n = static_cast<std::int32_t>(opt.total_vertices);
   std::int64_t target = static_cast<std::int64_t>(n) * opt.average_degree / 2;
   if (target < static_cast<std::int64_t>(n) - 1) {
@@ -318,10 +325,12 @@ void generate_graph(const generators::vertex_arrival_options& opt, int threads, 
   }
 }
 
-/// generateBatches: phases A (vertices), B (edges) and C (deletions) (the draws of `rng`).
+/// generateBatches: phases A (vertices), B (edges) and C (deletions) (the draws of draws_t, a
+/// local engine seeded with `seed`).
 template <typename draws_t>
-void generate_batches(const generators::vertex_arrival_options& opt, int threads, draws_t& rng,
-                      dynlp_legacy_output& out) {
+void generate_batches(const generators::vertex_arrival_options& opt, int threads,
+                      typename draws_t::seed_type seed, dynlp_legacy_output& out) {
+  draws_t rng(seed);
   const std::int32_t n = out.num_nodes;
   const auto un = static_cast<std::size_t>(n);
   const std::int32_t num_batches = opt.num_batches;
@@ -543,10 +552,8 @@ dynlp_legacy_output dynlp_legacy_generate(const generators::vertex_arrival_optio
   check_options(opt, "dynlp_vertex_arrival_stream");
   dynlp_legacy_output out;
   const int t = std::max(threads, 1);
-  legacy_draws graph_draws(opt.seed);
-  generate_graph(opt, t, graph_draws, out);
-  legacy_draws batch_draws(static_cast<std::uint32_t>(opt.seed + 12345U));
-  generate_batches(opt, t, batch_draws, out);
+  generate_graph<legacy_draws>(opt, t, opt.seed, out);
+  generate_batches<legacy_draws>(opt, t, static_cast<std::uint32_t>(opt.seed + 12345U), out);
   out.tau = average_edge_weight(out);
   return out;
 }
@@ -559,10 +566,9 @@ dynlp_legacy_output vertex_arrival_generate(const generators::vertex_arrival_opt
   const int t = std::max(threads, 1);
   // Two engines, as the legacy stream has: the graph's from the seed, the batches' from the seed
   // plus the golden-ratio constant (both std::mt19937_64).
-  library_draws graph_draws(static_cast<std::uint64_t>(opt.seed));
-  generate_graph(opt, t, graph_draws, out);
-  library_draws batch_draws(static_cast<std::uint64_t>(opt.seed) + 0x9E3779B97F4A7C15ULL);
-  generate_batches(opt, t, batch_draws, out);
+  generate_graph<library_draws>(opt, t, static_cast<std::uint64_t>(opt.seed), out);
+  generate_batches<library_draws>(
+      opt, t, static_cast<std::uint64_t>(opt.seed) + 0x9E3779B97F4A7C15ULL, out);
   out.tau = average_edge_weight(out);
   return out;
 }
