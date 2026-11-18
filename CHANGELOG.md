@@ -353,6 +353,16 @@ Before 0.1.0 anything may change.
   (`cuda_error`, device memory, the operators engine with `in_place`, `CapacityError` on cuda);
   the stats' determinism levels in Python as in C++ (AD20); a tensor of the labels must not be
   written; the generators page, the format page's flags and label normalization.
+- M10b review fixes (parity): every certificate reading taken again on the fixed library
+  (`parity/results/M10b.md` section 5; records in `parity/results/M10b-review/`): the gates
+  against LabelPropagation-CUDA within their bars (damped `update[sum]` 0.987-1.010,
+  `end_to_end` 1.010-1.045, device memory 1.002-1.012; the 50m damped `end_to_end` 1.077, down
+  from 1.105), M11's ia3_hsosp gates (271 / 271) and replays, the LP replays, the mutations
+  (6 / 6), ADR 0024's LP slotted path (1.002 / 1.004), `ci/gpu_local.sh` in full and both plugins;
+  the in_place cloud missed by one 50k run at batch 9 in two readings (a recorded miss, the
+  author's decision of 2026-11-14) and in the one further reading (2026-11-18), a STOP pending the
+  author (GOVERNANCE.md, Open decisions, M10 (AD)); the scoped dry certify of label_propagation
+  fails on that set alone.
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
