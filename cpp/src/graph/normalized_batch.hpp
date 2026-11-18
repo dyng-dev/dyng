@@ -100,6 +100,12 @@ struct normalized_batch {
   std::vector<vertex_t> inserted_vertices;   ///< Ins_eff = Ins \ Del, in list order
   std::vector<std::int8_t> inserted_labels;  ///< the seed label of each (-1: none)
   std::vector<vertex_t> deleted_vertices;    ///< Del_eff = Del ∩ V_t, in list order
+  /// row_layout::slack (ADR 0103): the layout step Step 0 planned for this batch: the rows that
+  /// move to the tail, as (vertex, new capacity) pairs in increasing vertex order, or a
+  /// compaction of every row instead (slack_compact); vertices_after is the vertex count after a
+  /// growth (batch_semantics::allow_vertex_growth).
+  std::vector<std::int64_t> slack_moves;
+  bool slack_compact = false;  ///< the batch compacts the rows (see slack_moves)
 
   /**
    * @brief The memory held (for workspace reports).
@@ -115,7 +121,7 @@ struct normalized_batch {
            apply_rows.size() * sizeof(std::uint32_t) + apply_degree.size() +
            apply_scan_temp.size() +
            (inserted_vertices.capacity() + deleted_vertices.capacity()) * sizeof(vertex_t) +
-           inserted_labels.capacity();
+           inserted_labels.capacity() + slack_moves.capacity() * sizeof(std::int64_t);
   }
 };
 

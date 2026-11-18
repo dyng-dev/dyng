@@ -32,6 +32,13 @@ struct apply_summary {
   /** @brief Insertions not applied because an endpoint is not active after the batch
    *         (batch_semantics::net_effect(); 0.4). */
   std::int64_t dropped_insertions = 0;
+  /** @brief Rows moved to the tail of the slot arena because the batch overflowed them
+   *         (row_layout::slack; 0.4). */
+  std::int64_t relocated_rows = 0;
+  /** @brief Compactions of the rows the batch ran (row_layout::slack: 0 or 1; 0.4). A
+   *         compaction rewrites the rows in vertex order without the entries of deleted
+   *         vertices, which changes the order of a row's live entries in the slots. */
+  std::int64_t compactions = 0;
 };
 
 }  // namespace dyng

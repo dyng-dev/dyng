@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file fuzz_result_io.cpp
- * @brief libFuzzer target of the result readers dyng::io::read_distances() and
- *        dyng::io::read_parents() (cpp/fuzz/fuzz_input.hpp).
+ * @brief libFuzzer target of the result readers dyng::io::read_distances(),
+ *        dyng::io::read_parents() and (0.4) dyng::io::read_labels() (cpp/fuzz/fuzz_input.hpp).
  *
- * Options: 0 the reader (distances, parents), 1 the vertex count (0..7, 1000). One file. An
- * accepted input must give one value per vertex in range, and the matching writer followed by the
- * reader must give the same values (distances of at least infinite_distance() / 2 come back as
- * infinite_distance(): the writer prints them as INF).
+ * Options: 0 the reader (distances, parents, labels), 1 the vertex count (0..7, 1000). One file.
+ * An accepted input must give one value per vertex in range, and the matching writer followed by
+ * the reader must give the same values (distances of at least infinite_distance() / 2 come back as
+ * infinite_distance(): the writer prints them as INF; labels come back within the 6 decimals the
+ * writer prints, plus half a float ulp).
  */
 #include "fuzz_input.hpp"
 
 #include <dyng/core/types.hpp>
 #include <dyng/io/result_io.hpp>
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -64,6 +66,32 @@ void parents(const std::string& path, std::int64_t n) {
   });
 }
 
+void labels(const std::string& path, std::int64_t n) {
+  const auto read = dyng::fuzz::read_or_reject([&] { return dyng::io::read_labels(path, n); });
+  if (!read) {
+    return;  // rejected with a documented exception
+  }
+  const auto& l = *read;
+  DYNG_FUZZ_CHECK(l.size() == static_cast<std::size_t>(n));
+  dyng::fuzz::round_trip([&] {
+    const std::string copy = dyng::fuzz::files().path("copy_labels.txt");
+    dyng::io::write_labels(copy, dyng::host_view(l));
+    dyng::fuzz::written(copy);
+    const auto back = dyng::io::read_labels(copy, n);
+    DYNG_FUZZ_CHECK(back.size() == l.size());
+    for (std::size_t i = 0; i < l.size(); ++i) {
+      const float a = l[i];
+      const float b = back[i];
+      if (!std::isfinite(a)) {
+        DYNG_FUZZ_CHECK(std::isnan(a) ? std::isnan(b) : a == b);
+      } else {
+        DYNG_FUZZ_CHECK(std::fabs(static_cast<double>(b) - static_cast<double>(a)) <=
+                        5.0e-7 + 1.2e-7 * std::fabs(static_cast<double>(a)));
+      }
+    }
+  });
+}
+
 }  // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
@@ -71,10 +99,16 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   const std::string path = dyng::fuzz::files().write("input.txt", in.file(0));
   const int choice = in.option(1, 9);
   const std::int64_t n = choice == 8 ? 1000 : choice;
-  if (in.option(0, 2) == 0) {
-    distances(path, n);
-  } else {
-    parents(path, n);
+  switch (in.option(0, 3)) {
+    case 0:
+      distances(path, n);
+      break;
+    case 1:
+      parents(path, n);
+      break;
+    default:
+      labels(path, n);  // 0.4
+      break;
   }
   return 0;
 }

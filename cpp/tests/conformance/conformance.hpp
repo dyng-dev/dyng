@@ -1207,7 +1207,16 @@ struct container_checks<case_t, slotted_axis<graph<vertex_t_, edge_t_, weight_t_
       for (std::int64_t i = 0; i < copies; ++i) {
         x.insert_edge(a, b, {w});
       }
-      if (be == backend::cuda) {
+      if (c.g->properties().layout == row_layout::slack) {
+        // Slack rows (M10b, ADR 0103): the row moves to the tail of the arena instead (on a
+        // clone: the model does not know these parallel entries).
+        SCOPED_TRACE("a row overflow on slack rows: the row moves");
+        graph_t copy = c.g->clone(c.res);
+        const apply_summary s = copy.apply(c.res, x.view());
+        EXPECT_TRUE(s.relocated_rows >= 1 || s.compactions == 1);
+        EXPECT_EQ(s.inserted_edges, 2 * copies);
+        EXPECT_NO_THROW(copy.check_integrity(c.res));
+      } else if (be == backend::cuda) {
         // Found on the device after the commit (ADR 0074): capacity_error, the graph poisoned.
         SCOPED_TRACE("a row overflow on the device");
         EXPECT_THROW((void)c.step(x), capacity_error);

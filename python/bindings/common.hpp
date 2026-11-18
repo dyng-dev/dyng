@@ -60,7 +60,7 @@ namespace nb = nanobind;
 
 /**
  * @brief The code of an id or weight type in native names ("I32", "I64", "U").
- * @tparam value_t std::int32_t, std::int64_t or dyng::unweighted.
+ * @tparam value_t std::int32_t, std::int64_t, dyng::unweighted or float.
  */
 template <typename value_t>
 struct type_code;
@@ -84,6 +84,13 @@ template <>
 struct type_code<unweighted> {
   static constexpr const char* upper = "U";  ///< in class names
   static constexpr const char* lower = "u";  ///< in function names
+};
+
+/// @brief float: "F32" (label_propagation's float graphs; 0.4).
+template <>
+struct type_code<float> {
+  static constexpr const char* upper = "F32";  ///< in class names
+  static constexpr const char* lower = "f32";  ///< in function names
 };
 
 /**
@@ -535,5 +542,7 @@ void bind_profiler(nb::module_& m);        ///< profiler.cpp
 void bind_registry(nb::module_& m);        ///< registry.cpp
 void bind_testing(nb::module_& m);         ///< testing.cpp
 void bind_arrays(nb::module_& m);          ///< arrays.cpp
+
+void bind_label_propagation(nb::module_& m);  ///< label_propagation.cpp (0.4)
 
 }  // namespace dyng::python

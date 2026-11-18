@@ -107,11 +107,75 @@ def test_record_shapes(tmp_path: Path, monkeypatch) -> None:
         assert {"record", "result"} <= set(lp.RECORD[command])
 
 
-def test_engines_parses_and_waits_for_m10b() -> None:
+def test_engines_parses_and_needs_the_port(tmp_path: Path) -> None:
+    """M10b step 1 (ADR 0101): engines reads the port's fused against its operators engine,
+    damped only (reported)."""
     args = lp.parser().parse_args(["engines", "--exe", "x", "--cases", "50k"])
     assert args.cases == ["50k"] and args.exe == Path("x")
-    with pytest.raises(SystemExit, match="arrives in M10b"):
-        lp.main(["engines", "--exe", "x", "--cases", "50k"])
+    assert args.engines == ["fused", "operators"] and args.schedules == ["damped"]
+    assert args.lock_clocks == "recorded"
+    with pytest.raises(SystemExit, match="no such dyng-compat-dynlp"):
+        lp.main(["engines", "--exe", str(tmp_path / "missing"), "--cases", "50k"])
+    exe = tmp_path / "dyng-compat-dynlp"
+    exe.write_text("")
+    with pytest.raises(SystemExit, match="damped only"):
+        lp.main(["engines", "--exe", str(exe), "--cases", "50k", "--schedules", "inplace"])
+
+
+def test_engines_guard_and_ulps() -> None:
+    import struct
+
+    a = facts(digest="x")
+    assert lp.engines_guard(["fused", "operators"], {"fused": a, "operators": a},
+                            {"fused": a, "operators": a}) == []  # fmt: skip
+    b = facts(iterations=(0, 1218), digest="x")
+    bad = lp.engines_guard(["fused", "operators"], {"fused": a, "operators": b},
+                           {"fused": a, "operators": b})  # fmt: skip
+    assert any("iterations" in x for x in bad)
+    c = facts(digest="y")
+    assert lp.engines_guard(["fused", "operators"], {"fused": a, "operators": c},
+                            {"fused": a, "operators": c})  # fmt: skip
+    pytest.importorskip("numpy")  # ulp_distance reads the dumps with NumPy
+    one = struct.pack("<2f", 0.5, 0.25)
+    two = struct.pack("<2f", 0.5, struct.unpack("<f", struct.pack("<i", struct.unpack(
+        "<i", struct.pack("<f", 0.25))[0] + 3))[0])  # fmt: skip
+    assert lp.ulp_distance(one, one) == 0
+    assert lp.ulp_distance(one, two) == 3
+
+
+def test_ab_sides_cross_guard_and_layouts(tmp_path: Path) -> None:
+    """M10b step 2 (ADR 0024's dynG-against-dynG reading; the slack report): ab parses its
+    sides, checks every side against its first round and the --cross sides against the first
+    side, and cycles the heap layouts (17 by default, 51 rounds)."""
+    exe = tmp_path / "dyng-compat-dynlp"
+    exe.write_text("")
+    side = lp.parse_side(f"slack={exe}:--layout slack --streaming-tau")
+    assert side["label"] == "slack" and side["extra"] == ["--layout", "slack", "--streaming-tau"]
+    assert lp.parse_side(f"A={exe}")["extra"] == []
+    with pytest.raises(SystemExit, match="LABEL=EXE"):
+        lp.parse_side(str(exe))
+    with pytest.raises(SystemExit, match="no such dyng-compat-dynlp"):
+        lp.parse_side(f"B={tmp_path / 'missing'}")
+    args = lp.parser().parse_args(["ab", "--side", f"A={exe}", "--side", f"B={exe}",
+                                   "--cross", "B"])  # fmt: skip
+    assert args.layouts == 17 and args.cross == ["B"] and args.schedules == ["damped"]
+    assert args.cases == ["50k", "500k"] and args.lock_clocks == "recorded"
+    sides = [{"label": "A"}, {"label": "B"}, {"label": "slack"}]
+    a = facts(digest="x")
+    first = {"A": a, "B": a, "slack": facts(digest="s")}
+    assert lp.sides_guard(sides, ["B"], first, first) == []
+    # B's labels differ from A's: a failure only when B is a --cross side.
+    now = dict(first, B=facts(digest="y"))
+    first_b = dict(first, B=now["B"])
+    assert lp.sides_guard(sides, [], first_b, now) == []
+    assert any("differs from A's" in x for x in lp.sides_guard(sides, ["B"], first_b, now))
+    # A side whose counts change between rounds fails its own guard.
+    assert lp.sides_guard(sides, [], first, dict(first, slack=facts(iterations=(0, 9), digest="s")))
+    with pytest.raises(SystemExit, match="at least two"):
+        lp.main(["ab", "--side", f"A={exe}", "--cases", "50k"])
+    with pytest.raises(SystemExit, match="not a side after the first"):
+        lp.main(["ab", "--side", f"A={exe}", "--side", f"B={exe}", "--cross", "A",
+                 "--cases", "50k"])  # fmt: skip
 
 
 def test_kernels_parses_and_needs_the_port(tmp_path: Path) -> None:

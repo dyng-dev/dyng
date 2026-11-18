@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Dtype dispatch: which C++ instantiation an input selects (PLAN Section 5.4, rule 2).
 
-The compiled library holds five graph types (PLAN Section 4.4.3): ``(vertex, edge offset,
+The compiled library holds seven graph types (PLAN Section 4.4.3): ``(vertex, edge offset,
 weight)`` = ``(int32, int32, int32)``, ``(int32, int64, int32)``, ``(int64, int64, int32)``,
-``(int32, int32, unweighted)`` and ``(int32, int64, unweighted)``.
+``(int32, int32, unweighted)``, ``(int32, int64, unweighted)`` and, since 0.4,
+``(int32, int32, float32)`` and ``(int32, int64, float32)`` (label_propagation's similarity
+graphs).
 
 The rules (ADR 0011, item 3):
 
@@ -17,8 +19,14 @@ The rules (ADR 0011, item 3):
 - Where an instantiation is already chosen (a batch or a tree for an existing graph), ids are
   converted to the graph's type with a range check: a value that does not fit raises
   :class:`~dyng.InvalidArgumentError` instead of wrapping.
-- Weights are integers in the graph's weight type (int32); floating-point or boolean weights are
-  rejected.
+- Weights select the weight type (0.4, ADR 0108; decided by the author on 2026-10-28, AD14):
+  integer weights select int32 (checked, as before); **float32** weights select the float
+  graphs; float64 weights are accepted only with an explicit ``weight_dtype="float32"`` and are
+  then checked (finite and within float32's range; rounded to the nearest float32, the
+  conversion the caller asked for), never narrowed silently. Boolean weights are rejected.
+  Where the graph is already chosen (a batch applied to a float graph), float32 weights are used
+  as they are and float64 or integer weights only when every value is exactly a float32;
+  otherwise :class:`~dyng.InvalidArgumentError` asks for ``astype(numpy.float32)``.
 - An unsupported combination raises :class:`~dyng.NotSupportedError` listing the supported ones.
 
 Inputs in CUDA device memory (CuPy, PyTorch, JAX, any DLPack producer; a :class:`dyng.Array` of
@@ -41,32 +49,57 @@ __all__ = ["GraphType", "GRAPH_TYPES", "find_graph_type", "supported_graph_types
 
 INT32 = np.dtype(np.int32)
 INT64 = np.dtype(np.int64)
+INT8 = np.dtype(np.int8)
+FLOAT32 = np.dtype(np.float32)
 _INT32_MAX = int(np.iinfo(np.int32).max)
+_FLOAT32_MAX = float(np.finfo(np.float32).max)
 
 
 @dataclass(frozen=True)
 class GraphType:
-    """One compiled graph instantiation."""
+    """One compiled graph instantiation.
+
+    ``weight`` is the weight dtype: int32, float32 (0.4), or None for the unweighted graphs.
+    """
 
     vertex: np.dtype
     edge: np.dtype
-    weighted: bool
+    weight: np.dtype | None
+
+    @property
+    def weighted(self) -> bool:
+        """Whether the weight type is int32 (the meaning of :attr:`dyng.Graph.weighted`)."""
+        return self.weight == INT32
+
+    @property
+    def has_weights(self) -> bool:
+        """Whether the graph has weight columns (int32 or float32)."""
+        return self.weight is not None
+
+    @property
+    def is_float(self) -> bool:
+        """Whether the weight type is float32 (label_propagation's graphs; 0.4)."""
+        return self.weight == FLOAT32
+
+    @property
+    def _wcode(self) -> str:
+        return "u" if self.weight is None else ("f32" if self.weight == FLOAT32 else "i32")
 
     @property
     def code(self) -> str:
-        """The suffix of the native names: ``i32_i64_u``."""
-        return "_".join((_code(self.vertex), _code(self.edge), "i32" if self.weighted else "u"))
+        """The suffix of the native names: ``i32_i64_u``, ``i32_i32_f32``."""
+        return "_".join((_code(self.vertex), _code(self.edge), self._wcode))
 
     @property
     def batch_code(self) -> str:
-        """The suffix of the native batch class: ``I32I32``, ``I32U``."""
-        return _code(self.vertex).upper() + ("I32" if self.weighted else "U")
+        """The suffix of the native batch class: ``I32I32``, ``I32U``, ``I32F32``."""
+        return _code(self.vertex).upper() + self._wcode.upper()
 
     @property
     def native_class(self) -> Any:
         """The native graph class."""
         name = "Graph" + _code(self.vertex).upper() + _code(self.edge).upper()
-        return getattr(native, name + ("I32" if self.weighted else "U"))
+        return getattr(native, name + self._wcode.upper())
 
     @property
     def native_batch_class(self) -> Any:
@@ -75,7 +108,7 @@ class GraphType:
 
     def describe(self) -> str:
         """``(int32, int64, unweighted)``."""
-        w = "int32" if self.weighted else "unweighted"
+        w = "unweighted" if self.weight is None else self.weight.name
         return f"(vertex {self.vertex.name}, edge {self.edge.name}, weight {w})"
 
 
@@ -84,11 +117,13 @@ def _code(dt: np.dtype) -> str:
 
 
 GRAPH_TYPES: tuple[GraphType, ...] = (
-    GraphType(INT32, INT32, True),
-    GraphType(INT32, INT64, True),
-    GraphType(INT64, INT64, True),
-    GraphType(INT32, INT32, False),
-    GraphType(INT32, INT64, False),
+    GraphType(INT32, INT32, INT32),
+    GraphType(INT32, INT64, INT32),
+    GraphType(INT64, INT64, INT32),
+    GraphType(INT32, INT32, None),
+    GraphType(INT32, INT64, None),
+    GraphType(INT32, INT32, FLOAT32),
+    GraphType(INT32, INT64, FLOAT32),
 )
 
 
@@ -97,16 +132,42 @@ def supported_graph_types() -> str:
     return "; ".join(t.describe() for t in GRAPH_TYPES)
 
 
-def find_graph_type(vertex: np.dtype, edge: np.dtype, weighted: bool) -> GraphType:
-    """The instantiation of (vertex, edge, weighted), or NotSupportedError listing the others."""
+def find_graph_type(vertex: np.dtype, edge: np.dtype, weight: bool | np.dtype | None) -> GraphType:
+    """The instantiation of (vertex, edge, weight), or NotSupportedError listing the others.
+
+    ``weight``: a weight dtype (int32 or float32), None for unweighted, or a bool (True: int32).
+    """
+    if isinstance(weight, bool):
+        wdt: np.dtype | None = INT32 if weight else None
+    else:
+        wdt = None if weight is None else np.dtype(weight)
     for t in GRAPH_TYPES:
-        if t.vertex == vertex and t.edge == edge and t.weighted == weighted:
+        if t.vertex == vertex and t.edge == edge and t.weight == wdt:
             return t
-    w = "int32" if weighted else "unweighted"
+    w = "unweighted" if wdt is None else wdt.name
     raise NotSupportedError(
         f"dyng: no graph type (vertex {np.dtype(vertex).name}, edge {np.dtype(edge).name}, "
         f"weight {w}) in this build; the supported combinations are {supported_graph_types()}"
     )
+
+
+def float32_value(x: float) -> float:
+    """The shortest decimal that is the float32 nearest to ``x``, as a Python float (a float32
+    field read back from C++: ``float32_value(1e-4) == 1e-4``, and passing it back gives the same
+    float32)."""
+    return float(str(np.float32(x)))
+
+
+def weight_dtype_of(name: Any, what: str) -> np.dtype:
+    """``"int32"`` / ``"float32"`` / a NumPy dtype as a supported weight dtype."""
+    try:
+        dt = np.dtype(name)
+    except TypeError as e:
+        raise InvalidArgumentError(f"{what}: {name!r} is not a dtype") from e
+    if dt not in (INT32, FLOAT32):
+        raise NotSupportedError(f"{what}: {dt.name} is not supported (int32 or float32)")
+    out: np.dtype = dt
+    return out
 
 
 def id_dtype(name: Any, what: str) -> np.dtype:
@@ -268,11 +329,13 @@ def checked_cast(a: np.ndarray, dtype: np.dtype, what: str) -> np.ndarray:
     return np.ascontiguousarray(a, dtype=dtype)
 
 
-def weights_view(w: Any, count: int, what: str) -> np.ndarray:
+def weights_view(w: Any, count: int, what: str, *, allow_float: bool = False) -> np.ndarray:
     """Weights as a matrix of shape (count, K) (1-D input: K = 1), without converting them.
 
-    Checks the shape and that the values are integers; the conversion to int32 (with a range
-    check) is :func:`weights_matrix`. For NumPy input the result views the caller's array.
+    Checks the shape and that the values are integers (with ``allow_float``: integers or
+    floating point, 0.4); the conversions are :func:`weights_matrix` (int32, with a range check)
+    and :func:`float_weights_matrix` (float32). For NumPy input the result views the caller's
+    array.
     """
     if isinstance(w, np.ndarray):
         a = w
@@ -286,14 +349,75 @@ def weights_view(w: Any, count: int, what: str) -> np.ndarray:
             f"{what}: expected {count} weights (shape ({count},) or ({count}, K)), got shape "
             f"{a.shape}"
         )
-    if a.size and (a.dtype.kind == "b" or a.dtype.kind not in "iu"):
+    kinds = "iuf" if allow_float else "iu"
+    if a.size and (a.dtype.kind == "b" or a.dtype.kind not in kinds):
+        if allow_float:
+            raise InvalidArgumentError(
+                f"{what}: weights must be integers or floating point, got dtype {a.dtype.name}"
+            )
         raise InvalidArgumentError(
-            f"{what}: weights must be integers (int32 in 0.1), got dtype {a.dtype.name}"
+            f"{what}: weights must be integers (int32; float32 weights select the float graphs "
+            f"of 0.4), got dtype {a.dtype.name}"
         )
     return a
 
 
 def weights_matrix(w: Any, count: int, what: str) -> np.ndarray:
     """Weights as a C-contiguous int32 matrix of shape (count, K) (1-D input: K = 1)."""
-    a = weights_view(w, count, what)
+    a = weights_view(w, count, what, allow_float=True)
+    if a.size and a.dtype.kind == "f":
+        raise InvalidArgumentError(
+            f"{what}: the graph's weights are int32, got dtype {a.dtype.name} (float32 weights "
+            "select the float graphs of label_propagation; nothing is narrowed silently)"
+        )
     return checked_cast(a.reshape(-1), INT32, what).reshape(a.shape)
+
+
+def is_float_weights(w: Any) -> bool:
+    """Whether a weight input declares a floating-point dtype (it then selects a float graph)."""
+    dt = _declared_dtype(w)
+    if dt is None:
+        a = np.asarray(w)
+        return a.size > 0 and a.dtype.kind == "f"
+    return dt.kind == "f"
+
+
+def to_float32(a: np.ndarray, what: str, *, explicit: bool) -> np.ndarray:
+    """``a`` as a C-contiguous float32 array (AD14, ADR 0108).
+
+    float32 input is used as it is (zero-copy when C-contiguous). Other input: with ``explicit``
+    (the caller passed ``weight_dtype="float32"``) every value must be finite and within
+    float32's range, and is rounded to the nearest float32; without it every value must be
+    exactly a float32 (no rounding), else :class:`~dyng.InvalidArgumentError`. NaN and
+    infinities are always rejected.
+    """
+    if a.dtype == FLOAT32:
+        out = np.ascontiguousarray(a)
+        if out.size and not bool(np.isfinite(out).all()):
+            raise InvalidArgumentError(f"{what}: a weight is NaN or infinite")
+        return out
+    if a.size == 0:
+        return np.zeros(a.shape, dtype=FLOAT32)
+    if a.dtype.kind == "b" or a.dtype.kind not in "iuf":
+        raise InvalidArgumentError(f"{what}: expected numbers, got dtype {a.dtype.name}")
+    wide = a.astype(np.float64)
+    if a.dtype.kind == "f" and not bool(np.isfinite(wide).all()):
+        raise InvalidArgumentError(f"{what}: a weight is NaN or infinite")
+    if bool((np.abs(wide) > _FLOAT32_MAX).any()):
+        raise InvalidArgumentError(
+            f"{what}: a weight is outside float32's range (|w| > {_FLOAT32_MAX:.6g})"
+        )
+    narrow = wide.astype(FLOAT32)
+    if not explicit and not np.array_equal(narrow.astype(np.float64), wide):
+        raise InvalidArgumentError(
+            f"{what}: {a.dtype.name} weights that are not exactly float32 values; the graph's "
+            "weights are float32 and nothing is narrowed silently: pass weights.astype("
+            "numpy.float32) (or weight_dtype='float32' where a function takes it)"
+        )
+    return np.ascontiguousarray(narrow)
+
+
+def float_weights_matrix(w: Any, count: int, what: str, *, explicit: bool = False) -> np.ndarray:
+    """Weights as a C-contiguous float32 matrix of shape (count, K) (see :func:`to_float32`)."""
+    a = weights_view(w, count, what, allow_float=True)
+    return to_float32(a.reshape(-1), what, explicit=explicit).reshape(a.shape)

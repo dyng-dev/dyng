@@ -77,8 +77,11 @@ struct graph_access;
  * **Row layouts (0.4).** A graph built by from_edges() or from_csr() has row_layout::compact
  * (every algorithm reads it). graph::with_capacity() builds a graph with row_layout::slotted:
  * fixed per-vertex slot ranges, a row end and a state per vertex (vertex_status), and vertex
- * batches under batch_semantics::net_effect() (LabelPropagation-CUDA's device graph; ADR 0069).
- * Only label_propagation reads slotted rows: every other algorithm, the device merge and the
+ * batches under batch_semantics::net_effect() (LabelPropagation-CUDA's device graph; ADR 0069),
+ * or with row_layout::slack: the same vertex batches on rows whose slots move (a row that
+ * overflows moves to the tail of the slot arena; compactions; vertex growth under
+ * allow_vertex_growth; for streams whose capacities are not known; ADR 0103).
+ * Only label_propagation reads slotted and slack rows: every other algorithm, the device merge and the
  * upload of the compact device copy refuse them with not_supported_error (ADR 0070). The default edge offset type is int32, the originals' type, fixed by the edge_t
  * benchmark (ADR 0009: 64-bit offsets cost more than 3 % on the parity suites). Construction is
  * checked: a graph whose edge count does not fit edge_t (from_edges(), or a batch that grows it
@@ -213,21 +216,36 @@ class graph {
    * duplicates, as the original does not) and semantics = batch_semantics::net_effect();
    * store_transposed is ignored (the rows are symmetric). num_weights must be 1 (0 for weight_t
    * = unweighted).
+   *
+   * **row_layout::slack (0.4, ADR 0103).** The same properties with layout = row_layout::slack
+   * (and batch_semantics::net_effect() with allow_vertex_growth set or not) build slack rows:
+   * `row_capacity` is a hint and may be empty or shorter than vertex_capacity (the missing rows
+   * have none); row v gets ceil(row_capacity[v] * (1 + props.headroom)) slots. A batch never
+   * overflows a slack row: a row that needs more slots moves to the end of the slot arena with
+   * ceil(k * (1 + headroom)) slots for its k entries and keeps them in order (apply_summary::
+   * relocated_rows), and when the slots left by moved rows outnumber the slots the rows own the
+   * batch compacts every row in vertex order without the entries of deleted vertices
+   * (apply_summary::compactions); both happen inside apply(), before the batch's appends. Under
+   * allow_vertex_growth an id at or beyond num_vertices() grows the graph (the new vertices
+   * inactive). capacity_error comes only when the slots do not fit edge_t.
    * @param[in] res             Execution resources (the graph belongs to their backend).
    * @param[in] vertex_capacity The number of vertices (>= 0).
    * @param[in] row_capacity    The slots of each vertex (>= 0 each; any memory space: copied to
    *                            the host once under res.get_copy_policy()), e.g. its degree in the
-   *                            full graph (generators::vertex_arrival_stream::row_capacity).
+   *                            full graph (generators::vertex_arrival_stream::row_capacity); for
+   *                            slack rows the expected entries of the first vertices (any number
+   *                            up to vertex_capacity, or none).
    * @param[in] props           The properties (see above).
    * @return The graph at version 0, every vertex inactive and every row empty.
    * @throws invalid_argument_error if `vertex_capacity` is negative, `row_capacity` does not hold
-   *         vertex_capacity values or one is negative, num_weights is not 1 (0 for unweighted),
-   *         `props.layout` is not row_layout::slotted, or an array must be copied and the copy
-   *         policy is copy_policy::error.
-   * @throws capacity_error         if the sum of the capacities does not fit edge_t (use the
-   *         int64 edge_t instantiation).
-   * @throws not_supported_error    for row_layout::slack (M10b) and for any property the 0.4
-   *         slotted rows do not support (the message names it).
+   *         vertex_capacity values (slotted rows; more than vertex_capacity for slack rows) or
+   *         one is negative, num_weights is not 1 (0 for unweighted), `props.layout` is
+   *         row_layout::compact, the headroom of slack rows is not in [0, 16], or an array must
+   *         be copied and the copy policy is copy_policy::error.
+   * @throws capacity_error         if the sum of the capacities (with the headroom of slack rows)
+   *         does not fit edge_t (use the int64 edge_t instantiation).
+   * @throws not_supported_error    for any property the 0.4 slotted and slack rows do not support
+   *         (the message names it).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -409,7 +427,7 @@ class graph {
    *         device: the graph is poisoned, see below).
    * @throws not_supported_error    for vertex insertions or deletions on compact rows (they need
    *         with_capacity() and batch_semantics::net_effect()), and for edge deletions on slotted
-   *         rows.
+   *         and slack rows.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error (device merge).
    * @sync
@@ -439,6 +457,16 @@ class graph {
    * the batch was applied (the basic guarantee), and the graph is poisoned: every later apply()
    * raises capacity_error, on any resources, and check_integrity() reports it; a clone() or a
    * to_backend() copy of a poisoned graph is poisoned too.
+   *
+   * **Vertex batches on slack rows (0.4, ADR 0103).** The checks of slotted rows, with ids up to
+   * the vertex type's limit under allow_vertex_growth (the graph grows to the largest id + 1),
+   * and no capacity check: Step 0 plans the batch's layout step (the rows that need more slots
+   * move to the tail of the slot arena with their entries in order, or, when the slots left by
+   * moved rows would outnumber the owned ones, every row is compacted in vertex order without the
+   * entries of deleted vertices), which apply() runs after the vertex states and before the
+   * appends (apply_summary::relocated_rows, compactions); capacity_error only when the slots
+   * would not fit edge_t. On CUDA the rows stay on the device and the host keeps the layout
+   * (row starts, limits and ends); a compaction reads the kept entries back once.
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
 

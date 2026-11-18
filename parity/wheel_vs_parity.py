@@ -20,6 +20,15 @@ the parity build, without gating on it. Both sides run the SAME driver code in t
   `static_kernel`) and an update of 25K deletions + 25K insertions (stage `cycle_count.update`).
   The update's batch is drawn here (numpy, seed 1) and shared by both sides; it is not the
   original's generator (generators::legacy::cycle_enum_batch is not bound to Python).
+- **label_propagation** (0.4, M10b; `ics26_dynlp`, the CUDA reading): LabelPropagation-CUDA's
+  stream (`dyng.generators.legacy.dynlp_vertex_arrival_stream`, default 50k: 50,000 vertices,
+  10 batches, seed 42) in the published setup, damped at delta 1e-4: `Graph.with_capacity`,
+  `compute` on the empty graph and `reserve` untimed, then one `update` per batch, each timed
+  by its host wall time (the call returns after the device work); reported: the sum over the
+  batches (update[sum], the gated region of the gates' protocol) and the largest batch. A wheel
+  is judged by the oracles only (AD6): each side checks its own labels with
+  `dyng.testing.harmonic_solution` after the last batch (mean |F - F*| <= 2000 delta), untimed,
+  and the sides' labels are not required to be equal.
 
 Protocol (PLAN 8.6 / ADR 0018, as far as an informational row needs it): the exclusive perf
 lock, GPU 0, the clocks locked with Nsight Compute (parity/perf_ab.py's ClockLock, `boost`), one
@@ -147,6 +156,48 @@ def worker(args: argparse.Namespace) -> int:
                 "commit_host_ms": prof.total_host_ms("update.commit"),
                 "call_wall_ms": wall,
                 "checksum": checksum,
+            }
+
+    elif args.task == "label_propagation":
+        delta = 1e-4
+        stream = dyng.generators.legacy.dynlp_vertex_arrival_stream(
+            total_vertices=args.lp_vertices, num_batches=args.lp_batches, seed=42, resources=host
+        )
+        info["inputs"] = {
+            "stream": "dynlp_vertex_arrival_stream",
+            "vertices": args.lp_vertices,
+            "batches": args.lp_batches,
+            "edges": int(stream.col_ind.size) // 2,
+            "schedule": "damped",
+            "delta": delta,
+        }
+
+        def one_round() -> dict:
+            g = dyng.Graph.with_capacity(stream.row_capacity, resources=cuda)
+            r = dyng.label_propagation.compute(
+                g,
+                similarity_threshold=stream.similarity_threshold,
+                tolerance=delta,
+                update_schedule="damped",
+            )
+            r.reserve(stream.max_batch_vertices, stream.max_batch_edges)
+            walls = []
+            iterations = []
+            for b in stream.batches:
+                t0 = time.perf_counter()
+                st = dyng.label_propagation.update(g, b, r)
+                walls.append((time.perf_counter() - t0) * 1e3)
+                iterations.append(int(st.iterations))
+            f = dyng.testing.harmonic_solution(g, r.seed_labels)  # untimed: the oracle
+            mean, _ = f.error(r.labels)
+            assert f.converged and mean <= 2000 * delta, (f.converged, mean)
+            return {
+                "update_wall_ms": walls,
+                "update_sum_wall_ms": sum(walls),
+                "update_max_wall_ms": max(walls),
+                "iterations": iterations,
+                "oracle_mean_last": mean,
+                "checksum": None,  # judged by the oracle (AD6), not by equal labels
             }
 
     else:
@@ -287,6 +338,8 @@ class Side:
 
 
 def _metrics(task: str) -> list[str]:
+    if task == "label_propagation":
+        return ["update_sum_wall_ms", "update_max_wall_ms"]
     if task == "sssp":
         return [
             "sosp_update_host_ms[0]",
@@ -331,6 +384,8 @@ def run(args: argparse.Namespace) -> int:
             for task in args.tasks:
                 task_args = ["--task", task, "--graph", args.graph, "--batch", args.batch]
                 task_args += ["--k", str(args.k)]
+                task_args += ["--lp-vertices", str(args.lp_vertices)]
+                task_args += ["--lp-batches", str(args.lp_batches)]
                 sides = [Side(s, task_args, args.gpu) for s in args.side]
                 try:
                     for s in sides:
@@ -344,6 +399,10 @@ def run(args: argparse.Namespace) -> int:
                 checks = {json.dumps(s.rounds[0]["checksum"]) for s in sides}
                 if len(checks) != 1:
                     raise SystemExit(f"{task}: the sides computed different results: {checks}")
+                if task == "label_propagation":  # every round of every side passed the oracle
+                    results.setdefault("oracle", {})[task] = {
+                        s.name: max(r["oracle_mean_last"] for r in s.rounds) for s in sides
+                    }
                 table = {}
                 for m in _metrics(task):
                     row = {s.name: statistics.median(_value(r, m) for r in s.rounds) for s in sides}
@@ -382,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="command", required=True)
     w = sub.add_parser("worker")
-    w.add_argument("--task", choices=["sssp", "cycle_count"], required=True)
+    w.add_argument("--task", choices=["sssp", "cycle_count", "label_propagation"], required=True)
     r = sub.add_parser("run")
     for q in (w, r):
         q.add_argument("--graph", default="roadNet-CA")
@@ -390,6 +449,9 @@ def main(argv: list[str] | None = None) -> int:
         q.add_argument("--k", type=int, default=4)
     w.add_argument("--deletes", type=int, default=25000)
     w.add_argument("--inserts", type=int, default=25000)
+    for q in (w, r):
+        q.add_argument("--lp-vertices", type=int, default=50000)
+        q.add_argument("--lp-batches", type=int, default=10)
     r.add_argument("--side", action="append", required=True, help="name=<python>[:<PYTHONPATH>]")
     r.add_argument("--tasks", nargs="+", default=["sssp", "cycle_count"])
     r.add_argument("--rounds", type=int, default=21)

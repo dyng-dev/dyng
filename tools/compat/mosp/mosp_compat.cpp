@@ -79,14 +79,16 @@
  * with the transposition of the updated graph, or on cuda its upload and the in-edges built on the
  * device), and (c) the whole run, from reading the inputs to writing the outputs.
  *
- * CUDA backend (MOSP-CUDA's `mosp`): the device is initialized first with resources::warm_up()
- * (context and eager kernel loading; MOSP-CUDA sets CUDA_MODULE_LOADING=EAGER and times
+ * CUDA backend (MOSP-CUDA's `mosp`): the device is initialized first with resources::warm_up() of
+ * sssp's and mosp's kernel groups (context and eager kernel loading; MOSP-CUDA sets CUDA_MODULE_LOADING=EAGER and times
  * "cuda_context_init"), the stages are timed with CUDA events as well (profiler_options::
  * cuda_events), and the --timing CSV gets one `device,<stage>,<ms>` row per stage sample with a
  * device time, next to the `stage` rows. The per-objective line then reads
  * `obj<k>   SOSP update <host ms> ms (invalidated ..., device <ms> ms)`. The results are copied to
  * the host (to_vector; MOSP-CUDA's "download") before they are written.
  */
+#include "core/kernel_groups.hpp"
+
 #include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -231,7 +233,10 @@ dyng::resources make_resources(const options& opt) {
   }
   if (b == "cuda") {
     dyng::resources res = dyng::resources::cuda(opt.device);
-    res.warm_up();  // context and eager kernel loading (MOSP-CUDA: CUDA_MODULE_LOADING=EAGER)
+    // The context and the eager loading of the kernels this tool runs (MOSP-CUDA:
+    // CUDA_MODULE_LOADING=EAGER): resources::warm_up() of sssp's and mosp's kernel groups only
+    // (ADR 0109 part B), so the start-up does not load every algorithm of the library.
+    dyng::detail::warm_up_kernel_groups(res, {"sssp", "mosp"});
     return res;
   }
   throw usage_error("--backend: expected sequential, openmp or cuda, got '" + b + "'");

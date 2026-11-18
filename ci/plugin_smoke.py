@@ -12,7 +12,11 @@ their wheels), from a directory outside the source tree. Two expectations:
     (compute, then ``dyng.update`` of two results over a hypergraph batch) and (0.4)
     ``hyper_sssp`` (compute on both CUDA engines, then ``dyng.update`` of both over a batch with
     hyperedge and incidence changes) run on ``Resources.cuda(0)`` and their arrays, read from
-    device memory, equal the sequential backend's element by element.
+    device memory, equal the sequential backend's element by element; and (0.4)
+    ``label_propagation`` runs the published setup on LabelPropagation-CUDA's 5k5 stream (damped)
+    on cuda, judged by the oracle (AD6: a wheel is judged by the oracles only): after every batch
+    the harmonic solution's mean |F - F*| is at most 2000 delta, the PCG converges, the seeds hold
+    their classes and every label is in [0, 1].
 
 ``--expect fallback`` (no driver or no device: the GitHub-hosted runners of ``wheels.yml``)
     The first use of ``dyng`` issues exactly one ``dyng.BackendWarning`` and dynG runs on
@@ -21,7 +25,8 @@ their wheels), from a directory outside the source tree. Two expectations:
     extension module still imports without a driver (it needs neither ``libcuda`` nor
     ``libcudart``) and reports its build (plugin, toolkit, static runtime, architectures); and
     ``sssp`` / ``cycle_count`` / ``mosp`` / ``triad_count`` / ``hyper_sssp`` run on the CPU
-    backends (``hyper_sssp`` on the sequential one: it has no OpenMP backend in 0.4).
+    backends (``hyper_sssp`` on the sequential one: it has no OpenMP backend in 0.4), and
+    ``label_propagation`` on the sequential backend (under the same oracle).
 
 Both check the installed versions (``dyng`` and the plugin equal ``--version`` when given), that
 the module was built for exactly the release list of CUDA architectures of its toolkit (PLAN
@@ -121,6 +126,35 @@ def _triads(dyng, np, res):  # type: ignore[no-untyped-def]
     return before, (motifs.counts, type1.counts), (st_m.delta, st_1.delta)
 
 
+def _label_propagation(dyng, np, res) -> str:  # type: ignore[no-untyped-def]
+    """label_propagation's published setup on LabelPropagation-CUDA's 5k5 stream, damped, on
+    ``res``, under the harmonic oracle after every batch (AD6, AD7); a one-line summary."""
+    delta = 1e-4
+    seq = dyng.Resources.sequential()
+    s = dyng.generators.legacy.dynlp_vertex_arrival_stream(
+        total_vertices=5000, num_batches=5, seed=42, resources=seq
+    )
+    g = dyng.Graph.with_capacity(s.row_capacity, resources=res)
+    r = dyng.label_propagation.compute(
+        g, similarity_threshold=s.similarity_threshold, tolerance=delta, update_schedule="damped"
+    )
+    r.reserve(s.max_batch_vertices, s.max_batch_edges)
+    worst = 0.0
+    for i, b in enumerate(s.batches):
+        st = dyng.label_propagation.update(g, b, r)
+        assert st.converged, f"label_propagation batch {i} did not converge"
+        labels = r.labels.to_numpy()
+        seeds = r.seed_labels.to_numpy()
+        assert ((labels >= 0) & (labels <= 1)).all(), f"label_propagation batch {i}: a label"
+        assert (labels[seeds == 1] == 1).all() and (labels[seeds == 0] == 0).all(), "seeds"
+        f = dyng.testing.harmonic_solution(g, seeds)
+        mean, _ = f.error(labels)
+        assert f.converged, f"label_propagation batch {i}: the PCG did not converge"
+        assert mean <= 2000 * delta, f"label_propagation batch {i}: mean |F - F*| {mean}"
+        worst = max(worst, mean)
+    return f"label_propagation 5k5 damped on {res.backend}: the oracle's mean <= {worst:.2e}"
+
+
 def _same(np, a, b) -> None:  # type: ignore[no-untyped-def]
     t, t_ops, h, mo, tri, hyp = a
     ts, ts_ops, hs, ms, tris, hyps = b
@@ -205,6 +239,7 @@ def main(argv: list[str] | None = None) -> int:
             "plugin_smoke: sssp, cycle_count, mosp, triad_count and hyper_sssp ran on cuda "
             f"({backend.active_module_name}); their arrays equal the sequential backend's"
         )
+        print(f"plugin_smoke: {_label_propagation(dyng, np, cuda)}")
         return 0
 
     # fallback: no driver / no device
@@ -242,6 +277,7 @@ def main(argv: list[str] | None = None) -> int:
         "plugin_smoke: dyng._core is active; sssp, cycle_count, mosp, triad_count and hyper_sssp "
         "run on the CPU backends"
     )
+    print(f"plugin_smoke: {_label_propagation(dyng, np, seq)}")
     return 0
 
 

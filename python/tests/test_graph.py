@@ -93,7 +93,8 @@ def test_bad_inputs() -> None:
         dyng.Graph.from_edges(np.array([0.0, 1.0]), np.array([1.0, 2.0]))
     with pytest.raises(dyng.InvalidArgumentError, match="differ in length"):
         dyng.Graph.from_edges([0, 1], [1])
-    with pytest.raises(dyng.InvalidArgumentError, match="weights must be integers"):
+    # float64 weights are never narrowed silently (0.4, AD14): float32 or weight_dtype
+    with pytest.raises(dyng.InvalidArgumentError, match="float64 weights"):
         dyng.Graph.from_edges([0], [1], [1.5])
     with pytest.raises(dyng.InvalidArgumentError, match="expected 1 weights"):
         dyng.Graph.from_edges([0], [1], [1, 2])

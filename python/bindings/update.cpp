@@ -16,6 +16,7 @@
  */
 #include "types.hpp"
 
+#include <dyng/label_propagation.hpp>
 #include <dyng/update.hpp>
 
 #include <nanobind/stl/vector.h>
@@ -37,6 +38,10 @@ void bind_update_type(nb::module_& m) {
   constexpr bool sssp_ok = detail::sssp_supported_v<vertex_t, edge_t, weight_t>;
   constexpr bool cycle_ok = detail::cycle_count_supported_v<vertex_t, edge_t, weight_t>;
   constexpr bool mosp_ok = detail::mosp_supported_v<vertex_t, edge_t, weight_t>;
+  // label_propagation (0.4): its results on the float graphs, through
+  // detail::make_label_propagation_participant.
+  constexpr bool lp_ok = detail::label_propagation_supported_v<vertex_t, edge_t, weight_t>;
+  using lp_holder = result_holder<label_propagation::result<std::int32_t>>;
 
   m.def(
       "update",
@@ -49,11 +54,13 @@ void bind_update_type(nb::module_& m) {
         // the GIL; the participants are made under the locks, from the states the update may
         // change (result_holder::for_update(): a copy when an exported array still views the
         // current state).
-        using slot = std::variant<sssp::stats, cycle_count::stats, mosp::stats>;
+        using slot =
+            std::variant<sssp::stats, cycle_count::stats, mosp::stats, label_propagation::stats>;
         std::vector<slot> stats(nb::len(results));
         std::vector<sssp_holder<vertex_t>*> sssp_results(stats.size(), nullptr);
         std::vector<cycle_count_holder*> cycle_results(stats.size(), nullptr);
         std::vector<mosp_holder<vertex_t>*> mosp_results(stats.size(), nullptr);
+        std::vector<lp_holder*> lp_results(stats.size(), nullptr);
         for (std::size_t i = 0; i < stats.size(); ++i) {
           nb::handle item = results[i];
           if (nb::isinstance<sssp_holder<vertex_t>>(item)) {
@@ -77,6 +84,13 @@ void bind_update_type(nb::module_& m) {
               continue;
             }
           }
+          if (nb::isinstance<lp_holder>(item)) {
+            if constexpr (lp_ok) {
+              lp_results[i] = &nb::cast<lp_holder&>(item);
+              stats[i] = label_propagation::stats{};
+              continue;
+            }
+          }
           throw invalid_argument_error(
               "dyng.update: result " + std::to_string(i) +
               " is not a result of an algorithm that supports this graph type");
@@ -87,7 +101,8 @@ void bind_update_type(nb::module_& m) {
           for (std::size_t i = 0; i < stats.size(); ++i) {
             locks.add(sssp_results[i] != nullptr    ? sssp_results[i]->mutex
                       : cycle_results[i] != nullptr ? cycle_results[i]->mutex
-                                                    : mosp_results[i]->mutex,
+                      : mosp_results[i] != nullptr  ? mosp_results[i]->mutex
+                                                    : lp_results[i]->mutex,
                       true);
           }
           locks.lock();
@@ -108,11 +123,18 @@ void bind_update_type(nb::module_& m) {
                   owned.push_back(detail::make_cycle_count_participant<vertex_t, edge_t, weight_t>(
                       cycle_results[i]->for_update(res), std::get<cycle_count::stats>(stats[i])));
                 }
-              } else {
+              } else if (mosp_results[i] != nullptr) {
                 if constexpr (mosp_ok) {
                   owned.push_back(
                       detail::make_mosp_participant<vertex_t, edge_t, weight_t, std::int64_t>(
                           mosp_results[i]->for_update(res), std::get<mosp::stats>(stats[i])));
+                }
+              } else {
+                if constexpr (lp_ok) {
+                  owned.push_back(
+                      detail::make_label_propagation_participant<std::int32_t, edge_t, weight_t>(
+                          lp_results[i]->for_update(res),
+                          std::get<label_propagation::stats>(stats[i])));
                 }
               }
               raw.push_back(owned.back().get());
@@ -129,8 +151,10 @@ void bind_update_type(nb::module_& m) {
             out.append(nb::cast(std::get<sssp::stats>(s)));
           } else if (std::holds_alternative<cycle_count::stats>(s)) {
             out.append(nb::cast(std::get<cycle_count::stats>(s)));
-          } else {
+          } else if (std::holds_alternative<mosp::stats>(s)) {
             out.append(nb::cast(std::get<mosp::stats>(s)));
+          } else {
+            out.append(nb::cast(std::get<label_propagation::stats>(s)));
           }
         }
         return out;

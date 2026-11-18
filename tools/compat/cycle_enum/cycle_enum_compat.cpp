@@ -37,8 +37,8 @@
  * stage cycle_count.count (building the work items and counting, the original's kernel region),
  * memcpy_ms the upload of the graph (graph.upload) plus the copy of the histogram
  * (cycle_count.finalize), total_ms the stage cycle_count.compute. The CUDA context is created and
- * every kernel loaded before any timed region (resources::warm_up(), the original's
- * initialize_device and occupancy queries). Two scopes (dynG's addition, PLAN 6.4.3):
+ * every kernel it runs loaded before any timed region (resources::warm_up() of its kernel group;
+ * the original's initialize_device and occupancy queries). Two scopes (dynG's addition, PLAN 6.4.3):
  * `--scope original` (the default) times what the original times, with the graph uploaded inside
  * the timed call (count: the first compute() of the graph; update: the graph is moved to a fresh
  * copy without a device copy before the timed update(), as the original uploads G_t per call);
@@ -69,6 +69,8 @@
  * total_ms are the CUDA-event times of --report-timing (0 otherwise) and update_device_ms the
  * CUDA-event time of the stage cycle_count.update (cuda with --report-timing; 0 otherwise).
  */
+#include "core/kernel_groups.hpp"
+
 #include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -547,9 +549,10 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
                                   ? dyng::resources::openmp(config.openmp_threads)
                                   : dyng::resources::sequential();
   if (cuda) {
-    // The context and every kernel are loaded before any timed region (the original's
-    // initialize_device() and occupancy queries; CUDA_MODULE_LOADING=EAGER).
-    res.warm_up();
+    // The context and every kernel this tool runs are loaded before any timed region (the
+    // original's initialize_device() and occupancy queries; CUDA_MODULE_LOADING=EAGER):
+    // resources::warm_up() of cycle_count's kernel group only (ADR 0109 part B).
+    dyng::detail::warm_up_kernel_groups(res, {"cycle_count"});
   }
   dyng::profiler_options popt;
   popt.cuda_events = cuda && config.report_timing;

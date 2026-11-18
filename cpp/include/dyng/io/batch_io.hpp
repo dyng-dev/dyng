@@ -50,12 +50,16 @@ struct batch_file_options {
  * file's). A file holds the batches of one container kind: the first line may name it
  * (`%dgt 1 graph`); a hypergraph file (`%dgt 1 hypergraph`, or a hyperedge operation `+h` /
  * `-h`, or an incidence edit `+i` / `-i`) is an io_error here (read it with
- * read_hyperedge_batches()). The vertex operations `+v u [label]` and `-v u` (label_propagation)
- * are reserved for a later release and rejected with an io_error. Every token must be a whole
- * decimal integer; weights must fit `weight_t`.
+ * read_hyperedge_batches()). The vertex operations of 0.4 (AD13; label_propagation's vertex
+ * batches) are `+v u [label]` (insert vertex u, with the seed label 0 or 1, or -1 or none for an
+ * unlabelled vertex: edge_batch::insert_vertex) and `-v u` (delete vertex u:
+ * edge_batch::delete_vertex), kept in file order (insertions and deletions each). Every token must
+ * be a whole decimal integer, except the weights of a float graph (weight_t = float, 0.4): decimal
+ * floating-point tokens as std::from_chars reads them, finite (NaN and infinities are an io_error);
+ * integer weights must fit `weight_t`, and an integer graph refuses a non-integer token.
  *
  * @tparam vertex_t Vertex id type.
- * @tparam weight_t Weight type (integral, or dyng::unweighted).
+ * @tparam weight_t Weight type (integral, float, or dyng::unweighted).
  * @param[in] path    The file.
  * @param[in] options K and the vertex count used for validation.
  * @return The batches in file order.
@@ -71,16 +75,20 @@ template <typename vertex_t, typename weight_t>
 /**
  * @brief Write batches as a `.dgt` batch text file (read back by read_batches()).
  *
- * Writes `%dgt 1`, then for batch i the line `%batch i`, its deletions (`-e u v`) and its
- * insertions (`+e u v w1 .. wK`), each in batch order.
+ * Writes `%dgt 1`, then for batch i the line `%batch i`, its vertex insertions (`+v u`, with
+ * ` label` for a seed label 0 or 1) and vertex deletions (`-v u`) (0.4), its edge deletions
+ * (`-e u v`) and its edge insertions (`+e u v w1 .. wK`), each in batch order; a batch without
+ * vertex operations is written as 0.3 writes it. Float weights are written in the shortest form
+ * that reads back as the same float (std::to_chars).
  * @tparam vertex_t Vertex id type.
- * @tparam weight_t Weight type (integral, or dyng::unweighted).
+ * @tparam weight_t Weight type (integral, float, or dyng::unweighted).
  * @param[in] path    The file (parent directories are created).
  * @param[in] batches The batches (host memory; every batch with insertions has the same K).
  * @throws io_error               if the file cannot be written.
- * @throws invalid_argument_error if a batch has vertex operations, inconsistent sizes, a negative
- *                                vertex id (it would not read back), or a K that differs from
- *                                another batch's.
+ * @throws invalid_argument_error if a batch has inconsistent sizes, a negative vertex id (it would
+ *                                not read back), a seed label other than -1, 0 or 1, a float
+ *                                weight that is not finite, or a K that differs from another
+ *                                batch's.
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
@@ -157,10 +165,13 @@ enum class batch_dtype : std::uint8_t {
   none = 0,   ///< no such array (an unweighted batch's weights, a graph's hyperedge ids)
   int32 = 1,  ///< 32-bit signed integers
   int64 = 2,  ///< 64-bit signed integers
+  /** IEEE-754 binary32, finite (0.4, AD13): only in a graph file's weight byte (the weights of
+   *  the float graphs of label_propagation); a 0.3 reader refuses it ("weight type 3"). */
+  float32 = 3,
 };
 
 /**
- * @brief The lower-case name of a batch_dtype ("none", "int32", "int64").
+ * @brief The lower-case name of a batch_dtype ("none", "int32", "int64", "float32").
  * @param[in] dtype The value.
  * @return Its name.
  * @ingroup io
@@ -187,15 +198,21 @@ struct batch_file_flags {
   /// additions (a 0.3 reader rejects the file). The whole-file writers set it only when a batch
   /// has an edit.
   static constexpr std::uint64_t incidence_edits = 8U;
-  /// The flags this library knows in a graph file (none; bit 4 is reserved for vertex_records
-  /// of label_propagation in 0.4).
-  static constexpr std::uint64_t known_graph = 0U;
+  /// Graph files (0.4, AD13): every record also carries the batch's vertex operations (inserted
+  /// vertices with their seed labels, deleted vertices: the vertex batches of label_propagation;
+  /// a 0.3 reader rejects the file). The whole-file writers set it only when a batch has a vertex
+  /// operation.
+  static constexpr std::uint64_t vertex_records = 16U;
+  /// The flags this library knows in a graph file: vertex_records (bit 4; 0 in 0.3).
+  static constexpr std::uint64_t known_graph = 16U;
   /// The flags this library knows in a hypergraph file: deleted_members | expected_ids |
   /// insert_first | incidence_edits (bits 0-3).
   static constexpr std::uint64_t known_hypergraph = 15U;
   /// Every flag this library knows (of either kind).
   static constexpr std::uint64_t known = known_graph | known_hypergraph;
 };
+static_assert(batch_file_flags::known_graph == batch_file_flags::vertex_records,
+              "known_graph is the union of the graph flags");
 static_assert(batch_file_flags::known_hypergraph ==
                   (batch_file_flags::deleted_members | batch_file_flags::expected_ids |
                    batch_file_flags::insert_first | batch_file_flags::incidence_edits),
@@ -211,14 +228,18 @@ struct batch_file_header {
   batch_dtype vertex_type = batch_dtype::int32;  ///< vertex ids
   batch_dtype weight_type = batch_dtype::none;   ///< weights (none: unweighted)
   int num_weights = 0;           ///< weights per insertion: K for graphs, 0 or 1 for hypergraphs
-  std::uint64_t flags = 0;       ///< batch_file_flags (0 for graph files)
+  std::uint64_t flags = 0;       ///< batch_file_flags (graph files: 0 or vertex_records)
   std::int64_t num_batches = 0;  ///< batch records in the file (written by batch_writer::close())
 };
 
 /**
  * @brief The header of a `.dgb` file of graph batches of the types (vertex_t, weight_t).
+ *
+ * The flags are 0: a file of vertex batches (label_propagation, 0.4) needs
+ * batch_file_flags::vertex_records set in the returned header before batch_writer opens it.
  * @tparam vertex_t Vertex id type (int32 or int64).
- * @tparam weight_t Weight type (dyng::unweighted, int32 or int64).
+ * @tparam weight_t Weight type (dyng::unweighted, int32, int64, or float: batch_dtype::float32,
+ *                  0.4).
  * @param[in] num_weights Weights per insertion (K; 0 for unweighted).
  * @return The header (num_batches 0).
  * @throws invalid_argument_error if num_weights is negative, or positive for unweighted.
@@ -271,8 +292,9 @@ class batch_writer {
    * @param[in] path   The file (parent directories are created).
    * @param[in] header The kind, types, K and flags (num_batches is ignored).
    * @throws io_error               if the file cannot be opened or written.
-   * @throws invalid_argument_error if the header is inconsistent (a graph file with flags or no
-   *                                vertex type, a hypergraph file with K > 1, an unknown flag or
+   * @throws invalid_argument_error if the header is inconsistent (a graph file with a flag other
+   *                                than vertex_records or no vertex type, a hypergraph file with
+   *                                K > 1, vertex_records or float32 weights, an unknown flag or
    *                                format version).
    */
   batch_writer(const std::string& path, const batch_file_header& header);
@@ -294,11 +316,17 @@ class batch_writer {
 
   /**
    * @brief Append a graph batch.
+   *
+   * The flags are fixed when the file is opened (AD13): a batch with vertex operations needs a
+   * file opened with batch_file_flags::vertex_records, and in such a file every record carries
+   * the (possibly empty) vertex arrays.
    * @tparam vertex_t Vertex id type (the header's).
    * @tparam weight_t Weight type (the header's).
    * @param[in] batch The batch (host memory; K = the header's num_weights).
-   * @throws invalid_argument_error if the file is not a graph file of these types, or the batch is
-   *                                malformed (edge_batch rules of write_batches()).
+   * @throws invalid_argument_error if the file is not a graph file of these types, the batch is
+   *                                malformed (edge_batch rules of write_batches()), or the batch
+   *                                has vertex operations and the file was opened without
+   *                                batch_file_flags::vertex_records.
    * @throws io_error               if the file cannot be written.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    */
@@ -442,7 +470,8 @@ class batch_reader {
   [[nodiscard]] std::int64_t batch_id() const noexcept;
 
   /**
-   * @brief The current batch of a graph file.
+   * @brief The current batch of a graph file (with its vertex operations when the file has
+   *        batch_file_flags::vertex_records).
    * @tparam vertex_t Vertex id type (the header's vertex type).
    * @tparam weight_t Weight type (the header's weight type).
    * @return The view, valid until the next call of next().
@@ -481,9 +510,11 @@ class batch_reader {
 };
 
 /**
- * @brief Write graph batches as a `.dgb` file (batch_writer over every batch).
+ * @brief Write graph batches as a `.dgb` file (batch_writer over every batch; the flag
+ *        batch_file_flags::vertex_records when a batch has vertex operations, no flag otherwise,
+ *        so that a file of edge batches is written byte for byte as 0.3 wrote it).
  * @tparam vertex_t Vertex id type.
- * @tparam weight_t Weight type (dyng::unweighted, or integral).
+ * @tparam weight_t Weight type (dyng::unweighted, integral, or float).
  * @param[in] path    The file (parent directories are created).
  * @param[in] batches The batches (host memory, one K).
  * @throws io_error               if the file cannot be written.
@@ -496,7 +527,8 @@ void write_binary_batches(const std::string& path,
                           const std::vector<edge_batch_view<vertex_t, weight_t>>& batches);
 
 /**
- * @brief Read every batch of a `.dgb` file of graph batches into host memory.
+ * @brief Read every batch of a `.dgb` file of graph batches into host memory (with their vertex
+ *        operations).
  * @tparam vertex_t Vertex id type (the file's).
  * @tparam weight_t Weight type (the file's).
  * @param[in] path    The file.

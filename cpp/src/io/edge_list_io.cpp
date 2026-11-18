@@ -32,6 +32,7 @@
 #include <atomic>
 #include <cctype>
 #include <charconv>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -120,6 +121,34 @@ bool parse_integer(const char* begin, const char* end, std::int64_t& value) {
   return error == std::errc{} && position == end;
 }
 
+/// A finite float spanning exactly [begin, end) (std::from_chars, general format), with an optional
+/// leading '+'; NaN, infinities and values outside the float range are refused.
+bool parse_finite_float(const char* begin, const char* end, float& value) {
+  if (begin != end && *begin == '+') {
+    ++begin;
+    if (begin == end || *begin == '-') {
+      return false;
+    }
+  }
+  const auto [position, error] = std::from_chars(begin, end, value);
+  return error == std::errc{} && position == end && std::isfinite(value);
+}
+
+/// The float bits of `value` in the int64 weight array of the parser (float_weights).
+std::int64_t float_bits(float value) {
+  std::uint32_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  return static_cast<std::int64_t>(bits);
+}
+
+/// The float whose bits float_bits() stored.
+float float_from_bits(std::int64_t stored) {
+  const auto bits = static_cast<std::uint32_t>(stored);
+  float value = 0.0F;
+  std::memcpy(&value, &bits, sizeof(value));
+  return value;
+}
+
 /// A parse failure at byte `offset` of the file.
 struct parse_failure {
   std::size_t offset = std::numeric_limits<std::size_t>::max();
@@ -134,6 +163,9 @@ struct row_format {
   int num_weights = 0;
   std::int64_t weight_min = 0;  ///< range of weight_t
   std::int64_t weight_max = 0;
+  /// weight_t = float (0.4): the weights are decimal floating-point tokens (std::from_chars),
+  /// finite, kept as their float bits in the int64 weight array.
+  bool float_weights = false;
   bool as_is = false;  ///< ids minus index_base must lie in [0, id_bound)
   std::int64_t index_base = 0;
   std::int64_t id_bound = 0;
@@ -200,6 +232,18 @@ void parse_rows(const char* data, std::size_t begin, std::size_t end, const row_
     if (!format.matrix_market) {
       for (std::size_t k = 0; k < k_count; ++k) {
         std::int64_t w = 0;
+        if (format.float_weights) {
+          float f = 0.0F;
+          const std::string_view field = fields[2 + k];
+          if (!parse_finite_float(field.data(), field.data() + field.size(), f)) {
+            failure = {begin, "weight " + std::to_string(k + 1) + " '" + std::string(field) +
+                                  "' is not a finite decimal number in the range of a float "
+                                  "(NaN and infinities are refused)"};
+            return;
+          }
+          row_weights[k] = float_bits(f);
+          continue;
+        }
         if (!parse(fields[2 + k], w) || w < format.weight_min || w > format.weight_max) {
           failure = {begin, "weight " + std::to_string(k + 1) + " '" + std::string(fields[2 + k]) +
                                 "' is not an integer in [" + std::to_string(format.weight_min) +
@@ -562,7 +606,11 @@ void fill_edges(const std::vector<row_t>& rows, const std::vector<std::int64_t>&
     for (std::size_t e = 0; e < chosen.size(); ++e) {
       const std::size_t position = position_of(rows[chosen[e]]);
       for (std::size_t k = 0; k < k_count; ++k) {
-        out.weights[e * k_count + k] = static_cast<weight_t>(weights[position * k_count + k]);
+        if constexpr (std::is_floating_point_v<weight_t>) {
+          out.weights[e * k_count + k] = float_from_bits(weights[position * k_count + k]);
+        } else {
+          out.weights[e * k_count + k] = static_cast<weight_t>(weights[position * k_count + k]);
+        }
       }
     }
   } else {
@@ -585,8 +633,10 @@ edge_list<vertex_t, weight_t> read_edge_list(const std::string& path,
   row_format format;
   format.drop_self_loops = options.drop_self_loops;
   format.num_weights = options.num_weights;
-  if constexpr (!is_unweighted_v<weight_t>) {
-    static_assert(std::is_integral_v<weight_t>, "read_edge_list reads integer weights");
+  if constexpr (std::is_same_v<weight_t, float>) {
+    format.float_weights = true;  // 0.4: float graphs (label_propagation)
+  } else if constexpr (!is_unweighted_v<weight_t>) {
+    static_assert(std::is_integral_v<weight_t>, "read_edge_list reads integer or float weights");
     format.weight_min = static_cast<std::int64_t>(std::numeric_limits<weight_t>::min());
     format.weight_max = detail::max_as_int64<weight_t>();
   }
@@ -632,6 +682,12 @@ void write_edge_list(const std::string& path, const edge_list_view<vertex_t, wei
                 (is_host_accessible(edges.src.space()) && is_host_accessible(edges.dst.space()))) &&
                    (edges.weights.empty() || is_host_accessible(edges.weights.space())),
                "write_edge_list: the edge list must be in host-accessible memory");
+  if constexpr (std::is_same_v<weight_t, float>) {
+    for (std::size_t i = 0; i < edges.weights.size(); ++i) {
+      DYNG_EXPECTS(std::isfinite(edges.weights[i]), "write_edge_list: weight ", i, " is ",
+                   edges.weights[i], " (a float weight must be finite to read back)");
+    }
+  }
   detail::text_writer out(path);
   for (std::size_t e = 0; e < m; ++e) {
     out.put(static_cast<std::int64_t>(edges.src[e]));
@@ -640,7 +696,11 @@ void write_edge_list(const std::string& path, const edge_list_view<vertex_t, wei
     if constexpr (!is_unweighted_v<weight_t>) {
       for (std::size_t k = 0; k < k_count; ++k) {
         out.put_char(' ');
-        out.put(static_cast<std::int64_t>(edges.weights[e * k_count + k]));
+        if constexpr (std::is_same_v<weight_t, float>) {
+          out.put_shortest(edges.weights[e * k_count + k]);  // round-trips through from_chars
+        } else {
+          out.put(static_cast<std::int64_t>(edges.weights[e * k_count + k]));
+        }
       }
     }
     out.put_char('\n');
@@ -655,6 +715,7 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_edge_list (", path, ")")
   template void write_edge_list<V, W>(const std::string&, const edge_list_view<V, W>&);
 DYNG_FOR_EACH_VERTEX_WEIGHT_TYPE(DYNG_INSTANTIATE_EDGE_LIST_IO)
 DYNG_FOR_EACH_VERTEX_TYPE_UNWEIGHTED(DYNG_INSTANTIATE_EDGE_LIST_IO)
+DYNG_FOR_EACH_VERTEX_TYPE_FLOAT(DYNG_INSTANTIATE_EDGE_LIST_IO)
 #undef DYNG_INSTANTIATE_EDGE_LIST_IO
 
 }  // namespace dyng::io

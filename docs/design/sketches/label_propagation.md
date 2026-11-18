@@ -1,6 +1,11 @@
 # Sketch: `label_propagation` (0.4)
 
-**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M10.
+**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); implemented in M10a
+and M10b (ADRs 0063-0079, 0100-0108) and **frozen** at the end of M10b (ADR 0109; `stable` at
+0.4.0 only on the author's confirmation, AD15): the frozen API is {doc}`../../api/cpp/label_propagation`,
+and where it differs from this sketch the header wins (`compute()` takes the seeds as arrays and
+is IrLP; `stats::initial_frontier`; `result::reserve()`; `similarity_threshold`'s `nullopt` is
+the streaming mode's current-graph average). The open questions below are answered.
 **Computes:** binary harmonic label propagation (labels F in [0, 1] from a set of seed vertices
 with class 0 or 1) on an undirected weighted graph, kept up to date under **vertex batches**
 (vertices arrive with their similarity edges, or leave). **Paper:** DynLP (ICS 2026).
@@ -108,8 +113,12 @@ stats update(const resources& res, graph<vertex_t, edge_t, float>& g,
 
 1. Where `on_limit` lives publicly: in `core/types.hpp` (the second public user would be
    `hyper_sssp`'s budget) or per algorithm. The sketch nests it under the algorithm until a second
-   algorithm needs the same enumeration (rule of two).
+   algorithm needs the same enumeration (rule of two). **Answer (ADR 0109, finding 9):** it stays
+   nested in `label_propagation`; `hyper_sssp`'s `budget_action` / `on_budget` is a separate
+   enumeration (AD12, decided by the author on 2026-10-28).
 2. `std::optional<float>` in `options` is bindable (nanobind supports it) but not a trivial
-   aggregate member for C; acceptable, since the C++ API is the contract.
+   aggregate member for C; acceptable, since the C++ API is the contract. **Answer:** accepted;
+   Python maps it to `None` (`dyng.label_propagation.Options.similarity_threshold`).
 3. The published setup (full graph known up front, `with_capacity`) as the documented default
-   (O9), streaming (`slack`, tau from the data seen so far) as the advanced mode.
+   (O9), streaming (`slack`, tau from the data seen so far) as the advanced mode. **Answer:** yes
+   (AD16, decided by the author on 2026-10-28; ADRs 0071, 0103, 0104).

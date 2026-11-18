@@ -10,7 +10,9 @@
 
 #include "util/text_writer.hpp"
 
+#include <dyng/core/array_view.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/io/result_io.hpp>
 
 #include <cstddef>
 
@@ -64,14 +66,7 @@ void write_dynlp_graph_files(const std::string& prefix, const std::vector<edge_t
 }
 
 void write_dynlp_labels(const std::string& path, const std::vector<float>& labels) {
-  text_writer out(path);
-  for (std::size_t i = 0; i < labels.size(); ++i) {
-    out.put(static_cast<std::int64_t>(i));
-    out.put_char(' ');
-    out.put_fixed6(labels[i]);
-    out.put_char('\n');
-  }
-  out.close();
+  io::write_labels(path, host_view(labels));  // the public writer: the same bytes (AD13 D2)
 }
 
 template void write_dynlp_graph_files<std::int32_t, std::int32_t>(const std::string&,

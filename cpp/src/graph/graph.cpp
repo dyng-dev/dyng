@@ -46,19 +46,16 @@ void set_home(impl_t& impl, const resources& res) {
 }
 
 void expect_supported_layout(const graph_properties& props) {
-  if (props.layout == row_layout::slotted) {
-    throw not_supported_error(
-        "dyng: a graph with row_layout::slotted is built by graph::with_capacity() (its rows "
-        "receive vertex batches); from_edges(), from_csr() and the empty graph have compact rows");
-  }
-  if (props.layout != row_layout::compact) {
-    throw not_supported_error(
-        "dyng: row_layout::slack arrives with label_propagation's streaming mode (M10b, 0.4)");
+  if (props.layout == row_layout::slotted || props.layout == row_layout::slack) {
+    throw not_supported_error(detail::concat_message(
+        "dyng: a graph with row_layout::", to_string(props.layout),
+        " is built by graph::with_capacity() (its rows receive vertex batches); from_edges(), "
+        "from_csr() and the empty graph have compact rows"));
   }
   if (props.semantics.as_net_effect) {
     throw not_supported_error(
-        "dyng: batch_semantics::net_effect() (vertex batches) needs row_layout::slotted; build "
-        "the graph with graph::with_capacity()");
+        "dyng: batch_semantics::net_effect() (vertex batches) needs row_layout::slotted or "
+        "row_layout::slack; build the graph with graph::with_capacity()");
   }
   detail::expect_supported_semantics(props);  // e.g. as_sets with upsert: fail here, not at apply
 }
@@ -197,12 +194,24 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::with_capaci
   // the slot ranges and the states, and its slots stay unfilled until something reads them.
   const bool on_device = res.get_backend() == backend::cuda && DYNG_HAS_CUDA &&
                          detail::device_slotted_supported_v<vertex_t>;
-  detail::build_slotted(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
-                        props.num_weights, impl->host_edges_for_write(), impl->slotted, !on_device);
+  if (props.layout == row_layout::slack) {
+    detail::build_slack(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
+                        props.num_weights, props, impl->host_edges_for_write(), impl->slotted,
+                        !on_device);
+  } else {
+    detail::build_slotted(static_cast<std::int64_t>(vertex_capacity), capacity.view(),
+                          props.num_weights, impl->host_edges_for_write(), impl->slotted,
+                          !on_device);
+  }
   if constexpr (detail::device_slotted_supported_v<vertex_t>) {
     if (on_device) {
       auto d = std::make_unique<typename impl_type::slotted_device_type>();
-      detail::build_device_slotted(res, impl->host_storage().row_ptr, props.num_weights, *d);
+      if (props.layout == row_layout::slack) {
+        detail::build_device_slack(res, impl->host_storage().row_ptr, impl->slotted.row_limit,
+                                   props.num_weights, *d);
+      } else {
+        detail::build_device_slotted(res, impl->host_storage().row_ptr, props.num_weights, *d);
+      }
       impl->adopt_slotted_device(std::move(d));
     }
   }
@@ -363,9 +372,11 @@ void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) co
         "the end of the row were dropped): the graph is poisoned");
   }
   const std::string violation =
-      impl().is_slotted() ? detail::slotted_integrity_violation(impl().host_edges(), impl().slotted,
+      impl().is_slack()     ? detail::slack_integrity_violation(impl().host_edges(), impl().slotted,
                                                                 impl().props.num_weights)
-                          : detail::integrity_violation(impl());
+      : impl().is_slotted() ? detail::slotted_integrity_violation(
+                                  impl().host_edges(), impl().slotted, impl().props.num_weights)
+                            : detail::integrity_violation(impl());
   if (!violation.empty()) {
     DYNG_FAIL("graph integrity: ", violation);
   }
@@ -424,11 +435,35 @@ void build_device_slotted(const resources& /*res*/, const std::vector<edge_t>& /
   throw_no_cuda();
 }
 template <typename vertex_t, typename edge_t, typename weight_t>
+void build_device_slack(const resources& /*res*/, const std::vector<edge_t>& /*row_ptr*/,
+                        const std::vector<edge_t>& /*row_limit*/, int /*num_weights*/,
+                        device_slotted<vertex_t, edge_t, weight_t>& /*out*/) {
+  throw_no_cuda();
+}
+template <typename vertex_t, typename edge_t, typename weight_t>
 void upload_device_slotted(const resources& /*res*/,
                            const csr<vertex_t, edge_t, weight_t>& /*slots*/,
                            const std::vector<edge_t>& /*row_end*/,
                            const std::vector<vertex_status>& /*status*/,
-                           device_slotted<vertex_t, edge_t, weight_t>& /*out*/) {
+                           device_slotted<vertex_t, edge_t, weight_t>& /*out*/,
+                           const std::vector<edge_t>* /*row_limit*/) {
+  throw_no_cuda();
+}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void compact_device_slack(const resources& /*res*/,
+                          device_slotted<vertex_t, edge_t, weight_t>& /*g*/,
+                          csr<vertex_t, edge_t, weight_t>& /*slots*/,
+                          slotted_rows<vertex_t, edge_t>& /*rows*/) {
+  throw_no_cuda();
+}
+template <typename vertex_t, typename edge_t, typename weight_t>
+apply_summary apply_vertex_batch_slack_device(const resources& /*res*/,
+                                              device_slotted<vertex_t, edge_t, weight_t>& /*g*/,
+                                              csr<vertex_t, edge_t, weight_t>& /*slots*/,
+                                              slotted_rows<vertex_t, edge_t>& /*rows*/,
+                                              const edge_batch_view<vertex_t, weight_t>& /*batch*/,
+                                              const normalized_batch<vertex_t>& /*normalized*/,
+                                              apply_delta<vertex_t>* /*delta*/) {
   throw_no_cuda();
 }
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -460,20 +495,27 @@ void download_device_slotted(const device_slotted<vertex_t, edge_t, weight_t>& /
                              std::vector<edge_t>& /*row_end*/) {
   throw_no_cuda();
 }
-#define DYNG_INSTANTIATE_DEVICE_SLOTTED_STUBS(V, E, W)                                            \
-  template void build_device_slotted<V, E, W>(const resources&, const std::vector<E>&, int,       \
-                                              device_slotted<V, E, W>&);                          \
-  template void upload_device_slotted<V, E, W>(                                                   \
-      const resources&, const csr<V, E, W>&, const std::vector<E>&,                               \
-      const std::vector<vertex_status>&, device_slotted<V, E, W>&);                               \
-  template void reserve_device_slotted<V, E, W>(const resources&, device_slotted<V, E, W>&,       \
-                                                std::int64_t);                                    \
-  template void upload_vertex_batch<V, E, W>(const resources&, device_slotted<V, E, W>&,          \
-                                             const edge_batch_view<V, W>&,                        \
-                                             const normalized_batch<V>&);                         \
-  template void apply_vertex_batch_device<V, E, W>(const resources&, device_slotted<V, E, W>&);   \
-  template device_slotted_settled settle_device_slotted<V, E, W>(const device_slotted<V, E, W>&); \
-  template void download_device_slotted<V, E, W>(const device_slotted<V, E, W>&, csr<V, E, W>&,   \
+#define DYNG_INSTANTIATE_DEVICE_SLOTTED_STUBS(V, E, W)                                             \
+  template void build_device_slotted<V, E, W>(const resources&, const std::vector<E>&, int,        \
+                                              device_slotted<V, E, W>&);                           \
+  template void upload_device_slotted<V, E, W>(                                                    \
+      const resources&, const csr<V, E, W>&, const std::vector<E>&,                                \
+      const std::vector<vertex_status>&, device_slotted<V, E, W>&, const std::vector<E>*);         \
+  template void build_device_slack<V, E, W>(const resources&, const std::vector<E>&,               \
+                                            const std::vector<E>&, int, device_slotted<V, E, W>&); \
+  template apply_summary apply_vertex_batch_slack_device<V, E, W>(                                 \
+      const resources&, device_slotted<V, E, W>&, csr<V, E, W>&, slotted_rows<V, E>&,              \
+      const edge_batch_view<V, W>&, const normalized_batch<V>&, apply_delta<V>*);                  \
+  template void compact_device_slack<V, E, W>(const resources&, device_slotted<V, E, W>&,          \
+                                              csr<V, E, W>&, slotted_rows<V, E>&);                 \
+  template void reserve_device_slotted<V, E, W>(const resources&, device_slotted<V, E, W>&,        \
+                                                std::int64_t);                                     \
+  template void upload_vertex_batch<V, E, W>(const resources&, device_slotted<V, E, W>&,           \
+                                             const edge_batch_view<V, W>&,                         \
+                                             const normalized_batch<V>&);                          \
+  template void apply_vertex_batch_device<V, E, W>(const resources&, device_slotted<V, E, W>&);    \
+  template device_slotted_settled settle_device_slotted<V, E, W>(const device_slotted<V, E, W>&);  \
+  template void download_device_slotted<V, E, W>(const device_slotted<V, E, W>&, csr<V, E, W>&,    \
                                                  std::vector<E>&);
 DYNG_INSTANTIATE_DEVICE_SLOTTED_STUBS(std::int32_t, std::int32_t, std::int32_t)
 DYNG_INSTANTIATE_DEVICE_SLOTTED_STUBS(std::int32_t, std::int64_t, std::int32_t)
@@ -514,9 +556,16 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
         if (!dev.batch_current) {
           upload_vertex_batch(res, dev, batch, *normalized);
         }
-        apply_vertex_batch_device(res, dev);
-        apply_summary summary =
-            apply_vertex_states_host(state.slotted, batch.delete_vertices, *normalized, delta);
+        apply_summary summary;
+        if (state.is_slack()) {
+          // ADR 0103: the layout step on the host mirror and the device, then the appends.
+          summary = apply_vertex_batch_slack_device(res, dev, state.host_storage_for_write(),
+                                                    state.slotted, batch, *normalized, delta);
+        } else {
+          apply_vertex_batch_device(res, dev);
+          summary =
+              apply_vertex_states_host(state.slotted, batch.delete_vertices, *normalized, delta);
+        }
         if (delta != nullptr) {
           delta->num_weights = state.num_weights();
         }
@@ -527,8 +576,11 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
         return summary;
       }
     }
-    const apply_summary summary = apply_vertex_batch_host(state.host_edges_for_write(),
-                                                          state.slotted, batch, *normalized, delta);
+    const apply_summary summary =
+        state.is_slack() ? apply_vertex_batch_slack_host(state.host_edges_for_write(),
+                                                         state.slotted, batch, *normalized, delta)
+                         : apply_vertex_batch_host(state.host_edges_for_write(), state.slotted,
+                                                   batch, *normalized, delta);
     state.drop_slotted_device();  // the host rows changed: uploaded again on first device use
     ++state.version;
     state.state_id = next_graph_state_id();
@@ -593,13 +645,22 @@ void graph_access::normalize(const resources& res, const graph<vertex_t, edge_t,
         // overflow), then the batch to the device, before any participant reads G_t there.
         auto& dev = state.slotted_device(res);
         dev.batch_current = false;
-        normalize_vertex_batch(state.host_storage(), state.slotted, batch, out, false);
+        if (state.is_slack()) {
+          // The host mirror of the row starts, limits and ends is current (ADR 0103).
+          normalize_vertex_batch_slack(state.host_storage(), state.slotted, batch, out);
+        } else {
+          normalize_vertex_batch(state.host_storage(), state.slotted, batch, out, false);
+        }
         out.state_id = state.state_id;
         upload_vertex_batch(res, dev, batch, out);
         return;
       }
     }
-    normalize_vertex_batch(state.host_edges(), state.slotted, batch, out);
+    if (state.is_slack()) {
+      normalize_vertex_batch_slack(state.host_edges(), state.slotted, batch, out);
+    } else {
+      normalize_vertex_batch(state.host_edges(), state.slotted, batch, out);
+    }
     out.state_id = state.state_id;
     return;
   }
@@ -752,7 +813,8 @@ graph_impl<vertex_t, edge_t, weight_t>::slotted_device(const resources& res) con
         const container_scope container;  // the graph's own work (budgets, I9)
         scoped_stage stage(res, "graph.upload");
         auto d = std::make_unique<slotted_device_type>();
-        upload_device_slotted(res, host_edges(), slotted.row_end, slotted.status, *d);
+        upload_device_slotted(res, host_edges(), slotted.row_end, slotted.status, *d,
+                              is_slack() ? &slotted.row_limit : nullptr);
         slotted_device_ = std::move(d);
       } else {
         DYNG_FAIL("graph: slotted rows on the device need 32-bit vertex ids");
@@ -881,6 +943,23 @@ void graph_access::expect_placement(const resources& res,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+void graph_access::compact_slack(const resources& res, graph<vertex_t, edge_t, weight_t>& g) {
+  auto& state = g.impl();
+  DYNG_EXPECTS(state.is_slack(), "graph_access::compact_slack: the rows are not slack rows");
+  if constexpr (device_slotted_supported_v<vertex_t>) {
+    if (state.slotted_on_device(res)) {
+      (void)state.host_edges();  // settles a pending apply (one synchronization)
+      compact_device_slack(res, state.slotted_device(res), state.host_storage_for_write(),
+                           state.slotted);
+      state.mark_slotted_host_stale();
+      return;
+    }
+  }
+  compact_slack_host(state.host_edges_for_write(), state.slotted);
+  state.drop_slotted_device();
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 void graph_access::expect_placement_any_layout(const resources& res,
                                                const graph<vertex_t, edge_t, weight_t>& g,
                                                const char* what) {
@@ -956,6 +1035,7 @@ graph_view<vertex_t, edge_t, weight_t> graph_access::view(
   template apply_summary detail::graph_access::apply<V, E, W>(                                    \
       const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, detail::apply_delta<V>*,   \
       const detail::normalized_batch<V>*);                                                        \
+  template void detail::graph_access::compact_slack<V, E, W>(const resources&, graph<V, E, W>&);  \
   template void detail::graph_access::finish_device_apply<V, E, W>(                               \
       const resources&, const graph<V, E, W>&, apply_summary&);                                   \
   template detail::device_slotted_settled detail::graph_access::settle_device_apply<V, E, W>(     \

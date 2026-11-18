@@ -8,6 +8,7 @@
  * Readers return NumPy arrays that own the library's vectors (no copy); the typed layer builds
  * graphs and batches from them. Every call releases the GIL.
  */
+#include "io/dynlp_text.hpp"  // private header of libdyng (cpp/src): O's graph text files
 #include "types.hpp"
 
 #include <dyng/io/batch_io.hpp>
@@ -151,7 +152,7 @@ void bind_weighted_io(nb::module_& m) {
         auto batches = without_gil([&] { return io::read_batches<vertex_t, weight_t>(path, opt); });
         nb::list out;
         for (const auto& b : batches) {
-          out.append(batch_to_numpy(b));
+          out.append(batch_to_numpy(b));  // with the '+v' / '-v' lines (0.4, AD13)
         }
         return out;
       },
@@ -182,6 +183,71 @@ void bind_weighted_io(nb::module_& m) {
         without_gil([&] { io::write_parents<vertex_t>(path, view_of(parents)); });
       },
       nb::arg("path"), nb::arg("parents").noconvert());
+}
+
+/// The float graphs' batch files and the label files of label_propagation (0.4; AD13 with D2).
+void bind_float_io(nb::module_& m) {
+  using vertex_t = std::int32_t;
+  using weight_t = float;
+  m.def(
+      "read_batches_i32_f32",
+      [](const std::string& path, int num_weights, std::int64_t num_vertices) {
+        io::batch_file_options opt;
+        opt.num_weights = num_weights;
+        opt.num_vertices = num_vertices;
+        auto batches = without_gil([&] { return io::read_batches<vertex_t, weight_t>(path, opt); });
+        nb::list out;
+        for (const auto& b : batches) {
+          out.append(batch_to_numpy(b));
+        }
+        return out;
+      },
+      nb::arg("path"), nb::arg("num_weights"), nb::arg("num_vertices"),
+      "The batches of a .dgt file of a float graph, each as the tuple of batch_to_numpy().");
+  m.def(
+      "write_batches_i32_f32",
+      [](const std::string& path, const nb::list& batches) {
+        std::vector<edge_batch_view<vertex_t, weight_t>> views;
+        views.reserve(nb::len(batches));
+        for (nb::handle b : batches) {
+          views.push_back(nb::cast<const batch_arrays<vertex_t, weight_t>&>(b).view());
+        }
+        without_gil([&] { io::write_batches<vertex_t, weight_t>(path, views); });
+      },
+      nb::arg("path"), nb::arg("batches"), "Write native float batches as a .dgt file.");
+  m.def(
+      "write_labels",
+      [](const std::string& path, const in_array<float>& labels) {
+        without_gil([&] { io::write_labels(path, view_of(labels)); });
+      },
+      nb::arg("path"), nb::arg("labels").noconvert(),
+      "io::write_labels: 'i label' per vertex, LabelPropagation-CUDA's dynlp_labels.txt bytes.");
+  m.def(
+      "read_labels",
+      [](const std::string& path, std::int64_t num_vertices) {
+        return to_numpy(without_gil([&] { return io::read_labels(path, num_vertices); }));
+      },
+      nb::arg("path"), nb::arg("num_vertices"), "io::read_labels.");
+  auto graph_files = [&m](auto etag) {
+    using edge_t = decltype(etag);
+    m.def(
+        suffixed("write_dynlp_graph_files", {type_code<edge_t>::lower}, "_").c_str(),
+        [](const std::string& prefix, const in_array<edge_t>& row_ptr,
+           const in_array<vertex_t>& col_ind, const in_array<float>& values,
+           const in_array<std::int8_t>& true_labels) {
+          std::vector<edge_t> r(row_ptr.data(), row_ptr.data() + row_ptr.shape(0));
+          std::vector<vertex_t> c(col_ind.data(), col_ind.data() + col_ind.shape(0));
+          std::vector<float> w(values.data(), values.data() + values.shape(0));
+          std::vector<std::int8_t> t(true_labels.data(), true_labels.data() + true_labels.shape(0));
+          without_gil(
+              [&] { detail::write_dynlp_graph_files<vertex_t, edge_t>(prefix, r, c, w, t); });
+        },
+        nb::arg("prefix"), nb::arg("row_ptr").noconvert(), nb::arg("col_ind").noconvert(),
+        nb::arg("values").noconvert(), nb::arg("true_labels").noconvert(),
+        "LabelPropagation-CUDA's graph text files <prefix>{RowPtr,ColInd,Values,TrueLabels}.txt.");
+  };
+  graph_files(std::int32_t{});
+  graph_files(std::int64_t{});
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -397,14 +463,28 @@ nb::tuple current_batch(const io::batch_reader& r) {
           to_numpy_2d(std::vector<weight_t>(b.insert_weights.begin(), b.insert_weights.end()), n,
                       static_cast<std::size_t>(b.num_weights)));
     }
+    // The vertex records (flag vertex_records; 0.4, AD13): None in a file without them.
+    nb::object ins_v = nb::none();
+    nb::object labels = nb::none();
+    nb::object del_v = nb::none();
+    if ((h.flags & io::batch_file_flags::vertex_records) != 0) {
+      ins_v = nb::cast(copied(b.insert_vertices));
+      labels = nb::cast(copied(b.insert_vertex_labels));
+      del_v = nb::cast(copied(b.delete_vertices));
+    }
     return nb::make_tuple(copied(b.insert_src), copied(b.insert_dst), weights, copied(b.delete_src),
-                          copied(b.delete_dst), is_unweighted_v<weight_t> ? 0 : b.num_weights);
+                          copied(b.delete_dst), is_unweighted_v<weight_t> ? 0 : b.num_weights,
+                          ins_v, labels, del_v);
   };
   DYNG_EXPECTS(h.weight_type != io::batch_dtype::int64,
-               "the Python package reads graph .dgb files with int32 weights or none");
+               "the Python package reads graph .dgb files with int32 or float32 weights or none");
   nb::object batch;
   const bool v32 = h.vertex_type == io::batch_dtype::int32;
-  if (h.weight_type == io::batch_dtype::none) {
+  if (h.weight_type == io::batch_dtype::float32) {
+    // float32 weights (0.4, AD13): only int32 vertex ids (the float graphs of the package).
+    DYNG_EXPECTS(v32, "the Python package reads float32 .dgb files with int32 vertex ids");
+    batch = graph_batch(std::int32_t{}, float{});
+  } else if (h.weight_type == io::batch_dtype::none) {
     batch =
         v32 ? graph_batch(std::int32_t{}, unweighted{}) : graph_batch(std::int64_t{}, unweighted{});
   } else {
@@ -458,7 +538,16 @@ void bind_binary_batches(nb::module_& m) {
             views.push_back(nb::cast<const batch_arrays<vertex_t, weight_t>&>(b).view());
           }
           without_gil([&] {
-            io::batch_writer out(path, io::edge_batch_file_header<vertex_t, weight_t>(num_weights));
+            // The flag vertex_records only when a batch has vertex operations (AD13: flags are
+            // fixed when the header is written; a file of edge batches is 0.3's, byte for byte).
+            io::batch_file_header header =
+                io::edge_batch_file_header<vertex_t, weight_t>(num_weights);
+            for (const auto& v : views) {
+              if (!v.insert_vertices.empty() || !v.delete_vertices.empty()) {
+                header.flags |= io::batch_file_flags::vertex_records;
+              }
+            }
+            io::batch_writer out(path, header);
             for (const auto& v : views) {
               out.write(v);
             }
@@ -466,11 +555,13 @@ void bind_binary_batches(nb::module_& m) {
           });
         },
         nb::arg("path"), nb::arg("num_weights"), nb::arg("batches"),
-        "Write native edge batches as a .dgb file.");
+        "Write native edge batches as a .dgb file (with vertex records when a batch has vertex "
+        "operations).");
   };
   bind_edges(std::int32_t{}, std::int32_t{});
   bind_edges(std::int64_t{}, std::int32_t{});
   bind_edges(std::int32_t{}, unweighted{});
+  bind_edges(std::int32_t{}, float{});
 }
 
 }  // namespace
@@ -548,6 +639,8 @@ void bind_io(nb::module_& m) {
   bind_edge_list<std::int64_t, std::int32_t>(m);
   bind_edge_list<std::int32_t, unweighted>(m);
   bind_edge_list<std::int64_t, unweighted>(m);
+  bind_edge_list<std::int32_t, float>(m);
+  bind_float_io(m);
   bind_weighted_io<std::int32_t>(m);
   bind_weighted_io<std::int64_t>(m);
   bind_csr_triplet<std::int32_t, std::int32_t, std::int32_t>(m);

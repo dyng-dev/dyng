@@ -4,7 +4,7 @@
 and from 0.3 the hypergraph: `dyng.Hypergraph`, `dyng.HyperedgeBatch`,
 `dyng.HypergraphProperties`, `dyng.CapacityPolicy`, `dyng.HyperApplySummary`;
 {doc}`../../how_to/use_hypergraphs_from_python`) and the modules `dyng.sssp`,
-`dyng.cycle_count`, `dyng.mosp` (0.2), `dyng.triad_count` (0.3), `dyng.hyper_sssp` (0.4), the tutorial algorithms `dyng.dynamic_bfs` and
+`dyng.cycle_count`, `dyng.mosp` (0.2), `dyng.triad_count` (0.3), `dyng.label_propagation` (0.4), `dyng.hyper_sssp` (0.4), the tutorial algorithms `dyng.dynamic_bfs` and
 `dyng.triangle_delta` (0.2), `dyng.io`, `dyng.generators` and `dyng.testing`. The
 names mirror the C++ API ({doc}`../cpp/index`): `dyng::sssp::compute` is `dyng.sssp.compute`,
 `dyng::sssp::options` is `dyng.sssp.Options`, and option keywords are the C++ field names
@@ -57,10 +57,11 @@ was chosen and every installed plugin's state; {py:func}`dyng.config` returns th
 
 ## Dtype dispatch
 
-The compiled library holds five graph types, `(vertex id, edge offset, weight)` =
+The compiled library holds seven graph types, `(vertex id, edge offset, weight)` =
 `(int32, int32, int32)`, `(int32, int64, int32)`, `(int64, int64, int32)`,
-`(int32, int32, unweighted)` and `(int32, int64, unweighted)`. The Python layer picks one from the
-inputs:
+`(int32, int32, unweighted)`, `(int32, int64, unweighted)` and, from 0.4, the float graphs of
+`dyng.label_propagation`, `(int32, int32, float32)` and `(int32, int64, float32)`. The Python layer
+picks one from the inputs:
 
 - The vertex id type comes from the declared dtype of the id arrays: int32 selects int32 ids and
   int64 selects int64 ids; narrower integer types widen to int32 and uint32 to int64. **An int64
@@ -73,7 +74,12 @@ inputs:
   converted to the graph's type with a range check: a value that does not fit raises
   {py:class}`dyng.InvalidArgumentError` instead of wrapping. So an `EdgeBatch` of int64 NumPy
   arrays updates an int32 graph.
-- Weights are int32 integers (range-checked); floating-point and boolean weights are rejected.
+- Weights are int32 integers (range-checked) or, from 0.4, float32 (AD14, decided by the author
+  on 2026-10-28; ADR 0108): float32 weights select a float graph; float64 weights are accepted only
+  with an explicit `weight_dtype="float32"`, and every value must then be finite and fit float32
+  (nothing is narrowed silently); `Graph.weighted` keeps its meaning (int32 weights) and
+  `Graph.weight_dtype` names the weight type. A batch applied to a float graph takes non-float32
+  weights only when every value is exactly a float32. Boolean weights are rejected.
 - An unsupported combination raises {py:class}`dyng.NotSupportedError` listing the supported
   ones.
 - Hypergraphs (0.3) have int32 vertex ids, with or without int32 weights: member arrays that
@@ -86,7 +92,8 @@ inputs:
 
 ## Result arrays
 
-Result arrays (`tree.distances`, `tree.parents`, `hist.counts`, `paths.path_costs`,
+Result arrays (`tree.distances`, `tree.parents`, `hist.counts`, `paths.path_costs`, from 0.4
+`lp.labels` and `lp.seed_labels` of `dyng.label_propagation`,
 `sp.hyperedge_distances`, `sp.hyperedge_parents` and `sp.vertex_distances()` of
 `dyng.hyper_sssp`; not
 `dyng.triad_count`'s `counts`, a read-only NumPy copy of at most 30 host values) are
@@ -129,7 +136,8 @@ returns one `Stats` per result (any mix of `dyng.sssp`, `dyng.cycle_count` and `
 results; over a hypergraph, from 0.3, any number of `dyng.triad_count` results:
 `dyng.update(hg, hb, motifs, type1)`, and from 0.4 `dyng.hyper_sssp` results, of several sources:
 `dyng.update(hg, hb, from_a, from_b)`; triad_count refuses `storage="slack_csr"` and hyper_sssp
-needs it, so the two do not share a hypergraph in 0.4).
+needs it, so the two do not share a hypergraph in 0.4; over a float graph with slot rows, from
+0.4, any number of `dyng.label_propagation` results).
 
 ## Exceptions
 
@@ -178,3 +186,22 @@ returns a pandas DataFrame when pandas is installed ({doc}`../../how_to/profile_
 `dyng.citation("sssp")` returns the BibTeX entries of an algorithm's papers (and
 `dyng.citation()` the entry of dynG itself); `dyng.algorithms()` lists the algorithms of the
 installed package with their maturity, backends and cite keys.
+
+## label_propagation (0.4)
+
+`dyng.label_propagation` ({doc}`../../algorithms/label_propagation`) has `compute`, `update`,
+`Options`, `Stats` and `Result`, with the keywords of the C++ field names
+(`update_schedule="damped"`, `similarity_threshold=`). Its graphs are float32 graphs with slot
+rows (`dyng.Graph.with_capacity(row_capacity, layout="slotted" | "slack", semantics="net_effect")`;
+{doc}`../../concepts/row_layouts`), its batches `dyng.EdgeBatch` with vertex arrays
+(`insert_vertices`, `vertex_labels`, `delete_vertices`), and its streams come from
+`dyng.generators.vertex_arrival_stream` (the library's) or
+`dyng.generators.legacy.dynlp_vertex_arrival_stream` (LabelPropagation-CUDA's, byte for byte).
+`Result.labels` is a read-only float32 `dyng.Array`: `torch.from_dlpack(lp.labels)` views it
+without a copy (on cuda, device memory), and while such a view is alive an update copies the
+result's per-vertex state first (copy-on-write); the tensor aliases the result's labels and must
+not be written (`clone()` it to modify it). There is no OpenMP backend in 0.4:
+`dyng.Resources("openmp")` raises `NotSupportedError` naming `"sequential"`, `"cuda"` and the fix
+`dyng.Resources("sequential")` (AD19). The names are frozen since the end of M10b (ADR 0109) and
+become stable at 0.4.0 on the author's confirmation. The tutorial is
+{doc}`../../tutorials/streaming_label_propagation`.

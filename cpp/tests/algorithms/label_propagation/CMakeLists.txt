@@ -31,6 +31,27 @@ if(DYNG_ENABLE_CUDA)
   dyng_set_cuda_options(dyng_label_propagation_cuda_tests)
 endif()
 
+# The operators of the operators engine (operators/, ADR 0102) against independent models on
+# sequential_exec, and on cuda_exec against the sequential model (M10b step 1; the hub degrees).
+dyng_add_test(
+  NAME dyng_label_propagation_operators_tests
+  SOURCES label_propagation_operators_test.cpp
+  LABELS cpu label_propagation operators
+)
+target_include_directories(dyng_label_propagation_operators_tests
+                           PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests" "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_label_propagation_operators_cuda_tests
+    SOURCES label_propagation_operators_cuda_test.cu
+    LABELS gpu label_propagation operators
+    TEST_PREFIX "cuda."
+  )
+  target_include_directories(dyng_label_propagation_operators_cuda_tests
+                             PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests" "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_label_propagation_operators_cuda_tests)
+endif()
+
 # Host allocation failures inside compute(), update(), reserve() and clone() are
 # out_of_memory_error with the documented guarantee (M10a review; the ADR 0060 precedent): its own
 # operator new, so its own executable.
@@ -59,4 +80,48 @@ if(DYNG_ENABLE_CUDA)
     TEST_PREFIX "cuda."
   )
   target_compile_definitions(dyng_label_propagation_checker_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+endif()
+# row_layout::slack and the streaming mode (M10b, ADRs 0103 and 0104): 5k5 in the CPU suites,
+# 50k labelled slow (the gpu_local label_propagation step runs both on cuda).
+dyng_add_test(
+  NAME dyng_label_propagation_slack_tests
+  SOURCES label_propagation_slack_test.cpp
+  LABELS cpu label_propagation
+  LIBRARIES dyng::testing
+)
+target_include_directories(dyng_label_propagation_slack_tests
+                           PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests" "${PROJECT_SOURCE_DIR}/cpp/src")
+dyng_add_test(
+  NAME dyng_label_propagation_slack_large_tests
+  SOURCES label_propagation_slack_test.cpp
+  LABELS cpu label_propagation slow
+  LIBRARIES dyng::testing
+  TEST_PREFIX "large."
+)
+target_compile_definitions(dyng_label_propagation_slack_large_tests
+                           PRIVATE DYNG_TEST_SLACK_LARGE=1)
+target_include_directories(dyng_label_propagation_slack_large_tests
+                           PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests" "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_label_propagation_slack_cuda_tests
+    SOURCES label_propagation_slack_test.cpp
+    LABELS gpu label_propagation
+    LIBRARIES dyng::testing
+    TEST_PREFIX "cuda."
+  )
+  target_compile_definitions(dyng_label_propagation_slack_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  target_include_directories(dyng_label_propagation_slack_cuda_tests
+                             PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests" "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_add_test(
+    NAME dyng_label_propagation_slack_large_cuda_tests
+    SOURCES label_propagation_slack_test.cpp
+    LABELS gpu label_propagation
+    LIBRARIES dyng::testing
+    TEST_PREFIX "cuda.large."
+  )
+  target_compile_definitions(dyng_label_propagation_slack_large_cuda_tests
+                             PRIVATE DYNG_TEST_CUDA=1 DYNG_TEST_SLACK_LARGE=1)
+  target_include_directories(dyng_label_propagation_slack_large_cuda_tests
+                             PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests" "${PROJECT_SOURCE_DIR}/cpp/src")
 endif()

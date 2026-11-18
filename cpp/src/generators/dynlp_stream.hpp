@@ -57,6 +57,18 @@ struct dynlp_legacy_output {
     const generators::vertex_arrival_options& opt, int threads);
 
 /**
+ * @brief The library's vertex-arrival generator (generators::generate_vertex_arrival_stream(),
+ *        ADR 0107) in the same shapes: the structure of dynlp_legacy_generate() with the
+ *        library-owned draws (std::mt19937_64 and the library's algorithms).
+ * @param[in] opt     The options (validated here).
+ * @param[in] threads Host threads (>= 1); the output does not depend on it.
+ * @return The arrays.
+ * @throws invalid_argument_error for invalid options.
+ */
+[[nodiscard]] dynlp_legacy_output vertex_arrival_generate(
+    const generators::vertex_arrival_options& opt, int threads);
+
+/**
  * @brief Whether this build's std::shuffle (std::mt19937, small and large counts) and
  *        std::uniform_real_distribution<float> draw exactly as the twins in util/rng.hpp
  *        (compiled without floating-point contraction, like the twins). False without libstdc++.

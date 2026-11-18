@@ -188,6 +188,9 @@ struct workspace final : pooled_workspace {
   std::int64_t sized_edges = 0;         ///< reserve()'s batch edges
   int sized_capacity[num_degree_bins] = {0, 0, 0};  ///< reserve()'s queue capacities
   bool sized_damped = false;                        ///< reserve() sized the damped side arrays
+  // ---- host scratch of slack rows (ADR 0103): the queue capacities a batch needs ----
+  std::vector<std::int64_t> slack_length;  ///< per vertex its row's length after the batch
+  std::vector<std::uint8_t> slack_active;  ///< per vertex whether it is active after the batch
 
   /**
    * @brief Size the scratch (a reservation when it grows; a no-op once it suffices).

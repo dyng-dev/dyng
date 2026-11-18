@@ -63,6 +63,6 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "since": "0.4",
         "container": "graph",
         "maturity": "experimental",
-        "python": "no",
+        "python": "yes",
     },
 }

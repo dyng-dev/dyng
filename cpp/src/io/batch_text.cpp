@@ -49,7 +49,8 @@ constexpr std::int64_t weight_max() noexcept {
   }
 }
 
-bool is_reserved_vertex_op(std::string_view op) noexcept {
+/// The vertex operations of graph files (0.4: label_propagation's vertex batches).
+bool is_vertex_op(std::string_view op) noexcept {
   return op == "+v" || op == "-v";
 }
 
@@ -145,7 +146,7 @@ void scan_dgt(detail::text_scanner& scanner, dgt_kind kind, new_batch_t&& new_ba
       new_batch();
       continue;
     }
-    if (op.front() != '%' && !is_reserved_vertex_op(op)) {
+    if (op.front() != '%' && (kind == dgt_kind::graph || !is_vertex_op(op))) {
       const bool foreign =
           kind == dgt_kind::graph ? is_hyperedge_op(op) : (op == "+e" || op == "-e");
       if (foreign) {
@@ -163,19 +164,17 @@ void scan_dgt(detail::text_scanner& scanner, dgt_kind kind, new_batch_t&& new_ba
         continue;
       }
     }
-    if (is_reserved_vertex_op(op)) {
+    if (is_vertex_op(op)) {
       scanner.fail(tok, "the vertex operation '" + std::string(op) +
-                            "' is reserved for the vertex batches of label_propagation (a later "
-                            "release); this release reads edge operations ('+e', '-e'), "
-                            "hyperedge operations ('+h', '-h') and incidence edits ('+i', '-i') "
-                            "only");
+                            "' in a file of hypergraph batches: vertex operations ('+v', '-v') "
+                            "belong to graph files (read them with read_batches())");
     }
     if (op.front() == '%') {
       scanner.fail(tok,
                    "unknown directive '" + std::string(op) + "' (expected '%dgt' or '%batch')");
     }
     scanner.fail(tok, "unknown operation '" + std::string(op) +
-                          (kind == dgt_kind::graph ? "' (expected '+e' or '-e')"
+                          (kind == dgt_kind::graph ? "' (expected '+e', '-e', '+v' or '-v')"
                                                    : "' (expected '+h', '-h', '+i' or '-i')"));
   }
 }
@@ -221,6 +220,23 @@ std::vector<edge_batch<vertex_t, weight_t>> read_batches(const std::string& path
   };
   const auto on_op = [&](const detail::token& op_token) {
     const std::string_view op = op_token.text;
+    if (op == "+v" || op == "-v") {  // 0.4: vertex operations (label_propagation)
+      auto& batch = batches.back();
+      next_or_fail(op == "+v" ? "+v u [label]" : "-v u");
+      const vertex_t u = parse_id(tok);
+      if (op == "-v") {
+        no_more("-v u");
+        batch.delete_vertex(u);
+        return true;
+      }
+      std::int8_t label = -1;
+      if (scanner.next_in_line(tok)) {
+        label = detail::parse_integer<std::int8_t>(scanner, tok, -1, 1, "seed label");
+      }
+      no_more("+v u [label]");
+      batch.insert_vertex(u, label);
+      return true;
+    }
     if (op != "+e" && op != "-e") {
       return false;
     }
@@ -242,12 +258,19 @@ std::vector<edge_batch<vertex_t, weight_t>> read_batches(const std::string& path
     if (k < 0) {
       k = static_cast<int>(weight_tokens.size());  // taken from the first insertion
       for (auto& b : batches) {
-        // The batches so far hold deletions only: rebuild them with K weights.
+        // The batches so far hold deletions and vertex operations only: rebuild them with K
+        // weights.
         if (b.num_weights() != k) {
           edge_batch<vertex_t, weight_t> rebuilt(k);
           rebuilt.reserve(0, b.num_deletions());
           for (std::size_t j = 0; j < b.num_deletions(); ++j) {
             rebuilt.delete_edge(b.delete_src()[j], b.delete_dst()[j]);
+          }
+          for (std::size_t j = 0; j < b.insert_vertices().size(); ++j) {
+            rebuilt.insert_vertex(b.insert_vertices()[j], b.insert_vertex_labels()[j]);
+          }
+          for (const vertex_t v : b.delete_vertices()) {
+            rebuilt.delete_vertex(v);
           }
           b = std::move(rebuilt);
         }
@@ -261,8 +284,12 @@ std::vector<edge_batch<vertex_t, weight_t>> read_batches(const std::string& path
       batches.back().insert_edge(u, v);
     } else {
       for (const auto& w : weight_tokens) {
-        weights.push_back(detail::parse_integer<weight_t>(scanner, w, weight_min<weight_t>(),
-                                                          weight_max<weight_t>(), "weight"));
+        if constexpr (std::is_floating_point_v<weight_t>) {
+          weights.push_back(detail::parse_finite_float(scanner, w, "weight"));  // 0.4
+        } else {
+          weights.push_back(detail::parse_integer<weight_t>(scanner, w, weight_min<weight_t>(),
+                                                            weight_max<weight_t>(), "weight"));
+        }
       }
       if (k == 0) {
         batches.back().insert_edge(u, v);
@@ -285,7 +312,7 @@ void write_batches(const std::string& path,
   int k = -1;
   for (std::size_t b = 0; b < batches.size(); ++b) {
     const auto& batch = batches[b];
-    detail::check_edge_batch_arrays(batch, "write_batches", b);
+    detail::check_edge_batch_arrays(batch, "write_batches", b, /*vertex_records=*/true);
     if (!batch.insert_src.empty()) {
       DYNG_EXPECTS(k < 0 || k == batch.num_weights, "write_batches: batch ", b,
                    " has K = ", batch.num_weights, " weights per insertion, an earlier batch ", k,
@@ -301,6 +328,23 @@ void write_batches(const std::string& path,
     out.put(std::string_view("%batch "));
     out.put(static_cast<std::int64_t>(b));
     out.put_char('\n');
+    // 0.4: the vertex operations first (a batch without them is written as 0.3 writes it).
+    for (std::size_t j = 0; j < batch.insert_vertices.size(); ++j) {
+      out.put(std::string_view("+v "));
+      out.put(static_cast<std::int64_t>(batch.insert_vertices[j]));
+      const std::int8_t label =
+          batch.insert_vertex_labels.empty() ? std::int8_t{-1} : batch.insert_vertex_labels[j];
+      if (label >= 0) {
+        out.put_char(' ');
+        out.put(static_cast<std::int64_t>(label));
+      }
+      out.put_char('\n');
+    }
+    for (std::size_t j = 0; j < batch.delete_vertices.size(); ++j) {
+      out.put(std::string_view("-v "));
+      out.put(static_cast<std::int64_t>(batch.delete_vertices[j]));
+      out.put_char('\n');
+    }
     for (std::size_t j = 0; j < batch.delete_src.size(); ++j) {
       out.put(std::string_view("-e "));
       out.put(static_cast<std::int64_t>(batch.delete_src[j]));
@@ -316,7 +360,11 @@ void write_batches(const std::string& path,
       if constexpr (!is_unweighted_v<weight_t>) {
         for (std::size_t w = 0; w < k_count; ++w) {
           out.put_char(' ');
-          out.put(static_cast<std::int64_t>(batch.insert_weights[i * k_count + w]));
+          if constexpr (std::is_floating_point_v<weight_t>) {
+            out.put_shortest(batch.insert_weights[i * k_count + w]);  // reads back exactly
+          } else {
+            out.put(static_cast<std::int64_t>(batch.insert_weights[i * k_count + w]));
+          }
         }
       }
       out.put_char('\n');
@@ -517,6 +565,7 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_hyperedge_batches (", path, ")")
   template void write_batches<V, W>(const std::string&, const std::vector<edge_batch_view<V, W>>&);
 DYNG_FOR_EACH_VERTEX_WEIGHT_TYPE(DYNG_INSTANTIATE_BATCH_TEXT)
 DYNG_FOR_EACH_VERTEX_TYPE_UNWEIGHTED(DYNG_INSTANTIATE_BATCH_TEXT)
+DYNG_FOR_EACH_VERTEX_TYPE_FLOAT(DYNG_INSTANTIATE_BATCH_TEXT)
 #undef DYNG_INSTANTIATE_BATCH_TEXT
 
 #define DYNG_INSTANTIATE_HYPEREDGE_BATCH_TEXT(V, W)                         \

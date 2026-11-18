@@ -1845,6 +1845,24 @@ manifest_sha256 = "232a98797fc2269d1cda98669a9e266b85940373ad1b7f3e75644fe0fc7fd
 "5k5_d1e-6_s42" = { sha256 = "8824de20074616d876304e471b9a90f3151df8251ab10fcf6a8fbe98d8455559", files = 3 }
 "5m_d1e-4_s42" = { sha256 = "61cd61aa346969f8982579b316bde4ffe4b19c0e9f4b936a6cb51e5568009e43", files = 3 }
 
+# AD6's bound of the refactored engines (decided by the author on 2026-10-28; M10b step 1, ADR
+# 0101): a refactored engine (the operators engine) meets max |dF| <= c x epsilon per batch of P
+# (5m by the same rule) against the fused engine's bits, with identical per-batch iterations,
+# components and frontier_visits. epsilon = 2^-23; c = 3 x the largest max |dF| / epsilon that
+# perturbing ONLY the association (the lane and block trees) and the contraction (-fmad=false) of
+# dynG's fused damped engine produced over every batch of P (compare.py label_propagation
+# calibrate; calibration_record), rounded up to a power of two. Frozen before the operators engine
+# existed; never loosened (AD6: a refactored engine that cannot keep the counts identical stays
+# non-default and reported, judged by the oracle).
+[sets.label_propagation_damped.refactored]
+epsilon = 1.1920928955078125e-07
+c = 1048576
+bound = 0.125
+max_df = 0.02410539984703064
+counts_changed_by_perturbation = true
+calibration_record = "parity/results/M10b-calibration.json"
+calibration_sha256 = "10bc2fd7668ba74d6d4b3e7c5bb0d5eae084e128783055c458a7503b2770aa8e"
+
 [sets.label_propagation_trace]
 reference = "LabelPropagation-CUDA"
 commit = "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87"
@@ -1928,6 +1946,17 @@ n_gpu0 = 3
 iterations_rel = 0.1
 iterations_floor = 2
 iterations_rule = "envelope"
+
+[sets.label_propagation_inplace.rate_rule]
+# The certificate's rule (the author's decision of 2026-11-18; ADR 0111): per case `runs` fresh
+# port runs and `runs` fresh runs of the unpatched original on the same GPU in one session; the
+# case fails if the port's count of runs outside the frozen envelope above (per batch or the sum)
+# is significantly higher than the original's (one-sided Fisher exact test at `alpha`). Every
+# port run's labels (T_mean, T_max, T_flips), components and iteration sum, and the trace, are
+# still judged as before. The envelope, the thresholds and the calibration are unchanged.
+runs = 30
+alpha = 0.05
+test = "fisher_exact_one_sided"
 
 [sets.label_propagation_inplace.thresholds."500k_d1e-4_s42_inplace"]
 t_mean = 0.0003922800875420878

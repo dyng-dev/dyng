@@ -107,7 +107,14 @@ Deferred beyond 0.3.0:
 
 ## 0.4.0
 
-- `label_propagation` (DynLP): binary harmonic label propagation under vertex batches.
+- `label_propagation` (DynLP): binary harmonic label propagation under vertex batches. **Done
+  (M10, frozen at the end of M10b; ADR 0109):** the port of LabelPropagation-CUDA@a276a3a on the
+  sequential and CUDA backends (the damped labels byte for byte the original's, within the gates
+  against it), slot rows and vertex batches, the streaming mode on slack rows, the batch files'
+  vertex records, Python with zero-copy labels, `dyng label_propagation`, the kNN recipe
+  `datasets/preprocess/knn_graph.py` and the tutorial {doc}`tutorials/streaming_label_propagation`;
+  `stable` from 0.4.0 on the author's confirmation at the release. An OpenMP backend stays open to
+  contributors (0.5 or later, if contributed).
 - `hyper_sssp` (H-SOSP): shortest hyperpaths, with MOSP_ESCHER's kernels as the default CUDA
   engine and the shared shortest-path engine selectable (`engine::operators`; it gives the same
   results, and the gates kept the as-is kernels as the default: ADR 0095). On the sequential and
@@ -126,6 +133,10 @@ Deferred beyond 0.3.0:
   an as-is update with the shared static solve (0.69-0.74 of the ported recompute); and the
   rename-only move of `invalidate_subtree` and `packed_min` into `cpp/src/operators/` (two users
   now), with its own SASS record.
+- After 0.4.0 (from M10b's per-algorithm kernel loading, ADR 0109; the author's decision of
+  2026-11-13): a device allocation order independent of which kernel modules are resident. With
+  fewer modules loaded, sssp's persistent kernel reads about 4 % slower on roadNet-PA's 50k
+  batches (1.035-1.041 against `ae5fc47`; 1.000-1.001 with every kernel group loaded at start-up).
 - conda-forge packages; aarch64 wheels.
 
 ## Towards 1.0
@@ -151,7 +162,8 @@ Deferred beyond 0.3.0:
   incident-vertex and temporal triads, the insert-only MOSP of thesis Chapter 5, open h-motifs.
   They are open to contributors (below); the algorithm pages say plainly what is and is not
   computed.
-- kNN graph construction for label propagation (a Python recipe instead).
+- kNN graph construction for label propagation in the library (a Python recipe instead:
+  `datasets/preprocess/knn_graph.py`, 0.4).
 - A C API before 1.0.
 
 ## Open to contributors
@@ -167,7 +179,8 @@ form, and a backend with the
 - the incremental insert-only MOSP of thesis Chapter 5;
 - incident-vertex and temporal triads (THyMe+); open h-motifs;
 - new dynamic algorithms: k-core, connected components, PageRank, BFS;
-- an OpenMP backend for an algorithm that has only a sequential one; new file readers;
+- an OpenMP backend for an algorithm that has only a sequential one (`label_propagation`: 0.5 or
+  later, if contributed); new file readers;
 - a HIP backend (a new backend tag next to `sequential`, `openmp` and `cuda`), and multi-GPU if a
   research need appears: the maintainers review and maintain a contributor-led backend, but will
   not write one.

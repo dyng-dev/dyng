@@ -9,6 +9,7 @@ sssp_mosp_files
 your_first_dynamic_algorithm
 hypergraph_triads
 count_a_new_hypergraph_pattern
+streaming_label_propagation
 shortest_hyperpaths
 ```
 
@@ -26,8 +27,8 @@ Planned, each written when its code exists:
 | MOSP with preferences | later (planned for 0.2.x, which was not made) |
 | **Hypergraph triads** (`triad_count`, in C++ and Python): delivered, {doc}`hypergraph_triads` | 0.3 |
 | **Count a new hypergraph pattern (an Op)** (`experimental::count_local_patterns`): delivered, {doc}`count_a_new_hypergraph_pattern` | 0.3 |
+| **Streaming label propagation** (`label_propagation`, in Python): delivered, {doc}`streaming_label_propagation` | 0.4 |
 | **Shortest hyperpaths** (`hyper_sssp`, in C++ and Python): delivered, {doc}`shortest_hyperpaths` | 0.4 |
-| Streaming label propagation | 0.4 |
 
 {doc}`your_first_dynamic_algorithm` (0.2) builds `my_bfs`, a dynamic BFS, from a fresh clone to a
 green conformance kit with `scripts/new_algorithm.py` and the fixed-point template. Its reference
@@ -56,6 +57,13 @@ gate (`ci/gpu_local.sh`: it needs nvcc and a GPU), while hosted CI runs its host
 callbacks driven by hand, without nvcc); the page quotes it by marked ranges, and `ci/tutorial_quotes.py`
 (run by `ci/docs.sh`) pins every quote of the tutorials, so a quoted line that moves or changes
 without its page fails the documentation check.
+
+{doc}`streaming_label_propagation` (0.4) runs `label_propagation` twice: on LabelPropagation-CUDA's
+synthetic stream in the published setup, with the original's labels byte for byte, and on feature
+vectors of your own, through the kNN recipe `datasets/preprocess/knn_graph.py`, in the streaming
+mode (slack rows, the current graph's threshold), with the labels read by PyTorch without a copy.
+It quotes `examples/python/label_propagation_torch.py` and `python/tests/test_label_propagation_tutorial.py`,
+which the Python suites run, and `ci/tutorial_quotes.py` pins every quote.
 
 {doc}`shortest_hyperpaths` (0.4) builds a weighted hypergraph with `slack_csr` storage, computes
 the shortest hyperpaths from two source vertices, applies batches of hyperedge operations and

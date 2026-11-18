@@ -38,7 +38,8 @@
 #              hazards of its kernels and of the CUB scans; DYNG_TEST_SEEDS=2)
 #   plugin     the CUDA plugin wheel from Python (ADR 0030/0031): ci/plugin_wheels.sh builds the
 #              core wheel and the dyng-cu13 plugin wheel of this tree (DYNG_GPU_PLUGINS, default
-#              cu13; the toolchain of ci/wheel-toolchain.yml; about 4 minutes) into
+#              cu13, and "cu12 cu13" when a CUDA 12 toolkit is found: DYNG_CUDA12_ROOT or
+#              $DYNG_SCRATCH/tools/cuda-12.9; the toolchain of ci/wheel-toolchain.yml) into
 #              build/<preset>/plugin-wheels, installs them into a fresh venv (one Python,
 #              DYNG_GPU_PLUGIN_PYTHONS, default python3.12) and runs the install smoke test, the
 #              GPU tests of python/tests (pytest -m gpu: CUDA == sequential, goldens, device
@@ -149,7 +150,14 @@
 #              input-contract tests and on the slotted device apply's tests (the overflow near the
 #              int32 limit), initcheck at 5k5 with and without --check, racecheck on the
 #              propagation tests (the hub golden and the hand cases) and synccheck on the
-#              persistent small-frontier block (the 5k5 runs, whose tail iterations run it)
+#              persistent small-frontier block (the 5k5 runs, whose tail iterations run it); since
+#              M10b (ADR 0101) also the operators engine: its operator tests
+#              (dyng_label_propagation_operators_cuda_tests), its replay of P (operators: AD6's
+#              c x eps and identical counts), memcheck at 50k, initcheck and synccheck at 5k5, and
+#              racecheck on its hub golden; and (M10b, ADRs 0103-0104) row_layout::slack and the
+#              streaming mode: the slack suites at 5k5 and 50k (dyng_label_propagation_slack_cuda_
+#              tests and ..._slack_large_cuda_tests), memcheck of dyng-compat-dynlp --layout slack
+#              --streaming-tau at 50k (both schedules) and of the slack device apply's tests
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -635,6 +643,10 @@ if ! skipped label_propagation; then
   lpr_unit="${lpr_dir}/dyng_label_propagation_cuda_tests"
   lpr_checker="${lpr_dir}/dyng_label_propagation_checker_cuda_tests"
   lpr_kit="${build_dir}/cpp/tests/dyng_label_propagation_conformance_cuda_tests"
+  lpr_ops="${lpr_dir}/dyng_label_propagation_operators_cuda_tests"
+  # row_layout::slack and the streaming mode (M10b, ADRs 0103 and 0104): 5k5 and 50k.
+  lpr_slack="${lpr_dir}/dyng_label_propagation_slack_cuda_tests"
+  lpr_slack_large="${lpr_dir}/dyng_label_propagation_slack_large_cuda_tests"
   lpr_compat="${build_dir}/tools/compat/dyng-compat-dynlp"
   lpr_replay="${build_dir}/cpp/tests/dyng_lp_replay"
   lpr_p="5k5_d1e-4_s42,50k_d1e-4_s42,500k_d1e-4_s42,5k5_d1e-6_s42,50k_d1e-6_s42"
@@ -642,11 +654,13 @@ if ! skipped label_propagation; then
   lpr_out="${DYNG_GPU_RESULTS:-${build_dir}/label_propagation-records}"
   mkdir -p "${lpr_out}"
   if [ -z "${sanitizer}" ] || [ ! -x "${lpr_unit}" ] || [ ! -x "${lpr_checker}" ] ||
-    [ ! -x "${lpr_kit}" ] || [ ! -x "${lpr_compat}" ] || [ ! -x "${lpr_replay}" ]; then
+    [ ! -x "${lpr_kit}" ] || [ ! -x "${lpr_ops}" ] || [ ! -x "${lpr_compat}" ] ||
+    [ ! -x "${lpr_replay}" ] || [ ! -x "${lpr_slack}" ] || [ ! -x "${lpr_slack_large}" ]; then
     echo "compute-sanitizer or a label_propagation executable missing"
     lpr_ok=0
   else
-    for exe in "${lpr_unit}" "${lpr_checker}" "${lpr_kit}"; do
+    for exe in "${lpr_unit}" "${lpr_checker}" "${lpr_kit}" "${lpr_ops}" "${lpr_slack}" \
+      "${lpr_slack_large}"; do
       if ! heavy "${exe}" --gtest_brief=1; then
         echo "$(basename "${exe}"): FAILED"
         lpr_ok=0
@@ -664,6 +678,12 @@ if ! skipped label_propagation; then
         if ! heavy python3 parity/compare.py label_propagation damped --exe "${lpr_compat}" \
           --config cuda-fused --cases "${lpr_p}" --json "${lpr_out}/damped-cuda-fused.json"; then
           echo "the damped byte parity of P (cuda-fused): FAILED"
+          lpr_ok=0
+        fi
+        # The operators engine within AD6's frozen c x eps, its counts identical (M10b, ADR 0101).
+        if ! heavy python3 parity/compare.py label_propagation operators --exe "${lpr_compat}" \
+          --cases "${lpr_p}" --json "${lpr_out}/operators-cuda.json"; then
+          echo "the operators engine against the fused engine's bits on P: FAILED"
           lpr_ok=0
         fi
       else
@@ -710,6 +730,21 @@ if ! skipped label_propagation; then
         lpr_ok=0
       fi
     done
+    # The operators engine (damped only; M10b, ADR 0101).
+    if ! lpr_run memcheck 50000 10 damped --noValidate --cuda-engine operators ||
+      ! lpr_run initcheck 5000 5 damped --noValidate --cuda-engine operators ||
+      ! lpr_run synccheck 5000 5 damped --noValidate --cuda-engine operators; then
+      echo "memcheck / initcheck / synccheck dyng-compat-dynlp --cuda-engine operators: FAILED"
+      lpr_ok=0
+    fi
+    # Slack rows and the streaming threshold at 50k (M10b, ADR 0103): the moves and the arena's
+    # growth on the device.
+    for rule in damped inplace; do
+      if ! lpr_run memcheck 50000 10 "${rule}" --noValidate --layout slack --streaming-tau; then
+        echo "memcheck dyng-compat-dynlp 50k ${rule} --layout slack --streaming-tau: FAILED"
+        lpr_ok=0
+      fi
+    done
     rm -rf "${lpr_tmp}"
     # The sweep that fails every device allocation in turn is left out (its correct handling is
     # what the plain run checks; under memcheck it would take most of the step).
@@ -721,12 +756,13 @@ if ! skipped label_propagation; then
     # The slotted rows' device apply (the overflow near the int32 limit, the poison; M10a review).
     lpr_graph="${build_dir}/cpp/tests/dyng_graph_cuda_tests"
     if [ ! -x "${lpr_graph}" ] || ! heavy "${sanitizer}" --tool memcheck --error-exitcode 1 \
-      "${lpr_graph}" --gtest_brief=1 --gtest_filter='SlottedCuda.*'; then
-      echo "memcheck ${lpr_graph} (the slotted device apply): FAILED"
+      "${lpr_graph}" --gtest_brief=1 --gtest_filter='SlottedCuda.*:SlackCuda.*'; then
+      echo "memcheck ${lpr_graph} (the slotted and slack device applies): FAILED"
       lpr_ok=0
     fi
     if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all --error-exitcode 1 \
-      "${lpr_unit}" --gtest_brief=1 --gtest_filter='LabelPropagationCuda.HubGolden:LabelPropagation.*'; then
+      "${lpr_unit}" --gtest_brief=1 \
+      --gtest_filter='LabelPropagationCuda.HubGolden:LabelPropagationCuda.OperatorsEngineHubGolden:LabelPropagation.*'; then
       echo "racecheck ${lpr_unit} (the propagation tests): FAILED"
       lpr_ok=0
     fi
@@ -878,6 +914,15 @@ if ! skipped plugin; then
     record "plugin wheel (pytest -m gpu)" skipped
   else
     pythons="${DYNG_GPU_PLUGIN_PYTHONS:-$(command -v python3.12 || command -v python3)}"
+    # Both plugins when a CUDA 12 toolkit is at hand (DYNG_CUDA12_ROOT, or the development
+    # machine's ${scratch}/tools/cuda-12.9): the dyng-cu12 plugin links CUDA 12's static runtime,
+    # whose kernel registration differs from CUDA 13's (ADR 0109 part B), so its install test runs
+    # the CUDA backend of its own build.
+    cuda12="${DYNG_CUDA12_ROOT:-${scratch}/tools/cuda-12.9}"
+    if [ -z "${DYNG_GPU_PLUGINS:-}" ] && [ -x "${cuda12}/bin/nvcc" ]; then
+      DYNG_GPU_PLUGINS="cu12 cu13"
+      export DYNG_CUDA12_ROOT="${cuda12}"
+    fi
     # The step's own GPU selection: plugin_wheels.sh sets CUDA_VISIBLE_DEVICES itself.
     if [ -n "${wheels}" ]; then
       plugin_env=(DYNG_PLUGIN_TEST_ONLY=1 "DYNG_PLUGIN_OUT=${wheels}")

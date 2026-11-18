@@ -12,6 +12,8 @@
     compare.py label_propagation determinism --exe COMPAT [--backend sequential] [--json F]
     compare.py label_propagation damped --exe COMPAT [--cases ...] [--json F]
     compare.py label_propagation damped-rejudge --record R [--json F]
+    compare.py label_propagation inplace --exe COMPAT [--runs N | --rate [--original DYNLP]]
+                                         [--cases ...] [--json F]
 
 REPLAY is dyng_lp_replay (cpp/tests/parity/label_propagation), COMPAT dyng-compat-dynlp
 (tools/compat/dynlp) of a build.
@@ -44,6 +46,14 @@ damped      The fused engine's byte parity on P+ (AD6): the labels, the per-batc
             non-deterministic counter of the original, against the original's own values of the
             case and batch (ORIGINAL_VALUES_RECORD; the author's decision of 2026-11-05, ADR 0100).
 damped-rejudge  A damped record judged again under that rule, without a new run.
+inplace     The in_place cloud on cuda against the frozen calibration (AD5) on I: every port run's
+            labels within T_mean / T_max / T_flips of every reference run, its components exact,
+            its iteration sum inside the frozen envelope, the deterministic stages against the
+            trace golden; the per-batch envelope on every one of --runs runs (default 3), or with
+            --rate the certificate's rate rule (the author's decision of 2026-11-18, ADR 0111):
+            30 port and 30 unpatched-original runs per case alternated on one GPU, the port's
+            count of runs outside the envelope not significantly higher (one-sided Fisher exact
+            test at 5 %).
 """
 
 from __future__ import annotations
@@ -1007,9 +1017,67 @@ def patched_copy() -> Path:
     return Path(out.strip().splitlines()[-1])
 
 
+def original_exe() -> Path:
+    """The unpatched original's dynLP (parity/build_reference.sh --variant unpatched), never the
+    recording twin."""
+    import label_propagation_perf as lpperf
+
+    return lpperf.original_exe()
+
+
+def judge_port_run(case, th: dict, refs: list, mask, labels, cols: list[dict], k: int) -> dict:
+    """One port run against the frozen calibration (AD5): its labels within T_mean, T_max and
+    T_flips of every reference run, its components exact, its per-batch iterations and their sum
+    against the frozen envelope."""
+    pairs = [g.pair_stats(labels, r, mask) for r in refs]
+    within = [
+        p["mean"] <= th["t_mean"] and p["max"] <= th["t_max"] and p["flips"] <= th["t_flips"]
+        for p in pairs
+    ]
+    iterations = [int(x["iterations"]) for x in cols]
+    components = [int(x["components"]) for x in cols]
+    its = g.iterations_inside(th, iterations)
+    exact = components == list(th["components"])
+    return {
+        "run": k,
+        "largest": {
+            "mean": max(p["mean"] for p in pairs),
+            "max": max(p["max"] for p in pairs),
+            "flips": max(p["flips"] for p in pairs),
+        },
+        "labels_within_every_reference": all(within),
+        "iterations": iterations,
+        "iteration_check": its,
+        "components_exact": exact,
+        # Judged on every run under either rule (ADR 0111): what does not depend on the schedule's
+        # tail.
+        "checked_every_run": all(within) and exact and its["sum_within"],
+        "within": all(within) and its["within"] and exact,
+    }
+
+
 def cmd_inplace(args: argparse.Namespace) -> int:
+    """The in_place cloud (AD5). Without --rate: every one of --runs port runs within the frozen
+    calibration (labels, components, the per-batch iterations and their sum). With --rate (the
+    certificate's rule, the author's decision of 2026-11-18, ADR 0111): per case the rule's runs
+    of the port and of the unpatched original, alternated on the same GPU in one session; every
+    port run's labels, components and iteration sum within as without it, and the port's count of
+    runs outside the frozen iteration envelope not significantly higher than the original's (the
+    one-sided Fisher exact test at the rule's alpha). The deterministic stages against the trace
+    golden in both."""
     frozen = frozen_inplace()
     rule = frozen["rule"]
+    rate_rule = None
+    if args.rate:
+        rate_rule = dict(frozen.get("rate_rule") or {})
+        if {k: rate_rule.get(k) for k in g.RATE_RULE} != g.RATE_RULE:
+            raise g.GoldenError(f"goldens.toml's rate_rule is not ADR 0111's: {rate_rule}")
+        if args.runs is not None and args.runs != int(rate_rule["runs"]):
+            raise g.GoldenError(f"--rate takes the rule's {rate_rule['runs']} runs, not --runs")
+        original = Path(args.original) if args.original else original_exe()
+        if b"dyng-dynlp-recorder-twin" in original.read_bytes():
+            raise g.GoldenError(f"{original} is a recording twin, not the unpatched original")
+    n_runs = int(rate_rule["runs"]) if rate_rule else (args.runs or 3)
     root = g.set_dir(g.scratch() / "goldens", "inplace")
     trace_root = g.set_dir(g.scratch() / "goldens", "trace")
     copy = patched_copy()
@@ -1025,39 +1093,24 @@ def cmd_inplace(args: argparse.Namespace) -> int:
         ]
         status = g.status_of(case, copy, 1)
         mask = status == g.VERTEX_ACTIVE
-        runs = []
-        for k in range(args.runs):
+        runs, originals = [], []
+        for k in range(n_runs):
             with tempfile.TemporaryDirectory(prefix="lp-inplace-", dir=runs_dir()) as t:
                 tmp = Path(t)
                 run_compat(args.exe, [*case.argv(tmp / "out"), "--backend", "cuda"], clean_env())
                 labels = g.parse_labels((tmp / "out" / "dynlp_labels.txt").read_bytes())
                 cols = g.results_columns((tmp / "out" / "results.csv").read_text())
-            pairs = [g.pair_stats(labels, r, mask) for r in refs]
-            within = [
-                p["mean"] <= th["t_mean"]
-                and p["max"] <= th["t_max"]
-                and p["flips"] <= th["t_flips"]
-                for p in pairs
-            ]
-            iterations = [int(x["iterations"]) for x in cols]
-            components = [int(x["components"]) for x in cols]
-            its = g.iterations_inside(th, iterations)
-            good_run = all(within) and its["within"] and components == list(th["components"])
-            runs.append(
-                {
-                    "run": k,
-                    "largest": {
-                        "mean": max(p["mean"] for p in pairs),
-                        "max": max(p["max"] for p in pairs),
-                        "flips": max(p["flips"] for p in pairs),
-                    },
-                    "labels_within_every_reference": all(within),
-                    "iterations": iterations,
-                    "iteration_check": its,
-                    "components_exact": components == list(th["components"]),
-                    "within": good_run,
-                }
-            )
+            runs.append(judge_port_run(case, th, refs, mask, labels, cols, k))
+            if rate_rule:
+                # The original's run right after the port's, on the same GPU (the caller's
+                # CUDA_VISIBLE_DEVICES), the same argv and environment.
+                with tempfile.TemporaryDirectory(prefix="lp-inplace-o-", dir=runs_dir()) as t:
+                    tmp = Path(t)
+                    run_compat(original, case.argv(tmp / "out"), clean_env())
+                    ocols = g.results_columns((tmp / "out" / "results.csv").read_text())
+                its = [int(x["iterations"]) for x in ocols]
+                originals.append({"run": k, "iterations": its,
+                                  "iteration_check": g.iterations_inside(th, its)})  # fmt: skip
         # The deterministic stages (components, G', the initial labels and the initial frontier)
         # do not depend on the schedule: one traced run against the damped trace golden, every
         # field of TRACE_FIELDS but the schedule itself (propagation_begin.update_rule).
@@ -1072,50 +1125,92 @@ def cmd_inplace(args: argparse.Namespace) -> int:
                 decompressed(trace_root / "cases" / dcase.name / "trace.dlt.zst", tmp)
             )
             compared, mismatches = compare_traces(ours, golden, skip=SCHEDULE_FIELD)
-        good = all(r["within"] for r in runs) and not mismatches and len(runs) >= 3
+        entry = {
+            "case": case.name,
+            "thresholds": {k: th[k] for k in ("t_mean", "t_max", "t_flips")},
+            "envelope": {k: th[k] for k in ("iterations_lo", "iterations_hi",
+                                            "iterations_sum_lo", "iterations_sum_hi")},
+            "vertices_compared": int(mask.sum()),
+            "runs": runs,
+            "deterministic_trace": {"compared": compared, "mismatches": mismatches[:20]},
+        }  # fmt: skip
+        if rate_rule:
+            rate = g.rate_verdict(
+                sum(not r["iteration_check"]["within"] for r in runs), len(runs),
+                sum(not r["iteration_check"]["within"] for r in originals), len(originals),
+                rate_rule,
+            )  # fmt: skip
+            rate["rule"] = {k: rate_rule[k] for k in g.RATE_RULE}
+            rate["port"]["outside_batches"] = [
+                r["iteration_check"]["batches_outside"] for r in runs
+                if not r["iteration_check"]["within"]
+            ]  # fmt: skip
+            rate["original"]["outside_batches"] = [
+                r["iteration_check"]["batches_outside"] for r in originals
+                if not r["iteration_check"]["within"]
+            ]  # fmt: skip
+            entry["original_runs"] = originals
+            entry["rate"] = rate
+            good = (all(r["checked_every_run"] for r in runs) and not mismatches
+                    and rate["within"])  # fmt: skip
+        else:
+            good = all(r["within"] for r in runs) and not mismatches and len(runs) >= 3
+        entry["within"] = good
         ok = ok and good
-        results.append(
-            {
-                "case": case.name,
-                "thresholds": {k: th[k] for k in ("t_mean", "t_max", "t_flips")},
-                "envelope": {k: th[k] for k in ("iterations_lo", "iterations_hi",
-                                                "iterations_sum_lo", "iterations_sum_hi")},
-                "vertices_compared": int(mask.sum()),
-                "runs": runs,
-                "deterministic_trace": {"compared": compared, "mismatches": mismatches[:20]},
-                "within": good,
-            }
-        )  # fmt: skip
+        results.append(entry)
+        tail = ""
+        if rate_rule:
+            rate = entry["rate"]
+            tail = (f"; outside the envelope: port {rate['port']['outside']} / {len(runs)}, "
+                    f"original {rate['original']['outside']} / {len(originals)}, one-sided "
+                    f"Fisher p {rate['p_value']:.4g}")  # fmt: skip
         print(
             f"{case.name}: {'within' if good else 'OUTSIDE'} ({len(runs)} runs; largest mean "
             f"{max(r['largest']['mean'] for r in runs):.3e} of {th['t_mean']:.3e}, flips "
             f"{max(r['largest']['flips'] for r in runs)} of {th['t_flips']}; iterations "
             f"{[r['iteration_check']['sum'] for r in runs]} in [{th['iterations_sum_lo']}, "
-            f"{th['iterations_sum_hi']}]; trace {compared} fields, {len(mismatches)} mismatched)",
+            f"{th['iterations_sum_hi']}]; trace {compared} fields, {len(mismatches)} mismatched"
+            f"{tail})",
             flush=True,
         )
     if args.json:
-        g.write_json(
-            args.json,
-            {
-                "schema": 1,
-                "what": "CUDA in_place against the frozen calibration (AD5 as decided on "
-                "2026-10-28 "
-                "and 2026-10-29; criterion 13): every port run against every one of the N GPU-1 "
-                "reference runs within T_mean, T_max and T_flips over the vertices ACTIVE and not "
-                "ground truth after the last batch, the per-batch iterations and their sum inside "
-                "the frozen envelope, the components exact; the deterministic stages (components, "
-                "G', the initial labels, the initial frontier) against the trace golden",
-                "reference": g.REFERENCE,
-                "commit": g.COMMIT,
-                "build": build_preset(args.exe),
-                "gpu": "GPU 1 (default clocks)",
-                "date": g.now(),
-                "within": ok,
-                "cases": results,
-            },
+        what = (
+            "CUDA in_place against the frozen calibration (AD5 as decided on 2026-10-28 and "
+            "2026-10-29; criterion 13): every port run against every one of the N GPU-1 reference "
+            "runs within T_mean, T_max and T_flips over the vertices ACTIVE and not ground truth "
+            "after the last batch, the components exact, "
         )
-    print("inplace (cuda):", "PASSED" if ok else "FAILED")
+        if rate_rule:
+            what += (
+                "the iteration sum inside the frozen envelope; the rate rule of the certificate "
+                "(the author's decision of 2026-11-18, ADR 0111): per case the rule's runs of the "
+                "port and of the unpatched original alternated on one GPU, the port's count of "
+                "runs outside the frozen iteration envelope not significantly higher than the "
+                "original's (one-sided Fisher exact test); "
+            )
+        else:
+            what += "the per-batch iterations and their sum inside the frozen envelope; "
+        what += (
+            "the deterministic stages (components, G', the initial labels, the initial frontier) "
+            "against the trace golden"
+        )
+        doc = {
+            "schema": 1,
+            "what": what,
+            "reference": g.REFERENCE,
+            "commit": g.COMMIT,
+            "build": build_preset(args.exe),
+            "gpu": f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES', '')} "
+            "(default clocks)",
+            "date": g.now(),
+            "within": ok,
+            "cases": results,
+        }
+        if rate_rule:
+            doc["rule"] = "rate"
+            doc["original"] = perf_path(original)
+        g.write_json(args.json, doc)
+    print(f"inplace (cuda{', rate rule' if rate_rule else ''}):", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
 
 
@@ -1215,7 +1310,13 @@ def main(argv: list[str] | None = None) -> int:
     ip.add_argument("--json", type=Path)
     np_ = sub.add_parser("inplace")
     np_.add_argument("--exe", type=Path, required=True, help="dyng-compat-dynlp")
-    np_.add_argument("--runs", type=int, default=3)
+    np_.add_argument("--runs", type=int, help="port runs per case (default 3; not with --rate)")
+    np_.add_argument("--rate", action="store_true",
+                     help="the certificate's rate rule (ADR 0111): the rule's runs of the port "
+                     "and of the unpatched original per case")  # fmt: skip
+    np_.add_argument("--original", type=Path,
+                     help="with --rate: the unpatched original's dynLP (default: the reference "
+                     "copy of parity/build_reference.sh --variant unpatched)")  # fmt: skip
     np_.add_argument("--cases", type=names, help="sizes of I (default: all four)")
     np_.add_argument("--json", type=Path)
     hp = sub.add_parser("hub")

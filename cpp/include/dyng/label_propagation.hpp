@@ -40,7 +40,15 @@
  * with row_layout::slotted and batch_semantics::net_effect(); compute() on the empty graph gives
  * the starting result (every label 0.5), and every batch b0, b1, ... is one update() with the
  * published threshold (options::similarity_threshold = stream.similarity_threshold). b0 (the
- * first ground truth and the edges among it) is an ordinary update.
+ * first ground truth and the edges among it) is an ordinary update. This is the documented default
+ * (the author's decision AD16 of 2026-10-28).
+ *
+ * **The streaming mode** (an advanced mode with no performance gate; PLAN 12.1 O9; ADRs 0103,
+ * 0104): when the capacities are not known up front, the graph is graph::with_capacity() with
+ * row_layout::slack (no or partial capacity hints: a row that outgrows its slots moves to the
+ * tail of the slot arena) and options::similarity_threshold = std::nullopt (tau = the average
+ * weight of the current graph's live entries, maintained by every update). It is checked by the
+ * harmonic oracle and the kit, and reported against the published setup (dynG against dynG).
  *
  * **update()** is DynLP (LabelPropagation-CUDA's runDynLP, one batch): the vertices affected by
  * the batch (the neighbours of the deleted ones on the rows before the batch, the inserted ones,
@@ -98,12 +106,18 @@ struct options {
    *        batch joins G' when its weight is > tau.
    *
    * A value: the published setup passes generators::vertex_arrival_stream::similarity_threshold
-   * (the full graph's average edge weight, the original's computeAvgEdgeWeight). std::nullopt:
-   * the average weight of the current graph's live directed entries, computed in every update as
-   * a double sum in vertex order and slot order, rounded to float (0.5 for a graph without
-   * edges), bitwise the same on every backend; on cuda each such update first downloads the
-   * graph's rows to the host (a copy of the slot storage and an O(m) pass per update, not part of
-   * the published setup). It must not be NaN.
+   * (the full graph's average edge weight, the original's computeAvgEdgeWeight). std::nullopt
+   * (the streaming mode, ADR 0104): the average weight of the live directed entries of the graph
+   * after the batch, rounded to float (0.5 for a graph without edges), from a double sum and a
+   * count that the result maintains: the first update that needs them (after compute() or
+   * set_options()) sums the graph before its batch in vertex order and slot order; then every
+   * update takes out, for each deleted vertex in the order of the batch's deletions (those active
+   * before it), the double sum of its row's live entries in slot order (each entry's weight, and
+   * again for its mirror entry when the neighbour is neither the vertex itself nor deleted in the
+   * same batch), and adds the weight of every appended entry in batch order (an edge's two
+   * entries one after the other). The value is deterministic and bitwise the same on every
+   * backend; on cuda the rows of the graph before the batch are downloaded to the host for it
+   * (not part of the published setup). It must not be NaN.
    */
   std::optional<float> similarity_threshold;
   float tolerance = 1e-4F;  ///< delta: a label changes "by more than delta" (> 0)
@@ -112,9 +126,12 @@ struct options {
   std::int64_t max_iterations = 100000;
   on_limit on_iteration_limit = on_limit::report;  ///< see on_limit
   schedule update_schedule = schedule::in_place;   ///< the published rule by default
-  /** @brief The CUDA engine: engine::automatic or engine::fused (the verbatim port of the
-   *         original's pipeline, bitwise the original's damped labels; ADR 0075); engine::operators
-   *         arrives in M10b (not_supported_error until then). Ignored on the host backends. */
+  /** @brief The CUDA engine of update(): engine::automatic or engine::fused (the verbatim port
+   *         of the original's pipeline, bitwise the original's damped labels; ADR 0075), or
+   *         engine::operators (the framework's hooks written with label_propagation's operators,
+   *         schedule::damped only, the fused engine's bits; ADR 0101; not_supported_error from
+   *         compute() and update() under schedule::in_place). compute() is IrLP on every engine.
+   *         Ignored on the host backends. */
   engine cuda_engine = engine::automatic;
 };
 
@@ -211,6 +228,10 @@ class result {
 
   /**
    * @brief Change the options (every field is a tunable).
+   *
+   * The options are checked here one by one; a combination a backend refuses is refused by the
+   * next update() (on cuda, options::cuda_engine = engine::operators with schedule::in_place:
+   * not_supported_error, nothing changed).
    * @param[in] opt The new options.
    * @throws invalid_argument_error if an option is out of range (tolerance <= 0 or NaN,
    *         max_iterations <= 0, a NaN similarity_threshold), or for a moved-from result.
@@ -238,7 +259,8 @@ class result {
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    * @throws not_supported_error    if the backend of `res` is not available for
    *         label_propagation (OpenMP: use dyng.Resources("sequential") or cuda).
-   * @throws out_of_memory_error    if the copy cannot be allocated.
+   * @throws out_of_memory_error    if the copy cannot be allocated (host or device memory).
+   * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
    * @sync
    */
   [[nodiscard]] result clone(const resources& res) const;
@@ -263,7 +285,8 @@ class result {
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    * @throws not_supported_error    if the backend of `res` is not available for
    *         label_propagation.
-   * @throws out_of_memory_error    if the workspaces cannot be allocated.
+   * @throws out_of_memory_error    if the workspaces cannot be allocated (host or device memory).
+   * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
    * @sync
    */
   void reserve(const resources& res, std::size_t max_batch_vertices, std::size_t max_batch_edges);
@@ -351,7 +374,8 @@ namespace dyng::label_propagation {
  *                          a backend of label_propagation in 0.4).
  * @param[in] g             An undirected graph with float weights: row_layout::slotted (the
  *                          published setup; compute() on graph::with_capacity()'s empty graph gives
- *                          every label 0.5) or compact. It is not modified.
+ *                          every label 0.5), slack (the streaming mode) or compact. It is not
+ *                          modified.
  * @param[in] seed_vertices The seeds: active vertices of `g`, each once (any memory space: read on
  *                          the host).
  * @param[in] seed_labels   One class (0 or 1) per seed.
@@ -362,10 +386,13 @@ namespace dyng::label_propagation {
  *         seed is out of range, listed twice, not active, or its label is not 0 or 1, or `g` is
  *         not host storage for host resources.
  * @throws not_supported_error    if the backend of `res` is not available for label_propagation
- *         (OpenMP in 0.4: the message names sequential and cuda; use dyng.Resources("sequential")).
+ *         (OpenMP in 0.4: the message names sequential and cuda; use dyng.Resources("sequential")),
+ *         or on cuda options::cuda_engine is engine::operators with schedule::in_place (the
+ *         operators engine runs schedule::damped only).
  * @throws convergence_error      if the cap is reached and options::on_iteration_limit is
  *         on_limit::error or on_limit::fallback_recompute (compute() is the recomputation).
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
  * @sync
  * @backends sequential, cuda (IrLP's kernel verbatim: per snapshot bitwise the original's)
  * @determinism Bitwise per backend and build (Jacobi from fixed starting labels).
@@ -412,9 +439,10 @@ template <typename vertex_t, typename edge_t>
  * @tparam edge_t   Edge offset type.
  * @param[in]     res   Execution resources (sequential or cuda, the result's backend: a result
  *                      moves between them with result::clone()).
- * @param[in,out] g     The graph: undirected, float weights, row_layout::slotted with
+ * @param[in,out] g     The graph: undirected, float weights, row_layout::slotted or slack with
  *                      batch_semantics::net_effect() (graph::with_capacity()). The batch is
- *                      applied to it and its version increases by one.
+ *                      applied to it and its version increases by one. A batch that would grow
+ *                      a slack graph's vertex set (allow_vertex_growth) is refused.
  * @param[in]     batch The vertex batch.
  * @param[in,out] r     Result of compute() or of a previous update() on `g`.
  * @return Counters of this update.
@@ -429,12 +457,17 @@ template <typename vertex_t, typename edge_t>
  *         not of the graph the capacities were made for); nothing is changed on the host
  *         backends; on cuda the overflow is found on the device after the batch was applied (the
  *         graph is poisoned and `r` unusable; graph::apply()).
- * @throws not_supported_error    if `g` does not have row_layout::slotted, the batch deletes edges,
+ * @throws not_supported_error    if `g` does not have row_layout::slotted or slack, the batch
+ *         deletes edges or would grow the vertex set (nothing is changed),
  *         or the backend of `res` is not available for label_propagation (OpenMP in 0.4: use
- *         dyng.Resources("sequential")).
+ *         dyng.Resources("sequential")), or on cuda options::cuda_engine is engine::operators with
+ *         schedule::in_place (the operators engine runs schedule::damped only; nothing is
+ *         changed).
  * @throws convergence_error      if the cap is reached under on_limit::error (after the batch was
  *         applied: `r` is left unusable).
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error (cuda backend; after the
+ *         batch was applied, `r` is left unusable).
  * @sync
  * @backends sequential, cuda (the fused engine: the original's pipeline on the resources' one
  *           stream, the graph's rows resident on the device; ADR 0075)

@@ -227,6 +227,49 @@ cmake -S "${tmp}/compat_dynlp" -B "${tmp}/compat_dynlp/build" -G Ninja \
 }
 echo "cmake_consumer: OK (tools/compat/dynlp builds against the installed package and runs)"
 
+# The label_propagation example against the installed package (PLAN 9.6, M10b step 3):
+# examples/cpp/label_propagation_stream.cpp built with find_package(dyng), run on
+# LabelPropagation-CUDA's 5k5 stream (damped), its dynlp_labels.txt compared with the committed
+# digest of examples/data/label_propagation_5k5_damped.sha256 by examples/cpp/compare_digest.cmake
+# (sequential; cuda when the build has CUDA and a device is visible: the original's own bytes).
+mkdir -p "${tmp}/lp_example"
+cat >"${tmp}/lp_example/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.30)
+project(dyng_lp_example CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(dyng ${major_minor} REQUIRED)
+add_executable(label_propagation_stream "${repo_root}/examples/cpp/label_propagation_stream.cpp")
+target_link_libraries(label_propagation_stream PRIVATE dyng::dyng)
+CMAKE
+cmake -S "${tmp}/lp_example" -B "${tmp}/lp_example/build" -G Ninja \
+  -DCMAKE_PREFIX_PATH="${tmp}/prefix" -DCMAKE_BUILD_TYPE=Release >"${tmp}/lp_example.log" 2>&1 &&
+  cmake --build "${tmp}/lp_example/build" >>"${tmp}/lp_example.log" 2>&1 || {
+  cat "${tmp}/lp_example.log"
+  echo "cmake_consumer: examples/cpp/label_propagation_stream.cpp does not build against the" \
+    "installed package" >&2
+  exit 1
+}
+lp_backends="sequential"
+grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt" && lp_backends="${lp_backends} cuda"
+for b in ${lp_backends}; do
+  rc=0
+  mkdir -p "${tmp}/lp_example/out.${b}"
+  cmake "-DEXE=${tmp}/lp_example/build/label_propagation_stream" \
+    "-DARGS=${tmp}/lp_example/out.${b}|${b}" "-DFILE=${tmp}/lp_example/out.${b}/dynlp_labels.txt" \
+    "-DDIGESTS=${repo_root}/examples/data/label_propagation_5k5_damped.sha256" "-DKEY=${b}" \
+    -P "${repo_root}/examples/cpp/compare_digest.cmake" >"${tmp}/lp_example.${b}.log" 2>&1 || rc=$?
+  if [ "${rc}" -eq 77 ] || grep -q 'skipped (exit code 77)' "${tmp}/lp_example.${b}.log"; then
+    echo "cmake_consumer: label_propagation_stream ${b}: skipped (no CUDA device visible)"
+  elif [ "${rc}" -ne 0 ]; then
+    cat "${tmp}/lp_example.${b}.log"
+    echo "cmake_consumer: the installed label_propagation example's labels differ from the" \
+      "committed digest on ${b}" >&2
+    exit 1
+  fi
+done
+echo "cmake_consumer: OK (examples/cpp/label_propagation_stream.cpp, built against the" \
+  "installed package, writes the committed labels on: ${lp_backends})"
+
 # The nvcc consumer: a user Op against the installed package (CUDA builds only).
 if ! grep -q '^DYNG_ENABLE_CUDA:BOOL=ON' "${build}/CMakeCache.txt"; then
   echo "cmake_consumer: ${build} has no CUDA; the nvcc consumer of count_local_patterns is skipped"

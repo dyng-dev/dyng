@@ -8,7 +8,7 @@
  * Options: 0 the weight columns K (0..3), 1 the ids (compact, as_is), 2 the index base (0, 1),
  * 3 symmetrize, 4 drop_self_loops, 5 the duplicates (merge, keep), 6 the parser threads (1..3),
  * 7 the result type (int32 ids with int32 weights, int64 ids with int32 weights, int32 ids
- * unweighted). One file. An accepted input must give a consistent, sorted edge list whose
+ * unweighted, int32 ids with float weights: 0.4, finite and read back bit for bit). One file. An accepted input must give a consistent, sorted edge list whose
  * id mapping and timestamps have the documented sizes, and write_edge_list() followed by
  * read_edge_list() (as_is, the same K, no self-loop dropping) must give the same edges.
  */
@@ -17,8 +17,10 @@
 #include <dyng/core/types.hpp>
 #include <dyng/io/edge_list_io.hpp>
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace {
 
@@ -44,6 +46,9 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& path) {
   const bool keep = opt.duplicates == dyng::io::duplicate_edges::keep;
   DYNG_FUZZ_CHECK(edges.dst.size() == m);
   DYNG_FUZZ_CHECK(edges.weights.size() == m * static_cast<std::size_t>(edges.num_weights));
+  if constexpr (std::is_same_v<weight_t, float>) {
+    for (const float w : edges.weights) DYNG_FUZZ_CHECK(std::isfinite(w));  // NaN / inf refused
+  }
   DYNG_FUZZ_CHECK(info.timestamps.size() == (keep ? m : 0));
   if (opt.ids == dyng::io::vertex_ids::compact) {
     DYNG_FUZZ_CHECK(info.external_ids.size() == static_cast<std::size_t>(edges.num_vertices));
@@ -86,15 +91,18 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& path) {
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
   const dyng::fuzz::fuzz_input in(data, size, 1);
   const std::string path = dyng::fuzz::files().write("input.txt", in.file(0));
-  switch (in.option(7, 3)) {
+  switch (in.option(7, 4)) {
     case 0:
       run<std::int32_t, std::int32_t>(in, path);
       break;
     case 1:
       run<std::int64_t, std::int32_t>(in, path);
       break;
-    default:
+    case 2:
       run<std::int32_t, dyng::unweighted>(in, path);
+      break;
+    default:
+      run<std::int32_t, float>(in, path);  // 0.4: the float graphs of label_propagation
       break;
   }
   return 0;

@@ -20,9 +20,29 @@ dyng_add_algorithm(
   propagation.cu
   irlp.cu
   cuda.cu
+  operators_engine.cu
   FAST_MATH
 )
 if(TARGET dyng_label_propagation)
   set_source_files_properties(label_propagation.cpp sequential.cpp PROPERTIES COMPILE_OPTIONS
                                                                               "-ffp-contract=off")
+endif()
+
+# AD6's calibration of the refactored engines' bound (parity/label_propagation_engines.py
+# calibrate; ADR 0101): extra CUDA flags of this target's sources only, after its fast-math flag
+# (an explicit -fmad=false wins over --use_fast_math's -fmad=true), and the calibration's
+# DYNG_CALIBRATION_LP_* defines. Empty in every preset and release build.
+set(DYNG_LP_CALIBRATION_CUDA_FLAGS
+    ""
+    CACHE STRING "AD6's calibration only: extra CUDA flags of label_propagation's sources"
+)
+mark_as_advanced(DYNG_LP_CALIBRATION_CUDA_FLAGS)
+if(TARGET dyng_label_propagation
+   AND DYNG_ENABLE_CUDA
+   AND DYNG_LP_CALIBRATION_CUDA_FLAGS
+)
+  separate_arguments(_dyng_lp_calibration UNIX_COMMAND "${DYNG_LP_CALIBRATION_CUDA_FLAGS}")
+  # Quoted: the flags are a list, and a list inside an unquoted generator expression splits it.
+  target_compile_options(dyng_label_propagation
+                         PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:${_dyng_lp_calibration}>")
 endif()

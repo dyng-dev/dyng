@@ -58,6 +58,7 @@
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/graph/graph_view.hpp>
+#include <dyng/io/result_io.hpp>
 #include <dyng/label_propagation.hpp>
 #include <dyng/testing/harmonic_solution.hpp>
 
@@ -120,6 +121,8 @@ struct config {
   std::string trace;
   bool sync_stages = false;
   bool phases = false;  // --phases: the wall time of the run's phases on stderr (diagnostics)
+  bool slack = false;   // --layout slack: row_layout::slack without capacity hints (M10b)
+  bool streaming_tau = false;  // --streaming-tau: similarity_threshold = std::nullopt (M10b)
 };
 
 void usage() {
@@ -152,7 +155,11 @@ void usage() {
       << "                    (DIR/labels.f32; written after the timer)\n"
       << "  --trace DIR       The library's stage trace (recorder format; DIR/<program>.dlt)\n"
       << "  --sync-stages     Synchronize at the profiler's stage boundaries (diagnostics)\n"
-      << "  --phases          The wall time of the run's phases on stderr (diagnostics)\n";
+      << "  --phases          The wall time of the run's phases on stderr (diagnostics)\n"
+      << "  --layout L        slotted (the published setup, default) or slack (the streaming\n"
+      << "                    mode's rows, without capacity hints)\n"
+      << "  --streaming-tau   tau from the current graph (similarity_threshold = std::nullopt,\n"
+      << "                    the streaming mode) instead of the stream's published one\n";
 }
 
 /// parseArguments (utils.cu 25-137) with the comparator rules of sheet C8.
@@ -250,6 +257,15 @@ bool parse(int argc, char** argv, config& c) {
       c.label_dump = argv[++i];
     } else if (arg == "--trace" && has_value) {
       c.trace = argv[++i];
+    } else if (arg == "--layout" && has_value) {
+      const std::string layout = argv[++i];
+      if (layout != "slotted" && layout != "slack") {
+        std::cout << "Error: --layout must be 'slotted' or 'slack'.\n";
+        return false;
+      }
+      c.slack = layout == "slack";
+    } else if (arg == "--streaming-tau") {
+      c.streaming_tau = true;
     } else if (arg == "--phases") {
       c.phases = true;
     } else if (arg == "--sync-stages") {
@@ -366,20 +382,16 @@ bool ensure_directory(const std::string& dir) {
   return true;
 }
 
-/// writeLabelsToFile: "i label" with the label in fixed, 6 decimals.
+/// writeLabelsToFile: "i label" with the label in fixed, 6 decimals (dyng::io::write_labels, the
+/// original's bytes; AD13 D2). A file that cannot be written prints the original's message.
 bool write_labels(const std::string& path, const float* labels, std::size_t n) {
-  text_writer file(path);
-  if (!file.ok()) {
+  try {
+    dyng::io::write_labels(path, dyng::array_view<const float>(labels, n));
+  } catch (const dyng::io_error&) {
     std::cout << "Error: Could not open file for writing: " << path << "\n";
     return false;
   }
-  for (std::size_t i = 0; i < n; ++i) {
-    file.put_int(static_cast<long long>(i));
-    file.put_char(' ');
-    file.put_fixed6(labels[i]);
-    file.put_char('\n');
-  }
-  return file.close();
+  return true;
 }
 
 /// generateSparseGraph's text files (writeGraphFiles).
@@ -785,12 +797,15 @@ int run(const config& c) {
   // --- The setup (untimed): the slotted graph, compute() on it, the reservation ---
   dyng::graph_properties props;
   props.directed = false;
-  props.layout = dyng::row_layout::slotted;
+  props.layout = c.slack ? dyng::row_layout::slack : dyng::row_layout::slotted;
   props.order = dyng::row_order::append;
   props.parallel_edges = dyng::multi_edges::allow;
   props.semantics = dyng::batch_semantics::net_effect();
-  lp_graph g = lp_graph::with_capacity(res, static_cast<std::int32_t>(n),
-                                       dyng::host_view(stream.row_capacity), props);
+  // --layout slack: the streaming mode's rows know no capacities (ADR 0103).
+  lp_graph g = lp_graph::with_capacity(
+      res, static_cast<std::int32_t>(n),
+      c.slack ? dyng::array_view<const std::int32_t>() : dyng::host_view(stream.row_capacity),
+      props);
   phase.mark("setup: with_capacity");
   const float tau = c.tau < 0.0F ? stream.similarity_threshold : c.tau;
   if (c.tau < 0.0F) {
@@ -798,6 +813,9 @@ int run(const config& c) {
   }
   lp::options opt;
   opt.similarity_threshold = tau;
+  if (c.streaming_tau) {
+    opt.similarity_threshold = std::nullopt;  // the streaming mode (ADR 0104)
+  }
   opt.tolerance = c.delta;
   opt.max_iterations = c.max_iterations;
   opt.update_schedule = c.damped ? lp::schedule::damped : lp::schedule::in_place;

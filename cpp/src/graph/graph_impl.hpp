@@ -255,6 +255,15 @@ class graph_impl {
   }
 
   /**
+   * @brief The host CSR as it is, for the device apply of slack rows (ADR 0103), which keeps its
+   *        row starts current (the slots stay stale until something reads them).
+   * @return The host storage.
+   */
+  csr_type& host_storage_for_write() noexcept {
+    return out_;
+  }
+
+  /**
    * @brief Read the report of a pending device apply (precondition: the stream it was enqueued
    *        on was synchronized since): update the live entries, poison the graph on an overflow.
    *        No-op without a pending apply.
@@ -263,11 +272,20 @@ class graph_impl {
   device_slotted_settled settle_slotted() const;
 
   /**
-   * @brief Whether the rows are slotted.
-   * @return props.layout == row_layout::slotted.
+   * @brief Whether the rows are slotted or slack (the vertex-batch layouts: slotted_rows holds
+   *        their state; slack rows are slotted rows whose slot ranges move, ADR 0103).
+   * @return props.layout is row_layout::slotted or row_layout::slack.
    */
   [[nodiscard]] bool is_slotted() const noexcept {
-    return props.layout == row_layout::slotted;
+    return props.layout == row_layout::slotted || props.layout == row_layout::slack;
+  }
+
+  /**
+   * @brief Whether the rows are slack rows (ADR 0103).
+   * @return props.layout == row_layout::slack.
+   */
+  [[nodiscard]] bool is_slack() const noexcept {
+    return props.layout == row_layout::slack;
   }
 
   /**
@@ -453,6 +471,19 @@ struct graph_access {
   static void normalize(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
                         const edge_batch_view<vertex_t, weight_t>& batch,
                         normalized_batch<vertex_t>& out);
+
+  /**
+   * @brief Compact the rows of a slack graph now (ADR 0103), outside any batch: the host rows, or
+   *        the device copy with the host mirror. The graph's edges, version and state do not
+   *        change (the tests force a compaction between updates with it).
+   * @tparam vertex_t Vertex id type.
+   * @tparam edge_t   Edge offset type.
+   * @tparam weight_t Weight type.
+   * @param[in]     res Execution resources (the graph's).
+   * @param[in,out] g   The graph (row_layout::slack).
+   */
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  static void compact_slack(const resources& res, graph<vertex_t, edge_t, weight_t>& g);
 
   /**
    * @brief Finish a device apply of a slotted graph (ADR 0074): if its report is still pending,

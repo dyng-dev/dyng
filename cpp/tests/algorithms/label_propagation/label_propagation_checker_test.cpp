@@ -151,7 +151,8 @@ lp::result<std::int32_t> irlp(const dyng::resources& res, const lp_graph& g,
 }
 
 /// The original's checker over the published flow of one stream.
-void check_stream(std::int64_t n, std::int32_t batches, lp::schedule rule, bool irlp_snapshots) {
+void check_stream(std::int64_t n, std::int32_t batches, lp::schedule rule, bool irlp_snapshots,
+                  dyng::engine engine = dyng::engine::automatic) {
   const float delta = 1e-6F;
   const dyng::resources res = test_resources();
   const stream_t s = make_stream(n, batches);
@@ -160,6 +161,7 @@ void check_stream(std::int64_t n, std::int32_t batches, lp::schedule rule, bool 
   lp_graph g = lp_graph::with_capacity(res, static_cast<std::int32_t>(c.size()), host_view(c),
                                        slotted_props());
   lp::options opt;
+  opt.cuda_engine = engine;
   opt.similarity_threshold = s.similarity_threshold;
   opt.tolerance = delta;
   opt.update_schedule = rule;
@@ -270,6 +272,22 @@ TEST(LabelPropagationChecker, Damped5k5) {
 
 TEST(LabelPropagationChecker, InPlace5k5) {
   check_stream(5000, 5, lp::schedule::in_place, true);
+}
+
+// The operators engine on CUDA (M10b step 1; ADR 0101; damped: it has no in_place twin) under
+// the same oracles; on the host the cases are the ones above (the host backend has one engine).
+TEST(LabelPropagationChecker, DampedOperators5k5) {
+  if (!on_cuda) {
+    GTEST_SKIP() << "the operators engine is CUDA's (the host backend has one engine)";
+  }
+  check_stream(5000, 5, lp::schedule::damped, true, dyng::engine::operators);
+}
+
+TEST(LabelPropagationChecker, DampedOperators50k) {
+  if (!on_cuda) {
+    GTEST_SKIP() << "the operators engine is CUDA's (the host backend has one engine)";
+  }
+  check_stream(50000, 10, lp::schedule::damped, false, dyng::engine::operators);
 }
 
 TEST(LabelPropagationChecker, Damped50k) {

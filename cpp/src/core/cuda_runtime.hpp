@@ -15,7 +15,9 @@
 #include <dyng/core/stream.hpp>
 
 #include <cstddef>
+#include <initializer_list>
 #include <string>
+#include <string_view>
 #include <thread>
 
 namespace dyng::detail {
@@ -101,10 +103,11 @@ class scoped_device {
 void cuda_synchronize(int device, stream_ref stream);
 
 /**
- * @brief Initialise a device ahead of timed work: create its primary context, load every
- *        registered library kernel (lazy module loading would otherwise load each one inside the
- *        first timed call; this replaces the originals' setenv("CUDA_MODULE_LOADING", "EAGER")),
- *        touch the stream and prime the memory resource with one small allocation.
+ * @brief Initialise a device ahead of timed work: create its primary context, load every kernel
+ *        group (core/kernel_groups.hpp) and every registered library kernel (lazy module loading
+ *        would otherwise load each one inside the first timed call; this replaces the originals'
+ *        setenv("CUDA_MODULE_LOADING", "EAGER")), touch the stream and prime the memory resource
+ *        with one small allocation.
  * @param[in] device Device ordinal.
  * @param[in] stream The stream of the resources.
  * @param[in] memory The memory resource of the resources.
@@ -112,6 +115,20 @@ void cuda_synchronize(int device, stream_ref stream);
  * @throws cuda_error if the runtime reports an error.
  */
 std::size_t cuda_warm_up(int device, stream_ref stream, memory_resource_ref memory);
+
+/**
+ * @brief cuda_warm_up() restricted to kernel groups (core/kernel_groups.hpp): loads the named
+ *        groups, then warms up the registered kernels outside every group and those of the loaded
+ *        groups; the other groups stay unloaded.
+ * @param[in] device Device ordinal.
+ * @param[in] stream The stream of the resources.
+ * @param[in] memory The memory resource of the resources.
+ * @param[in] groups The groups to load (names without a group are ignored).
+ * @return The number of kernels warmed up.
+ * @throws cuda_error if the runtime reports an error.
+ */
+std::size_t cuda_warm_up_groups(int device, stream_ref stream, memory_resource_ref memory,
+                                std::initializer_list<std::string_view> groups);
 
 /**
  * @brief Copy bytes between any two memory spaces, ordered on `stream` (cudaMemcpyAsync with

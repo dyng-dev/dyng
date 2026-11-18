@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
-"""``dyng convert`` (between the 0.1 graph formats) and ``dyng generate`` (the legacy
-generators of :mod:`dyng.generators.legacy`)."""
+"""``dyng convert`` (between the 0.1 graph formats) and ``dyng generate`` (the seeded generators
+of :mod:`dyng.generators` and :mod:`dyng.generators.legacy`)."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from ._common import (
     read_edges,
     write_text,
 )
+from ._label_propagation import add_generate_vertex_arrival
 
 # -------------------------------------------------------------------------------------------------
 # convert
@@ -95,10 +96,13 @@ def run_convert(args: argparse.Namespace) -> int:
 # -------------------------------------------------------------------------------------------------
 
 _GENERATE_HELP = """\
-The seeded generators of dyng.generators.legacy, bit-exact with the original tools: MOSP's change
-generator (mosp_changes: insert.txt and delete.txt, as `mospPrep changes` writes them) and
-CycleEnumeration-GPU's batch generator (cycle_enum_batch: '- u v' per deletion, then '+ u v' per
-insertion, in graph ids). The flags are the generators' keyword arguments.
+Seeded generators, each named as its Python function (dyng.generators and
+dyng.generators.legacy). The library's: vertex_arrival_stream (label_propagation's
+vertex-arrival streams, library-owned draws). The originals', bit-exact with the original tools:
+MOSP's change generator (mosp_changes: insert.txt and delete.txt, as `mospPrep changes` writes
+them), CycleEnumeration-GPU's batch generator (cycle_enum_batch: '- u v' per deletion, then
+'+ u v' per insertion, in graph ids) and LabelPropagation-CUDA's (dynlp_vertex_arrival_stream).
+The flags are the generators' keyword arguments.
 """
 
 
@@ -130,6 +134,8 @@ def add_generate(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
         "--out", default=None, metavar="FILE", help="output file (default: standard output)"
     )
     g.set_defaults(func=run_cycle_enum_batch, generator_names=names)
+
+    add_generate_vertex_arrival(gens)
 
 
 def run_mosp_changes(args: argparse.Namespace) -> int:
