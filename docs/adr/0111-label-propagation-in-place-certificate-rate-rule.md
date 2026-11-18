@@ -130,8 +130,8 @@ components, the sums, the deterministic stages) stays judged run by run, with no
 - The certificate of the in_place set judges the port against the original's own behaviour in
   the same session, not against a fixed number of runs that the original itself fails about one
   time in five.
-- A certificate reading takes 60 runs per case instead of 3 (about 15 minutes for the four cases
-  on an RTX A5000).
+- A certificate reading takes 60 runs per case instead of 3 (ten minutes for the four cases on
+  an RTX A5000 in the reading of `parity/results/M10b.md` section 5.8).
 - The rule has limited power for small rate increases (section 2): a port with a slightly heavier
   tail can pass. The run-by-run checks bound everything else.
 - The every-run readings that missed (M10a and M10b) stay recorded misses.
