@@ -359,10 +359,20 @@ Before 0.1.0 anything may change.
   `end_to_end` 1.010-1.045, device memory 1.002-1.012; the 50m damped `end_to_end` 1.077, down
   from 1.105), M11's ia3_hsosp gates (271 / 271) and replays, the LP replays, the mutations
   (6 / 6), ADR 0024's LP slotted path (1.002 / 1.004), `ci/gpu_local.sh` in full and both plugins;
-  the in_place cloud missed by one 50k run at batch 9 in two readings (a recorded miss, the
-  author's decision of 2026-11-14) and in the one further reading (2026-11-18), a STOP pending the
-  author (GOVERNANCE.md, Open decisions, M10 (AD)); the scoped dry certify of label_propagation
-  fails on that set alone.
+  the in_place cloud missed by one 50k run at batch 9 in two readings and in the one further
+  reading (a recorded miss, the author's decisions of 2026-11-14 and 2026-11-18).
+- M10b review fixes (parity): the certificate of the `label_propagation_inplace` set is judged by
+  a rate rule (the author's decision of 2026-11-18, ADR 0111): per case 30 fresh port runs and 30
+  fresh runs of the unpatched original on one GPU; the case fails if the port's count of runs
+  outside the frozen iteration envelope is significantly higher than the original's (one-sided
+  Fisher exact test at 5 %); the labels, flips, components, iteration sums and the trace are still
+  judged on every port run; the envelope, thresholds and calibration are unchanged.
+  `goldens.toml` freezes it, `compare.py label_propagation inplace --rate` reads it and
+  `certify.py` recomputes it from the certificate record's tables. Its reading on the final
+  library code passes every case (50k: 1 against the original's 3 of 30 runs outside; the other
+  cases 0 / 0), AD9's plain Jacobi in_place mutation still fails it (30 of 30 outside), and the
+  scoped dry certifies of label_propagation and hyper_sssp pass (`parity/results/M10b.md`
+  section 5.8).
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 
