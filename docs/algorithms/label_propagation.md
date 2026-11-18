@@ -179,7 +179,7 @@ dead slots outnumber the live ones), `similarity_threshold = std::nullopt`, the 
 | Backend | `compute()` | `update()` | Determinism |
 |---|---|---|---|
 | sequential | IrLP (Jacobi) | the hooks on the host (ADR 0072); each half-sweep in ascending vertex order | bitwise per build, both schedules |
-| cuda, `engine::fused` (the default) | IrLP, the original's kernel verbatim | the original's pipeline (ADR 0075): every kernel's SASS the original's, `--use_fast_math` on this target only | `damped`: bitwise per build, the original's bits; `in_place`: within the calibration frozen from the original's runs (AD5) |
+| cuda, `engine::fused` (the default) | IrLP, the original's kernel verbatim | the original's pipeline (ADR 0075): every kernel's SASS the original's, `--use_fast_math` on this target only | `damped`: bitwise per build, the original's bits; `in_place`: within the calibration frozen from the original's runs (AD5); the certificate reads the per-batch iteration envelope by the rate rule of ADR 0111 (30 runs of each side: the port's runs outside it not significantly more than the original's own), the labels, components and iteration sums on every run |
 | cuda, `engine::operators` | IrLP | the hooks written with the operators `binned_frontier`, `neighbor_reduce`, `connected_components` (ADRs 0101, 0102), `damped` only | the fused engine's bits with the same per-batch counts (AD6's bound c·ε, c = 2^20, met at 0) |
 
 The sequential backend is new (the original has no host DynLP): its deterministic stages (the rows,
