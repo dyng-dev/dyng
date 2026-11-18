@@ -129,6 +129,12 @@ The independent oracle therefore confirms step 1's STOP: O's damped run at 5k5 b
   `near_reference`.
 - The step-2 recorder records `check_labels` only in `--check` runs, so the golden sets (exported
   without `--check`) are unchanged.
+- *Noted after M10b's review:* AD7's bound (mean |F - F*| <= 2000 delta) is calibrated on corpus
+  C's streams (5 and 10 batches), where O itself comes within a factor 1.32 of it. On longer
+  streams O's incremental rule drifts further from the harmonic solution of the current graph: on
+  a 40-batch 5k stream the port fails the bound from batch 9 (5.2e-3 against 2e-3) on slotted rows
+  as on slack rows. The bound is not relaxed and not applied there: a long-stream test compares
+  dynG with dynG (slack rows against slotted rows; ADR 0103 point 12).
 
 ## Alternatives considered
 

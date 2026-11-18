@@ -160,16 +160,21 @@ inline bool any_bad_label(const array_view<const std::int8_t>& labels) noexcept 
 void expect_slotted_properties(const graph_properties& props) {
   if (props.layout == row_layout::compact) {
     DYNG_THROW_INVALID_ARGUMENT(
-        "graph::with_capacity builds a graph with slotted rows: graph_properties::layout must be "
-        "row_layout::slotted (graph::from_edges / from_csr build compact rows)");
+        "graph::with_capacity builds a graph with slotted or slack rows: "
+        "graph_properties::layout must be row_layout::slotted or row_layout::slack "
+        "(graph::from_edges / from_csr build compact rows)");
   }
-  if (props.layout == row_layout::slack) {
-    throw not_supported_error(
-        "dyng: row_layout::slack arrives with label_propagation's streaming mode (M10b, 0.4); "
-        "use row_layout::slotted with the full graph's degrees as capacities");
+  const bool slack = props.layout == row_layout::slack;
+  if (slack) {
+    // ADR 0103: the headroom of a slack row (graph_properties::headroom), finite in [0, 16].
+    DYNG_EXPECTS(props.headroom >= 0.0 && props.headroom <= 16.0,
+                 "graph::with_capacity: "
+                 "graph_properties::headroom must be in [0, 16] for slack rows, got ",
+                 props.headroom);
   }
-  const auto refuse = [](const char* property, const char* needed) {
-    throw not_supported_error(concat_message("dyng: graph::with_capacity: slotted rows need ",
+  const char* kind = slack ? "slack" : "slotted";
+  const auto refuse = [kind](const char* property, const char* needed) {
+    throw not_supported_error(concat_message("dyng: graph::with_capacity: ", kind, " rows need ",
                                              property, " = ", needed, " in this release"));
   };
   if (props.directed) {
@@ -186,10 +191,14 @@ void expect_slotted_properties(const graph_properties& props) {
   }
   const batch_semantics& s = props.semantics;
   const batch_semantics ne = batch_semantics::net_effect();
+  // Slack rows also take net_effect() with allow_vertex_growth set (vertex growth, ADR 0103).
   if (!s.as_net_effect || s.as_sets || s.on_existing_insert != ne.on_existing_insert ||
       s.on_missing_delete != ne.on_missing_delete || s.on_self_loop != ne.on_self_loop ||
-      s.deletions_first != ne.deletions_first || s.allow_vertex_growth != ne.allow_vertex_growth) {
-    refuse("graph_properties::semantics", "batch_semantics::net_effect()");
+      s.deletions_first != ne.deletions_first ||
+      (!slack && s.allow_vertex_growth != ne.allow_vertex_growth)) {
+    refuse("graph_properties::semantics",
+           slack ? "batch_semantics::net_effect() (allow_vertex_growth may be set)"
+                 : "batch_semantics::net_effect()");
   }
 }
 

@@ -179,6 +179,200 @@ Before 0.1.0 anything may change.
   case and batch (`parity/results/M10a-hook-rounds.json`, from its recorder twin's runs), every
   other field exactly; `compare.py label_propagation damped-rejudge` judges an existing record
   again; `certify.py` checks every accepted value against the committed evidence.
+- M10b step 1 (parity; AD6, ADR 0101): **AD6's c, calibrated and frozen before the refactored
+  engine**: `compare.py label_propagation calibrate` (`parity/label_propagation_engines.py`)
+  rebuilds the fused engine with only its association (`DYNG_CALIBRATION_LP_PERMUTED_REDUCTION`,
+  compiled out of every library build) or contraction (`-fmad=false`) perturbed, through the new
+  cache variable `DYNG_LP_CALIBRATION_CUDA_FLAGS` (label_propagation's CUDA sources only; empty in
+  every preset), and runs every batch of P: c = 2^20 (c·ε = 0.125), frozen in
+  `parity/goldens.toml` `[sets.label_propagation_damped.refactored]` with its record
+  `parity/results/M10b-calibration.json`.
+- M10b step 1 (api-change, documentation only: `options::cuda_engine`; ADRs 0101, 0102): **the
+  operators engine of label_propagation on CUDA**: `options::cuda_engine = engine::operators` now
+  runs update() with the framework's hooks written with label_propagation's operators
+  `binned_frontier`, `neighbor_reduce` and `connected_components` (in
+  `cpp/src/algorithms/label_propagation/operators/` by the rule of two), one kernel per phase,
+  `schedule::damped` only (compute() and update() under `schedule::in_place` raise
+  `not_supported_error` before anything changes; it used to raise for every call); `compute()` is
+  IrLP on every engine; `engine::automatic` stays the fused engine. Its
+  labels are the fused engine's bits with identical per-batch iterations, components and
+  frontier_visits on P+ (`compare.py label_propagation operators`; the kit's C4 compares the two
+  engines); the hub golden holds on it; the mutation CTests
+  `label_propagation.mutation.cuda_operators.<name>` run the mutants on its own cases.
+
+- M10b step 2 (api-change, additive, the frozen `io/` headers; AD13 decided by the author on
+  2026-10-28, ADRs 0105 and 0106): **the batch files of vertex batches and float graphs, and
+  label files.** `.dgt` (still `%dgt 1`) reads and writes the graph operations `+v u [label]` and
+  `-v u` (`edge_batch::insert_vertex` / `delete_vertex`; a hypergraph file refuses them) and,
+  for `read_batches<V, float>` / `write_batches<V, float>`, float weight tokens (finite; NaN and
+  infinities refused; written in their shortest round-trip form); integer graphs still refuse a
+  non-integer token. `.dgb` (still version 1) gains `batch_dtype::float32 = 3` (a graph file's
+  weight byte only) and `batch_file_flags::vertex_records = 16` (bit 4, graph files only; a
+  48-byte count block and the inserted vertices, their int8 seed labels and the deleted vertices
+  after the 0.3 arrays); `batch_file_flags::known_graph` is now `vertex_records` (it was 0;
+  `known` stays the union); the header is checked per kind; `write_binary_batches` sets the flag
+  only when a batch has a vertex operation, and `batch_writer` raises `invalid_argument_error` for
+  a vertex batch in a file opened without it. Files of 0.3 read and are written byte for byte as
+  before; a reader of 0.3 refuses the additions with an `io_error`. `read_edge_list<V, float>` /
+  `write_edge_list<V, float>` read and write float weight columns (the integer paths unchanged).
+  New: `io::write_labels(path, labels)` (LabelPropagation-CUDA's `dynlp_labels.txt` bytes,
+  `"%.6f"`) and `io::read_labels(path, num_vertices)`; `dyng-compat-dynlp` writes its label files
+  with it. The fuzz targets cover the new syntax (`docs/api/file_formats.md`, "Vertex batches and
+  float weights" and "Labels").
+
+- M10b step 2 (api-change, additive, `<dyng/generators/vertex_arrival.hpp>`; ADR 0107):
+  **`generators::generate_vertex_arrival_stream(res, opt)`**, the library's vertex-arrival
+  stream: the legacy generator's structure (graph model, batches, published threshold) with
+  library-owned draws (`std::mt19937_64` with the library's bounded integers, shuffle and floats),
+  bit-exact per (seed, major version) with every compiler, standard library and thread count
+  (committed digests in the CPU suites); the same `vertex_arrival_options` (the `seed` field's
+  documentation names both seedings) and `vertex_arrival_stream`. The legacy stream is unchanged.
+
+- M10b step 2 (api-change, additive, the frozen `graph/` headers; ADR 0103; AD16 decided by the
+  author on 2026-10-28): **`row_layout::slack`** on the host and CUDA, built by
+  `graph::with_capacity()` from empty, partial or full capacity hints (each row
+  `ceil(k * (1 + graph_properties::headroom))` slots): a row that overflows moves to the tail of
+  the slot arena with its entries in order, a batch compacts the rows when the dead slots
+  outnumber the owned ones (rows rewritten without the entries of deleted vertices), vertex growth
+  under `batch_semantics::allow_vertex_growth`, `capacity_error` only at the `edge_t` limit. For
+  slack rows `graph_view::out.row_ptr[v]` is row v's start and is not monotone (documented in
+  `graph_view.hpp`). New: `apply_summary::relocated_rows` and `apply_summary::compactions`
+  (appended). Every compact-only algorithm refuses slack rows (ADR 0070's guard).
+- M10b step 2 (api-change, documentation and behaviour of `options::similarity_threshold =
+  std::nullopt`; ADRs 0103, 0104): **`label_propagation` on slack rows** (both backends and
+  engines; a batch that would grow the vertex set is refused before anything changes) and **the
+  streaming mode's threshold**, now a double sum and a count maintained by the result with a
+  documented accumulation order (bitwise the same on every backend) instead of a sum over the
+  whole graph in every update. The published setup (with_capacity from the stream's degrees,
+  the stream's threshold) stays the documented default; the streaming mode is an advanced mode
+  with no gate, checked by the harmonic oracle, the host model and the kit (its float axis gains
+  the preset "slack, net_effect(), half capacities").
+- M10b step 2 (Python, behaviour): `dyng.io.read_batches` and `dyng.io.BatchReader` raise
+  `NotSupportedError` for a batch file with vertex operations (`+v` / `-v`, the `.dgb` flag
+  `vertex_records`) or float32 weights instead of returning its batches without them (the Python
+  batches carry them from M10b's Python step, AD14); `dyng.io.write_batches` writes a batch's
+  vertex operations as `+v` / `-v` lines.
+
+- M10b step 3 (Python, additive; ADR 0108; AD14 decided by the author on 2026-10-28): **float32
+  graphs in Python**: float32 weights select the float graphs (`(int32, int32 | int64,
+  float32)`); float64 weights only with an explicit `weight_dtype="float32"` (`Graph.from_edges`,
+  `Graph.from_csr`, `EdgeBatch`), checked (finite, within float32's range), never narrowed
+  silently; a float graph's batch weights other than float32 only when exactly float32 values.
+  `Graph.weighted` keeps its meaning (int32 weights); new `Graph.weight_dtype`.
+  `Graph.with_capacity(row_capacity, layout="slotted"|"slack", semantics="net_effect", ...)`,
+  `BatchSemantics.net_effect()` (field `as_net_effect`), the vertex arrays of `EdgeBatch` applied
+  (and read back: `insert_vertices`, `vertex_labels`, `delete_vertices`), `ApplySummary`'s
+  `dropped_insertions`, `relocated_rows`, `compactions`, `Graph.num_active_vertices`,
+  `Graph.vertex_status()` with `dyng.VertexStatus`.
+- M10b step 3 (Python, additive; ADR 0108): **`dyng.label_propagation`** (`Options`, `Stats`,
+  `Result`, `compute`, `update`; keywords equal to the C++ fields), `dyng.update` with its
+  results; `Result.labels` is a read-only float32 `dyng.Array`, zero-copy through DLPack
+  (`torch.from_dlpack`, `numpy.from_dlpack`), copy-on-write (an export keeps its labels; the next
+  update copies the per-vertex state once: 13 bytes per vertex on the host, 17 on cuda). OpenMP resources raise `NotSupportedError` naming 'sequential',
+  'cuda' and the fix `dyng.Resources("sequential")` (AD19). `dyng.generators.vertex_arrival_stream`
+  and `dyng.generators.legacy.dynlp_vertex_arrival_stream` (`VertexArrivalStream`, with
+  `write_graph_files()` in the original's bytes), `dyng.testing.harmonic_solution`
+  (`HarmonicResult`), `dyng.io.write_labels` / `read_labels`, and float edge lists and batch files
+  (`weight_dtype="float32"`, the `.dgb` weight code 3 and flag `vertex_records`) in `dyng.io`.
+- M10b step 3 (Python, behaviour): the batch readers return the vertex operations and float32
+  weights (they refused them since step 2); `EdgeBatch` accepts floating-point weights at
+  construction (an int32 graph refuses them at use, where 0.3 refused them at construction);
+  `write_binary_batches` sets the flag `vertex_records` only when a batch has vertex operations
+  (an edge-only file is 0.3's, byte for byte).
+- M10b step 3 (CLI; ADR 0108; AD12 with E1): **`dyng label_propagation compute|update`** (one
+  kebab-case flag per `Options` field; `update --generate legacy|library` or `--batches` with
+  `--capacity auto|FILE`; outputs `dynlp_labels.txt` in the original's bytes and a
+  `results.csv`-style `stats.csv`) and **`dyng generate vertex_arrival_stream` /
+  `dynlp_vertex_arrival_stream`** (batches, capacities, tau, true labels, optionally the
+  original's graph files); the `generate` group is no longer legacy-only. The CLI's damped labels
+  on the legacy 5k5 stream equal `dyng-compat-dynlp`'s sequential output byte for byte.
+  `dyng-compat-dynlp`'s tests pass the original's complete flag set and refuse `--maxIter -3`.
+- M10b step 3 (datasets; ADR 0108; AD18 decided by the author on 2026-10-28): **the kNN recipe**
+  `datasets/preprocess/knn_graph.py`: the symmetric cosine kNN graph (k = 5) of a feature matrix
+  with weights in (0, 1] (negative similarities dropped or shifted), scikit-learn (BSD-3-Clause)
+  an optional import with a NumPy fallback that writes identical files on tie-free inputs, an
+  optional vertex-arrival stream; no vendored code and no dataset.
+- M10b step 3 (examples, CI): `examples/cpp/label_propagation_stream.cpp` and
+  `examples/python/label_propagation_torch.py` (at most 60 lines, explicit resources), their labels
+  compared with committed digests (cuda: the original's own file) in CTest, against the installed
+  package (`ci/cmake_consumer.sh`) and in `test_examples.py`; the plugin smoke test runs
+  label_propagation's 5k5 damped stream on cuda under the oracle; `parity/wheel_vs_parity.py` has
+  a reported label_propagation row.
+- M10b step 4 (CUDA, behaviour; ADR 0109 part B; the author's decisions of 2026-11-03 and
+  2026-11-05): **kernel groups**. Each algorithm's CUDA kernels (and the hypergraph containers')
+  are registered with the CUDA runtime when the process first uses them instead of when libdyng is
+  loaded, so under `CUDA_MODULE_LOADING=EAGER` a process loads only the kernels of the algorithms
+  it runs (the core's and the graph container's at context creation). Nothing changes in the device
+  or host code; `resources::warm_up()` still loads every kernel of the library (every group first).
+  New CMake option `DYNG_DEFER_KERNEL_GROUPS` (default ON; OFF registers every module at load, as
+  before). The compatibility tools warm up only the groups they run. Loading a group loads every
+  kernel of it (`cudaFuncGetAttributes` per kernel after the registration): the runtime loads the
+  kernels of a fat binary registered after the context exists only at their first use, even under
+  `CUDA_MODULE_LOADING=EAGER`, which the step's first version missed (label_propagation's first
+  timed update paid about 7.6 ms for its modules; the final re-read caught it). A call that hands
+  the runtime a kernel of a group that is not loaded goes to a loaded group's kernel of the same
+  device name when there is one (the linker keeps one copy of a CUB or Thrust dispatch function
+  that several groups define, so one algorithm can run another group's copy), instead of loading
+  that group: label_propagation's first update no longer loads the hypergraph containers' kernels
+  (about 8 ms at 50k; the resumed final re-read caught it). The groups cover hyper_sssp's kernels
+  after M11b's merge.
+- M10b step 4 (api-change: the freeze; ADR 0109; AD15 decided by the author on 2026-10-28):
+  **`<dyng/label_propagation.hpp>`, `dyng.label_propagation` and `dyng label_propagation` are
+  frozen**, with `<dyng/generators/vertex_arrival.hpp>` and the oracle headers
+  `<dyng/testing/harmonic_solution.hpp>`, `union_find.hpp` and `lp_host_model.hpp`
+  (`ci/api_snapshot.py`'s `FROZEN_BEFORE_STABLE`; the API baseline lists their sections as
+  frozen; the frozen command-line flags are pinned by a test). No signature changed. The maturity
+  stays `experimental` until the author confirms `stable` at the 0.4.0 release.
+- M10b step 4 (docs): `docs/algorithms/label_propagation.md` in the ten sections of the algorithm
+  pages (differences from the paper and "paper vs fixed code" quoting the original's CHANGES.md and
+  README, AD17; every `DynLPConfig` field mapped); the C++ and Python API pages; the history page
+  `docs/history/label_propagation_cuda.md`; the concept page `docs/concepts/row_layouts.md`
+  (compact, slotted and slack rows, vertex status, net-effect batches, the published and streaming
+  setups, the compact-only algorithms); the tutorial `docs/tutorials/streaming_label_propagation.md`
+  (quoting `examples/python/label_propagation_torch.py` and
+  `python/tests/test_label_propagation_tutorial.py`); the sketch marked frozen.
+- M10b review fixes (fixed): **the `dyng-cu12` plugin's CUDA backend works again**: CUDA 12's
+  static runtime cannot use a fat binary registered after the context exists, so a CUDA 12 build
+  with the static runtime registers every module at load (`DYNG_DEFER_KERNEL_GROUPS` off; the cu13
+  plugin and the shared-runtime builds keep the kernel groups; ADR 0109); `ci/gpu_local.sh` builds
+  and tests the cu12 plugin too when a CUDA 12 toolkit is found. The legacy vertex-arrival
+  generator and `io::write_labels` regain M10a's speed (the legacy stream's integer draw out of
+  line again; the label lines formatted in chunks; the same bytes). A slack-row compaction keeps
+  the capacity of an active vertex's empty row (ADR 0103). The edge offset flag of `dyng generate
+  vertex_arrival_stream` / `dynlp_vertex_arrival_stream` is `--edge-type int32|int64`, as the 0.3
+  commands spell it (renamed from `--edge-dtype` before the freeze, the author's decision of
+  2026-11-14; Python keeps `edge_dtype`).
+  `knn_graph.py --method sklearn` without scikit-learn ends in a message, not a traceback.
+- M10b review fixes (api-check): `ci/api_snapshot.py`'s `FROZEN_DECLARATIONS` guards the frozen
+  io declarations (`io::write_labels`, `read_labels`, `batch_dtype::float32`,
+  `batch_file_flags::vertex_records`, `known_graph`) inside the tracked io headers; the frozen
+  command-line flags keep their choices and defaults (a test); `ci/docs.sh` fails on an unreplaced
+  `*_PLACEHOLDER` token.
+- M10b review fixes (docs): the algorithm page's gate table and a checked Python snippet; the
+  complete error contracts of `<dyng/label_propagation.hpp>` and `dyng.label_propagation`
+  (`cuda_error`, device memory, the operators engine with `in_place`, `CapacityError` on cuda);
+  the stats' determinism levels in Python as in C++ (AD20); a tensor of the labels must not be
+  written; the generators page, the format page's flags and label normalization.
+- M10b review fixes (parity): every certificate reading taken again on the fixed library
+  (`parity/results/M10b.md` section 5; records in `parity/results/M10b-review/`): the gates
+  against LabelPropagation-CUDA within their bars (damped `update[sum]` 0.987-1.010,
+  `end_to_end` 1.010-1.045, device memory 1.002-1.012; the 50m damped `end_to_end` 1.077, down
+  from 1.105), M11's ia3_hsosp gates (271 / 271) and replays, the LP replays, the mutations
+  (6 / 6), ADR 0024's LP slotted path (1.002 / 1.004), `ci/gpu_local.sh` in full and both plugins;
+  the in_place cloud missed by one 50k run at batch 9 in two readings and in the one further
+  reading (a recorded miss, the author's decisions of 2026-11-14 and 2026-11-18).
+- M10b review fixes (parity): the certificate of the `label_propagation_inplace` set is judged by
+  a rate rule (the author's decision of 2026-11-18, ADR 0111): per case 30 fresh port runs and 30
+  fresh runs of the unpatched original on one GPU; the case fails if the port's count of runs
+  outside the frozen iteration envelope is significantly higher than the original's (one-sided
+  Fisher exact test at 5 %); the labels, flips, components, iteration sums and the trace are still
+  judged on every port run; the envelope, thresholds and calibration are unchanged.
+  `goldens.toml` freezes it, `compare.py label_propagation inplace --rate` reads it and
+  `certify.py` recomputes it from the certificate record's tables. Its reading on the final
+  library code passes every case (50k: 1 against the original's 3 of 30 runs outside; the other
+  cases 0 / 0), AD9's plain Jacobi in_place mutation still fails it (30 of 30 outside), and the
+  scoped dry certifies of label_propagation and hyper_sssp pass (`parity/results/M10b.md`
+  section 5.8).
 
 ### M11: `slack_csr` and `hyper_sssp` (0.4)
 

@@ -8,7 +8,8 @@
  * Options: 0 the weight count K (-1 = from the first insertion, 0, 1, 2; graph batches), 1 the
  * vertex count (unchecked -1, 8, 1000), 2 the batch type (graph batches: int32 ids with int32
  * weights, int64 ids with int32 weights, int32 ids unweighted, int64 ids unweighted; hypergraph
- * batches: int32 ids unweighted, int32 ids with int32 weights). One file. An accepted input must
+ * batches: int32 ids unweighted, int32 ids with int32 weights; 0.4: graph batches with int32 ids
+ * and float weights, 6). One file. Graph batches carry the vertex operations of 0.4 (`+v`, `-v`). An accepted input must
  * give consistent batches with ids in range, and the writer followed by the reader must give the
  * same batches.
  */
@@ -18,6 +19,7 @@
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 #include <dyng/io/batch_io.hpp>
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -54,6 +56,14 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& path) {
     for (std::size_t i = 0; i < b.num_deletions(); ++i) {
       DYNG_FUZZ_CHECK(in_range(b.delete_src()[i]) && in_range(b.delete_dst()[i]));
     }
+    // 0.4: the vertex operations, one label per inserted vertex in {-1, 0, 1}, finite floats.
+    DYNG_FUZZ_CHECK(b.insert_vertex_labels().size() == b.insert_vertices().size());
+    for (const vertex_t v : b.insert_vertices()) DYNG_FUZZ_CHECK(in_range(v));
+    for (const vertex_t v : b.delete_vertices()) DYNG_FUZZ_CHECK(in_range(v));
+    for (const std::int8_t l : b.insert_vertex_labels()) DYNG_FUZZ_CHECK(l >= -1 && l <= 1);
+    if constexpr (std::is_same_v<weight_t, float>) {
+      for (const float w : b.insert_weights()) DYNG_FUZZ_CHECK(std::isfinite(w));
+    }
     views.push_back(b.view());
   }
   dyng::fuzz::round_trip([&] {
@@ -69,6 +79,9 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& path) {
       DYNG_FUZZ_CHECK(back[i].insert_weights() == batches[i].insert_weights());
       DYNG_FUZZ_CHECK(back[i].delete_src() == batches[i].delete_src());
       DYNG_FUZZ_CHECK(back[i].delete_dst() == batches[i].delete_dst());
+      DYNG_FUZZ_CHECK(back[i].insert_vertices() == batches[i].insert_vertices());
+      DYNG_FUZZ_CHECK(back[i].insert_vertex_labels() == batches[i].insert_vertex_labels());
+      DYNG_FUZZ_CHECK(back[i].delete_vertices() == batches[i].delete_vertices());
     }
   });
 }
@@ -137,7 +150,7 @@ void run_hyperedges(const dyng::fuzz::fuzz_input& in, const std::string& path) {
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
   const dyng::fuzz::fuzz_input in(data, size, 1);
   const std::string path = dyng::fuzz::files().write("input.dgt", in.file(0));
-  switch (in.option(2, 6)) {
+  switch (in.option(2, 7)) {
     case 0:
       run<std::int32_t, std::int32_t>(in, path);
       break;
@@ -153,8 +166,11 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     case 4:
       run_hyperedges<dyng::unweighted>(in, path);
       break;
-    default:
+    case 5:
       run_hyperedges<std::int32_t>(in, path);
+      break;
+    default:
+      run<std::int32_t, float>(in, path);  // 0.4: float graphs
       break;
   }
   return 0;

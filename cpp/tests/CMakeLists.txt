@@ -38,6 +38,7 @@ dyng_add_test(
   NAME dyng_graph_tests
   SOURCES graph/apply_test.cpp graph/graph_test.cpp graph/mosp_apply_fixture_test.cpp
           graph/set_semantics_test.cpp graph/structural_change_test.cpp graph/slotted_test.cpp
+          graph/slack_test.cpp
   LABELS cpu graph
   LIBRARIES dyng::testing
 )
@@ -50,7 +51,7 @@ dyng_add_test(
 dyng_add_test(
   NAME dyng_io_tests
   SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp io/hypergraph_io_test.cpp
-          io/batch_binary_test.cpp io/triad_bins_test.cpp
+          io/batch_binary_test.cpp io/triad_bins_test.cpp io/vertex_batch_io_test.cpp
   LABELS cpu io
 )
 if(DYNG_ENABLE_CUDA)
@@ -59,7 +60,7 @@ if(DYNG_ENABLE_CUDA)
   # with the hypergraph test's delayed reader).
   dyng_add_test(
     NAME dyng_graph_cuda_tests
-    SOURCES graph/slotted_cuda_test.cpp graph/stream_order_cuda_test.cpp
+    SOURCES graph/slotted_cuda_test.cpp graph/slack_cuda_test.cpp graph/stream_order_cuda_test.cpp
             hypergraph/stream_probe_kernels.cu
     LABELS gpu graph
     TEST_PREFIX cuda.
@@ -95,6 +96,7 @@ dyng_add_test(
   NAME dyng_generators_tests
   SOURCES generators/legacy_test.cpp generators/cycle_enum_batch_test.cpp
           generators/hypergraph_generators_test.cpp generators/vertex_arrival_test.cpp
+          generators/library_vertex_arrival_test.cpp
   LABELS cpu generators
 )
 # The DynLP twins of libstdc++'s draws are compared with std:: in this file: neither side may be
@@ -1593,10 +1595,11 @@ endif()
 # apply_slotted_host.cpp), linked with label_propagation's hand cases and its checker at 5k5 on the
 # host backends (label_propagation.mutation.<name>, labels cpu;mutation;label_propagation, every
 # build) and, in CUDA builds, the same on cuda with the fused engine's own cases
-# (label_propagation.mutation.cuda.<name>, labels gpu;mutation;label_propagation). The mutated
-# module keeps the original's compile options (--use_fast_math on its CUDA sources; the host
-# sources without floating-point contraction), so the control reproduces the original's damped
-# iteration counts. The CTest passes when the suite fails; the control copy must pass.
+# (label_propagation.mutation.cuda.<name>, labels gpu;mutation;label_propagation), and the
+# operators engine's own cases alone (label_propagation.mutation.cuda_operators.<name>, M10b;
+# operators_engine.cu holds its own D-c and damping hooks). The mutated module keeps the
+# original's compile options (--use_fast_math on its CUDA sources; the host sources without
+# floating-point contraction), so the control reproduces the original's damped iteration counts. The CTest passes when the suite fails; the control copy must pass.
 # lp_d_c_stale_buffer and lp_d_e_resurrected apply to both backends; the hosted mutation rows of
 # parity/mutate.py (suite label_propagation) run the full suites.
 option(DYNG_LP_MUTATION_TESTS "Build the mutation tests of label_propagation" ${DYNG_MUTATION_TESTS})
@@ -1619,6 +1622,17 @@ if(DYNG_LP_MUTATION_TESTS AND TARGET dyng_label_propagation AND TARGET dyng_grap
   set(_dyng_lp_mutant_filter "LabelPropagation.*:LabelPropagationChecker.*5k5")
   set(_dyng_lp_mutant_cuda_filter
       "LabelPropagation.*:LabelPropagationChecker.*5k5:LabelPropagationCuda.HubGolden")
+  # M10b (ADR 0101): every mutant but inplace_plain_jacobi (the operators engine has no in_place
+  # schedule, so that mutant has no code to act on there) must also fail the operators engine's own
+  # cases alone (label_propagation.mutation.cuda_operators.<name>): the cases that judge the
+  # operators engine against fixed truth (the checker's oracles and the hub golden), not the ones
+  # that compare it with the fused engine, which a mutant of the fused engine alone also fails.
+  # Those run in the control-only row label_propagation.mutation.cuda_operators_vs_fused.control.
+  set(_dyng_lp_mutant_operators_filter
+      "LabelPropagationChecker.DampedOperators5k5:LabelPropagationCuda.OperatorsEngineHubGolden")
+  set(_dyng_lp_mutant_operators_vs_fused_filter
+      "LabelPropagationCuda.OperatorsEngineIsTheFusedEnginesBitsAndCounts:LabelPropagationCuda.OperatorsEngineLimitsAndScope"
+  )
   foreach(_entry IN LISTS _dyng_lp_mutants)
     string(REPLACE "|" ";" _mutant "${_entry}")
     list(GET _mutant 0 _name)
@@ -1711,6 +1725,32 @@ if(DYNG_LP_MUTATION_TESTS AND TARGET dyng_label_propagation AND TARGET dyng_grap
           label_propagation.mutation.cuda.${_name}
           PROPERTIES LABELS "gpu;mutation;label_propagation" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
         )
+        if(NOT _name STREQUAL "inplace_plain_jacobi")
+          add_test(NAME label_propagation.mutation.cuda_operators.${_name}
+                   COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                           -DNAME=label_propagation.cuda_operators.${_name}
+                           "-DFILTER=${_dyng_lp_mutant_operators_filter}" -P
+                           "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+          )
+          set_tests_properties(
+            label_propagation.mutation.cuda_operators.${_name}
+            PROPERTIES LABELS "gpu;mutation;label_propagation" ENVIRONMENT
+                       "${DYNG_TEST_ENVIRONMENT}"
+          )
+        endif()
+        if(_name STREQUAL "control")
+          add_test(NAME label_propagation.mutation.cuda_operators_vs_fused.control
+                   COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=pass
+                           -DNAME=label_propagation.cuda_operators_vs_fused.control
+                           "-DFILTER=${_dyng_lp_mutant_operators_vs_fused_filter}" -P
+                           "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+          )
+          set_tests_properties(
+            label_propagation.mutation.cuda_operators_vs_fused.control
+            PROPERTIES LABELS "gpu;mutation;label_propagation" ENVIRONMENT
+                       "${DYNG_TEST_ENVIRONMENT}"
+          )
+        endif()
       else()
         add_test(NAME label_propagation.mutation.${_name}
                  COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
@@ -1799,6 +1839,18 @@ if(DYNG_ENABLE_CUDA)
   )
   target_include_directories(dyng_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   dyng_set_cuda_options(dyng_cuda_tests)
+
+  # Kernel groups (ADR 0109 part B): an executable of its own, so that CTest's process per test
+  # starts with no group loaded.
+  dyng_add_test(NAME dyng_kernel_groups_tests SOURCES cuda/kernel_groups_test.cpp LABELS gpu core)
+  target_include_directories(dyng_kernel_groups_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  target_link_libraries(dyng_kernel_groups_tests PRIVATE ${DYNG_CUDART_TARGET})
+  if(DYNG_DEFER_KERNEL_GROUPS)
+    target_compile_definitions(dyng_kernel_groups_tests PRIVATE DYNG_TEST_KERNEL_GROUPS=1)
+  endif()
+  if(TARGET dyng_label_propagation)
+    target_compile_definitions(dyng_kernel_groups_tests PRIVATE DYNG_TEST_KG_LABEL_PROPAGATION=1)
+  endif()
 
   # sssp on the cuda backend: the shared sssp suites compiled with DYNG_TEST_CUDA=1 (their cases
   # run on cuda, the randomized ones against the host backends) plus the CUDA-only cases.

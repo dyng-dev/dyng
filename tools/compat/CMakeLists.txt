@@ -7,6 +7,8 @@
 add_executable(dyng-compat-mosp mosp/mosp_compat.cpp)
 # dyng::testing: the path costs of the weight columns beyond -k (mospPathCosts covers them all).
 target_link_libraries(dyng-compat-mosp PRIVATE dyng::dyng dyng::testing)
+# core/kernel_groups.hpp: the warm-up of the kernel groups the tool runs (ADR 0109 part B).
+target_include_directories(dyng-compat-mosp PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 if(DYNG_ENABLE_OPENMP)
   # The driver reads its input files concurrently in an OpenMP region, like MOSP's `mosp`.
   target_link_libraries(dyng-compat-mosp PRIVATE OpenMP::OpenMP_CXX)
@@ -17,6 +19,8 @@ dyng_enable_sanitizers(dyng-compat-mosp)
 
 add_executable(dyng-compat-cycle-enum cycle_enum/cycle_enum_compat.cpp)
 target_link_libraries(dyng-compat-cycle-enum PRIVATE dyng::dyng)
+# core/kernel_groups.hpp: the warm-up of the kernel group the tool runs (ADR 0109 part B).
+target_include_directories(dyng-compat-cycle-enum PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 target_compile_features(dyng-compat-cycle-enum PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-cycle-enum)
 dyng_enable_sanitizers(dyng-compat-cycle-enum)
@@ -54,7 +58,21 @@ if(TARGET dyng_label_propagation)
                      --noGraphFiles --update damped --backend sequential --output
                      ${CMAKE_CURRENT_BINARY_DIR}/out/compat_dynlp.small)
     set_tests_properties(compat_dynlp.small PROPERTIES LABELS "cpu;label_propagation;compat")
-    foreach(_refused "tau0;--tau;0" "taunan;--tau;nan" "maxiter0;--maxIter;0")
+    # The original's complete flag set (src/utils.cu parseArguments; M10b step 3): every flag of
+    # the original at once, with a negative --tau (the original's automatic threshold).
+    set(_out "${CMAKE_CURRENT_BINARY_DIR}/out/compat_dynlp.original_flags")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/out")
+    add_test(
+      NAME compat_dynlp.original_flags
+      COMMAND
+        sh -c
+        "\"$0\" --totalNodes 300 --numBatches 2 --avgDegree 3 --tau -1 --delta 0.001 --maxIter 500 --update damped --gtFraction 0.01 --seed 3 --output \"$1\" --validate --noValidate --noGraphFiles --verbose --quiet --profile --check --backend sequential > \"$1.log\" && grep -q 'Auto tau (average edge weight): 0[.]' \"$1.log\" && grep -q 'all oracle checks passed' \"$1.log\""
+        $<TARGET_FILE:dyng-compat-dynlp> "${_out}"
+    )
+    set_tests_properties(compat_dynlp.original_flags PROPERTIES LABELS
+                         "cpu;label_propagation;compat")
+    foreach(_refused "tau0;--tau;0" "taunan;--tau;nan" "maxiter0;--maxIter;0"
+                     "maxiterneg;--maxIter;-3")
       list(GET _refused 0 _name)
       list(GET _refused 1 _flag)
       list(GET _refused 2 _value)
@@ -75,7 +93,8 @@ add_executable(
                      "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/cbst_trace.cpp"
                      "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/escher_dump.cpp"
 )
-target_include_directories(dyng-compat-escher PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests")
+target_include_directories(dyng-compat-escher PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests"
+                                                      "${PROJECT_SOURCE_DIR}/cpp/src")
 target_link_libraries(dyng-compat-escher PRIVATE dyng::dyng)
 target_compile_features(dyng-compat-escher PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-escher)

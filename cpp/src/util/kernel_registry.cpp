@@ -27,11 +27,11 @@ registry_state& registry() noexcept {
 
 }  // namespace
 
-void register_kernel(const void* function, const char* name) noexcept {
+void register_kernel(const void* function, const char* name, const char* group) noexcept {
   registry_state& state = registry();
   const std::lock_guard<std::mutex> lock(state.mutex);
   try {
-    state.kernels.push_back(kernel_entry{function, name});
+    state.kernels.push_back(kernel_entry{function, name, group});
   } catch (...) {
     // Out of memory while the library loads: the kernel is then loaded lazily at its first
     // launch instead of by warm_up(); nothing else depends on the entry.

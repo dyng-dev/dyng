@@ -47,6 +47,14 @@ enum class vertex_status : std::uint8_t {
  * entries pointing to it stay in place. `in` is empty (the graph is undirected and stores each
  * edge in both rows). graph::to_csr() returns the compacted edges.
  *
+ * For row_layout::slack (0.4, ADR 0103) `out` describes the slot arena: row v's entries are
+ * [out.row_ptr[v], row_end[v]) as for slotted rows, out.row_ptr[n] is the arena's size, and a row
+ * that overflowed was moved to the tail of the arena, so out.row_ptr is not monotone and
+ * out.row_ptr[v + 1] is not the end of row v's slots (the slots between rows hold -1 / 0). A
+ * moved row keeps its entries in order; a compaction rewrites every row in vertex order without
+ * the entries of deleted vertices, which moves a row's live entries to other slots (so an engine
+ * that sums a row in lanes by slot position may sum it in another order after a compaction).
+ *
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
@@ -60,10 +68,10 @@ struct graph_view {
   bool directed = true;                      ///< false: every edge is stored in both directions
   row_layout layout = row_layout::compact;   ///< the storage layout of the rows
   std::uint64_t version = 0;                 ///< the graph version this view describes
-  /** @brief Per vertex its state (row_layout::slotted; empty for row_layout::compact, whose
-   *         vertices are all active). */
+  /** @brief Per vertex its state (row_layout::slotted and slack; empty for row_layout::compact,
+   *         whose vertices are all active). */
   array_view<const vertex_status> status;
-  /** @brief Per vertex the end of its entries in `out` (row_layout::slotted; empty for
+  /** @brief Per vertex the end of its entries in `out` (row_layout::slotted and slack; empty for
    *         row_layout::compact, whose rows end at out.row_ptr[v + 1]). */
   array_view<const edge_t> row_end;
 

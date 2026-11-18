@@ -7,7 +7,8 @@
  *
  * Options: 0 the vertex count (-1, 8, 1000). One file (the bytes after the option line). The
  * reader is instantiated for the types its header names (graph batches with int32 or int64
- * vertices and no, int32 or int64 weights; hypergraph batches with int32 vertices and no or int32
+ * vertices and no, int32 or int64 weights, or int32 vertices with float32 weights (0.4), each
+ * with the vertex records of batch_file_flags::vertex_records when the header has it; hypergraph batches with int32 vertices and no or int32
  * weights; other headers are read up to their first batch view, which must be rejected). An
  * accepted file must give consistent batches (sizes, ids in range, offsets from 0 to the member
  * count, the annotations of the flags), and batch_writer followed by batch_reader must give the
@@ -26,10 +27,12 @@
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 #include <dyng/io/batch_io.hpp>
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -41,15 +44,18 @@ std::vector<value_t> copy(dyng::array_view<const value_t> v) {
   return std::vector<value_t>(v.begin(), v.end());
 }
 
-/// A graph batch as owned arrays.
+/// A graph batch as owned arrays (with the vertex records of 0.4).
 template <typename vertex_t, typename weight_t>
 struct edge_copy {
   std::vector<vertex_t> del_src, del_dst, ins_src, ins_dst;
   std::vector<weight_t> weights;
   int k = 0;
+  std::vector<vertex_t> ins_vertices, del_vertices;
+  std::vector<std::int8_t> labels;
   bool operator==(const edge_copy& o) const {
     return del_src == o.del_src && del_dst == o.del_dst && ins_src == o.ins_src &&
-           ins_dst == o.ins_dst && weights == o.weights && (k == o.k || ins_src.empty());
+           ins_dst == o.ins_dst && weights == o.weights && (k == o.k || ins_src.empty()) &&
+           ins_vertices == o.ins_vertices && del_vertices == o.del_vertices && labels == o.labels;
   }
   dyng::edge_batch_view<vertex_t, weight_t> view() const {
     dyng::edge_batch_view<vertex_t, weight_t> v;
@@ -59,9 +65,22 @@ struct edge_copy {
     v.insert_dst = dyng::host_view(ins_dst);
     v.insert_weights = dyng::host_view(weights);
     v.num_weights = k;
+    v.insert_vertices = dyng::host_view(ins_vertices);
+    v.insert_vertex_labels = dyng::host_view(labels);
+    v.delete_vertices = dyng::host_view(del_vertices);
     return v;
   }
 };
+
+/// The owned copy of a reader's graph batch view.
+template <typename vertex_t, typename weight_t>
+edge_copy<vertex_t, weight_t> take_edges(const dyng::edge_batch_view<vertex_t, weight_t>& v) {
+  edge_copy<vertex_t, weight_t> c{
+      copy(v.delete_src),      copy(v.delete_dst),      copy(v.insert_src),
+      copy(v.insert_dst),      copy(v.insert_weights),  v.num_weights,
+      copy(v.insert_vertices), copy(v.delete_vertices), copy(v.insert_vertex_labels)};
+  return c;
+}
 
 /// A hypergraph batch and its annotations as owned arrays.
 template <typename vertex_t, typename weight_t>
@@ -96,11 +115,7 @@ void run_edges(const std::string& path, const io::batch_reader_options& opt) {
     io::batch_reader in(path, opt);
     header = in.header();
     while (in.next()) {
-      const auto v = in.edge_batch<vertex_t, weight_t>();
-      edge_copy<vertex_t, weight_t> c{copy(v.delete_src),     copy(v.delete_dst),
-                                      copy(v.insert_src),     copy(v.insert_dst),
-                                      copy(v.insert_weights), v.num_weights};
-      batches.push_back(std::move(c));
+      batches.push_back(take_edges(in.edge_batch<vertex_t, weight_t>()));
     }
     return true;
   });
@@ -115,8 +130,17 @@ void run_edges(const std::string& path, const io::batch_reader_options& opt) {
     DYNG_FUZZ_CHECK(b.del_src.size() == b.del_dst.size());
     DYNG_FUZZ_CHECK(b.ins_src.size() == b.ins_dst.size());
     DYNG_FUZZ_CHECK(b.weights.size() == b.ins_src.size() * static_cast<std::size_t>(b.k));
-    for (const auto* a : {&b.del_src, &b.del_dst, &b.ins_src, &b.ins_dst}) {
+    for (const auto* a :
+         {&b.del_src, &b.del_dst, &b.ins_src, &b.ins_dst, &b.ins_vertices, &b.del_vertices}) {
       for (const vertex_t v : *a) DYNG_FUZZ_CHECK(v >= 0 && v <= limit);
+    }
+    // 0.4: vertex records only with their flag; 0 or one label per inserted vertex, in {-1, 0, 1}.
+    DYNG_FUZZ_CHECK((header.flags & io::batch_file_flags::vertex_records) != 0 ||
+                    (b.ins_vertices.empty() && b.del_vertices.empty() && b.labels.empty()));
+    DYNG_FUZZ_CHECK(b.labels.empty() || b.labels.size() == b.ins_vertices.size());
+    for (const std::int8_t l : b.labels) DYNG_FUZZ_CHECK(l >= -1 && l <= 1);
+    if constexpr (std::is_same_v<weight_t, float>) {
+      for (const float w : b.weights) DYNG_FUZZ_CHECK(std::isfinite(w));
     }
   }
   dyng::fuzz::round_trip([&] {
@@ -131,10 +155,7 @@ void run_edges(const std::string& path, const io::batch_reader_options& opt) {
     io::batch_reader back(out, opt);
     std::size_t i = 0;
     while (back.next()) {
-      const auto v = back.edge_batch<vertex_t, weight_t>();
-      edge_copy<vertex_t, weight_t> c{copy(v.delete_src),     copy(v.delete_dst),
-                                      copy(v.insert_src),     copy(v.insert_dst),
-                                      copy(v.insert_weights), v.num_weights};
+      const auto c = take_edges(back.edge_batch<vertex_t, weight_t>());
       DYNG_FUZZ_CHECK(i < batches.size() && c == batches[i]);
       ++i;
     }
@@ -323,6 +344,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   if (graph && v == dt::int64 && w == dt::none)
     run_edges<std::int64_t, dyng::unweighted>(path, opt);
   if (graph && v == dt::int64 && w == dt::int32) run_edges<std::int64_t, std::int32_t>(path, opt);
+  if (graph && v == dt::int32 && w == dt::float32) run_edges<std::int32_t, float>(path, opt);
   if (!graph && v == dt::int32 && w == dt::none) {
     run_hyperedges<std::int32_t, dyng::unweighted>(path, opt);
   }

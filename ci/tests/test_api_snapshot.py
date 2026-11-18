@@ -172,7 +172,11 @@ def test_an_algorithm_header_is_frozen_exactly_when_its_manifest_says_stable() -
         data = api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))
         header = f"dyng/{data['name']}.hpp"
         assert (api_snapshot.INCLUDE_DIR / header).is_file(), header
-        expected = "frozen" if data["maturity"] == "stable" else "tracked"
+        expected = (
+            "frozen"
+            if data["maturity"] == "stable" or header in api_snapshot.FROZEN_BEFORE_STABLE
+            else "tracked"
+        )
         assert api_snapshot.status(header) == expected, (header, data["maturity"])
         seen[data["name"]] = api_snapshot.status(header)
     assert seen["sssp"] == seen["cycle_count"] == seen["mosp"] == "frozen"
@@ -355,6 +359,38 @@ def test_the_hypergraph_headers_are_frozen_and_a_change_is_breaking() -> None:
     assert all(b.startswith("[dyng/hypergraph/hypergraph_properties.hpp]") for b in breaking)
 
 
+def test_the_label_propagation_headers_are_frozen_and_a_change_is_breaking() -> None:
+    # The M10b freeze (ADR 0109; AD15): label_propagation's header and the headers only it adds
+    # are frozen while its manifest stays below stable (the author confirms stability at 0.4.0);
+    # io/* and the other testing headers stay tracked. A changed default of the options, a
+    # removed stats field, a changed generator option and a changed oracle signature are breaking.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    for header in api_snapshot.FROZEN_BEFORE_STABLE:
+        assert secs[header][0] == "frozen", header
+        assert api_snapshot.status(header) == "frozen", header
+    manifest = api_snapshot.ALGORITHMS_DIR / "label_propagation" / "manifest.toml"
+    assert api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))["maturity"] != "stable"
+    for tracked in ("dyng/io/result_io.hpp", "dyng/io/batch_io.hpp", "dyng/testing/dijkstra.hpp"):
+        assert secs[tracked][0] == "tracked", tracked
+    assert any(
+        "update_traits<label_propagation::result" in line
+        for line in secs["dyng/label_propagation.hpp"][1]
+    )
+    for header, old, new in (
+        ("dyng/label_propagation.hpp", "float tolerance = 1e-4F", "float tolerance = 1e-5F"),
+        ("dyng/label_propagation.hpp", "      std::int64_t initial_frontier = 0\n", ""),
+        (
+            "dyng/generators/vertex_arrival.hpp",
+            "std::int32_t num_batches = 10",
+            "std::int32_t num_batches = 11",
+        ),
+    ):
+        assert old in BASELINE_TEXT, old
+        breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new))
+        assert breaking, old
+        assert all(b.startswith(f"[{header}]") for b in breaking), breaking
+
+
 def test_the_triad_count_header_is_frozen_and_a_change_is_breaking() -> None:
     # The M9b freeze (ADR 0060): triad_count's manifest says stable, so dyng/triad_count.hpp is
     # frozen with its detail contract; the oracle and the triad-bins JSON stay tracked, and the
@@ -515,3 +551,39 @@ def test_an_experimental_change_is_reported_not_failed(tmp_path, monkeypatch, ca
     assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 1
     # Never a frozen change.
     assert api_snapshot.frozen_changes(base, changed) == ([], [])
+
+
+def test_the_frozen_io_declarations_are_guarded_in_their_tracked_headers() -> None:
+    # The M10b freeze of io::write_labels / read_labels and AD13's .dgb codes (ADR 0109 finding
+    # 13): io/* stays tracked, but these declarations are frozen by name (FROZEN_DECLARATIONS). A
+    # new defaulted parameter, a changed enumerator or flag value is breaking; an appended
+    # enumerator, another graph flag in known_graph and other tracked edits are not.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    for header, entries in api_snapshot.FROZEN_DECLARATIONS.items():
+        assert secs[header][0] == "tracked", header
+        for name, pattern in entries:
+            assert api_snapshot.has_line(secs[header][1], pattern), name
+    for old, new in (
+        (
+            "array_view< const float > labels)\n",
+            "array_view< const float > labels, int precision=6)\n",
+        ),
+        (
+            "read_labels(const std::string &path, std::int64_t num_vertices)\n",
+            "read_labels(const std::string &path, std::int64_t num_vertices, bool strict=true)\n",
+        ),
+        ("int64 = 2, float32 = 3 }", "int64 = 2, float32 = 4 }"),
+        ("vertex_records = 16U\n", "vertex_records = 32U\n"),
+        ("known_graph = 16U\n", "known_graph = 32U\n"),
+    ):
+        assert old in BASELINE_TEXT, old
+        breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new))
+        assert breaking and all(b.startswith("[dyng/io/") for b in breaking), (old, breaking)
+    for old, new in (
+        ("int64 = 2, float32 = 3 }", "int64 = 2, float32 = 3, float64 = 4 }"),
+        ("known_graph = 16U\n", "known_graph = vertex_records | 32U\n"),
+    ):
+        assert api_snapshot.frozen_changes(BASELINE_TEXT, _edit(BASELINE_TEXT, old, new)) == (
+            [],
+            [],
+        ), old

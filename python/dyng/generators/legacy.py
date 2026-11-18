@@ -9,6 +9,9 @@
 - :func:`escher_hypergraph` and :class:`EscherBatchGenerator` (0.3): ESCHER-GPU@abcf9b2's
   synthetic hypergraph (``hyperedge2vertex``) and batch generator (``BatchGenerator``), drawing
   from one shared :class:`EscherEngine` (its ``std::mt19937_64``) in ESCHER-GPU's order.
+- :func:`dynlp_vertex_arrival_stream` (0.4): LabelPropagation-CUDA@a276a3a's graph and batch
+  generator (``generateSparseGraph``, ``generateBatches``), byte-identical to the original's
+  stream.
 
 The streams depend on ``std::mt19937`` / ``std::mt19937_64`` and on libstdc++'s distributions,
 which the library reproduces itself; the modes that shuffle (``"targeted"``, ``"increase"``)
@@ -35,6 +38,7 @@ from ..hypergraph import (
     make_hypergraph_properties,
 )
 from ..resources import Resources, resolve
+from .vertex_arrival import VertexArrivalStream, make_stream
 
 __all__ = [
     "MospChangeReport",
@@ -45,6 +49,7 @@ __all__ = [
     "escher_hypergraph_arrays",
     "EscherBatchGenerator",
     "standard_library_matches_legacy_streams",
+    "dynlp_vertex_arrival_stream",
 ]
 
 
@@ -357,3 +362,52 @@ def standard_library_matches_legacy_streams() -> bool:
     """Whether the standard library the native module was built with draws the legacy streams
     (libstdc++ 11 or later: True; the streams themselves are the library's own reproduction)."""
     return bool(native.standard_library_matches_legacy_streams())
+
+
+def dynlp_vertex_arrival_stream(
+    *,
+    total_vertices: int = 50000,
+    average_degree: int = 5,
+    num_batches: int = 10,
+    seed: int = 42,
+    ground_truth_fraction: float = 0.01,
+    deleted_fraction: float = 0.09,
+    edge_dtype: Any = None,
+    resources: Resources | None = None,
+) -> VertexArrivalStream:
+    """LabelPropagation-CUDA@a276a3a's vertex-arrival stream, byte for byte (C++
+    ``generators::legacy::dynlp_vertex_arrival_stream``; 0.4).
+
+    The original's ``generateSparseGraph`` and ``generateBatches`` with its arguments: the same
+    graph, true labels, batches and published threshold as the original's ``dynLP`` run with
+    these flags (its draws are libstdc++'s, which the library reproduces;
+    :func:`standard_library_matches_legacy_streams`). Use
+    :func:`dyng.generators.vertex_arrival_stream` for a stream that is bit-exact on every
+    platform instead.
+
+    Args:
+        total_vertices: --totalNodes: vertices of the full graph (> 1).
+        average_degree: --avgDegree: target average degree (> 0).
+        num_batches: --numBatches: batches b0 .. b(num_batches - 1) (> 0).
+        seed: --seed: the original's seed (0 .. 2^32 - 1).
+        ground_truth_fraction: --gtFraction: the labelled share of the arrivals (b0: of all
+            vertices).
+        deleted_fraction: departures per batch, as a share of its arrivals (the original's 9 %).
+        edge_dtype: The edge offset type (``"int32"``, the default, or ``"int64"``).
+        resources: Host threads of the generation (the result does not depend on them).
+
+    Returns:
+        The stream (:class:`dyng.generators.VertexArrivalStream`).
+    """
+    return make_stream(
+        "dynlp_vertex_arrival_stream",
+        total_vertices,
+        average_degree,
+        num_batches,
+        seed,
+        ground_truth_fraction,
+        deleted_fraction,
+        edge_dtype,
+        resources,
+        "dynlp_vertex_arrival_stream",
+    )

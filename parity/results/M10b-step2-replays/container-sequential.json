@@ -1,0 +1,151 @@
+{
+ "cases": [
+  {
+   "backend": "sequential",
+   "case": "5k5_d1e-4_s42",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.008651456
+  },
+  {
+   "backend": "sequential",
+   "case": "50k_d1e-4_s42",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.163174082
+  },
+  {
+   "backend": "sequential",
+   "case": "500k_d1e-4_s42",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 2.260512126
+  },
+  {
+   "backend": "sequential",
+   "case": "5k5_d1e-6_s42",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.008848312
+  },
+  {
+   "backend": "sequential",
+   "case": "50k_d1e-6_s42",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.172454944
+  },
+  {
+   "backend": "sequential",
+   "case": "5k5_d1e-4_s1",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.008223752
+  },
+  {
+   "backend": "sequential",
+   "case": "5k5_d1e-4_s2",
+   "compared": 26,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.008357049
+  },
+  {
+   "backend": "sequential",
+   "case": "50k_d1e-4_s1",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.157309692
+  },
+  {
+   "backend": "sequential",
+   "case": "50k_d1e-4_s2",
+   "compared": 51,
+   "digest_mode": false,
+   "equal": true,
+   "inputs": "recorded",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 0.171623292
+  },
+  {
+   "backend": "sequential",
+   "case": "5m_d1e-4_s42",
+   "compared": 51,
+   "digest_mode": true,
+   "equal": true,
+   "inputs": "generated",
+   "mismatched": 0,
+   "mismatches": [],
+   "mode": "container",
+   "problem": "",
+   "seconds": 44.752886677
+  }
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "date": "2026-11-12T02:48:34Z",
+ "equal": true,
+ "port": {
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "build/parity-cuda"
+  },
+  "commit": "1e16a3b6a065afa5b7967b3dc78583e14870af67+dirty",
+  "executable": "build/parity-cuda/cpp/tests/dyng_lp_replay",
+  "parity_cuda": true
+ },
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "what": "the container replay (criterion 9): O's batches on graph::with_capacity, the host apply, against the trace golden and lp_host_model"
+}

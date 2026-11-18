@@ -243,3 +243,137 @@ def test_a_damped_record_judged_again_under_the_rule() -> None:
     # A golden of the other digest mode: the recorded trace verdict may have been that.
     out = lpp.rejudge_damped(damped_record([hook_mismatch(3)]), golden_mode=lambda c: True)
     assert out["equal"] is False
+
+
+# --- The rate rule of the in_place certificate (the author's decision of 2026-11-18, ADR 0111) ---
+
+
+def _fake_inplace(monkeypatch, tmp_path: Path, port_iterations, original_iterations,
+                  port_label=0.25):  # fmt: skip
+    """cmd_inplace on one synthetic case without a build, a GPU or the goldens: the port's and the
+    original's k-th runs return the k-th entry of their iteration lists (a callable of k), the
+    port's labels `port_label` (the reference runs' are 0.25), the trace equal."""
+    import argparse
+
+    import pytest
+
+    np = pytest.importorskip("numpy")
+
+    n, batches = 4, 3
+    th = {"t_mean": 0.01, "t_max": 0.01, "t_flips": 0, "components": [1, 2, 2],
+          "iterations_lo": [0, 8, 8], "iterations_hi": [2, 12, 12],
+          "iterations_sum_lo": 15, "iterations_sum_hi": 27}  # fmt: skip
+    name = "5k5_d1e-4_s42_inplace"
+    frozen = {"rule": {"n_gpu1": 2}, "thresholds": {name: th},
+              "rate_rule": dict(lpp.g.RATE_RULE)}  # fmt: skip
+    monkeypatch.setattr(lpp, "frozen_inplace", lambda: frozen)
+    monkeypatch.setattr(lpp, "patched_copy", lambda: tmp_path)
+    monkeypatch.setattr(lpp, "runs_dir", lambda: tmp_path)
+    monkeypatch.setattr(lpp.g, "scratch", lambda: tmp_path)
+    monkeypatch.setattr(lpp.g, "set_dir", lambda root, short: tmp_path / short)
+    monkeypatch.setattr(lpp.g, "status_of", lambda case, copy, gpu: np.zeros(n, dtype=np.int64))
+    ref = "".join(f"{v} 0.250000\n" for v in range(n)).encode()
+    monkeypatch.setattr(lpp.g, "run_record", lambda d, stem: {"labels": ref})
+    monkeypatch.setattr(lpp, "decompressed", lambda src, tmp: src)
+    monkeypatch.setattr(lpp.dlt, "read", lambda path: None)
+    monkeypatch.setattr(lpp, "compare_traces", lambda ours, golden, skip: (281, []))
+    count = {"port": 0, "original": 0}
+    original_exe = tmp_path / "dynLP"
+    original_exe.write_bytes(b"\x7fELF the unpatched original")
+
+    def run_compat(exe, argv, env):
+        out = Path(argv[argv.index("--output") + 1])
+        out.mkdir(parents=True, exist_ok=True)
+        if "--trace" in argv:
+            return None
+        side = "original" if Path(exe) == original_exe else "port"
+        k = count[side]
+        count[side] += 1
+        its = (port_iterations if side == "port" else original_iterations)(k)
+        rows = ["batch,iterations,frontier_visits,components,accuracy"]
+        rows += [f"{b},{its[b]},1,{th['components'][b]},0.5" for b in range(batches)]
+        (out / "results.csv").write_text("\n".join(rows) + "\n")
+        label = port_label(k) if callable(port_label) else port_label
+        (out / "dynlp_labels.txt").write_text("".join(f"{v} {label:.6f}\n" for v in range(n)))
+        return None
+
+    monkeypatch.setattr(lpp, "run_compat", run_compat)
+    exe = tmp_path / "dyng-compat-dynlp"
+    exe.write_bytes(b"port")
+    args = argparse.Namespace(exe=exe, runs=None, rate=True, original=original_exe,
+                              cases=["5k5"], json=tmp_path / "rec.json")  # fmt: skip
+    monkeypatch.setattr(lpp, "build_preset", lambda exe: {})
+    rc = lpp.cmd_inplace(args)
+    import json
+
+    return rc, json.loads((tmp_path / "rec.json").read_text()), count
+
+
+INSIDE = [1, 10, 10]
+OUTSIDE = [1, 10, 13]  # batch 2 above the envelope's 12, the sum (24) inside
+
+
+def test_the_rate_rule_passes_the_originals_own_rate(monkeypatch, tmp_path: Path) -> None:
+    """30 runs each; the port outside in 2, the original in 2 (the 2026-11-14 evidence at 50k):
+    within; both sides ran the rule's 30 runs, alternated."""
+    two = lambda k: OUTSIDE if k in (3, 17) else INSIDE  # noqa: E731
+    rc, doc, count = _fake_inplace(monkeypatch, tmp_path, two, two)
+    case = doc["cases"][0]
+    assert rc == 0 and doc["within"] and doc["rule"] == "rate", case.get("rate")
+    assert count == {"port": 30, "original": 30}
+    rate = case["rate"]
+    assert rate["port"]["outside"] == 2 and rate["original"]["outside"] == 2
+    assert abs(rate["p_value"] - 0.6940231935771632) < 1e-12
+    assert rate["rule"] == {"runs": 30, "alpha": 0.05, "test": "fisher_exact_one_sided"}
+    assert len(case["original_runs"]) == 30 and len(case["runs"]) == 30
+
+
+def test_the_plain_jacobi_mutation_is_still_detected_under_the_rate_rule(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """AD9's in_place mutation (plain Jacobi in place of the half-sweeps) takes more iterations
+    on every batch: every port run outside the envelope against the original's 2 of 30, so the
+    rate rule fails the case (p ~ 4e-15), as the every-run rule did."""
+    jacobi = lambda k: [1, 13, 13]  # noqa: E731
+    two = lambda k: OUTSIDE if k in (3, 17) else INSIDE  # noqa: E731
+    rc, doc, _ = _fake_inplace(monkeypatch, tmp_path, jacobi, two)
+    rate = doc["cases"][0]["rate"]
+    assert rc == 1 and not doc["within"]
+    assert rate["port"]["outside"] == 30 and rate["significantly_higher"]
+    assert rate["p_value"] < 1e-14
+
+
+def test_the_rate_rule_keeps_the_run_by_run_checks(monkeypatch, tmp_path: Path) -> None:
+    """Under the rate rule the labels, the components and the iteration sum are still judged on
+    every port run: one run's labels beyond T_max, or one run's sum outside the envelope, fails
+    the case although the rate is the original's."""
+    rc, doc, _ = _fake_inplace(monkeypatch, tmp_path, lambda k: INSIDE, lambda k: INSIDE,
+                               port_label=lambda k: 0.5 if k == 7 else 0.25)  # fmt: skip
+    case = doc["cases"][0]
+    assert rc == 1 and case["rate"]["within"] and not case["within"]
+    assert not case["runs"][7]["checked_every_run"]
+    rc, doc, _ = _fake_inplace(monkeypatch, tmp_path, lambda k: [1, 13, 13] if k == 4 else INSIDE,
+                               lambda k: INSIDE)  # fmt: skip
+    assert rc == 0, doc["cases"][0]["rate"]  # one per-batch excursion: 1 of 30 against 0, p 0.5
+    rc, doc, _ = _fake_inplace(monkeypatch, tmp_path, lambda k: [2, 12, 14] if k == 4 else INSIDE,
+                               lambda k: INSIDE)  # fmt: skip
+    assert rc == 1 and not doc["cases"][0]["runs"][4]["iteration_check"]["sum_within"]
+
+
+def test_the_rate_rule_refuses_other_run_counts_and_rules(monkeypatch, tmp_path: Path) -> None:
+    """--rate takes the frozen rule's 30 runs (never --runs), and refuses a goldens.toml rate rule
+    that is not ADR 0111's."""
+    import argparse
+
+    import pytest
+
+    args = argparse.Namespace(exe=tmp_path, runs=10, rate=True, original=tmp_path / "x",
+                              cases=[], json=None)  # fmt: skip
+    frozen = {"rule": {}, "thresholds": {}, "rate_rule": dict(lpp.g.RATE_RULE)}
+    monkeypatch.setattr(lpp, "frozen_inplace", lambda: frozen)
+    with pytest.raises(lpp.g.GoldenError, match="rule's 30 runs"):
+        lpp.cmd_inplace(args)
+    frozen["rate_rule"]["alpha"] = 0.01
+    args.runs = None
+    with pytest.raises(lpp.g.GoldenError, match="not ADR 0111's"):
+        lpp.cmd_inplace(args)

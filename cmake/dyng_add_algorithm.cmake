@@ -6,8 +6,9 @@
 # Adds the algorithm's private OBJECT library dyng_<algo> to libdyng (PLAN Section 4.8, file 3).
 # Honours DYNG_ALGORITHMS ("all" or a semicolon list) and records the algorithm in the global
 # property DYNG_BUILT_ALGORITHMS (and, built or not, in DYNG_KNOWN_ALGORITHMS). CUDA_SOURCES (.cu files) are compiled only
-# with DYNG_ENABLE_CUDA=ON. FAST_MATH compiles the algorithm's CUDA sources with --use_fast_math
-# (label_propagation only, as its original; there is no project-wide fast math, PLAN Section 7.3).
+# with DYNG_ENABLE_CUDA=ON, as the algorithm's kernel group (cmake/kernel_groups.cmake, ADR 0109).
+# FAST_MATH compiles the algorithm's CUDA sources with --use_fast_math (label_propagation only, as
+# its original; there is no project-wide fast math, PLAN Section 7.3).
 
 function(dyng_add_algorithm)
   cmake_parse_arguments(PARSE_ARGV 0 arg "FAST_MATH" "NAME" "SOURCES;CUDA_SOURCES")
@@ -28,7 +29,11 @@ function(dyng_add_algorithm)
   foreach(_source IN LISTS arg_CUDA_SOURCES)
     list(APPEND _cuda_sources "${CMAKE_CURRENT_SOURCE_DIR}/${_source}")
   endforeach()
-  dyng_add_module(NAME ${arg_NAME} SOURCES ${_sources} CUDA_SOURCES ${_cuda_sources})
+  # Each algorithm's CUDA kernels are a kernel group of their own (ADR 0109): a process loads only
+  # the kernels of the algorithms it runs.
+  dyng_add_module(NAME ${arg_NAME} KERNEL_GROUP ${arg_NAME} SOURCES ${_sources} CUDA_SOURCES
+                  ${_cuda_sources}
+  )
   # The built algorithms, in add_subdirectory() order: the registry (DYNG_ALGORITHM_<NAME> on
   # dyng_core) and the conformance suites (cpp/tests) read this list.
   set_property(GLOBAL APPEND PROPERTY DYNG_BUILT_ALGORITHMS ${arg_NAME})

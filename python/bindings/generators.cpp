@@ -5,19 +5,22 @@
  * @brief dyng::generators: the hypergraph generators (library-owned distributions), and
  *        dyng::generators::legacy: MOSP's change generator, CycleEnumeration-GPU's batch generator
  *        and ESCHER-GPU's hypergraph and batch generators, bit-exact for a fixed seed, and MOSP's
- *        weight stream (for `dyng prep widen`).
+ *        weight stream (for `dyng prep widen`); the vertex-arrival streams of label_propagation
+ *        (0.4: the library's and LabelPropagation-CUDA's).
  */
 #include "types.hpp"
 #include "util/rng.hpp"  // private header of libdyng (cpp/src): the libstdc++ draws
 
 #include <dyng/generators/hypergraphs.hpp>
 #include <dyng/generators/legacy.hpp>
+#include <dyng/generators/vertex_arrival.hpp>
 
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/string_view.h>
 
 #include <cstdint>
 #include <random>
+#include <type_traits>
 #include <vector>
 
 namespace dyng::python {
@@ -26,7 +29,7 @@ namespace {
 namespace legacy = generators::legacy;
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void bind_generator_type(nb::module_& m) {
+void bind_edge_generators(nb::module_& m) {
   using graph_t = graph_holder<vertex_t, edge_t, weight_t>;
   if constexpr (!is_unweighted_v<weight_t>) {
     m.def(
@@ -55,6 +58,61 @@ void bind_generator_type(nb::module_& m) {
         return batch_to_numpy(batch);
       },
       nb::arg("graph"), nb::arg("options"));
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void bind_generator_type(nb::module_& m) {
+  if constexpr (std::is_same_v<weight_t, float>) {
+    (void)m;  // the float graphs of label_propagation (0.4): no legacy edge generator
+  } else {
+    bind_edge_generators<vertex_t, edge_t, weight_t>(m);
+  }
+}
+
+/// The vertex-arrival streams of label_propagation (0.4): the library's
+/// (generators::generate_vertex_arrival_stream) and LabelPropagation-CUDA's
+/// (generators::legacy::dynlp_vertex_arrival_stream), for int32 or int64 edge offsets. A stream
+/// comes back as (row_ptr, col_ind, weights, true_labels, batches, row_capacity,
+/// similarity_threshold, max_batch_vertices, max_batch_edges), every array a NumPy array that owns
+/// the generator's vector, every batch the 9-tuple of batch_to_numpy().
+template <typename edge_t>
+void bind_vertex_arrival_streams(nb::module_& m) {
+  using vertex_t = std::int32_t;
+  auto to_python = [](generators::vertex_arrival_stream<vertex_t, edge_t>&& s) {
+    nb::list batches;
+    for (auto& b : s.batches) {
+      const std::size_t n = b.edge_sources.size();
+      batches.append(nb::make_tuple(
+          to_numpy(std::move(b.edge_sources)), to_numpy(std::move(b.edge_destinations)),
+          to_numpy_2d(std::move(b.edge_weights), n, 1), to_numpy(std::vector<vertex_t>{}),
+          to_numpy(std::vector<vertex_t>{}), 1, to_numpy(std::move(b.insert_vertices)),
+          to_numpy(std::move(b.insert_vertex_labels)), to_numpy(std::move(b.delete_vertices))));
+    }
+    return nb::make_tuple(to_numpy(std::move(s.graph.row_ptr)),
+                          to_numpy(std::move(s.graph.col_ind)),
+                          to_numpy(std::move(s.graph.weights)), to_numpy(std::move(s.true_labels)),
+                          batches, to_numpy(std::move(s.row_capacity)), s.similarity_threshold,
+                          static_cast<std::int64_t>(s.max_batch_vertices),
+                          static_cast<std::int64_t>(s.max_batch_edges));
+  };
+  m.def(
+      suffixed("vertex_arrival_stream", {type_code<edge_t>::lower}, "_").c_str(),
+      [to_python](const resources& res, const generators::vertex_arrival_options& opt) {
+        auto s = without_gil(
+            [&] { return generators::generate_vertex_arrival_stream<vertex_t, edge_t>(res, opt); });
+        return to_python(std::move(s));
+      },
+      nb::arg("resources"), nb::arg("options"),
+      "generators::generate_vertex_arrival_stream (library-owned draws).");
+  m.def(
+      suffixed("dynlp_vertex_arrival_stream", {type_code<edge_t>::lower}, "_").c_str(),
+      [to_python](const resources& res, const generators::vertex_arrival_options& opt) {
+        auto s = without_gil(
+            [&] { return legacy::dynlp_vertex_arrival_stream<vertex_t, edge_t>(res, opt); });
+        return to_python(std::move(s));
+      },
+      nb::arg("resources"), nb::arg("options"),
+      "generators::legacy::dynlp_vertex_arrival_stream (LabelPropagation-CUDA's stream).");
 }
 
 template <typename vertex_t, typename weight_t>
@@ -262,6 +320,17 @@ void bind_generators(nb::module_& m) {
             return hyper_batch_to_numpy(batch);
           },
           nb::arg("resources"), nb::arg("hypergraph"));
+  nb::class_<generators::vertex_arrival_options>(m, "VertexArrivalOptions",
+                                                 "generators::vertex_arrival_options.")
+      .def(nb::init<>())
+      .def_rw("total_vertices", &generators::vertex_arrival_options::total_vertices)
+      .def_rw("average_degree", &generators::vertex_arrival_options::average_degree)
+      .def_rw("num_batches", &generators::vertex_arrival_options::num_batches)
+      .def_rw("seed", &generators::vertex_arrival_options::seed)
+      .def_rw("ground_truth_fraction", &generators::vertex_arrival_options::ground_truth_fraction)
+      .def_rw("deleted_fraction", &generators::vertex_arrival_options::deleted_fraction);
+  bind_vertex_arrival_streams<std::int32_t>(m);
+  bind_vertex_arrival_streams<std::int64_t>(m);
   m.def("standard_library_matches_legacy_streams", [] {
     return without_gil([] { return legacy::standard_library_matches_legacy_streams(); });
   });

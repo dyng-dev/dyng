@@ -88,6 +88,37 @@ def test_a_removed_mosp_result_accessor_is_breaking(tmp_path: Path) -> None:
     assert _in_mosp(_breakages(tmp_path, edit))
 
 
+# --- dyng.label_propagation (frozen at the end of M10b, ADR 0109; stable at 0.4.0 only on the -----
+# --- author's confirmation, AD15) -----------------------------------------------------------------
+
+
+def _in_label_propagation(breakages: list) -> list[str]:
+    return [b.explain() for b in breakages if b.obj.path.startswith("dyng.label_propagation")]
+
+
+def test_a_renamed_parameter_of_label_propagation_update_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace(
+            "def update(\n    graph: Graph, batch:", "def update(\n    g: Graph, batch:", 1
+        )
+
+    assert _in_label_propagation(_breakages(tmp_path, edit, "label_propagation"))
+
+
+def test_a_changed_default_of_label_propagation_options_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace("    tolerance: float = 1e-4\n", "    tolerance: float = 1e-5\n", 1)
+
+    assert _in_label_propagation(_breakages(tmp_path, edit, "label_propagation"))
+
+
+def test_a_removed_label_propagation_result_accessor_is_breaking(tmp_path: Path) -> None:
+    def edit(text: str) -> str:
+        return text.replace("    def labels(self) -> Array:", "    def _labels(self) -> Array:", 1)
+
+    assert _in_label_propagation(_breakages(tmp_path, edit, "label_propagation"))
+
+
 # --- dyng.triad_count (frozen at the end of M9b, ADR 0060) ----------------------------------------
 
 

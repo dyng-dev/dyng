@@ -27,6 +27,7 @@
 #include <dyng/io/batch_io.hpp>
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -54,6 +55,8 @@ std::string_view to_string(batch_dtype dtype) noexcept {
       return "int32";
     case batch_dtype::int64:
       return "int64";
+    case batch_dtype::float32:
+      return "float32";
   }
   return "unknown";
 }
@@ -71,6 +74,8 @@ template <typename value_t>
 constexpr batch_dtype dtype_of() noexcept {
   if constexpr (is_unweighted_v<value_t>) {
     return batch_dtype::none;
+  } else if constexpr (std::is_same_v<value_t, float>) {
+    return batch_dtype::float32;  // 0.4: a graph file's weights only
   } else {
     static_assert(std::is_integral_v<value_t> && std::is_signed_v<value_t> &&
                       (sizeof(value_t) == 4 || sizeof(value_t) == 8),
@@ -80,7 +85,7 @@ constexpr batch_dtype dtype_of() noexcept {
 }
 
 constexpr std::size_t dtype_bytes(batch_dtype t) noexcept {
-  return t == batch_dtype::int32 ? 4 : t == batch_dtype::int64 ? 8 : 0;
+  return t == batch_dtype::int32 || t == batch_dtype::float32 ? 4 : t == batch_dtype::int64 ? 8 : 0;
 }
 
 constexpr std::size_t pad8(std::size_t n) noexcept {
@@ -136,9 +141,14 @@ std::string header_problem(const batch_file_header& h) {
            " (int32 = 1 or int64 = 2)";
   }
   if (h.weight_type != batch_dtype::none && h.weight_type != batch_dtype::int32 &&
-      h.weight_type != batch_dtype::int64) {
+      h.weight_type != batch_dtype::int64 && h.weight_type != batch_dtype::float32) {
     return "weight type " + std::to_string(static_cast<int>(h.weight_type)) +
-           " (none = 0, int32 = 1 or int64 = 2)";
+           " (none = 0, int32 = 1, int64 = 2, or float32 = 3 in a graph file)";
+  }
+  // 0.4 (AD13): float32 only in a graph file's weight byte.
+  if (h.kind == container_kind::hypergraph && h.weight_type == batch_dtype::float32) {
+    return "weight type float32 (3) in a file of hypergraph batches (float32 weights belong to "
+           "graph files)";
   }
   if (h.num_weights < 0 || h.num_weights > 64 ||
       (h.weight_type == batch_dtype::none && h.num_weights != 0) ||
@@ -152,18 +162,23 @@ std::string header_problem(const batch_file_header& h) {
     return "K = " + std::to_string(h.num_weights) +
            " for hypergraph batches (one weight per weighted hyperedge)";
   }
-  // The flags of each kind (graph files have none in this release).
+  // The flags of each kind (graph files: vertex_records, 0.4; hypergraph files: bits 0-3).
   if (h.kind == container_kind::graph && (h.flags & ~batch_file_flags::known_graph) != 0) {
     if ((h.flags & ~batch_file_flags::known) != 0) {
       return "unknown flags " + std::to_string(h.flags & ~batch_file_flags::known) +
              " (written by a newer dynG?)";
     }
-    return "flags " + std::to_string(h.flags) + " in a file of graph batches";
+    return "flags " + std::to_string(h.flags & ~batch_file_flags::known_graph) +
+           " in a file of graph batches (the hypergraph flags, bits 0-3)";
   }
   if (h.kind == container_kind::hypergraph &&
       (h.flags & ~batch_file_flags::known_hypergraph) != 0) {
-    return "unknown flags " + std::to_string(h.flags & ~batch_file_flags::known_hypergraph) +
-           " (written by a newer dynG?)";
+    const std::uint64_t unknown = h.flags & ~batch_file_flags::known_hypergraph;
+    return "unknown flags " + std::to_string(unknown) +
+           ((unknown & ~batch_file_flags::known) == 0
+                ? " for a file of hypergraph batches (vertex_records, bit 4, belongs to graph "
+                  "files)"
+                : " (written by a newer dynG?)");
   }
   return {};
 }
@@ -188,7 +203,8 @@ struct array_slot {
 };
 
 /// The arrays of a record, in payload order (graph: delete_src, delete_dst, insert_src,
-/// insert_dst, weights; hypergraph: delete ids, insert offsets, members, weights, deleted
+/// insert_dst, weights, and with vertex_records inserted vertices, labels, deleted vertices;
+/// hypergraph: delete ids, insert offsets, members, weights, deleted
 /// offsets, deleted members, expected ids, removal ids, removal vertices, addition ids, addition
 /// vertices).
 struct record_layout {
@@ -196,7 +212,16 @@ struct record_layout {
   std::array<array_slot, 11> slots{};
 };
 
-enum graph_slot : std::size_t { g_del_src, g_del_dst, g_ins_src, g_ins_dst, g_weights };
+enum graph_slot : std::size_t {
+  g_del_src,
+  g_del_dst,
+  g_ins_src,
+  g_ins_dst,
+  g_weights,
+  g_ins_vertices,  ///< vertex_records (0.4): the inserted vertices
+  g_labels,        ///< vertex_records: their seed labels (int8; 0 or one per inserted vertex)
+  g_del_vertices   ///< vertex_records: the deleted vertices
+};
 enum hyper_slot : std::size_t {
   h_del_ids,
   h_offsets,
@@ -214,6 +239,13 @@ enum hyper_slot : std::size_t {
 /// The count block of a hypergraph record: 5 counts, 7 with the incidence edits (0.4).
 std::size_t hyper_counts_bytes(std::uint64_t flags) noexcept {
   return (flags & batch_file_flags::incidence_edits) != 0 ? 56 : 40;
+}
+
+/// The count block of a graph record: the batch id and 2 counts, 5 counts with the vertex
+/// records (0.4, AD13: inserted vertices, their labels (0 or one per inserted vertex), deleted
+/// vertices).
+std::size_t graph_counts_bytes(std::uint64_t flags) noexcept {
+  return (flags & batch_file_flags::vertex_records) != 0 ? 48 : 24;
 }
 
 }  // namespace
@@ -276,7 +308,10 @@ struct batch_writer::impl {
   void put_array(std::size_t& off, const value_t* values, std::size_t count, batch_dtype t) {
     const std::size_t width = dtype_bytes(t);
     for (std::size_t i = 0; i < count; ++i) {
-      if (width == 4) {
+      if (t == batch_dtype::float32) {
+        const auto v = static_cast<float>(values[i]);  // a float weight: its bits
+        std::memcpy(payload.data() + off + 4 * i, &v, 4);
+      } else if (width == 4) {
         const auto v = static_cast<std::int32_t>(values[i]);
         std::memcpy(payload.data() + off + 4 * i, &v, 4);
       } else {
@@ -352,7 +387,14 @@ void batch_writer::write(const edge_batch_view<vertex_t, weight_t>& batch) try {
                " batches with ", to_string(h.vertex_type), " vertices and ",
                to_string(h.weight_type), " weights, not this batch's types");
   const auto index = static_cast<std::size_t>(impl_->count);
-  detail::check_edge_batch_arrays(batch, "batch_writer::write", index);
+  const bool with_vertices = (h.flags & batch_file_flags::vertex_records) != 0;
+  const bool has_vertices = !batch.insert_vertices.empty() || !batch.delete_vertices.empty() ||
+                            !batch.insert_vertex_labels.empty();
+  // The flags are fixed when the file is opened (AD13): a vertex operation needs the flag.
+  DYNG_EXPECTS(with_vertices || !has_vertices, "batch_writer::write: batch ", index,
+               " has vertex operations, but the file ", impl_->path,
+               " was opened without the flag batch_file_flags::vertex_records");
+  detail::check_edge_batch_arrays(batch, "batch_writer::write", index, with_vertices);
   const std::size_t ni = batch.insert_src.size();
   const std::size_t nd = batch.delete_src.size();
   DYNG_EXPECTS(ni == 0 || batch.num_weights == h.num_weights, "batch_writer::write: batch ", index,
@@ -360,17 +402,34 @@ void batch_writer::write(const edge_batch_view<vertex_t, weight_t>& batch) try {
   const std::size_t vb = dtype_bytes(h.vertex_type);
   const std::size_t wb = dtype_bytes(h.weight_type);
   const auto k = static_cast<std::size_t>(h.num_weights);
-  impl_->payload.assign(24 + 2 * pad8(nd * vb) + 2 * pad8(ni * vb) + pad8(ni * k * wb), 0);
+  const std::size_t niv = batch.insert_vertices.size();
+  const std::size_t nlab = batch.insert_vertex_labels.size();
+  const std::size_t ndv = batch.delete_vertices.size();
+  const std::size_t counts = graph_counts_bytes(h.flags);
+  impl_->payload.assign(counts + 2 * pad8(nd * vb) + 2 * pad8(ni * vb) + pad8(ni * k * wb) +
+                            (with_vertices ? pad8(niv * vb) + pad8(nlab) + pad8(ndv * vb) : 0),
+                        0);
   put_u64(impl_->payload.data(), static_cast<std::uint64_t>(impl_->count));
   put_u64(impl_->payload.data() + 8, nd);
   put_u64(impl_->payload.data() + 16, ni);
-  std::size_t off = 24;
+  if (with_vertices) {
+    put_u64(impl_->payload.data() + 24, niv);
+    put_u64(impl_->payload.data() + 32, nlab);
+    put_u64(impl_->payload.data() + 40, ndv);
+  }
+  std::size_t off = counts;
   impl_->put_array(off, batch.delete_src.data(), nd, h.vertex_type);
   impl_->put_array(off, batch.delete_dst.data(), nd, h.vertex_type);
   impl_->put_array(off, batch.insert_src.data(), ni, h.vertex_type);
   impl_->put_array(off, batch.insert_dst.data(), ni, h.vertex_type);
   if constexpr (!is_unweighted_v<weight_t>) {
     if (k > 0) impl_->put_array(off, batch.insert_weights.data(), ni * k, h.weight_type);
+  }
+  if (with_vertices) {
+    impl_->put_array(off, batch.insert_vertices.data(), niv, h.vertex_type);
+    if (nlab > 0) std::memcpy(impl_->payload.data() + off, batch.insert_vertex_labels.data(), nlab);
+    off += pad8(nlab);
+    impl_->put_array(off, batch.delete_vertices.data(), ndv, h.vertex_type);
   }
   impl_->emit();
 }
@@ -659,8 +718,9 @@ struct batch_reader::impl {
       fail_record(at, "the record's length " + std::to_string(length) +
                           " exceeds the rest of the file (" + std::to_string(rest) + " bytes)");
     }
-    const std::uint64_t fixed =
-        header.kind == container_kind::graph ? 24 : hyper_counts_bytes(header.flags);
+    const std::uint64_t fixed = header.kind == container_kind::graph
+                                    ? graph_counts_bytes(header.flags)
+                                    : hyper_counts_bytes(header.flags);
     if (length < fixed || length % 8 != 0) {
       fail_record(at, "the record's length " + std::to_string(length) +
                           " is not a multiple of 8 of at least " + std::to_string(fixed));
@@ -702,11 +762,13 @@ struct batch_reader::impl {
       fail_record(at, "batch id " + std::to_string(id) + " out of range");
     }
     l.batch_id = static_cast<std::int64_t>(id);
-    std::size_t off = header.kind == container_kind::graph ? 24 : hyper_counts_bytes(header.flags);
-    // Place an array of `count` values of width `width`: count is checked against the bytes
-    // left before anything is multiplied.
-    const auto place = [&](std::size_t slot, std::uint64_t count, batch_dtype t, const char* what) {
-      const std::size_t width = dtype_bytes(t);
+    std::size_t off = header.kind == container_kind::graph ? graph_counts_bytes(header.flags)
+                                                           : hyper_counts_bytes(header.flags);
+    // Place an array of `count` values of width `width` (the dtype's; 1 for the int8 labels):
+    // count is checked against the bytes left before anything is multiplied.
+    const auto place = [&](std::size_t slot, std::uint64_t count, batch_dtype t, const char* what,
+                           std::size_t width_override = 0) {
+      const std::size_t width = width_override != 0 ? width_override : dtype_bytes(t);
       const std::size_t left = length - off;
       if (count > left / width) {
         fail_record(at, std::string(what) + ": " + std::to_string(count) +
@@ -731,11 +793,25 @@ struct batch_reader::impl {
         if (ni > (length - off) / 4 / k) fail_record(at, "the weights do not fit the record");
         place(g_weights, ni * k, header.weight_type, "weights");
       }
+      const bool with_vertices = (header.flags & batch_file_flags::vertex_records) != 0;
+      if (with_vertices) {  // 0.4 (AD13)
+        const std::uint64_t niv = get_u64(p + 24);
+        const std::uint64_t nlab = get_u64(p + 32);
+        const std::uint64_t ndv = get_u64(p + 40);
+        if (nlab != 0 && nlab != niv) {
+          fail_record(at, std::to_string(nlab) + " seed labels for " + std::to_string(niv) +
+                              " inserted vertices (0 or one per inserted vertex)");
+        }
+        place(g_ins_vertices, niv, vt, "inserted vertices");
+        place(g_labels, nlab, batch_dtype::none, "seed labels", 1);
+        place(g_del_vertices, ndv, vt, "deleted vertices");
+      }
       if (off != length) {
         fail_record(at,
                     "the record has " + std::to_string(length - off) + " bytes beyond its arrays");
       }
-      for (std::size_t s = g_del_src; s <= g_ins_dst; ++s) {
+      for (const std::size_t s :
+           {g_del_src, g_del_dst, g_ins_src, g_ins_dst, g_ins_vertices, g_del_vertices}) {
         const array_slot& a = l.slots[s];
         for (std::size_t i = 0; i < a.count; ++i) {
           const std::int64_t v = element(p + a.offset, a.type, i);
@@ -743,6 +819,24 @@ struct batch_reader::impl {
             fail_record(at, "vertex id " + std::to_string(v) + " out of range [0, " +
                                 std::to_string(id_max) + "]");
           }
+        }
+      }
+      if (with_vertices) {
+        const array_slot& a = l.slots[g_labels];
+        for (std::size_t i = 0; i < a.count; ++i) {
+          const auto label = static_cast<std::int8_t>(p[a.offset + i]);
+          if (label < -1 || label > 1) {
+            fail_record(at, "seed label " + std::to_string(static_cast<int>(label)) +
+                                " (a seed label is -1, 0 or 1)");
+          }
+        }
+      }
+      if (header.weight_type == batch_dtype::float32) {
+        const array_slot& a = l.slots[g_weights];
+        for (std::size_t i = 0; i < a.count; ++i) {
+          float w = 0.0F;
+          std::memcpy(&w, p + a.offset + 4 * i, 4);
+          if (!std::isfinite(w)) fail_record(at, "a float32 weight is not finite");
         }
       }
       return l;
@@ -926,6 +1020,11 @@ edge_batch_view<vertex_t, weight_t> batch_reader::edge_batch() const {
   if constexpr (!is_unweighted_v<weight_t>) {
     if (weighted) v.insert_weights = impl_->view<weight_t>(g_weights);
   }
+  if ((impl_->header.flags & batch_file_flags::vertex_records) != 0) {
+    v.insert_vertices = impl_->view<vertex_t>(g_ins_vertices);
+    v.insert_vertex_labels = impl_->view<std::int8_t>(g_labels);
+    v.delete_vertices = impl_->view<vertex_t>(g_del_vertices);
+  }
   v.num_weights = impl_->header.num_weights;
   return v;
 }
@@ -975,8 +1074,15 @@ template <typename vertex_t, typename weight_t>
 void write_binary_batches(const std::string& path,
                           const std::vector<edge_batch_view<vertex_t, weight_t>>& batches) try {
   int k = 0;
+  // The flag only when a batch needs it: a file of edge batches is the file 0.3 wrote (AD13).
+  std::uint64_t flags = 0;
   for (std::size_t b = 0; b < batches.size(); ++b) {
-    detail::check_edge_batch_arrays(batches[b], "write_binary_batches", b);
+    detail::check_edge_batch_arrays(batches[b], "write_binary_batches", b,
+                                    /*vertex_records=*/true);
+    if (!batches[b].insert_vertices.empty() || !batches[b].delete_vertices.empty() ||
+        !batches[b].insert_vertex_labels.empty()) {
+      flags = batch_file_flags::vertex_records;
+    }
     if (!batches[b].insert_src.empty()) {
       DYNG_EXPECTS(k == 0 || k == batches[b].num_weights, "write_binary_batches: batch ", b,
                    " has K = ", batches[b].num_weights, " weights per insertion, an earlier ",
@@ -984,7 +1090,9 @@ void write_binary_batches(const std::string& path,
       k = batches[b].num_weights;
     }
   }
-  batch_writer out(path, edge_batch_file_header<vertex_t, weight_t>(k));
+  batch_file_header header = edge_batch_file_header<vertex_t, weight_t>(k);
+  header.flags = flags;
+  batch_writer out(path, header);
   for (const auto& b : batches) out.write(b);
   out.close();
 }
@@ -1023,6 +1131,12 @@ std::vector<edge_batch<vertex_t, weight_t>> read_binary_batches(
         b.insert_edge(v.insert_src[i], v.insert_dst[i], v.insert_weights.subview(i * k, k));
       }
     }
+    for (std::size_t i = 0; i < v.insert_vertices.size(); ++i) {
+      b.insert_vertex(v.insert_vertices[i],
+                      v.insert_vertex_labels.empty() ? std::int8_t{-1} : v.insert_vertex_labels[i]);
+    }
+    for (std::size_t i = 0; i < v.delete_vertices.size(); ++i)
+      b.delete_vertex(v.delete_vertices[i]);
     out.push_back(std::move(b));
   }
   return out;
@@ -1095,6 +1209,7 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_binary_hyperedge_batches (", path, "
                                                                    const batch_reader_options&);
 DYNG_FOR_EACH_VERTEX_WEIGHT_TYPE(DYNG_INSTANTIATE_BATCH_BINARY_EDGES)
 DYNG_FOR_EACH_VERTEX_TYPE_UNWEIGHTED(DYNG_INSTANTIATE_BATCH_BINARY_EDGES)
+DYNG_FOR_EACH_VERTEX_TYPE_FLOAT(DYNG_INSTANTIATE_BATCH_BINARY_EDGES)
 #undef DYNG_INSTANTIATE_BATCH_BINARY_EDGES
 
 #define DYNG_INSTANTIATE_BATCH_BINARY_HYPEREDGES(V, W)                             \

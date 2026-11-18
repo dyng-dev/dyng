@@ -15,6 +15,8 @@
  * golden instead of the constants below (compare.py label_propagation hub).
  */
 #include "algorithms/label_propagation/fused.hpp"
+#include "algorithms/label_propagation/operators_engine.hpp"
+#include "framework/budgets.hpp"
 #include "support/gtest_helpers.hpp"
 #include "support/sha256.hpp"
 
@@ -47,6 +49,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -862,12 +865,207 @@ TEST(LabelPropagationCuda, ResultsMoveBetweenTheBackends) {
   (void)lp::update(cuda, g, s.batches[3].view(), r);
   (void)lp::update(cuda, g3, s.batches[3].view(), back);
   EXPECT_EQ(host_labels(cuda, r), host_labels(cuda, back));
-  // OpenMP resources: not a backend of label_propagation (AD19); operators on CUDA: M10b.
+  // The operators engine (M10b): compute() is IrLP on every engine (schedule::damped here;
+  // OperatorsEngineLimitsAndScope covers the in_place refusal).
   lp::options ops = opt;
   ops.cuda_engine = dyng::engine::operators;
+  auto by_ops = lp::compute(cuda, g, dyng::array_view<const std::int32_t>(),
+                            dyng::array_view<const std::int8_t>(), ops);
+  EXPECT_EQ(by_ops.space(), dyng::memory_space::device);
+}
+
+// ------------------------------------------------------------------------------------------------
+// The operators engine (M10b step 1; ADR 0101): the fused engine's bits and counts
+// ------------------------------------------------------------------------------------------------
+
+/// The operators engine's propagation (ops_iterate) on the hub graph, as run_hub on the fused one.
+hub_call run_hub_operators(const dyng::resources& res, const hub_graph& g, float delta) {
+  const auto n = static_cast<std::size_t>(g.n);
+  dyng::buffer<std::int32_t> row_ptr(res, n + 1);
+  dyng::buffer<std::int32_t> col_ind(res, g.col_ind.size());
+  dyng::buffer<float> values(res, g.values.size());
+  dyng::buffer<std::int32_t> status(res, n);
+  dyng::copy(res, host_view(g.row_ptr), row_ptr.view());
+  dyng::copy(res, host_view(g.col_ind), col_ind.view());
+  dyng::copy(res, host_view(g.values), values.view());
+  const std::vector<std::int32_t> active(n, 0);
+  dyng::copy(res, host_view(active), status.view());
+  std::vector<std::int8_t> seeds(n);
+  for (std::size_t v = 0; v < n; ++v) {
+    seeds[v] = static_cast<std::int8_t>(g.gt_class[v]);
+  }
+  lpc::state st;
+  lpc::create_state(res, g.n, g.row_ptr.data(), seeds.data(), g.labels.data(), st);
+  lpc::workspace ws;
+  ws.reserve(res, g.n, st.capacity, 1, 1, /*damped=*/true);
+  lpc::operators_workspace ows;
+  std::vector<std::int32_t> affected(n);
+  for (std::size_t v = 0; v < n; ++v) {
+    affected[v] = g.gt_class[v] < 0 ? 1 : 0;
+  }
+  dyng::copy(res, host_view(affected),
+             dyng::array_view<std::int32_t>(ws.affected.data(), n, dyng::memory_space::device,
+                                            res.device()));
+  lpc::rows<std::int32_t> rows;
+  rows.row_start = row_ptr.data();
+  rows.row_end = row_ptr.data() + 1;
+  rows.col_ind = col_ind.data();
+  rows.values = values.data();
+  rows.status = status.data();
+  rows.n = g.n;
+  hub_call out;
+  out.report = lpc::ops_iterate(res, rows, st.labels.data(), st.gt_class.data(), ws.affected.data(),
+                                delta, hub_max_iterations, st, ws, ows, nullptr, nullptr);
+  res.synchronize();
+  out.labels = dyng::to_vector(res, st.labels.view());
+  out.next_tag = st.next_tag;
+  return out;
+}
+
+TEST(LabelPropagationCuda, OperatorsEngineHubGolden) {
+  DYNG_SKIP_IF_NO_CUDA();
+#if !defined(__GLIBCXX__)
+  GTEST_SKIP() << "the hub graph is drawn with libstdc++'s distributions (the original's build)";
+#endif
+  // propagation_test's hub graph (the degrees 8, 9, 32, 33, 1024, 1025, 3000, 6000) under the
+  // damped rule: the operators engine gives the original's golden bits and counts (it has no
+  // persistent kernel: its persistent_iterations are 0), twice.
+  const dyng::resources res = dyng::resources::cuda(0);
+  const hub_graph g = build_hub_graph();
+  const hub_expected want = expected_hub();
+  for (int run = 0; run < 2; ++run) {
+    const hub_call c = run_hub_operators(res, g, 1e-7F);
+    EXPECT_EQ(dyng::test::sha256_hex(c.labels), want.labels_sha256);
+    EXPECT_EQ(c.report.iterations, want.iterations);
+    EXPECT_EQ(c.report.frontier_visits, want.frontier_visits);
+    EXPECT_EQ(c.report.persistent_iterations, 0);
+    EXPECT_EQ(c.next_tag, want.next_tag);
+  }
+}
+
+/// Every counter AD6 and the kit compare, and the batch's.
+std::vector<long long> counters(const lp::stats& s) {
+  return {s.iterations,
+          s.frontier_visits,
+          s.components,
+          s.sparsified_edges,
+          s.initial_frontier,
+          s.affected,
+          s.converged ? 1 : 0,
+          s.fallback_used ? 1 : 0,
+          s.batch.inserted_vertices,
+          s.batch.deleted_vertices,
+          s.batch.inserted_edges,
+          s.batch.dropped_insertions};
+}
+
+TEST(LabelPropagationCuda, OperatorsEngineIsTheFusedEnginesBitsAndCounts) {
+  DYNG_SKIP_IF_NO_CUDA();
+  // The published flow (AD6: identical per-batch counts, max |dF| <= c eps; the engines agree to
+  // the bit), under strict budgets (the operators engine's declared host synchronizations).
+  const dyng::detail::framework::strict_budgets_scope strict;
+  for (const auto& [n, batches, delta] :
+       {std::tuple{std::int64_t{5000}, 5, 1e-4F}, std::tuple{std::int64_t{5000}, 5, 1e-6F},
+        std::tuple{std::int64_t{20000}, 6, 1e-4F}}) {
+    SCOPED_TRACE(std::to_string(n) + " vertices, delta " + std::to_string(delta));
+    const stream_t s = make_stream(n, batches);
+    const dyng::resources cuda = dyng::resources::cuda(0);
+    lp_graph gf = capacity_graph(cuda, s);
+    lp_graph go = capacity_graph(cuda, s);
+    lp::options opt = published(s, delta, lp::schedule::damped);
+    auto rf = lp::compute(cuda, gf, dyng::array_view<const std::int32_t>(),
+                          dyng::array_view<const std::int8_t>(), opt);
+    opt.cuda_engine = dyng::engine::operators;
+    auto ro = lp::compute(cuda, go, dyng::array_view<const std::int32_t>(),
+                          dyng::array_view<const std::int8_t>(), opt);
+    ro.reserve(cuda, s.max_batch_vertices, s.max_batch_edges);
+    EXPECT_EQ(host_labels(cuda, rf), host_labels(cuda, ro));
+    for (std::size_t b = 0; b < s.batches.size(); ++b) {
+      SCOPED_TRACE("batch " + std::to_string(b));
+      const lp::stats f = lp::update(cuda, gf, s.batches[b].view(), rf);
+      const lp::stats o = lp::update(cuda, go, s.batches[b].view(), ro);
+      EXPECT_EQ(f.engine_used, dyng::engine::fused);
+      EXPECT_EQ(o.engine_used, dyng::engine::operators);
+      EXPECT_EQ(counters(f), counters(o));
+      const std::vector<float> lf = host_labels(cuda, rf);
+      const std::vector<float> lo = host_labels(cuda, ro);
+      ASSERT_EQ(lf.size(), lo.size());
+      EXPECT_EQ(0, std::memcmp(lf.data(), lo.data(), 4 * lf.size())) << "the labels' bits";
+    }
+  }
+}
+
+TEST(LabelPropagationCuda, OperatorsEngineLimitsAndScope) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const stream_t s = make_stream(5000, 3);
+  const dyng::resources cuda = dyng::resources::cuda(0);
+  // The cap under each on_limit, against the fused engine (fallback_recompute runs IrLP).
+  for (const lp::on_limit at :
+       {lp::on_limit::report, lp::on_limit::fallback_recompute, lp::on_limit::error}) {
+    SCOPED_TRACE(static_cast<int>(at));
+    lp_graph gf = capacity_graph(cuda, s);
+    lp_graph go = capacity_graph(cuda, s);
+    lp::options opt = published(s, 1e-6F, lp::schedule::damped);
+    opt.max_iterations = 3;
+    opt.on_iteration_limit = at;
+    auto rf = lp::compute(cuda, gf, dyng::array_view<const std::int32_t>(),
+                          dyng::array_view<const std::int8_t>(), opt);
+    opt.cuda_engine = dyng::engine::operators;
+    auto ro = lp::compute(cuda, go, dyng::array_view<const std::int32_t>(),
+                          dyng::array_view<const std::int8_t>(), opt);
+    (void)lp::update(cuda, gf, s.batches[0].view(), rf);  // b0: no propagation
+    (void)lp::update(cuda, go, s.batches[0].view(), ro);
+    if (at == lp::on_limit::error) {
+      EXPECT_THROW((void)lp::update(cuda, gf, s.batches[1].view(), rf), dyng::convergence_error);
+      EXPECT_THROW((void)lp::update(cuda, go, s.batches[1].view(), ro), dyng::convergence_error);
+      continue;
+    }
+    const lp::stats f = lp::update(cuda, gf, s.batches[1].view(), rf);
+    const lp::stats o = lp::update(cuda, go, s.batches[1].view(), ro);
+    EXPECT_EQ(o.fallback_used, at == lp::on_limit::fallback_recompute);
+    EXPECT_EQ(counters(f), counters(o));
+    EXPECT_EQ(host_labels(cuda, rf), host_labels(cuda, ro));
+  }
+  // schedule::in_place has no operators twin: refused by compute() and, for a result whose options
+  // were changed to it, by update() before anything changes.
+  lp_graph g = capacity_graph(cuda, s);
+  lp::options opt = published(s, 1e-4F, lp::schedule::in_place);
+  opt.cuda_engine = dyng::engine::operators;
   EXPECT_THROW((void)lp::compute(cuda, g, dyng::array_view<const std::int32_t>(),
-                                 dyng::array_view<const std::int8_t>(), ops),
+                                 dyng::array_view<const std::int8_t>(), opt),
                dyng::not_supported_error);
+  opt.update_schedule = lp::schedule::damped;
+  auto r = lp::compute(cuda, g, dyng::array_view<const std::int32_t>(),
+                       dyng::array_view<const std::int8_t>(), opt);
+  opt.update_schedule = lp::schedule::in_place;
+  r.set_options(opt);
+  const std::uint64_t version = g.version();
+  EXPECT_THROW((void)lp::update(cuda, g, s.batches[0].view(), r), dyng::not_supported_error);
+  EXPECT_EQ(g.version(), version);
+  // engine::automatic stays the fused engine.
+  opt.update_schedule = lp::schedule::damped;
+  opt.cuda_engine = dyng::engine::automatic;
+  r.set_options(opt);
+  EXPECT_EQ(lp::update(cuda, g, s.batches[0].view(), r).engine_used, dyng::engine::fused);
+  // The operators engine after reserve() allocates on the device only in its first batches.
+  failing_resource mr(dyng::default_device_memory_resource(0));
+  dyng::resources res = dyng::resources::cuda(0);
+  res.set_memory_resource(mr);
+  const stream_t big = make_stream(50000, 10);
+  lp_graph gm = capacity_graph(res, big);
+  lp::options mopt = published(big, 1e-4F, lp::schedule::damped);
+  mopt.cuda_engine = dyng::engine::operators;
+  auto rm = lp::compute(res, gm, dyng::array_view<const std::int32_t>(),
+                        dyng::array_view<const std::int8_t>(), mopt);
+  rm.reserve(res, big.max_batch_vertices, big.max_batch_edges);
+  gm.reserve(res, static_cast<std::int32_t>(big.max_batch_edges));
+  for (std::size_t b = 0; b < big.batches.size(); ++b) {
+    const long long before = mr.allocations();
+    (void)lp::update(res, gm, big.batches[b].view(), rm);
+    if (b >= 2) {
+      EXPECT_EQ(mr.allocations() - before, 0) << "batch " << b;
+    }
+  }
 }
 
 }  // namespace

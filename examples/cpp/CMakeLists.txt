@@ -259,3 +259,43 @@ if(DYNG_BUILD_TESTS)
   set_tests_properties(example.readme_quickstart PROPERTIES LABELS "cpu;sssp;examples"
                        ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
 endif()
+
+# label_propagation (0.4): left out of a subset build without it (DYNG_ALGORITHMS). The published
+# setup on LabelPropagation-CUDA's 5k5 stream (damped); the labels it writes equal the committed
+# digests of examples/data/label_propagation_5k5_damped.sha256 per backend (cuda: the original's
+# own dynlp_labels.txt, AD6), as examples/python/label_propagation_torch.py's do.
+if(TARGET dyng_label_propagation)
+  add_executable(dyng_example_label_propagation_stream label_propagation_stream.cpp)
+  target_link_libraries(dyng_example_label_propagation_stream PRIVATE dyng::dyng)
+  target_compile_features(dyng_example_label_propagation_stream PRIVATE cxx_std_17)
+  set_target_properties(dyng_example_label_propagation_stream PROPERTIES
+                        OUTPUT_NAME label_propagation_stream)
+  dyng_set_warnings(dyng_example_label_propagation_stream)
+  dyng_enable_sanitizers(dyng_example_label_propagation_stream)
+  if(DYNG_BUILD_TESTS)
+    set(_backends sequential)
+    if(DYNG_ENABLE_CUDA)
+      list(APPEND _backends cuda)
+    endif()
+    foreach(_backend IN LISTS _backends)
+      set(_out "${CMAKE_CURRENT_BINARY_DIR}/out/label_propagation_stream.${_backend}")
+      file(MAKE_DIRECTORY "${_out}")
+      add_test(
+        NAME example.label_propagation_stream.${_backend}
+        COMMAND
+          ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:dyng_example_label_propagation_stream>"
+          "-DARGS=${_out}|${_backend}" "-DFILE=${_out}/dynlp_labels.txt"
+          "-DDIGESTS=${PROJECT_SOURCE_DIR}/examples/data/label_propagation_5k5_damped.sha256"
+          "-DKEY=${_backend}" -P "${CMAKE_CURRENT_SOURCE_DIR}/compare_digest.cmake"
+      )
+      if(_backend STREQUAL "cuda")
+        set(_labels "gpu;label_propagation;examples")
+      else()
+        set(_labels "cpu;label_propagation;examples")
+      endif()
+      set_tests_properties(example.label_propagation_stream.${_backend} PROPERTIES
+                           LABELS "${_labels}" SKIP_RETURN_CODE 77
+                           ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
+    endforeach()
+  endif()
+endif()

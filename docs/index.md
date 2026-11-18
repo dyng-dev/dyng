@@ -16,8 +16,10 @@ from 0.2.0; to `triad_count` and the dynamic hypergraph, `dyng::hypergraph` and
 `dyng.Hypergraph`, from 0.3.0), `count_local_patterns` is experimental, the teaching algorithms
 `dynamic_bfs` and `triangle_delta` have the maturity `tutorial` (written for
 {doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin wheels are on PyPI too
-(`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`). The other
-algorithms of the table are planned for later releases.
+(`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`). On the way to
+0.4.0, `label_propagation` (in this documentation, not yet released) is experimental and frozen,
+its stability pending the author's confirmation at the release. The other algorithms of the table
+are planned for later releases.
 :::
 
 ## Algorithms

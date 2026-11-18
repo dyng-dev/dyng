@@ -22,8 +22,9 @@ from pathlib import Path
 
 MAGIC = b"DYNGBAT1"
 GRAPH, HYPERGRAPH = 0, 1
-NONE, INT32, INT64 = 0, 1, 2
+NONE, INT32, INT64, FLOAT32 = 0, 1, 2, 3
 DELETED_MEMBERS, EXPECTED_IDS, INSERT_FIRST, INCIDENCE_EDITS = 1, 2, 4, 8
+VERTEX_RECORDS = 16  # 0.4 (AD13): graph files
 
 
 def header(kind: int, vtype: int, wtype: int, k: int, flags: int, count: int) -> bytes:
@@ -33,8 +34,8 @@ def header(kind: int, vtype: int, wtype: int, k: int, flags: int, count: int) ->
     return body + struct.pack("<I", zlib.crc32(body))
 
 
-def array(values: list[int], dtype: int) -> bytes:
-    fmt = "<" + ("i" if dtype == INT32 else "q") * len(values)
+def array(values: list, dtype: int) -> bytes:
+    fmt = "<" + {INT32: "i", INT64: "q", FLOAT32: "f"}[dtype] * len(values)
     data = struct.pack(fmt, *values)
     return data + bytes((-len(data)) % 8)
 
@@ -44,12 +45,22 @@ def record(payload: bytes) -> bytes:
     return struct.pack("<QII", len(payload), zlib.crc32(payload), 0) + payload
 
 
-def graph_record(batch_id: int, dels, ins, weights, vtype=INT32, wtype=INT32) -> bytes:
+def graph_record(
+    batch_id: int, dels, ins, weights, vtype=INT32, wtype=INT32, vertices=None
+) -> bytes:
+    """`vertices` (flag VERTEX_RECORDS, 0.4): (inserted, labels, deleted); labels is [] or one
+    int8 per inserted vertex."""
     p = struct.pack("<QQQ", batch_id, len(dels), len(ins))
+    if vertices is not None:
+        inserted, labels, deleted = vertices
+        p += struct.pack("<QQQ", len(inserted), len(labels), len(deleted))
     p += array([u for u, _ in dels], vtype) + array([v for _, v in dels], vtype)
     p += array([u for u, _ in ins], vtype) + array([v for _, v in ins], vtype)
     if wtype != NONE:
         p += array(weights, wtype)
+    if vertices is not None:
+        lab = struct.pack("<" + "b" * len(labels), *labels)
+        p += array(inserted, vtype) + lab + bytes((-len(lab)) % 8) + array(deleted, vtype)
     return record(p)
 
 
@@ -111,6 +122,18 @@ def seeds() -> dict[str, bytes]:
     ) + (
         hyper_record(0, [3], [[4, 1]], weights=[2], edits=([(0, 1), (2, 7)], [(0, 5)]))
         + hyper_record(1, [], [], weights=[], edits=([], [(4, 0)]))
+    )
+    # 0.4 (AD13): float32 weights and the vertex records of label_propagation's batches.
+    out["graph_float_vertex_records"] = header(GRAPH, INT32, FLOAT32, 1, VERTEX_RECORDS, 2) + (
+        graph_record(
+            0,
+            [],
+            [(0, 1), (1, 2)],
+            [0.75, 0.125],
+            wtype=FLOAT32,
+            vertices=([0, 1, 2], [1, 0, -1], []),
+        )
+        + graph_record(1, [], [(3, 0)], [0.5], wtype=FLOAT32, vertices=([3], [], [2, 7]))
     )
     out["empty_file"] = header(HYPERGRAPH, INT32, NONE, 0, 0, 0)
     # Rejected inputs: a damaged CRC, a future version (the size-lying files are reproducers in

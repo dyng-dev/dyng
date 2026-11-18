@@ -52,7 +52,8 @@ enum class duplicate_edges : std::uint8_t {
  * @ingroup io
  */
 struct edge_list_options {
-  /// Weight columns after `src dst` (integers). 0 (the default): a third column, if present, is a
+  /// Weight columns after `src dst` (integers; decimal numbers for weight_t = float, 0.4). 0 (the
+  /// default): a third column, if present, is a
   /// timestamp, and a fourth column is an error (CycleEnumeration-GPU). With K > 0 a row holds
   /// `src dst w1..wK [ts]`. Must be 0 for weight_t = unweighted and for Matrix Market files.
   int num_weights = 0;
@@ -82,7 +83,11 @@ struct edge_list_info {
  * @brief Read a directed edge list.
  *
  * Text format: one edge per line, `src dst [w1..wK] [ts]`, integers separated by spaces, tabs or
- * commas (a TUDataset `*_A.txt` file loads directly). Blank lines and lines whose first non-blank
+ * commas (a TUDataset `*_A.txt` file loads directly). With weight_t = float (0.4, the float
+ * graphs of label_propagation) the weights are decimal floating-point tokens as std::from_chars
+ * reads them (`0.25`, `1e-3`, an optional leading `+`), rounded to the nearest float; NaN,
+ * infinities and values outside the float range are refused (io_error). The integer paths are
+ * unchanged. Blank lines and lines whose first non-blank
  * character is `#` or `%` are skipped. An integer is an optional sign followed by decimal digits
  * and must fit 64 bits. A file whose first line starts with `%%MatrixMarket` is read as a Matrix
  * Market `coordinate` file: its dimensions line is skipped and its value columns are ignored; a
@@ -95,7 +100,7 @@ struct edge_list_info {
  * on `options.threads` threads; the result does not depend on the thread count.
  *
  * @tparam vertex_t Vertex id type of the result.
- * @tparam weight_t Weight type of the result: `unweighted`, or an integer type.
+ * @tparam weight_t Weight type of the result: `unweighted`, an integer type, or float (0.4).
  * @param[in]  path    The file.
  * @param[in]  options Weight columns, id mapping, symmetrization, self-loops, duplicates, threads.
  * @param[out] info    Optional: the id mapping, the timestamps and the kind of file.
@@ -118,15 +123,18 @@ template <typename vertex_t, typename weight_t>
  * @brief Write an edge list as text, one line `src dst [w1..wK]` per edge (0-based ids, single
  *        spaces), in edge order.
  *
+ * Float weights (0.4) are written in the shortest decimal form that reads back as the same
+ * float (std::to_chars(float)), so read_edge_list() returns the written bits.
  * read_edge_list() with `ids = vertex_ids::as_is`, `num_weights = edges.num_weights` and
  * `drop_self_loops = false` reads it back (sorted by (source, destination); duplicates merged
  * unless `duplicates = keep`).
  * @tparam vertex_t Vertex id type.
- * @tparam weight_t Weight type (`unweighted` or integral).
+ * @tparam weight_t Weight type (`unweighted`, integral, or float).
  * @param[in] path  The file (its parent directory is created).
  * @param[in] edges The edges (host memory).
  * @throws io_error               if the file cannot be written.
- * @throws invalid_argument_error if the arrays disagree in size or are not host-accessible.
+ * @throws invalid_argument_error if the arrays disagree in size or are not host-accessible, or a
+ *                                float weight is not finite.
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */

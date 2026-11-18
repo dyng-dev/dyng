@@ -1,0 +1,907 @@
+{
+ "schema": 1,
+ "algorithm": "label_propagation",
+ "command": "memory",
+ "what": "the Nsight Systems peak of live device allocations (D1) of the whole process (O's, or dyng-compat-dynlp's with --side port)",
+ "date": "2026-11-12T02:26:31Z",
+ "date_end": "2026-11-12T02:27:04Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/LabelPropagation-CUDA@a276a3a/unpatched/bin/dynLP",
+  "build": "its own Makefile with the defaults (parity/references.toml: make all bin/propagation_test bin/input_contract_test; ARCH=sm_86, nvcc 13.1, g++ 12.2)"
+ },
+ "port": {
+  "name": "dyng-compat-dynlp",
+  "binary": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+  "commit": "1e16a3b6a065afa5b7967b3dc78583e14870af67",
+  "argv": "the original's timed argv + --backend cuda",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "$DYNG_SCRATCH/m10-builds/B/build"
+  },
+  "time_ms": "a pair of CUDA events on the resources' stream around each public label_propagation::update() call (AD2); the host wall time of the call in dyng_times.csv"
+ },
+ "harness_commit": "1e16a3b6a065afa5b7967b3dc78583e14870af67",
+ "protocol": {
+  "gpu": 1,
+  "tool": "nsys profile -t cuda,nvtx --cuda-memory-usage=true",
+  "metric": "peak of live allocations, cudaMalloc + cudaMallocAsync, kind Device, the whole process (GOVERNANCE D1)",
+  "lock": "the shared lock, inside a GPU-1 quiet window (locklog.py run GPU1-QUIET; B5)",
+  "foreign_processes": "nvidia-smi before, every 0.25 s during, after; a reading with a foreign process is not counted",
+  "argv": "the timed argv (bench/run.sh's; --noGraphFiles at 50m only)"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "500k/damped/slack": {
+   "case": "500k",
+   "schedule": "damped",
+   "side": "port",
+   "argv": [
+    "--totalNodes",
+    "500000",
+    "--numBatches",
+    "10",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>",
+    "--backend",
+    "cuda",
+    "--layout",
+    "slack"
+   ],
+   "counted": true,
+   "peak_live_bytes": 100711621,
+   "peak_live_mib": 96.0,
+   "peak_in": [],
+   "batches": [],
+   "footprint_peak_mib": 128.0,
+   "gpu_processes": {
+    "foreign": [],
+    "samples": 19,
+    "period_s": 0.25,
+    "own_seen_in_samples": 4,
+    "own_seen_during": 4,
+    "attempts": 1,
+    "all": [
+     {
+      "when": "before",
+      "time": "2026-11-12T02:26:47Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:47Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:48Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:48Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:48Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:49Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:49Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:49Z",
+      "processes": [
+       {
+        "pid": 2702503,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "14 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:49Z",
+      "processes": [
+       {
+        "pid": 2702503,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "302 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:50Z",
+      "processes": [
+       {
+        "pid": 2702503,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "334 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:50Z",
+      "processes": [
+       {
+        "pid": 2702503,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "366 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:50Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:51Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:51Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:51Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:51Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:52Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:52Z",
+      "processes": []
+     },
+     {
+      "when": "after",
+      "time": "2026-11-12T02:26:52Z",
+      "processes": []
+     }
+    ]
+   }
+  },
+  "500k/damped/slotted": {
+   "case": "500k",
+   "schedule": "damped",
+   "side": "port",
+   "argv": [
+    "--totalNodes",
+    "500000",
+    "--numBatches",
+    "10",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>",
+    "--backend",
+    "cuda"
+   ],
+   "counted": true,
+   "peak_live_bytes": 63318617,
+   "peak_live_mib": 60.4,
+   "peak_in": [],
+   "batches": [],
+   "footprint_peak_mib": 64.0,
+   "gpu_processes": {
+    "foreign": [],
+    "samples": 18,
+    "period_s": 0.25,
+    "own_seen_in_samples": 3,
+    "own_seen_during": 3,
+    "attempts": 1,
+    "all": [
+     {
+      "when": "before",
+      "time": "2026-11-12T02:26:37Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:37Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:37Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:38Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:38Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:38Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:38Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:39Z",
+      "processes": [
+       {
+        "pid": 2701725,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "232 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:39Z",
+      "processes": [
+       {
+        "pid": 2701725,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "302 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:39Z",
+      "processes": [
+       {
+        "pid": 2701725,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "302 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:40Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:40Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:40Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:40Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:41Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:41Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:41Z",
+      "processes": []
+     },
+     {
+      "when": "after",
+      "time": "2026-11-12T02:26:41Z",
+      "processes": []
+     }
+    ]
+   }
+  },
+  "500k/damped/streaming": {
+   "case": "500k",
+   "schedule": "damped",
+   "side": "port",
+   "argv": [
+    "--totalNodes",
+    "500000",
+    "--numBatches",
+    "10",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>",
+    "--backend",
+    "cuda",
+    "--layout",
+    "slack",
+    "--streaming-tau"
+   ],
+   "counted": true,
+   "peak_live_bytes": 100711621,
+   "peak_live_mib": 96.0,
+   "peak_in": [],
+   "batches": [],
+   "footprint_peak_mib": 128.0,
+   "gpu_processes": {
+    "foreign": [],
+    "samples": 21,
+    "period_s": 0.25,
+    "own_seen_in_samples": 4,
+    "own_seen_during": 4,
+    "attempts": 1,
+    "all": [
+     {
+      "when": "before",
+      "time": "2026-11-12T02:26:58Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:58Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:58Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:59Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:59Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:00Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:00Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:00Z",
+      "processes": [
+       {
+        "pid": 2703373,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "220 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:00Z",
+      "processes": [
+       {
+        "pid": 2703373,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "302 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:01Z",
+      "processes": [
+       {
+        "pid": 2703373,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "334 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:01Z",
+      "processes": [
+       {
+        "pid": 2703373,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "366 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:01Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:02Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:02Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:02Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:02Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:03Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:03Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:03Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:27:04Z",
+      "processes": []
+     },
+     {
+      "when": "after",
+      "time": "2026-11-12T02:27:04Z",
+      "processes": []
+     }
+    ]
+   }
+  },
+  "50k/damped/slack": {
+   "case": "50k",
+   "schedule": "damped",
+   "side": "port",
+   "argv": [
+    "--totalNodes",
+    "50000",
+    "--numBatches",
+    "10",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>",
+    "--backend",
+    "cuda",
+    "--layout",
+    "slack"
+   ],
+   "counted": true,
+   "peak_live_bytes": 10048409,
+   "peak_live_mib": 9.6,
+   "peak_in": [],
+   "batches": [],
+   "footprint_peak_mib": 32.0,
+   "gpu_processes": {
+    "foreign": [],
+    "samples": 15,
+    "period_s": 0.25,
+    "own_seen_in_samples": 1,
+    "own_seen_during": 1,
+    "attempts": 1,
+    "all": [
+     {
+      "when": "before",
+      "time": "2026-11-12T02:26:42Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:43Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:43Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:43Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:44Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:44Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:44Z",
+      "processes": [
+       {
+        "pid": 2702113,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "270 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:44Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:45Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:45Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:45Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:46Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:46Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:46Z",
+      "processes": []
+     },
+     {
+      "when": "after",
+      "time": "2026-11-12T02:26:46Z",
+      "processes": []
+     }
+    ]
+   }
+  },
+  "50k/damped/slotted": {
+   "case": "50k",
+   "schedule": "damped",
+   "side": "port",
+   "argv": [
+    "--totalNodes",
+    "50000",
+    "--numBatches",
+    "10",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>",
+    "--backend",
+    "cuda"
+   ],
+   "counted": true,
+   "peak_live_bytes": 6343437,
+   "peak_live_mib": 6.0,
+   "peak_in": [],
+   "batches": [],
+   "footprint_peak_mib": 32.0,
+   "gpu_processes": {
+    "foreign": [],
+    "samples": 15,
+    "period_s": 0.25,
+    "own_seen_in_samples": 1,
+    "own_seen_during": 1,
+    "attempts": 1,
+    "all": [
+     {
+      "when": "before",
+      "time": "2026-11-12T02:26:31Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:32Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:32Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:33Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:33Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:33Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:33Z",
+      "processes": [
+       {
+        "pid": 2701340,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "238 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:34Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:34Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:34Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:35Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:35Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:35Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:35Z",
+      "processes": []
+     },
+     {
+      "when": "after",
+      "time": "2026-11-12T02:26:36Z",
+      "processes": []
+     }
+    ]
+   }
+  },
+  "50k/damped/streaming": {
+   "case": "50k",
+   "schedule": "damped",
+   "side": "port",
+   "argv": [
+    "--totalNodes",
+    "50000",
+    "--numBatches",
+    "10",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>",
+    "--backend",
+    "cuda",
+    "--layout",
+    "slack",
+    "--streaming-tau"
+   ],
+   "counted": true,
+   "peak_live_bytes": 10048409,
+   "peak_live_mib": 9.6,
+   "peak_in": [],
+   "batches": [],
+   "footprint_peak_mib": 32.0,
+   "gpu_processes": {
+    "foreign": [],
+    "samples": 14,
+    "period_s": 0.25,
+    "own_seen_in_samples": 1,
+    "own_seen_during": 1,
+    "attempts": 1,
+    "all": [
+     {
+      "when": "before",
+      "time": "2026-11-12T02:26:53Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:53Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:54Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:54Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:55Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:55Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:55Z",
+      "processes": [
+       {
+        "pid": 2702909,
+        "name": "$DYNG_SCRATCH/m10-builds/B/build/tools/compat/dyng-compat-dynlp",
+        "used_memory": "270 MiB",
+        "own": true
+       }
+      ]
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:55Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:56Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:56Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:56Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:57Z",
+      "processes": []
+     },
+     {
+      "when": "during",
+      "time": "2026-11-12T02:26:57Z",
+      "processes": []
+     },
+     {
+      "when": "after",
+      "time": "2026-11-12T02:26:57Z",
+      "processes": []
+     }
+    ]
+   }
+  }
+ }
+}

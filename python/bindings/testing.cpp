@@ -22,6 +22,7 @@
 
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace dyng::python {
@@ -81,20 +82,24 @@ void bind_testing_type(nb::module_& m) {
         nb::arg("graph"), nb::arg("parents").noconvert(), nb::arg("source"),
         nb::arg("num_objectives"));
   }
-  m.def(
-      "testing_simple_cycles",
-      [](const graph_t& g, int max_length, bool brute_force) {
-        auto hist = without_gil([&] {
-          lock_set locks;
-          locks.add(g.mutex, false);
-          locks.lock();
-          const auto out = g.value.view().out;
-          return brute_force ? testing::brute_force_simple_cycles(out, max_length)
-                             : testing::oracle_simple_cycles(out, max_length);
-        });
-        return to_numpy(std::move(hist));
-      },
-      nb::arg("graph"), nb::arg("max_length"), nb::arg("brute_force"));
+  // The float graphs' oracle, testing::harmonic_solution (0.4), is bound with label_propagation
+  // (label_propagation.cpp); cycles are counted on the other graphs.
+  if constexpr (!std::is_same_v<weight_t, float>) {
+    m.def(
+        "testing_simple_cycles",
+        [](const graph_t& g, int max_length, bool brute_force) {
+          auto hist = without_gil([&] {
+            lock_set locks;
+            locks.add(g.mutex, false);
+            locks.lock();
+            const auto out = g.value.view().out;
+            return brute_force ? testing::brute_force_simple_cycles(out, max_length)
+                               : testing::oracle_simple_cycles(out, max_length);
+          });
+          return to_numpy(std::move(hist));
+        },
+        nb::arg("graph"), nb::arg("max_length"), nb::arg("brute_force"));
+  }
 }
 
 template <typename vertex_t>

@@ -13,10 +13,12 @@
  * replay: graph::with_capacity(stream.row_capacity), then the batches in order, with
  * stream.similarity_threshold as the published threshold (PLAN 6.4.7).
  *
- * Provisional (M10a): a batch holds plain arrays and view() shows them as the edge_batch_view
- * that graph::apply() and label_propagation::update() take (vertex arrivals with their labels,
- * the new edges, departures); the library's own generator of the same stream shape arrives in
- * M10b.
+ * generators::generate_vertex_arrival_stream() (0.4) is the library's own generator of the same
+ * stream shape, with library-owned distributions: bit-exact per (seed, major version) on every
+ * platform and thread count (PLAN 5.8; PLAN 5.3's "bit-exact" comment of the legacy generators
+ * refers to generators::legacy, whose bytes are LabelPropagation-CUDA's). A batch holds plain
+ * arrays and view() shows them as the edge_batch_view that graph::apply() and
+ * label_propagation::update() take (vertex arrivals with their labels, the new edges, departures).
  * @ingroup generators
  */
 #pragma once
@@ -41,8 +43,10 @@ struct vertex_arrival_options {
   std::int64_t total_vertices = 50000;  ///< --totalNodes: vertices of the full graph (> 1)
   std::int32_t average_degree = 5;      ///< --avgDegree: target average degree (> 0)
   std::int32_t num_batches = 10;        ///< --numBatches: batches b0 .. b(num_batches - 1) (> 0)
-  std::uint32_t seed = 42;              ///< --seed: the graph's std::mt19937 seed (the batches use
-                                        ///< seed + 12345)
+  /** @brief --seed: the legacy stream's graph seeds std::mt19937(seed) and its batches
+   *         std::mt19937(seed + 12345); the library's stream (generate_vertex_arrival_stream())
+   *         seeds std::mt19937_64(seed) and std::mt19937_64(seed + 0x9E3779B97F4A7C15). */
+  std::uint32_t seed = 42;
   float ground_truth_fraction = 0.01F;  ///< labelled share of the arrivals (b0: of all vertices)
   float deleted_fraction = 0.09F;       ///< departures per batch, as a share of its arrivals
 };
@@ -114,6 +118,49 @@ struct vertex_arrival_stream {
   std::size_t max_batch_vertices = 0;  ///< the largest insert_vertices.size() of a batch
   std::size_t max_batch_edges = 0;     ///< the largest edge_sources.size() of a batch
 };
+
+/**
+ * @brief The library's vertex-arrival stream (0.4): the structure of
+ *        legacy::dynlp_vertex_arrival_stream() with distributions owned by the library.
+ *
+ * The same graph model (balanced classes, a random spanning tree through a shuffled permutation,
+ * random edges until total_vertices * average_degree / 2 (at least total_vertices - 1) undirected
+ * edges exist or 10 times that many consecutive draws fail; same-class weights uniform in
+ * [0.5, 1], cross-class ones in [0.01, 0.5]), the same batches (b0 holds max(2, int(total_vertices
+ * * ground_truth_fraction)) labelled vertices balanced between the classes; the other vertices
+ * arrive in b1 .. b(num_batches - 1) with max(1, int(arrivals * ground_truth_fraction)) labelled
+ * ones; int(arrivals * deleted_fraction) unlabelled present vertices depart per batch) and the
+ * same published threshold (the mean weight of the full graph's directed entries, summed in
+ * double in row order). The draws are std::mt19937_64 (fully specified by the C++ standard) with
+ * the library's own algorithms (Lemire's bounded integers, a Fisher-Yates shuffle from the front,
+ * a float from the top 24 bits of one engine call), so the stream is a function of (opt, the
+ * library's major version) alone: the same bytes with every compiler, standard library and thread
+ * count (the committed digests run in the CPU test suites of every CI toolchain). It is not the
+ * legacy stream (whose bytes are LabelPropagation-CUDA's, for parity only).
+ *
+ * The stream holds what both modes of label_propagation read (ADR 0071, AD16): the true labels;
+ * per batch its arrivals with their seed labels (-1, or the class of a ground-truth vertex), the
+ * edges they bring with float weights and the departures (vertex_arrival_batch::view(), the
+ * edge_batch_view of graph::apply()); the full degrees (row_capacity: graph::with_capacity() of
+ * the published setup, unused by the streaming mode on row_layout::slack); and the published
+ * threshold (similarity_threshold; the streaming mode uses std::nullopt, the current graph's mean
+ * weight).
+ *
+ * @tparam vertex_t Vertex id type (32-bit).
+ * @tparam edge_t   Edge offset type (std::int32_t or std::int64_t).
+ * @param[in] res  Resources: any backend (the generator runs on the host threads of `res`).
+ * @param[in] opt  The options (vertex_arrival_options::seed seeds the library's engines).
+ * @return The stream.
+ * @throws invalid_argument_error if total_vertices <= 1 or does not fit 32 bits, average_degree
+ *         <= 0, num_batches <= 0, a fraction is not in [0, 1], or the graph would have more than
+ *         2^31 - 1 directed entries.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @sync
+ * @ingroup generators
+ */
+template <typename vertex_t = std::int32_t, typename edge_t = std::int32_t>
+[[nodiscard]] vertex_arrival_stream<vertex_t, edge_t> generate_vertex_arrival_stream(
+    const resources& res, const vertex_arrival_options& opt);
 
 namespace legacy {
 

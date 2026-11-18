@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file graph.cpp
- * @brief dyng::graph<V,E,W> (one class per instantiation), graph_properties, batch_semantics and
- *        apply_summary.
+ * @brief dyng::graph<V,E,W> (one class per instantiation, the float graphs of 0.4 included),
+ *        graph_properties, batch_semantics and apply_summary.
  */
 #include "types.hpp"
 
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/graph_properties.hpp>
+#include <dyng/graph/graph_view.hpp>
 
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
 
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace dyng::python {
 namespace {
@@ -73,9 +77,48 @@ void bind_graph_type(nb::module_& m) {
       nb::arg("weights").noconvert().none(), nb::arg("num_weights"), nb::arg("properties"),
       nb::rv_policy::take_ownership,
       "Build a graph from a CSR of the out-edges (objective-major weights).");
+  cls.def_static(
+      "with_capacity",
+      [](const resources& res, std::int64_t vertex_capacity, const in_array<edge_t>& row_capacity,
+         const graph_properties& props) {
+        DYNG_EXPECTS(
+            vertex_capacity >= 0 &&
+                vertex_capacity <= static_cast<std::int64_t>(std::numeric_limits<vertex_t>::max()),
+            "vertex_capacity ", vertex_capacity, " does not fit the vertex id type");
+        return without_gil([&] {
+          return new holder_t(graph_t::with_capacity(res, static_cast<vertex_t>(vertex_capacity),
+                                                     view_of(row_capacity), props));
+        });
+      },
+      nb::arg("resources"), nb::arg("vertex_capacity"), nb::arg("row_capacity").noconvert(),
+      nb::arg("properties"), nb::rv_policy::take_ownership,
+      "An empty graph with slot rows (graph::with_capacity; 0.4).");
   cls.def_prop_ro("num_vertices", [](const holder_t& h) {
     return static_cast<std::int64_t>(h.value.num_vertices());
   });
+  cls.def_prop_ro("num_active_vertices", [](const holder_t& h) {
+    return static_cast<std::int64_t>(h.value.num_active_vertices());
+  });
+  cls.def(
+      "vertex_status",
+      [](const holder_t& h) {
+        // A host copy of view().status as uint8 (vertex_status's values: active 0, deleted 1,
+        // inactive 2; the typed layer maps them by name); empty for compact rows, whose vertices
+        // are all active.
+        auto codes = without_gil([&] {
+          lock_set locks;
+          locks.add(h.mutex, false);
+          locks.lock();
+          const auto st = h.value.view().status;
+          std::vector<std::uint8_t> out(st.size());
+          for (std::size_t i = 0; i < st.size(); ++i) {
+            out[i] = static_cast<std::uint8_t>(st[i]);
+          }
+          return out;
+        });
+        return to_numpy(std::move(codes));
+      },
+      "A host copy of the vertex states (uint8; empty for compact rows).");
   cls.def_prop_ro("num_edges",
                   [](const holder_t& h) { return static_cast<std::int64_t>(h.value.num_edges()); });
   cls.def_prop_ro("num_weights", [](const holder_t& h) { return h.value.num_weights(); });
@@ -174,6 +217,10 @@ void bind_graph(nb::module_& m) {
       .value("compact", row_layout::compact)
       .value("slotted", row_layout::slotted)
       .value("slack", row_layout::slack);
+  nb::enum_<vertex_status>(m, "VertexStatus", "The state of a vertex of slot rows (0.4).")
+      .value("active", vertex_status::active)
+      .value("deleted", vertex_status::deleted)
+      .value("inactive", vertex_status::inactive);
   nb::enum_<row_order>(m, "RowOrder", "The order of the neighbours in a row.")
       .value("sorted", row_order::sorted)
       .value("append", row_order::append);
@@ -202,8 +249,10 @@ void bind_graph(nb::module_& m) {
       .def_rw("deletions_first", &batch_semantics::deletions_first)
       .def_rw("allow_vertex_growth", &batch_semantics::allow_vertex_growth)
       .def_rw("as_sets", &batch_semantics::as_sets)
+      .def_rw("as_net_effect", &batch_semantics::as_net_effect)
       .def_static("upsert_last_wins", &batch_semantics::upsert_last_wins)
-      .def_static("set", &batch_semantics::set);
+      .def_static("set", &batch_semantics::set)
+      .def_static("net_effect", &batch_semantics::net_effect);
 
   nb::class_<graph_properties>(m, "GraphProperties", "The properties of a graph.")
       .def(nb::init<>())
@@ -228,7 +277,10 @@ void bind_graph(nb::module_& m) {
       .def_ro("inserted_vertices", &apply_summary::inserted_vertices)
       .def_ro("deleted_vertices", &apply_summary::deleted_vertices)
       .def_ro("num_vertices_after", &apply_summary::num_vertices_after)
-      .def_ro("ignored_insertions", &apply_summary::ignored_insertions);
+      .def_ro("ignored_insertions", &apply_summary::ignored_insertions)
+      .def_ro("dropped_insertions", &apply_summary::dropped_insertions)
+      .def_ro("relocated_rows", &apply_summary::relocated_rows)
+      .def_ro("compactions", &apply_summary::compactions);
 
 #define DYNG_PY_BIND_GRAPH(V, E, W) bind_graph_type<V, E, W>(m);
   DYNG_PY_FOR_EACH_GRAPH_TYPE(DYNG_PY_BIND_GRAPH)

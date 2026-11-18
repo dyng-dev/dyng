@@ -42,6 +42,7 @@
 
 #include "core/cuda_runtime.hpp"
 #include "graph/normalized_batch.hpp"
+#include "graph/slotted_rows.hpp"
 
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/resources.hpp>
@@ -113,6 +114,10 @@ struct device_slotted {
   buffer<vertex_t> col_ind;     ///< the slot columns (-1 in the unused slots)
   buffer<weight_t> weights;     ///< the slot weights (0 in the unused slots; empty if K = 0)
   buffer<std::int32_t> status;  ///< n vertex states (vertex_status's values as int32)
+  // ---- row_layout::slack (ADR 0103; empty for slotted rows) ----
+  bool slack = false;               ///< row v owns [row_ptr[v], row_limit[v]); row_ptr[n] the arena
+  buffer<edge_t> row_limit;         ///< n row limits (slack)
+  std::int64_t arena_capacity = 0;  ///< the slots col_ind / weights hold (slack: >= num_slots)
 
   // ---- The current batch on the device (upload_vertex_batch) ----
   buffer<vertex_t> deleted;                ///< the batch's deletions (every listed id)
@@ -152,8 +157,8 @@ struct device_slotted {
    */
   [[nodiscard]] std::size_t bytes() const noexcept {
     return row_ptr.size() * sizeof(edge_t) + row_end.size() * sizeof(edge_t) +
-           col_ind.size() * sizeof(vertex_t) + weights.size() * sizeof(weight_t) +
-           status.size() * sizeof(std::int32_t) +
+           row_limit.size() * sizeof(edge_t) + col_ind.size() * sizeof(vertex_t) +
+           weights.size() * sizeof(weight_t) + status.size() * sizeof(std::int32_t) +
            (deleted.size() + deleted_effective.size() + inserted.size() + edge_src.size() +
             edge_dst.size()) *
                sizeof(vertex_t) +
@@ -184,6 +189,22 @@ void build_device_slotted(const resources& res, const std::vector<edge_t>& row_p
                           device_slotted<vertex_t, edge_t, weight_t>& out);
 
 /**
+ * @brief The empty device copy of a slack graph (ADR 0103): build_device_slotted() with the row
+ *        limits (row v owns [row_ptr[v], row_limit[v]); row_ptr[n] is the arena's size).
+ * @param[in]  res         Resources of the CUDA backend.
+ * @param[in]  row_ptr     The n row starts and the arena's size (host memory).
+ * @param[in]  row_limit   The n row limits (host memory).
+ * @param[in]  num_weights 0 or 1.
+ * @param[out] out         The device copy.
+ * @throws out_of_memory_error, cuda_error, not_supported_error.
+ * @async
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void build_device_slack(const resources& res, const std::vector<edge_t>& row_ptr,
+                        const std::vector<edge_t>& row_limit, int num_weights,
+                        device_slotted<vertex_t, edge_t, weight_t>& out);
+
+/**
  * @brief Upload the host state of a slotted graph (a host graph cloned to CUDA): the slots, row
  *        ends and states.
  * @tparam vertex_t Vertex id type (32-bit).
@@ -201,7 +222,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void upload_device_slotted(const resources& res, const csr<vertex_t, edge_t, weight_t>& slots,
                            const std::vector<edge_t>& row_end,
                            const std::vector<vertex_status>& status,
-                           device_slotted<vertex_t, edge_t, weight_t>& out);
+                           device_slotted<vertex_t, edge_t, weight_t>& out,
+                           const std::vector<edge_t>* row_limit = nullptr);
 
 /**
  * @brief Size the batch scratch for batches of up to `max_edges` edges (graph::reserve()).
@@ -264,6 +286,47 @@ void apply_vertex_batch_device(const resources& res, device_slotted<vertex_t, ed
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 device_slotted_settled settle_device_slotted(const device_slotted<vertex_t, edge_t, weight_t>& g);
+
+/**
+ * @brief The device apply of a vertex batch on slack rows (ADR 0103), with the host mirror of the
+ *        layout (the row starts, limits and ends, the states, the dead slots) kept current: the
+ *        growth (host and device), the states (host, then the device's), the layout step Step 0
+ *        planned (the moves: their rows copied to the tail of the arena, which grows with headroom
+ *        outside the kernels; or a compaction: the kept entries counted on the device, read back
+ *        once, the new layout computed on the host and the rows rewritten on the device), the row
+ *        ends of the appends on the host, then the appends of apply_vertex_batch_device() against
+ *        the row limits. The report is settled as for slotted rows.
+ * @tparam vertex_t Vertex id type (32-bit).
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res        Resources of the CUDA backend (the copy's device).
+ * @param[in,out] g          The device copy (its batch uploaded).
+ * @param[in,out] slots      The host slot storage (its row starts; the slots themselves stale).
+ * @param[in,out] rows       The host rows (limits, ends, states, counts).
+ * @param[in]     batch      The batch (host memory).
+ * @param[in]     normalized Its Step 0 (normalize_vertex_batch_slack()).
+ * @param[out]    delta      The applied record (may be nullptr; edges_on_device).
+ * @return The counters known before the settle (the vertex counts, relocated_rows, compactions).
+ * @throws out_of_memory_error, cuda_error, not_supported_error.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+apply_summary apply_vertex_batch_slack_device(const resources& res,
+                                              device_slotted<vertex_t, edge_t, weight_t>& g,
+                                              csr<vertex_t, edge_t, weight_t>& slots,
+                                              slotted_rows<vertex_t, edge_t>& rows,
+                                              const edge_batch_view<vertex_t, weight_t>& batch,
+                                              const normalized_batch<vertex_t>& normalized,
+                                              apply_delta<vertex_t>* delta);
+
+/**
+ * @brief A compaction of a slack graph's device copy outside any batch (graph_access::
+ *        compact_slack(): the tests force one between updates), with the host mirror.
+ * @throws out_of_memory_error, cuda_error, not_supported_error.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void compact_device_slack(const resources& res, device_slotted<vertex_t, edge_t, weight_t>& g,
+                          csr<vertex_t, edge_t, weight_t>& slots,
+                          slotted_rows<vertex_t, edge_t>& rows);
 
 /**
  * @brief Copy the rows of the device copy into the host storage (the download of a stale host

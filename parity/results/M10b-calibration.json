@@ -1,0 +1,2479 @@
+{
+ "bound": 0.125,
+ "build": "git archive of port_commit; the parity-cuda preset with DYNG_ALGORITHMS=label_propagation;sssp;cycle_count;mosp;triad_count (the compatibility tools' algorithms) and DYNG_LP_CALIBRATION_CUDA_FLAGS per variant",
+ "c": 1048576,
+ "cases": [
+  "5k5_d1e-4_s42",
+  "50k_d1e-4_s42",
+  "500k_d1e-4_s42",
+  "5k5_d1e-6_s42",
+  "50k_d1e-6_s42",
+  "5k5_d1e-4_s1",
+  "5k5_d1e-4_s2",
+  "50k_d1e-4_s1",
+  "50k_d1e-4_s2"
+ ],
+ "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+ "control_exact": true,
+ "counts_changed": [
+  {
+   "case": "5k5_d1e-4_s42",
+   "first": {
+    "batch": 3,
+    "field": "frontier_visits",
+    "golden": "673824",
+    "mine": "673812"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "first": {
+    "batch": 6,
+    "field": "frontier_visits",
+    "golden": "1816057",
+    "mine": "1816055"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "500k_d1e-4_s42",
+   "first": {
+    "batch": 6,
+    "field": "frontier_visits",
+    "golden": "17381795",
+    "mine": "17381794"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "5k5_d1e-6_s42",
+   "first": {
+    "batch": 3,
+    "field": "iterations",
+    "golden": "1122",
+    "mine": "1120"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "first": {
+    "batch": 4,
+    "field": "iterations",
+    "golden": "8217",
+    "mine": "8206"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "5k5_d1e-4_s1",
+   "first": {
+    "batch": 4,
+    "field": "frontier_visits",
+    "golden": "516221",
+    "mine": "516242"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "5k5_d1e-4_s2",
+   "first": {
+    "batch": 4,
+    "field": "frontier_visits",
+    "golden": "633382",
+    "mine": "633403"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "50k_d1e-4_s1",
+   "first": {
+    "batch": 7,
+    "field": "frontier_visits",
+    "golden": "1608428",
+    "mine": "1608432"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "50k_d1e-4_s2",
+   "first": {
+    "batch": 6,
+    "field": "frontier_visits",
+    "golden": "1744276",
+    "mine": "1744275"
+   },
+   "variant": "no_fma"
+  },
+  {
+   "case": "5k5_d1e-4_s42",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "49918",
+    "mine": "49919"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "first": {
+    "batch": 2,
+    "field": "frontier_visits",
+    "golden": "646691",
+    "mine": "646707"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "500k_d1e-4_s42",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "403987",
+    "mine": "403985"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "5k5_d1e-6_s42",
+   "first": {
+    "batch": 1,
+    "field": "iterations",
+    "golden": "20407",
+    "mine": "20387"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "first": {
+    "batch": 1,
+    "field": "iterations",
+    "golden": "2670",
+    "mine": "2741"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "5k5_d1e-4_s1",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "119925",
+    "mine": "119918"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "5k5_d1e-4_s2",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "81578",
+    "mine": "81579"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "50k_d1e-4_s1",
+   "first": {
+    "batch": 2,
+    "field": "frontier_visits",
+    "golden": "631263",
+    "mine": "631275"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "50k_d1e-4_s2",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "57962",
+    "mine": "57963"
+   },
+   "variant": "permuted"
+  },
+  {
+   "case": "5k5_d1e-4_s42",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "49918",
+    "mine": "49919"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "50k_d1e-4_s42",
+   "first": {
+    "batch": 2,
+    "field": "frontier_visits",
+    "golden": "646691",
+    "mine": "646707"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "500k_d1e-4_s42",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "403987",
+    "mine": "403985"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "5k5_d1e-6_s42",
+   "first": {
+    "batch": 1,
+    "field": "iterations",
+    "golden": "20407",
+    "mine": "20387"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "50k_d1e-6_s42",
+   "first": {
+    "batch": 1,
+    "field": "iterations",
+    "golden": "2670",
+    "mine": "2741"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "5k5_d1e-4_s1",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "119925",
+    "mine": "119918"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "5k5_d1e-4_s2",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "81578",
+    "mine": "81579"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "50k_d1e-4_s1",
+   "first": {
+    "batch": 2,
+    "field": "frontier_visits",
+    "golden": "631263",
+    "mine": "631275"
+   },
+   "variant": "both"
+  },
+  {
+   "case": "50k_d1e-4_s2",
+   "first": {
+    "batch": 1,
+    "field": "frontier_visits",
+    "golden": "57962",
+    "mine": "57963"
+   },
+   "variant": "both"
+  }
+ ],
+ "date": "2026-11-11T15:09:35Z",
+ "epsilon": 1.1920928955078125e-07,
+ "fallback_predicted": true,
+ "max_df": 0.02410539984703064,
+ "max_df_over_eps": 202210.75,
+ "per_variant": {
+  "both": {
+   "500k_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "403987",
+      "mine": "403985"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "6809736",
+      "mine": "6809683"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "18496821",
+      "mine": "18496406"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "21932773",
+      "mine": "21933161"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "19856388",
+      "mine": "19855965"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "17381795",
+      "mine": "17381426"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "15340012",
+      "mine": "15339850"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "14270522",
+      "mine": "14270641"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "13679208",
+      "mine": "13679360"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.004885499365627766,
+     "mine": 0.00488550029695034,
+     "vertex": 1295
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.00010251998901367188,
+     0.00020426511764526367,
+     0.007964730262756348,
+     0.01872873306274414,
+     0.02410539984703064,
+     0.009132146835327148,
+     0.0015939772129058838,
+     0.0007499754428863525,
+     0.003009200096130371
+    ],
+    "max_df_over_eps": [
+     0.0,
+     860.0,
+     1713.5,
+     66813.0,
+     157108.0,
+     202210.75,
+     76606.0,
+     13371.25,
+     6291.25,
+     25243.0
+    ],
+    "seconds": 1.6
+   },
+   "50k_d1e-4_s1": {
+    "count_mismatches": [
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "631263",
+      "mine": "631275"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "1867777",
+      "mine": "1867804"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "2021582",
+      "mine": "2021389"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1809072",
+      "mine": "1809103"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1608428",
+      "mine": "1608425"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1426983",
+      "mine": "1426928"
+     },
+     {
+      "batch": 9,
+      "field": "iterations",
+      "golden": "221",
+      "mine": "222"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1395098",
+      "mine": "1395100"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.003421071218326688,
+     "mine": 0.0034210719168186188,
+     "vertex": 80
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     2.384185791015625e-06,
+     0.00013840198516845703,
+     0.00015977025032043457,
+     0.00011527538299560547,
+     0.005138695240020752,
+     0.0007773637771606445,
+     0.0007773637771606445,
+     0.0024314522743225098,
+     0.0007773637771606445
+    ],
+    "max_df_over_eps": [
+     0.0,
+     20.0,
+     1161.0,
+     1340.25,
+     967.0,
+     43106.5,
+     6521.0,
+     6521.0,
+     20396.5,
+     6521.0
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s2": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "57962",
+      "mine": "57963"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "718227",
+      "mine": "718228"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "1886076",
+      "mine": "1886057"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "2168457",
+      "mine": "2168419"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "2034991",
+      "mine": "2035021"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1744276",
+      "mine": "1744297"
+     },
+     {
+      "batch": 7,
+      "field": "iterations",
+      "golden": "426",
+      "mine": "427"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1576751",
+      "mine": "1576716"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1452623",
+      "mine": "1452657"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1349445",
+      "mine": "1349442"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.020118799060583115,
+     "mine": 0.020118791610002518,
+     "vertex": 51
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     6.628036499023438e-05,
+     0.00018155574798583984,
+     0.00015926361083984375,
+     0.00015398859977722168,
+     0.0012172162532806396,
+     0.00016868114471435547,
+     0.00011169910430908203,
+     0.00011169910430908203,
+     0.00011169910430908203
+    ],
+    "max_df_over_eps": [
+     0.0,
+     556.0,
+     1523.0,
+     1336.0,
+     1291.75,
+     10210.75,
+     1415.0,
+     937.0,
+     937.0,
+     937.0
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "646691",
+      "mine": "646707"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "1886914",
+      "mine": "1887261"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "2295649",
+      "mine": "2295617"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "2030433",
+      "mine": "2030454"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1816057",
+      "mine": "1816087"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1588626",
+      "mine": "1588635"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1470293",
+      "mine": "1470308"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1388674",
+      "mine": "1388690"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9982323050498962,
+     "mine": 0.9982321858406067,
+     "vertex": 2031
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     4.172325134277344e-07,
+     0.0001207590103149414,
+     0.005408167839050293,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348
+    ],
+    "max_df_over_eps": [
+     0.0,
+     3.5,
+     1013.0,
+     45367.0,
+     5324.5,
+     5324.5,
+     5324.5,
+     5324.5,
+     5324.5,
+     5324.5
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-6_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "iterations",
+      "golden": "2670",
+      "mine": "2741"
+     },
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "92528",
+      "mine": "93473"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "4661827",
+      "mine": "4597556"
+     },
+     {
+      "batch": 3,
+      "field": "iterations",
+      "golden": "13908",
+      "mine": "14666"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "16540549",
+      "mine": "16566074"
+     },
+     {
+      "batch": 4,
+      "field": "iterations",
+      "golden": "8217",
+      "mine": "8202"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "12621120",
+      "mine": "12572606"
+     },
+     {
+      "batch": 5,
+      "field": "iterations",
+      "golden": "4657",
+      "mine": "4649"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "13874436",
+      "mine": "13897480"
+     },
+     {
+      "batch": 6,
+      "field": "iterations",
+      "golden": "1589",
+      "mine": "1590"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "19982338",
+      "mine": "19987690"
+     },
+     {
+      "batch": 7,
+      "field": "iterations",
+      "golden": "1120",
+      "mine": "1122"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "9626925",
+      "mine": "9658770"
+     },
+     {
+      "batch": 8,
+      "field": "iterations",
+      "golden": "720",
+      "mine": "730"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "24144364",
+      "mine": "24116031"
+     },
+     {
+      "batch": 9,
+      "field": "iterations",
+      "golden": "712",
+      "mine": "716"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "27184612",
+      "mine": "27185267"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9996113777160645,
+     "mine": 0.999942421913147,
+     "vertex": 4363
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.00033104419708251953,
+     0.007245570421218872,
+     0.012079834938049316,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531
+    ],
+    "max_df_over_eps": [
+     0.0,
+     2777.0,
+     60780.25,
+     101333.0,
+     96168.0,
+     96168.0,
+     96168.0,
+     96168.0,
+     96168.0,
+     96168.0
+    ],
+    "seconds": 1.2
+   },
+   "5k5_d1e-4_s1": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "119925",
+      "mine": "119918"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "253093",
+      "mine": "253113"
+     },
+     {
+      "batch": 3,
+      "field": "iterations",
+      "golden": "258",
+      "mine": "259"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "640985",
+      "mine": "640988"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "516221",
+      "mine": "516243"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.8496241569519043,
+     "mine": 0.8495357632637024,
+     "vertex": 7
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     9.900331497192383e-05,
+     0.00011146068572998047,
+     9.962916374206543e-05,
+     9.867548942565918e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     830.5,
+     935.0,
+     835.75,
+     827.75
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s2": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "81578",
+      "mine": "81579"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "205236",
+      "mine": "205271"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "633382",
+      "mine": "633426"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.6706038117408752,
+     "mine": 0.67060387134552,
+     "vertex": 2
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     8.051097393035889e-05,
+     8.051097393035889e-05,
+     0.001995176076889038,
+     0.00014254450798034668
+    ],
+    "max_df_over_eps": [
+     0.0,
+     675.375,
+     675.375,
+     16736.75,
+     1195.75
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "49918",
+      "mine": "49919"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "228455",
+      "mine": "228452"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "673824",
+      "mine": "673822"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "198915",
+      "mine": "198920"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9539995193481445,
+     "mine": 0.9539996385574341,
+     "vertex": 112
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     8.219480514526367e-05,
+     9.614229202270508e-05,
+     9.936094284057617e-05,
+     9.363889694213867e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     689.5,
+     806.5,
+     833.5,
+     785.5
+    ],
+    "seconds": 0.5
+   },
+   "5k5_d1e-6_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "iterations",
+      "golden": "20407",
+      "mine": "20387"
+     },
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "913211",
+      "mine": "907242"
+     },
+     {
+      "batch": 2,
+      "field": "iterations",
+      "golden": "2902",
+      "mine": "2661"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "2032203",
+      "mine": "2042742"
+     },
+     {
+      "batch": 3,
+      "field": "iterations",
+      "golden": "1122",
+      "mine": "1125"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "3302931",
+      "mine": "3302352"
+     },
+     {
+      "batch": 4,
+      "field": "iterations",
+      "golden": "924",
+      "mine": "896"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "3676809",
+      "mine": "3669586"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9999452829360962,
+     "mine": 0.9999436140060425,
+     "vertex": 20
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0005499720573425293,
+     0.004428297281265259,
+     0.0022487640380859375,
+     0.0022487640380859375
+    ],
+    "max_df_over_eps": [
+     0.0,
+     4613.5,
+     37147.25,
+     18864.0,
+     18864.0
+    ],
+    "seconds": 0.7
+   }
+  },
+  "control": {
+   "500k_d1e-4_s42": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 1.6
+   },
+   "50k_d1e-4_s1": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s2": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s42": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 0.6
+   },
+   "50k_d1e-6_s42": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 1.2
+   },
+   "5k5_d1e-4_s1": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s2": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s42": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 0.6
+   },
+   "5k5_d1e-6_s42": {
+    "count_mismatches": [],
+    "first_divergence": null,
+    "labels_txt_equal": true,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "seconds": 0.6
+   }
+  },
+  "no_fma": {
+   "500k_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "17381795",
+      "mine": "17381794"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "15340012",
+      "mine": "15340005"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "14270522",
+      "mine": "14270595"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "13679208",
+      "mine": "13679345"
+     }
+    ],
+    "first_divergence": {
+     "batch": 4,
+     "golden": 0.486759215593338,
+     "mine": 0.48675912618637085,
+     "vertex": 2763
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     1.1920928955078125e-07,
+     1.4901161193847656e-07,
+     9.673833847045898e-05,
+     9.47117805480957e-05,
+     0.0003935098648071289,
+     0.0030089616775512695
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     1.25,
+     811.5,
+     794.5,
+     3301.0,
+     25241.0
+    ],
+    "seconds": 1.5
+   },
+   "50k_d1e-4_s1": {
+    "count_mismatches": [
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1608428",
+      "mine": "1608432"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1426983",
+      "mine": "1426971"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1395098",
+      "mine": "1395099"
+     }
+    ],
+    "first_divergence": {
+     "batch": 3,
+     "golden": 0.17847706377506256,
+     "mine": 0.17847707867622375,
+     "vertex": 60
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     5.960464477539063e-08,
+     1.1920928955078125e-07,
+     1.1920928955078125e-07,
+     1.1920928955078125e-07,
+     7.56978988647461e-05,
+     9.369850158691406e-05,
+     9.60230827331543e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.5,
+     1.0,
+     1.0,
+     1.0,
+     635.0,
+     786.0,
+     805.5
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s2": {
+    "count_mismatches": [
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1744276",
+      "mine": "1744275"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1576751",
+      "mine": "1576750"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1349445",
+      "mine": "1349449"
+     }
+    ],
+    "first_divergence": {
+     "batch": 5,
+     "golden": 0.46880438923835754,
+     "mine": 0.46880435943603516,
+     "vertex": 9834
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     8.940696716308594e-08,
+     3.5643577575683594e-05,
+     6.148219108581543e-05,
+     2.980232238769531e-07,
+     7.465481758117676e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.75,
+     299.0,
+     515.75,
+     2.5,
+     626.25
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1816057",
+      "mine": "1816055"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1588626",
+      "mine": "1588622"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1470293",
+      "mine": "1470314"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1388674",
+      "mine": "1388680"
+     }
+    ],
+    "first_divergence": {
+     "batch": 4,
+     "golden": 0.6063330769538879,
+     "mine": 0.6063330173492432,
+     "vertex": 12364
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     5.960464477539063e-08,
+     1.1920928955078125e-07,
+     4.166364669799805e-05,
+     7.712841033935547e-05,
+     0.00010144710540771484,
+     9.059906005859375e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.5,
+     1.0,
+     349.5,
+     647.0,
+     851.0,
+     760.0
+    ],
+    "seconds": 0.6
+   },
+   "50k_d1e-6_s42": {
+    "count_mismatches": [
+     {
+      "batch": 4,
+      "field": "iterations",
+      "golden": "8217",
+      "mine": "8206"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "12621120",
+      "mine": "12574590"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "13874436",
+      "mine": "13869283"
+     },
+     {
+      "batch": 6,
+      "field": "iterations",
+      "golden": "1589",
+      "mine": "1586"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "19982338",
+      "mine": "19966737"
+     },
+     {
+      "batch": 7,
+      "field": "iterations",
+      "golden": "1120",
+      "mine": "1125"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "9626925",
+      "mine": "9650463"
+     },
+     {
+      "batch": 8,
+      "field": "iterations",
+      "golden": "720",
+      "mine": "768"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "24144364",
+      "mine": "24142606"
+     },
+     {
+      "batch": 9,
+      "field": "iterations",
+      "golden": "712",
+      "mine": "754"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "27184612",
+      "mine": "27188064"
+     }
+    ],
+    "first_divergence": {
+     "batch": 4,
+     "golden": 0.6533694267272949,
+     "mine": 0.6534110307693481,
+     "vertex": 3
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.00260770320892334,
+     0.0012597441673278809,
+     0.00020694732666015625,
+     0.0003317594528198242,
+     0.00020694732666015625,
+     0.00020694732666015625
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     21875.0,
+     10567.5,
+     1736.0,
+     2783.0,
+     1736.0,
+     1736.0
+    ],
+    "seconds": 1.2
+   },
+   "5k5_d1e-4_s1": {
+    "count_mismatches": [
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "516221",
+      "mine": "516242"
+     }
+    ],
+    "first_divergence": {
+     "batch": 3,
+     "golden": 0.4030805826187134,
+     "mine": 0.40308061242103577,
+     "vertex": 99
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     5.960464477539063e-08,
+     9.825825691223145e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     0.5,
+     824.25
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s2": {
+    "count_mismatches": [
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "633382",
+      "mine": "633403"
+     }
+    ],
+    "first_divergence": {
+     "batch": 3,
+     "golden": 0.4311665892601013,
+     "mine": 0.4311666488647461,
+     "vertex": 247
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     1.1920928955078125e-07,
+     0.00010305643081665039
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     864.5
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "673824",
+      "mine": "673812"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "198915",
+      "mine": "198916"
+     }
+    ],
+    "first_divergence": {
+     "batch": 3,
+     "golden": 0.5345076322555542,
+     "mine": 0.5345075130462646,
+     "vertex": 1
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     9.60230827331543e-05,
+     8.934736251831055e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     805.5,
+     749.5
+    ],
+    "seconds": 0.5
+   },
+   "5k5_d1e-6_s42": {
+    "count_mismatches": [
+     {
+      "batch": 3,
+      "field": "iterations",
+      "golden": "1122",
+      "mine": "1120"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "3302931",
+      "mine": "3298623"
+     },
+     {
+      "batch": 4,
+      "field": "iterations",
+      "golden": "924",
+      "mine": "902"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "3676809",
+      "mine": "3670625"
+     }
+    ],
+    "first_divergence": {
+     "batch": 3,
+     "golden": 0.5559865236282349,
+     "mine": 0.5559815764427185,
+     "vertex": 1
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0,
+     0.0,
+     0.00015413761138916016,
+     4.32133674621582e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     0.0,
+     0.0,
+     1293.0,
+     362.5
+    ],
+    "seconds": 0.6
+   }
+  },
+  "permuted": {
+   "500k_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "403987",
+      "mine": "403985"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "6809736",
+      "mine": "6809683"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "18496821",
+      "mine": "18496406"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "21932773",
+      "mine": "21933160"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "19856388",
+      "mine": "19855965"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "17381795",
+      "mine": "17381410"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "15340012",
+      "mine": "15339808"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "14270522",
+      "mine": "14270639"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "13679208",
+      "mine": "13679373"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.004885499365627766,
+     "mine": 0.00488550029695034,
+     "vertex": 1295
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.00010251998901367188,
+     0.00020426511764526367,
+     0.007964730262756348,
+     0.01872873306274414,
+     0.02410539984703064,
+     0.009132146835327148,
+     0.0007499754428863525,
+     0.0007499754428863525,
+     0.003009200096130371
+    ],
+    "max_df_over_eps": [
+     0.0,
+     860.0,
+     1713.5,
+     66813.0,
+     157108.0,
+     202210.75,
+     76606.0,
+     6291.25,
+     6291.25,
+     25243.0
+    ],
+    "seconds": 1.7
+   },
+   "50k_d1e-4_s1": {
+    "count_mismatches": [
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "631263",
+      "mine": "631275"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "1867777",
+      "mine": "1867804"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "2021582",
+      "mine": "2021388"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1809072",
+      "mine": "1809112"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1608428",
+      "mine": "1608408"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1426983",
+      "mine": "1426891"
+     },
+     {
+      "batch": 9,
+      "field": "iterations",
+      "golden": "221",
+      "mine": "222"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1395098",
+      "mine": "1395106"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.003421071218326688,
+     "mine": 0.0034210719168186188,
+     "vertex": 80
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     2.384185791015625e-06,
+     0.00013840198516845703,
+     0.00015977025032043457,
+     0.00011527538299560547,
+     0.005138695240020752,
+     0.0007773637771606445,
+     0.0007773637771606445,
+     0.0024314522743225098,
+     0.0007773637771606445
+    ],
+    "max_df_over_eps": [
+     0.0,
+     20.0,
+     1161.0,
+     1340.25,
+     967.0,
+     43106.5,
+     6521.0,
+     6521.0,
+     20396.5,
+     6521.0
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s2": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "57962",
+      "mine": "57963"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "718227",
+      "mine": "718228"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "1886076",
+      "mine": "1886057"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "2168457",
+      "mine": "2168419"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "2034991",
+      "mine": "2035021"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1744276",
+      "mine": "1744288"
+     },
+     {
+      "batch": 7,
+      "field": "iterations",
+      "golden": "426",
+      "mine": "427"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1576751",
+      "mine": "1576759"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1452623",
+      "mine": "1452631"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1349445",
+      "mine": "1349455"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.020118799060583115,
+     "mine": 0.020118791610002518,
+     "vertex": 51
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     6.628036499023438e-05,
+     0.00018155574798583984,
+     0.00015926361083984375,
+     0.00015398859977722168,
+     0.0012172162532806396,
+     0.00016868114471435547,
+     0.00011169910430908203,
+     0.00011169910430908203,
+     0.00011169910430908203
+    ],
+    "max_df_over_eps": [
+     0.0,
+     556.0,
+     1523.0,
+     1336.0,
+     1291.75,
+     10210.75,
+     1415.0,
+     937.0,
+     937.0,
+     937.0
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "646691",
+      "mine": "646707"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "1886914",
+      "mine": "1887261"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "2295649",
+      "mine": "2295617"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "2030433",
+      "mine": "2030454"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "1816057",
+      "mine": "1816083"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "1588626",
+      "mine": "1588628"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "1470293",
+      "mine": "1470302"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "1388674",
+      "mine": "1388694"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9982323050498962,
+     "mine": 0.9982321858406067,
+     "vertex": 2031
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     4.172325134277344e-07,
+     0.0001207590103149414,
+     0.005408167839050293,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348,
+     0.0006347298622131348
+    ],
+    "max_df_over_eps": [
+     0.0,
+     3.5,
+     1013.0,
+     45367.0,
+     5324.5,
+     5324.5,
+     5324.5,
+     5324.5,
+     5324.5,
+     5324.5
+    ],
+    "seconds": 0.5
+   },
+   "50k_d1e-6_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "iterations",
+      "golden": "2670",
+      "mine": "2741"
+     },
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "92528",
+      "mine": "93473"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "4661827",
+      "mine": "4597556"
+     },
+     {
+      "batch": 3,
+      "field": "iterations",
+      "golden": "13908",
+      "mine": "14666"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "16540549",
+      "mine": "16566074"
+     },
+     {
+      "batch": 4,
+      "field": "iterations",
+      "golden": "8217",
+      "mine": "8301"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "12621120",
+      "mine": "12639007"
+     },
+     {
+      "batch": 5,
+      "field": "iterations",
+      "golden": "4657",
+      "mine": "4649"
+     },
+     {
+      "batch": 5,
+      "field": "frontier_visits",
+      "golden": "13874436",
+      "mine": "13849739"
+     },
+     {
+      "batch": 6,
+      "field": "iterations",
+      "golden": "1589",
+      "mine": "1592"
+     },
+     {
+      "batch": 6,
+      "field": "frontier_visits",
+      "golden": "19982338",
+      "mine": "19971363"
+     },
+     {
+      "batch": 7,
+      "field": "iterations",
+      "golden": "1120",
+      "mine": "1125"
+     },
+     {
+      "batch": 7,
+      "field": "frontier_visits",
+      "golden": "9626925",
+      "mine": "9643582"
+     },
+     {
+      "batch": 8,
+      "field": "iterations",
+      "golden": "720",
+      "mine": "705"
+     },
+     {
+      "batch": 8,
+      "field": "frontier_visits",
+      "golden": "24144364",
+      "mine": "24136616"
+     },
+     {
+      "batch": 9,
+      "field": "iterations",
+      "golden": "712",
+      "mine": "719"
+     },
+     {
+      "batch": 9,
+      "field": "frontier_visits",
+      "golden": "27184612",
+      "mine": "27190268"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9996113777160645,
+     "mine": 0.999942421913147,
+     "vertex": 4363
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.00033104419708251953,
+     0.007245570421218872,
+     0.012079834938049316,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531,
+     0.011464118957519531
+    ],
+    "max_df_over_eps": [
+     0.0,
+     2777.0,
+     60780.25,
+     101333.0,
+     96168.0,
+     96168.0,
+     96168.0,
+     96168.0,
+     96168.0,
+     96168.0
+    ],
+    "seconds": 1.2
+   },
+   "5k5_d1e-4_s1": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "119925",
+      "mine": "119918"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "253093",
+      "mine": "253113"
+     },
+     {
+      "batch": 3,
+      "field": "iterations",
+      "golden": "258",
+      "mine": "259"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "640985",
+      "mine": "640988"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "516221",
+      "mine": "516240"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.8496241569519043,
+     "mine": 0.8495357632637024,
+     "vertex": 7
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     9.900331497192383e-05,
+     0.00011146068572998047,
+     9.962916374206543e-05,
+     9.867548942565918e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     830.5,
+     935.0,
+     835.75,
+     827.75
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s2": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "81578",
+      "mine": "81579"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "205236",
+      "mine": "205271"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "633382",
+      "mine": "633429"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.6706038117408752,
+     "mine": 0.67060387134552,
+     "vertex": 2
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     8.051097393035889e-05,
+     8.051097393035889e-05,
+     0.001995176076889038,
+     0.00014254450798034668
+    ],
+    "max_df_over_eps": [
+     0.0,
+     675.375,
+     675.375,
+     16736.75,
+     1195.75
+    ],
+    "seconds": 0.4
+   },
+   "5k5_d1e-4_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "49918",
+      "mine": "49919"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "228455",
+      "mine": "228452"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "673824",
+      "mine": "673819"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "198915",
+      "mine": "198922"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9539995193481445,
+     "mine": 0.9539996385574341,
+     "vertex": 112
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     8.219480514526367e-05,
+     9.614229202270508e-05,
+     9.936094284057617e-05,
+     9.500980377197266e-05
+    ],
+    "max_df_over_eps": [
+     0.0,
+     689.5,
+     806.5,
+     833.5,
+     797.0
+    ],
+    "seconds": 0.5
+   },
+   "5k5_d1e-6_s42": {
+    "count_mismatches": [
+     {
+      "batch": 1,
+      "field": "iterations",
+      "golden": "20407",
+      "mine": "20387"
+     },
+     {
+      "batch": 1,
+      "field": "frontier_visits",
+      "golden": "913211",
+      "mine": "907242"
+     },
+     {
+      "batch": 2,
+      "field": "iterations",
+      "golden": "2902",
+      "mine": "2661"
+     },
+     {
+      "batch": 2,
+      "field": "frontier_visits",
+      "golden": "2032203",
+      "mine": "2042742"
+     },
+     {
+      "batch": 3,
+      "field": "iterations",
+      "golden": "1122",
+      "mine": "1120"
+     },
+     {
+      "batch": 3,
+      "field": "frontier_visits",
+      "golden": "3302931",
+      "mine": "3293694"
+     },
+     {
+      "batch": 4,
+      "field": "iterations",
+      "golden": "924",
+      "mine": "899"
+     },
+     {
+      "batch": 4,
+      "field": "frontier_visits",
+      "golden": "3676809",
+      "mine": "3676611"
+     }
+    ],
+    "first_divergence": {
+     "batch": 1,
+     "golden": 0.9999452829360962,
+     "mine": 0.9999436140060425,
+     "vertex": 20
+    },
+    "labels_txt_equal": false,
+    "max_df": [
+     0.0,
+     0.0005499720573425293,
+     0.004428297281265259,
+     0.0022487640380859375,
+     0.0022487640380859375
+    ],
+    "max_df_over_eps": [
+     0.0,
+     4613.5,
+     37147.25,
+     18864.0,
+     18864.0
+    ],
+    "seconds": 0.6
+   }
+  }
+ },
+ "port_commit": "cc9641b0bf6489d5843317074613ab8c3a824867",
+ "reference": "LabelPropagation-CUDA",
+ "schema": 1,
+ "variants": {
+  "both": {
+   "defines": [
+    "DYNG_CALIBRATION_LP_PERMUTED_REDUCTION"
+   ],
+   "flags": "-fmad=false -DDYNG_CALIBRATION_LP_PERMUTED_REDUCTION",
+   "fmad": false
+  },
+  "control": {
+   "defines": [],
+   "flags": "",
+   "fmad": true
+  },
+  "no_fma": {
+   "defines": [],
+   "flags": "-fmad=false",
+   "fmad": false
+  },
+  "permuted": {
+   "defines": [
+    "DYNG_CALIBRATION_LP_PERMUTED_REDUCTION"
+   ],
+   "flags": "-DDYNG_CALIBRATION_LP_PERMUTED_REDUCTION",
+   "fmad": true
+  }
+ },
+ "what": "AD6's calibration of c (M10b step 1; ADR 0101): dynG's fused damped engine with only its association (the lane trees) and contraction (-fmad) perturbed, over every batch of P, against the twin's per-batch label bits; c = 3 x max |dF| / eps rounded up to a power of two, eps = 2^-23"
+}

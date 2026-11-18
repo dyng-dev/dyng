@@ -10,6 +10,8 @@ code with the algorithms and containers they check.
 brute-force cycle count and a model of batch semantics), and
 :mod:`dyng.testing.strategies` Hypothesis strategies for random graphs and batches (it needs the
 ``hypothesis`` package).
+:func:`harmonic_solution` (0.4) is :mod:`dyng.label_propagation`'s oracle, the converged harmonic
+solution of a float graph; it shares no code with the algorithm either.
 
 Example:
     >>> import dyng
@@ -34,6 +36,7 @@ from ..graph import CSR, Graph
 from ..hypergraph import Hypergraph, LineGraph
 from ..sssp import Result as SsspResult
 from ..sssp import _check_graph
+from ._harmonic import HarmonicResult, harmonic_solution
 
 __all__ = [
     "SsspTreeCheck",
@@ -43,6 +46,8 @@ __all__ = [
     "combined_graph",
     "mosp_path_costs",
     "rebuild_line_graph",
+    "HarmonicResult",
+    "harmonic_solution",
     "triad_reference",
     "hyper_sssp_reference",
     "check_hyper_sssp_tree",

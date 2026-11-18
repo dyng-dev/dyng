@@ -324,6 +324,14 @@ template <typename edge_t>
 float average_live_weight(const lp_rows<edge_t>& rows) {
   double sum = 0.0;
   std::int64_t count = 0;
+  live_weight_sum(rows, sum, count);
+  return count > 0 ? static_cast<float>(sum / static_cast<double>(count)) : 0.5F;
+}
+
+template <typename edge_t>
+void live_weight_sum(const lp_rows<edge_t>& rows, double& sum, std::int64_t& count) {
+  sum = 0.0;
+  count = 0;
   for (std::int64_t u = 0; u < rows.n; ++u) {
     if (!rows.active(u)) {
       continue;
@@ -337,7 +345,6 @@ float average_live_weight(const lp_rows<edge_t>& rows) {
       }
     }
   }
-  return count > 0 ? static_cast<float>(sum / static_cast<double>(count)) : 0.5F;
 }
 
 #define DYNG_INSTANTIATE_LP_SEQUENTIAL(E)                                                        \
@@ -349,7 +356,8 @@ float average_live_weight(const lp_rows<edge_t>& rows) {
   template lp_irlp_report irlp_sequential<E>(const lp_rows<E>&, const std::vector<std::int8_t>&, \
                                              std::vector<float>&, float, std::int64_t,           \
                                              label_propagation_workspace&);                      \
-  template float average_live_weight<E>(const lp_rows<E>&);
+  template float average_live_weight<E>(const lp_rows<E>&);                                      \
+  template void live_weight_sum<E>(const lp_rows<E>&, double&, std::int64_t&);
 DYNG_INSTANTIATE_LP_SEQUENTIAL(std::int32_t)
 DYNG_INSTANTIATE_LP_SEQUENTIAL(std::int64_t)
 #undef DYNG_INSTANTIATE_LP_SEQUENTIAL

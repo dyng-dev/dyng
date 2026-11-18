@@ -1164,6 +1164,55 @@ def iterations_inside(envelope: dict, iterations: list[int]) -> dict:
             "within": not outside and sum_ok}  # fmt: skip
 
 
+# --- The rate rule of the in_place certificate (the author's decision of 2026-11-18, ADR 0111) --
+
+# The rule's fixed parts; parity/goldens.toml's [sets.label_propagation_inplace.rate_rule] freezes
+# the same values, and certify.py requires a replay to have applied exactly these.
+RATE_RULE = {"runs": 30, "alpha": 0.05, "test": "fisher_exact_one_sided"}
+
+
+def fisher_one_sided_p(port_outside: int, port_runs: int, orig_outside: int, orig_runs: int):
+    """The one-sided Fisher exact test of "the port's rate of runs outside the envelope is higher
+    than the original's": P(X >= port_outside) for X hypergeometric with the table's margins (the
+    port's runs drawn from all runs, the outside runs the marked ones). Exact (a Fraction)."""
+    from fractions import Fraction
+
+    for v, n in ((port_outside, port_runs), (orig_outside, orig_runs)):
+        if not (0 <= v <= n) or n <= 0:
+            raise GoldenError(f"a rate table needs 0 <= outside <= runs, runs > 0 ({v} of {n})")
+    total, marked = port_runs + orig_runs, port_outside + orig_outside
+    tail = sum(
+        math.comb(marked, x) * math.comb(total - marked, port_runs - x)
+        for x in range(port_outside, min(port_runs, marked) + 1)
+    )
+    return Fraction(tail, math.comb(total, port_runs))
+
+
+def rate_verdict(port_outside: int, port_runs: int, orig_outside: int, orig_runs: int,
+                 rule: dict | None = None) -> dict:  # fmt: skip
+    """The rate rule on one case (ADR 0111): the case fails if either side has not exactly the
+    rule's number of fresh runs, or the port's count of runs outside the frozen envelope is
+    significantly higher than the original's (one-sided Fisher exact test, p < alpha). The
+    labels, flips, components, iteration sums and the trace are judged on every port run besides
+    (label_propagation_port.cmd_inplace)."""
+    from fractions import Fraction
+
+    rule = rule or RATE_RULE
+    if rule.get("test") != "fisher_exact_one_sided":
+        raise GoldenError(f"unknown rate test {rule.get('test')!r}")
+    p = fisher_one_sided_p(port_outside, port_runs, orig_outside, orig_runs)
+    enough = port_runs == int(rule["runs"]) and orig_runs == int(rule["runs"])
+    higher = p < Fraction(str(rule["alpha"]))
+    return {
+        "port": {"runs": port_runs, "outside": port_outside},
+        "original": {"runs": orig_runs, "outside": orig_outside},
+        "p_value": float(p),
+        "enough_runs": enough,
+        "significantly_higher": higher,
+        "within": enough and not higher,
+    }
+
+
 def _toml_number(x: float) -> str:
     return str(int(x)) if float(x).is_integer() else repr(float(x))
 
@@ -1652,6 +1701,8 @@ PORT_COMMANDS = (
     "inplace",
     "hub",
 )
+# The refactored engines against the fused engine's damped bits (M10b; AD6; ADR 0101).
+ENGINE_COMMANDS = ("calibrate", "operators")
 
 
 def compare_main(argv: list[str] | None = None) -> int:
@@ -1659,7 +1710,9 @@ def compare_main(argv: list[str] | None = None) -> int:
     label_propagation generator|model|check-runs|oracle|margin|subset: the replays of the legacy
     generator and the oracles (M10a step 2, parity/label_propagation_replay.py); compare.py
     label_propagation container|trace|oracle-port|determinism: the replays of the port (M10a step
-    3 on, parity/label_propagation_port.py)."""
+    3 on, parity/label_propagation_port.py); compare.py label_propagation calibrate|operators: the
+    refactored engines against the fused engine's damped bits (M10b, AD6,
+    parity/label_propagation_engines.py)."""
     argv = list(argv or [])
     if argv[:1] and argv[0] in REPLAY_COMMANDS:
         import label_propagation_replay
@@ -1669,6 +1722,10 @@ def compare_main(argv: list[str] | None = None) -> int:
         import label_propagation_port
 
         return label_propagation_port.main(argv)
+    if argv[:1] and argv[0] in ENGINE_COMMANDS:
+        import label_propagation_engines
+
+        return label_propagation_engines.main(argv)
     if argv[:1] == ["certificate"]:  # the certificate records of the replays (M10a step 5)
         import label_propagation_cert
 

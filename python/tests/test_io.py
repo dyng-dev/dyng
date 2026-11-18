@@ -167,16 +167,68 @@ def test_batch_text_files_round_trip(tmp_path: Path) -> None:
 
 def test_batch_text_errors_carry_the_location(tmp_path: Path) -> None:
     path = tmp_path / "bad.dgt"
-    path.write_text("%batch 0\n+e 0 1 3\n+v 4\n")
-    with pytest.raises(dyng.FileFormatError, match="reserved") as e:
+    path.write_text("%batch 0\n+e 0 1 3\n+x 4\n")
+    with pytest.raises(dyng.FileFormatError, match="unknown operation") as e:
         dyng.io.read_batches(path)
     assert e.value.path == str(path) and e.value.line == 3
     path.write_text("+e 0 1\n")
     with pytest.raises(dyng.FileFormatError):
         dyng.io.read_batches(path, num_weights=1)
     assert dyng.io.read_batches(path)[0].num_weights == 0  # K taken from the file
-    with pytest.raises(dyng.InvalidArgumentError, match="vertex operations"):
-        dyng.io.write_batches(tmp_path / "v.dgt", [dyng.EdgeBatch(insert_vertices=[3])])
+    # 0.4 (AD13): vertex operations are written as '+v' / '-v' lines; the reader refuses them
+    # (test_vertex_operations_and_float_weights_are_refused_not_dropped).
+    dyng.io.write_batches(tmp_path / "v.dgt", [dyng.EdgeBatch(insert_vertices=[3])])
+    assert (tmp_path / "v.dgt").read_text().splitlines() == ["%dgt 1", "%batch 0", "+v 3"]
+
+
+def _dgb_graph_file(weight_code: int, flags: int, vertices: bool) -> bytes:
+    """A one-batch graph .dgb file written from docs/api/file_formats.md (".dgb"): int32 ids,
+    K = 1, one insertion 0-1; with `vertices`, the vertex record count block and two arrivals."""
+    import struct
+    import zlib
+
+    def arr(fmt: str, values: list) -> bytes:
+        data = struct.pack("<" + fmt * len(values), *values)
+        return data + bytes((-len(data)) % 8)
+
+    body = b"DYNGBAT1" + struct.pack("<II", 1, 64) + bytes([0, 1, weight_code, 0])
+    body += struct.pack("<IQQ", 1, flags, 1) + bytes(20)
+    head = body + struct.pack("<I", zlib.crc32(body))
+    payload = struct.pack("<QQQ", 0, 0, 1)
+    if vertices:
+        payload += struct.pack("<QQQ", 2, 0, 0)
+    payload += arr("i", [0]) + arr("i", [1]) + arr("f" if weight_code == 3 else "i", [2])
+    if vertices:
+        payload += arr("i", [0, 1])
+    return head + struct.pack("<QII", len(payload), zlib.crc32(payload), 0) + payload
+
+
+def test_vertex_operations_and_float_weights_are_read(tmp_path: Path) -> None:
+    """0.4 (AD13): the batch files' vertex operations and float32 weights (label_propagation's)
+    are carried by the Python batches (M10b step 3; until then the readers refused them rather
+    than drop them)."""
+    path = tmp_path / "v.dgt"
+    path.write_text("%batch 0\n+e 0 1 3\n+v 4 1\n-v 2\n")
+    (batch,) = dyng.io.read_batches(path)
+    assert batch.insert_vertices is not None and batch.insert_vertices.tolist() == [4]
+    assert batch.vertex_labels is not None and batch.vertex_labels.tolist() == [1]
+    assert batch.delete_vertices is not None and batch.delete_vertices.tolist() == [2]
+    path = tmp_path / "v.dgb"
+    path.write_bytes(_dgb_graph_file(1, 16, True))
+    (batch,) = dyng.io.read_binary_batches(path)
+    assert batch.insert_vertices is not None and batch.insert_vertices.tolist() == [0, 1]
+    assert batch.delete_vertices is not None and batch.delete_vertices.tolist() == []
+    path = tmp_path / "f.dgb"
+    path.write_bytes(_dgb_graph_file(3, 0, False))
+    (batch,) = dyng.io.read_binary_batches(path)
+    w = batch.insert_weights
+    assert w is not None and w.dtype == np.float32 and w.tolist() == [[2.0]]
+    assert batch.insert_vertices is None
+    path = tmp_path / "e.dgb"
+    path.write_bytes(_dgb_graph_file(1, 0, False))
+    (batch,) = dyng.io.read_binary_batches(path)
+    assert batch.insert_src.tolist() == [0] and batch.insert_dst.tolist() == [1]
+    assert batch.insert_vertices is None
 
 
 def test_batch_text_files_apply_to_graphs_of_every_id_type(tmp_path: Path) -> None:
