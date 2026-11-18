@@ -17,7 +17,9 @@ for the calibrated kinds (inplace, oracle), the tolerance the replay applied, wh
 recomputes from the committed calibration record (frozen_tolerance_problems); for damped, the
 original's value sets the replay applied to its non-deterministic counters and every difference
 they accepted (ADR 0100), which certify.py checks against the committed evidence
-(original_value_set_problems).
+(original_value_set_problems); for inplace, the rate rule's tables (ADR 0111: each side's runs and
+runs outside the envelope, the p-value), from which certify.py recomputes the test
+(rate_rule_problems).
 
 KIND is one of KINDS. A record without its port stamp, or of another kind, is refused.
 """
@@ -46,7 +48,9 @@ WHAT = {
     "counts, the in_place call within O's bounds (a parity-cuda build)",
     "irlp": "compute() (IrLP) on CUDA: every snapshot's label bits and iterations",
     "inplace": "CUDA in_place against the frozen calibration (AD5): every port run against every "
-    "reference run within T_mean, T_max, T_flips, the iteration envelope, components and V_aff",
+    "reference run within T_mean, T_max, T_flips, components, V_aff and the iteration sum; the "
+    "runs outside the iteration envelope under the rate rule (ADR 0111: 30 port and 30 original "
+    "runs, the port's count not significantly higher, one-sided Fisher exact test at 5 %)",
     "oracle": "the harmonic oracle (AD7): mean |F - F*| <= 2000 delta, the PCG converged, no "
     "class flip where |F* - 0.5| > 3m, on every batch of C (and L), both schedules, IrLP",
 }
@@ -128,8 +132,13 @@ def verdicts(kind: str, doc: dict) -> dict[str, bool]:
 
 def tolerance_of(kind: str, doc: dict) -> dict | None:
     if kind == "inplace":
+        # The rate rule's fixed parts (ADR 0111) are part of what the replay applied.
         return {
-            c["case"]: {**c["thresholds"], **c["envelope"]}
+            c["case"]: {
+                **c["thresholds"],
+                **c["envelope"],
+                **({"rate_rule": c["rate"]["rule"]} if "rate" in c else {}),
+            }
             for c in doc.get("cases", [])
             if "thresholds" in c and "envelope" in c
         }
@@ -138,6 +147,28 @@ def tolerance_of(kind: str, doc: dict) -> dict | None:
     if kind == "damped" and doc.get("original_value_sets") is not None:
         return {"original_value_sets": original_value_sets(doc)}
     return None
+
+
+def rate_tables(doc: dict) -> dict:
+    """The rate rule's tables of an in_place replay (ADR 0111), per case: each side's runs and
+    runs outside the frozen envelope, the p-value, and whether every port run passed the checks
+    that are judged run by run; certify.py recomputes the verdict from them."""
+    out = {}
+    for c in doc.get("cases", []):
+        rate = c.get("rate")
+        if rate is None:
+            continue
+        out[c["case"]] = {
+            "port_runs": rate["port"]["runs"],
+            "port_outside": rate["port"]["outside"],
+            "original_runs": rate["original"]["runs"],
+            "original_outside": rate["original"]["outside"],
+            "p_value": rate["p_value"],
+            "every_port_run_checked": len(c.get("runs", [])) == rate["port"]["runs"]
+            and all(r.get("checked_every_run") is True for r in c.get("runs", [])),
+            "trace_mismatches": len((c.get("deterministic_trace") or {}).get("mismatches", [])),
+        }
+    return out
 
 
 def original_value_sets(doc: dict) -> dict:
@@ -224,6 +255,8 @@ def certificate_record(kind: str, doc: dict) -> dict:
     tol = tolerance_of(kind, doc)
     if tol is not None:
         rec["tolerance"] = tol
+    if kind == "inplace" and rate_tables(doc):
+        rec["rate"] = rate_tables(doc)
     return rec
 
 
@@ -239,6 +272,8 @@ def write_certificate(kind: str, docs: list[dict], out: Path) -> Path:
         first["passed"] = first["passed"] and r["passed"]
         if "tolerance" in r and kind == "inplace":
             first["tolerance"].update(r["tolerance"])
+        if "rate" in r and kind == "inplace":
+            first.setdefault("rate", {}).update(r["rate"])
         if kind == "damped" and ("tolerance" in r or "tolerance" in first):
             a = (first.get("tolerance") or {}).get("original_value_sets")
             b = (r.get("tolerance") or {}).get("original_value_sets")

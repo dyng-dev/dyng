@@ -302,7 +302,9 @@ TRIAD_MODES = ("by_key", "by_content")
 # in_place distribution on cuda, and the harmonic oracle on sequential and cuda (C at delta 1e-6
 # in CI, L at delta 1e-4 as the release replay: the set's coverage table). The calibrated kinds
 # (inplace, oracle) pass only with the tolerance recomputed from the committed calibration record
-# (frozen_tolerance_problems). A 0.3 or older certificate lists the sets without a verdict.
+# (frozen_tolerance_problems); the in_place set's cases by the rate rule of ADR 0111 (the author's
+# decision of 2026-11-18), recomputed from the replay's tables (rate_rule_problems). A 0.3 or
+# older certificate lists the sets without a verdict.
 LABEL_PROPAGATION_REPLAYS_SINCE = (0, 4)
 LABEL_PROPAGATION_REPLAYS = {
     "label_propagation_generator": ["sequential"],
@@ -978,6 +980,8 @@ def golden_suites(
                     "failed": failed,
                     "matrix": matrix,
                     "passed": ok,
+                    # The rate rule's tables of an in_place replay (ADR 0111).
+                    **({"rate": record["rate"]} if "rate" in record else {}),
                 }
             )
         series = release_series(version)
@@ -1248,13 +1252,20 @@ def frozen_tolerance_problems(name: str, spec: dict, entry: dict) -> list[str]:
             k: rule.get(k) for k in ("k", "floor_mean", "floor_max")
         }:
             out.append(f"golden set {name}: the calibration's rule is not goldens.toml's")
+        # The rate rule of the certificate (the author's decision of 2026-11-18, ADR 0111): its
+        # fixed parts frozen in goldens.toml, applied by every replay (rate_rule_problems).
+        rate_rule = spec.get("rate_rule") or {}
+        if {k: rate_rule.get(k) for k in lpg.RATE_RULE} != lpg.RATE_RULE:
+            out.append(f"golden set {name}: goldens.toml's rate_rule is not ADR 0111's "
+                       f"{lpg.RATE_RULE}")  # fmt: skip
         want = {}
         for case, t in lpg.recompute_thresholds(cal).items():
-            want[case] = {**t, **lpg.envelope_of(cal["cases"][case])}
+            calibrated = {**t, **lpg.envelope_of(cal["cases"][case])}
             frozen = (spec.get("thresholds") or {}).get(case) or {}
-            if any(frozen.get(k) != v for k, v in want[case].items()):
+            if any(frozen.get(k) != v for k, v in calibrated.items()):
                 out.append(f"golden set {name}: {case}: goldens.toml's thresholds are not the "
                            "calibration's")  # fmt: skip
+            want[case] = {**calibrated, "rate_rule": dict(lpg.RATE_RULE)}
     else:
         record = REPO / spec.get("class_margin_record", "parity/results/M10a-class-margin.json")
         if hashlib.sha256(record.read_bytes()).hexdigest() != spec.get("class_margin_sha256"):
@@ -1272,12 +1283,55 @@ def frozen_tolerance_problems(name: str, spec: dict, entry: dict) -> list[str]:
             if not got or bad:
                 out.append(
                     f"golden set {name}: {r['record']} applied a tolerance that is not the "
-                    f"calibration's ({', '.join(bad) or 'none recorded'})"
+                    f"calibration's and ADR 0111's rate rule ({', '.join(bad) or 'none recorded'})"
                 )
+            out += rate_rule_problems(name, r)
         elif got != want:
             out.append(
                 f"golden set {name}: {r['record']} applied {got}, the calibration's is {want}"
             )
+    return out
+
+
+def rate_rule_problems(name: str, replay: dict) -> list[str]:
+    """The rate rule of the in_place certificate (the author's decision of 2026-11-18, ADR 0111),
+    judged again from the replay's tables: every case the replay passed needs the rule's runs on
+    both sides, the port's count of runs outside the frozen envelope not significantly higher than
+    the original's (the one-sided Fisher exact test recomputed here, not read from the record),
+    every port run's run-by-run checks passed and no trace mismatch."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import label_propagation_goldens as lpg
+
+    out = []
+    tables = replay.get("rate") or {}
+    for case, row in sorted((replay.get("matrix") or {}).items()):
+        if "equal" not in row.values():
+            continue
+        t = tables.get(case)
+        where = f"golden set {name}: {replay['record']}: {case}"
+        if t is None:
+            out.append(f"{where}: passed without the rate rule's table (ADR 0111)")
+            continue
+        try:
+            v = lpg.rate_verdict(t["port_outside"], t["port_runs"], t["original_outside"],
+                                 t["original_runs"])  # fmt: skip
+        except (KeyError, TypeError, lpg.GoldenError) as e:
+            out.append(f"{where}: a rate table that cannot be judged ({e})")
+            continue
+        if not v["enough_runs"]:
+            out.append(f"{where}: {t['port_runs']} port and {t['original_runs']} original runs, "
+                       f"not the rule's {lpg.RATE_RULE['runs']} each")  # fmt: skip
+        if v["significantly_higher"]:
+            out.append(f"{where}: the port's {t['port_outside']} of {t['port_runs']} runs outside "
+                       f"the envelope, significantly more than the original's "
+                       f"{t['original_outside']} of {t['original_runs']} (one-sided Fisher p "
+                       f"{v['p_value']:.4g} < {lpg.RATE_RULE['alpha']})")  # fmt: skip
+        if abs(float(t.get("p_value", -1)) - v["p_value"]) > 1e-12:
+            out.append(f"{where}: the recorded p-value {t.get('p_value')} is not the table's "
+                       f"{v['p_value']:.6g}")  # fmt: skip
+        if t.get("every_port_run_checked") is not True or t.get("trace_mismatches") != 0:
+            out.append(f"{where}: a port run failed the run-by-run checks (its labels, "
+                       "components or iteration sum) or the trace mismatched")  # fmt: skip
     return out
 
 

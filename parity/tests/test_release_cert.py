@@ -601,11 +601,15 @@ def _lp_replays(cert, results: Path, commit: str, skip: tuple = ()) -> None:
                 doc = {"equal": "True"}
             elif kind == "inplace":
                 thresholds = lpg.recompute_thresholds(cal)
+                # The rate rule of ADR 0111 (the 2026-11-14 evidence's 2 of 30 on each side).
+                rate = {**lpg.rate_verdict(2, 30, 2, 30), "rule": dict(lpg.RATE_RULE)}
                 doc = {
                     "backend": "cuda",
                     "cases": [
                         {"case": c, "within": True, "thresholds": thresholds[c],
-                         "envelope": lpg.envelope_of(cal["cases"][c])}
+                         "envelope": lpg.envelope_of(cal["cases"][c]), "rate": rate,
+                         "runs": [{"checked_every_run": True}] * 30,
+                         "deterministic_trace": {"compared": 281, "mismatches": []}}
                         for c in cal["cases"]
                     ],
                 }  # fmt: skip
@@ -3319,6 +3323,72 @@ def test_the_lp_certificate_fails_on_a_changed_tolerance_or_preset(
     assert write() == 1 and any(
         "no passed replay on cuda" in p for p in doc()["verdict"]["problems"]
     )
+
+
+def test_the_lp_certificate_judges_the_in_place_rate_rule(
+    cert, bench, tmp_path: Path, fixed_driver
+) -> None:
+    """ADR 0111 (the author's decision of 2026-11-18): the in_place certificate passes on the rate
+    rule's tables (30 port and 30 original runs per case, the port's count outside the envelope
+    not significantly higher, recomputed by certify.py), and fails on: AD9's plain Jacobi
+    mutation's table (every port run outside), a count significantly higher (5 of 30 against 0),
+    29 runs, a recorded p-value that is not the table's, a port run that failed its run-by-run
+    checks, a trace mismatch, a missing table (the every-run record of 3 runs), another alpha in
+    the applied rule; and with the rate rule a gated row removed still fails the dry run."""
+    results, write, doc = _lp_dry(cert, bench, tmp_path)
+    assert write() == 0, doc()["verdict"]
+    path = results / "parity-label_propagation_inplace-cuda.json"
+    full = path.read_text()
+    case = "50k_d1e-4_s42_inplace"
+
+    def table(rec: dict) -> dict:
+        return rec["rate"][case]
+
+    for edit, text in [
+        (lambda r: table(r).update(port_outside=30, p_value=4.19e-15), "significantly"),
+        (
+            lambda r: table(r).update(port_outside=5, original_outside=0, p_value=0.0261),
+            "significantly",
+        ),
+        (lambda r: table(r).update(port_runs=29), "not the rule's 30"),
+        (lambda r: table(r).update(p_value=0.9), "recorded p-value"),
+        (lambda r: table(r).update(every_port_run_checked=False), "run-by-run"),
+        (lambda r: table(r).update(trace_mismatches=1), "run-by-run"),
+        (lambda r: r["rate"].pop(case), "without the rate rule"),
+        (lambda r: r.pop("rate"), "without the rate rule"),
+        (lambda r: r["tolerance"][case]["rate_rule"].update(alpha=0.01), "rate rule"),
+        (lambda r: r["tolerance"][case].pop("rate_rule"), "rate rule"),
+    ]:
+        rec = json.loads(full)
+        edit(rec)
+        path.write_text(json.dumps(rec))
+        assert write() == 1, text
+        problems = doc()["verdict"]["problems"]
+        assert any("label_propagation_inplace" in p for p in problems), (text, problems)
+        assert any(text in p for p in problems), (text, problems)
+    path.write_text(full)
+    assert write() == 0, doc()["verdict"]
+    # The rate rule's own outcome recorded by the replay: a case it failed is not a passed case.
+    rec = json.loads(full)
+    rec["matrix"][case] = {c: "DIFFERENT" for c in rec["matrix"][case]}
+    rec["passed"] = False
+    path.write_text(json.dumps(rec))
+    assert write() == 1 and any("no passed replay on cuda" in p
+                                for p in doc()["verdict"]["problems"])  # fmt: skip
+    path.write_text(full)
+    # With the rate rule's records in place, a gated part removed still fails the dry run.
+    summary = results / "ics26_dynlp.json"
+    whole = summary.read_text()
+    cut = json.loads(whole)
+    for r in cut["readings"]:
+        if r["gated"] and r["dataset"] == "5m" and r["kind"] == "run":
+            r["regions"] = [g for g in r["regions"] if g["region"] != "end_to_end"]
+    cut["verdict"]["gated_regions"] -= 1
+    cut["verdict"]["within_gate"] -= 1
+    summary.write_text(json.dumps(cut))
+    assert write() == 1 and any("end_to_end (5m)" in p for p in doc()["verdict"]["problems"])
+    summary.write_text(whole)
+    assert write() == 0, doc()["verdict"]
 
 
 def test_the_lp_certificate_judges_the_hook_rounds_against_the_original(

@@ -150,3 +150,33 @@ def test_pair_stats_compare_the_masked_vertices() -> None:
     s = lg.pair_stats(a, b, mask)
     assert s["flips"] == 1 and s["max"] == pytest.approx(0.1)
     assert s["mean"] == pytest.approx((0 + 0.02 + 0.1) / 3)
+
+
+def test_the_rate_rules_fisher_test() -> None:
+    """ADR 0111: the one-sided Fisher exact test of 30 port against 30 original runs (exact
+    values, checked against scipy.stats.fisher_exact(..., alternative="greater"))."""
+    p = lg.fisher_one_sided_p
+    assert p(2, 30, 2, 30) == pytest.approx(0.6940231935771632, abs=1e-15)
+    assert p(4, 30, 0, 30) == pytest.approx(0.056199821587867974, abs=1e-15)
+    assert p(5, 30, 0, 30) == pytest.approx(0.026092774308652988, abs=1e-15)
+    assert p(0, 30, 0, 30) == 1 and p(0, 30, 7, 30) == 1
+    v = lg.rate_verdict
+    assert v(2, 30, 2, 30)["within"] and v(4, 30, 0, 30)["within"]
+    assert not v(5, 30, 0, 30)["within"] and v(5, 30, 0, 30)["significantly_higher"]
+    assert not v(30, 30, 2, 30)["within"]  # AD9's plain Jacobi mutation: every run outside
+    assert not v(0, 29, 0, 30)["within"] and not v(0, 31, 0, 30)["enough_runs"]
+    with pytest.raises(lg.GoldenError):
+        p(3, 2, 0, 30)
+    with pytest.raises(lg.GoldenError):
+        v(0, 30, 0, 30, {"runs": 30, "alpha": 0.05, "test": "chi2"})
+
+
+def test_the_rate_rule_is_frozen_in_goldens_toml() -> None:
+    import tomllib
+
+    spec = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())["sets"][
+        "label_propagation_inplace"
+    ]
+    assert spec["rate_rule"] == lg.RATE_RULE == {
+        "runs": 30, "alpha": 0.05, "test": "fisher_exact_one_sided"
+    }  # fmt: skip
