@@ -8,8 +8,10 @@
   the author on 2026-10-28** (GOVERNANCE.md, approvals log, "The measurement protocol and gates of
   0.4 (sheet B1-B6)": ADR 0024 at 1.02; a region above the bar goes to the author for
   acknowledgement on the D14 path, never a silent pass). It changes no rule the author approved:
-  no public signature, no documented guarantee, no gate, protocol or parity rule.
-- **Date:** 2026-11-13
+  no public signature, no documented guarantee, no gate, protocol or parity rule. **Amended on
+  2026-11-18 on the merged code** (after M10b merged): the same rule for the slack rows' device
+  growth (ADR 0103), under the same delegation ("The merged code" below).
+- **Date:** 2026-11-13 (amended 2026-11-18)
 - **Deciders:** the AI assistant, on the author's behalf
 - **Builds on:** ADR 0016 (CUDA execution resources, item 10), ADR 0020 (the resident device graph
   and one Step 0), PLAN Section 4.7.4 (threading: the caller orders calls on different streams),
@@ -74,7 +76,8 @@ run on G_{t+1}). By review:
 - the slotted rows' device copy (ADR 0074) is changed in place by the device apply;
   `drop_slotted_device()` runs only on the host vertex-batch path, where the call queues no
   device work, and its batch arrays are resized only by Step 0 at the start of a call
-  (`device_slotted::batch_current`);
+  (`device_slotted::batch_current`). This holds for `ae5fc47`; the slack rows that M10b added
+  replace their arrays inside a call ("The merged code" below);
 - the device apply's and the normalized batch's scratch, and `scratch_buffer`, live in pooled
   workspaces whose leases are fenced across streams (ADR 0016 item 10), and are reallocated
   before their first use in a call;
@@ -142,6 +145,83 @@ quiet-ok`):
 
 The logs are under `$DYNG_SCRATCH/runs/streamfree/`.
 
+## The merged code (2026-11-18)
+
+**The merge.** M10b merged into main on 2026-11-18 (`c67dd40`, dyng-dev/dyng#25). Under the
+author's merge order of that day, this branch merged main (`ab24b06`, both sides' rows kept in
+GOVERNANCE.md and the ADR index). A review of what main added found one more instance of this
+ADR's class, in M10b's slack rows (ADR 0103).
+
+**The instance.** In `apply_vertex_batch_slack_device()`, the call grows two kinds of array.
+`grow_device_slack()` (vertex growth) replaces the four per-vertex arrays: the row starts, row
+ends, row limits and states, each by a `grown_copy()`. When the radix sort's key bits change, it
+also replaces the sort's scratch. `ensure_arena()` (a move to the tail of a full arena) replaces
+the slots and their weights. Each new array is filled by a copy of the old one, queued on the
+call's stream, and the old array is then released at once on the stream it was allocated on.
+Take rows uploaded on a and updated through a handle on s: the old arrays went back to the pool
+while those copies were still waiting on s, along with earlier work of s that reads the rows (a
+label_propagation engine's kernels, for example).
+
+**The test.** `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream` is in
+the same file. It sets up the case step by step:
+
+1. it builds the rows, then uploads and applies them on a;
+2. it queues a delayed reader of G_t's row starts and slots on s;
+3. it applies a vertex batch through a handle on s: 100 new vertices, and 200 more entries for
+   vertex 0, whose row of 3 slots moves to the tail of the full arena;
+4. it allocates on a after the apply.
+
+The apply runs as `dyng::update()` runs it: `graph_access::apply()`, with the report settled at
+the commit.
+
+On the merged code without the fix, memcheck reports **6 use-after-free errors**, one for each
+array replaced:
+
+- the row starts, 80,004 bytes;
+- the row ends, limits and states, 80,000 bytes each;
+- the slots and the weights, 240,000 bytes each.
+
+Without the sanitizer the test passes. The moves synchronize the call's stream (for their
+pageable sources) before the call returns, so the window lies inside the call. For this case
+memcheck is the detector, and `ci/gpu_local.sh`'s memcheck step runs the executable.
+
+**The fix.** `replace_in_call(res, old, next)` in `apply_slotted_device.cu` moves the old array
+to the stream of the call (`buffer::set_stream()`) before it is replaced. This is Decision item
+1's rule, applied to the six arrays and the scratch. On one stream nothing changes (item 3): no
+kernel, launch, synchronization or allocation is added.
+
+**Not changed, by review:**
+
+- the slack compaction (`compact_device_rows()`) synchronizes the call's stream before it
+  replaces the rows;
+- `ensure()` and `reserve_device_slotted()` replace the batch arrays, the edge scratch and the
+  staging at the start of a call, and every device apply has synchronized its stream before its
+  call returns (`graph_access::finish_device_apply()`, at the commit);
+- label_propagation's device state is made in a new object per `compute()` or `clone()` and
+  never resized, and its engines' scratch is held in fenced workspaces (`scratch_buffer`);
+- M10b's other changes (the kernel groups, the batch reader) release no array a call may still
+  read.
+
+**Verification on the merged code.** On `6567ce2`, a `parity-cuda` build with tests, on GPU 1
+(shared lock, after `locklog.py quiet-ok`):
+
+- the three `GraphStreamOrder` tests pass, both plain and under memcheck (0 errors), and
+  `SlottedCuda.*:SlackCuda.*` pass under memcheck (0 errors);
+- memcheck over C12 of the nine CUDA conformance suites reports **0 errors** in each;
+- every `cpp/tests/dyng_*cuda_tests` executable passes, and so do label_propagation's CUDA, checker,
+  operators, slack and large slack suites;
+- memcheck of `dyng-compat-dynlp --layout slack --streaming-tau` at 50k, as `ci/gpu_local.sh` runs
+  it, reports 0 errors for both rules (damped, inplace);
+- the golden corpora on cuda: sssp "ALL EQUAL: 495 cases x 2 configurations", cycle_count "ALL
+  EQUAL: 48 replays (24 cases x 2 configurations, 0 skipped)", and label_propagation's trace
+  replay of P (`compare.py label_propagation trace --backend cuda`, the nine cases of
+  `ci/gpu_local.sh`) "PASSED", every case exact;
+- on the CPU, `dyng_graph_tests`, `dyng_cycle_count_tests`,
+  `dyng_cycle_count_conformance_tests` and `dyng_framework_tests` pass.
+
+The logs are under `$DYNG_SCRATCH/runs/streamfree/merged/`. The ADR 0024 reading of the merged
+code is in "The reading on the merged code" below.
+
 ## The reading (ADR 0024, HD16)
 
 `ae5fc47` (A, the parent) against `3a0a7aa` (B, the fix): the stable algorithms whose library
@@ -202,17 +282,66 @@ in `$DYNG_SCRATCH/runs/streamfree/ab/`).
      where B landed in a slow process mode in 13-16 of 34 rounds and A in none (`combined` 1.026,
      `end_to_end` 1.024; fast-mode ratios 1.007-1.008). The same batch of the reading itself has
      `compute` 0.994 and `combined` 0.996 with equal mode fractions.
-4. **For the author (HD16, the D14 path):** the `end_to_end` excursions of item 2. They are the
-   class acknowledged for M10b step 4 on 2026-11-13 (GOVERNANCE.md, approvals log; the graph
-   reader's placement), on this fix's own reading; GOVERNANCE.md, Open decisions, lists them until
-   the author decides. The merge order the author set on 2026-11-18 (after M10b's pull request,
-   before R040; GOVERNANCE.md, approvals log) means this branch merges main and takes the reading
-   again on the merged code, whose placement differs.
+4. **For the author (HD16, the D14 path):** the `end_to_end` excursions of item 2, and those of
+   the reading on the merged code below. They are the class acknowledged for M10b step 4 on
+   2026-11-13 (GOVERNANCE.md, approvals log; the graph reader's placement), on this fix's own
+   readings; GOVERNANCE.md, Open decisions, lists them until the author decides. The merge order
+   the author set on 2026-11-18 (after M10b's pull request, before R040; GOVERNANCE.md, approvals
+   log) had this branch merge main and take the reading again on the merged code, whose placement
+   differs.
+
+### The reading on the merged code (2026-11-18)
+
+`c67dd40` (A, main after M10b) against `6567ce2` (B, the merged fix: this ADR's commits, the merge
+and the slack rows' fix), with the same command forms, rule 3's same longer readings, the same
+protocol and the same builds (`git archive` trees at `$DYNG_SCRATCH/runs/streamfree/ab2/{A,B}`,
+`parity-cuda`). 28 exclusive windows, step key `fix0120-merged`, from 2026-11-18 16:29 to 22:52
+UTC: the 21 readings, 3 of rule 3 and 4 of the parts (plain and FB). Every window ended rc=0 but
+the first cycle_count reading, which ended rc=1 only because its COLLAB update could not hold the
+boost lock (its other cases complete), as in the first reading and M10a; every GPU-0 reset `ok`.
+`parity/results/ADR0120-merged.md` has the tables, every region's reading, the parts, the objects,
+the reader's placement and the windows (the samples stay in `$DYNG_SCRATCH/runs/streamfree/ab2/`).
+
+1. **Within the bar: every region of the updates.**
+   - sssp `sosp_update`: CUDA 0.998-1.001, OpenMP 0.989-1.013 (local10k by its 170-round
+     readings; 0.984-1.019 at 17 layouts). sssp `apply`: CUDA 0.992-1.017, OpenMP 0.984-1.012
+     (rgg local10k read 1.023 [0.986, 1.032] at 17 layouts, 1.002 at 170 rounds).
+   - mosp `compute`: CUDA 1.000, OpenMP 0.946-1.005; `combined`: CUDA 0.998-1.000, OpenMP
+     0.949-1.004.
+   - cycle_count `static_kernel` 0.997-1.012, `static_end_to_end` 0.993-1.007, `update`
+     0.988-1.003 and `update_end_to_end` 0.993-1.012, but one region: the Twitch update's
+     resident `update` read 1.034 [0.998, 1.042] at 34 rounds, bimodal. At 102 rounds (rule 3) it
+     reads 0.970, with within-mode ratios 0.999 and 0.995 and equal mode fractions (p 0.21). The
+     Twitch count and the GitHub update at 102 rounds read 0.999-1.005, and the COLLAB update at
+     the base lock 1.000-1.005.
+2. **Outside the bar: `end_to_end` of `dyng-compat-mosp`'s sssp and mosp updates, again**, on
+   both backends and every graph: sssp CUDA 1.050-1.089, sssp OpenMP 1.064-1.096, mosp CUDA
+   1.020-1.070, mosp OpenMP 1.020-1.071, with B in the slow mode in nearly every round; every
+   batch is outside the bar but mosp OpenMP road_usa local10k (1.020 [1.014, 1.030], not flagged).
+   mosp's `path_costs` (not gated) reads 0.783-0.984.
+3. **Located as in the first reading: code placement in the graph reader.**
+   - Of the build's 144 library objects only two differ in code (by their disassembly, nvcc's
+     path-hashed names normalized): `graph.cpp.o` and `apply_slotted_device.cu.o`, the fix's two
+     files. `libdyng.so`'s `.text` is 4,720 bytes longer. The graph reader's objects are
+     identical.
+   - The parts (rgg safe50k, 21 rounds): `read graph` is the whole end-to-end difference, OpenMP
+     +82.3 ms of +81.8 ms (1.164), CUDA +82.3 ms of +87.7 ms (1.161); the commit reads 0.998 /
+     0.999.
+   - The reader's nine functions keep their sizes and moved by 16 or 32 bytes mod 64; the
+     branches the JCC erratum affects moved with them: 236 in A and 234 in B, differently placed
+     (`parse_rows` 41 -> 52, `read_values<int>` 60 -> 68); 9 and 9 with FB on both sides.
+   - With FB on both sides, the parts read `read graph` 0.997 / 0.998 and `end_to_end` 1.001 /
+     0.998.
+
+   The 16 FB readings of sssp and mosp were not taken again on the merged code: the objects, the
+   parts with and without FB, and the first reading's FB readings already locate the class.
 
 ## Consequences
 
 - A call that releases a library-owned device array it may have used on its stream releases it
   on that stream (`buffer::set_stream()` first, when the array may have been allocated on another
-  one). The sites listed in "The other release sites" hold this today.
+  one). The sites listed in "The other release sites" hold this, and so do the slack rows'
+  growth since the merge ("The merged code"). A new site that replaces an array inside a call
+  follows the same rule.
 - C12 alone does not detect this class on debug-sync builds; the graph-level test does, and
   memcheck on a non-debug-sync build (as M10b step 4 ran it) is the stronger check of C12.

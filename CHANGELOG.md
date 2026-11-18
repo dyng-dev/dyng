@@ -598,6 +598,12 @@ Before 0.1.0 anything may change.
   synchronization or allocation changes. A deterministic test, `GraphStreamOrder.*` in
   `dyng_graph_cuda_tests`, catches it with and without the sanitizer, on debug-sync builds too
   (ADR 0120).
+- The same rule for slack rows on CUDA (new in this release, ADR 0103): a vertex batch that grows
+  the graph or moves a row to the tail of a full arena releases the replaced row arrays on the
+  stream of the call's `resources`, after the copies of them it queued there (memcheck: a use
+  after free per replaced array when the rows were uploaded on another stream;
+  `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream`, ADR 0120's
+  amendment on the merged code).
 
 ## [0.3.0] - 2026-10-29
 
