@@ -50,6 +50,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <utility>
 #include <vector>
 
 namespace dyng::detail {
@@ -819,6 +820,16 @@ void download_device_slotted(const device_slotted<vertex_t, edge_t, weight_t>& g
 
 namespace {
 
+/// Replace `old` by `next` inside a call on `res`: `old` is released in the order of the call's
+/// stream, after the work the call queued there that reads it (the copies of grown_copy() and
+/// ensure_arena(); earlier work of that stream may read it too), whichever stream it was allocated
+/// on (ADR 0120). Enqueues no work.
+template <typename value_t>
+void replace_in_call(const resources& res, buffer<value_t>& old, buffer<value_t>&& next) noexcept {
+  old.set_stream(res.stream());
+  old = std::move(next);
+}
+
 /// A device buffer of `count` elements holding `old`'s first `keep` elements and `value` after
 /// them (the growth of a slack graph's per-vertex arrays; stream-ordered).
 template <typename value_t>
@@ -858,7 +869,7 @@ void ensure_arena(const resources& res, device_slotted<vertex_t, edge_t, weight_
     DYNG_CUDA_TRY(cudaMemcpyAsync(col.data(), g.col_ind.data(), used * sizeof(vertex_t),
                                   cudaMemcpyDeviceToDevice, stream));
   }
-  g.col_ind = std::move(col);
+  replace_in_call(res, g.col_ind, std::move(col));
   if (g.num_weights > 0) {
     buffer<weight_t> w(res, cap);
     DYNG_CUDA_TRY(cudaMemsetAsync(w.data(), 0, cap * sizeof(weight_t), stream));
@@ -866,7 +877,7 @@ void ensure_arena(const resources& res, device_slotted<vertex_t, edge_t, weight_
       DYNG_CUDA_TRY(cudaMemcpyAsync(w.data(), g.weights.data(), used * sizeof(weight_t),
                                     cudaMemcpyDeviceToDevice, stream));
     }
-    g.weights = std::move(w);
+    replace_in_call(res, g.weights, std::move(w));
   }
   g.arena_capacity = static_cast<std::int64_t>(cap);
 }
@@ -883,10 +894,10 @@ void grow_device_slack(const resources& res, device_slotted<vertex_t, edge_t, we
   }
   note_reservation();
   const auto arena = static_cast<edge_t>(g.num_slots);
-  g.row_ptr = grown_copy(res, g.row_ptr, n, na + 1, arena);
-  g.row_end = grown_copy(res, g.row_end, n, na, arena);
-  g.row_limit = grown_copy(res, g.row_limit, n, na, arena);
-  g.status = grown_copy(res, g.status, n, na, status_inactive);
+  replace_in_call(res, g.row_ptr, grown_copy(res, g.row_ptr, n, na + 1, arena));
+  replace_in_call(res, g.row_end, grown_copy(res, g.row_end, n, na, arena));
+  replace_in_call(res, g.row_limit, grown_copy(res, g.row_limit, n, na, arena));
+  replace_in_call(res, g.status, grown_copy(res, g.status, n, na, status_inactive));
   g.num_vertices = static_cast<vertex_t>(na);
   int bits = 1;
   while ((1LL << bits) <= static_cast<long long>(na)) {
@@ -895,7 +906,7 @@ void grow_device_slack(const resources& res, device_slotted<vertex_t, edge_t, we
   if (bits != g.key_bits) {
     g.key_bits = bits;
     if (g.max_edges > 0) {
-      g.temp = buffer<unsigned char>();
+      replace_in_call(res, g.temp, buffer<unsigned char>());
       g.temp = buffer<unsigned char>(
           res, std::max<std::size_t>(
                    append_temp_bytes(static_cast<int>(2 * g.max_edges), g.key_bits), 1));
