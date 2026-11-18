@@ -493,9 +493,12 @@ TEST(VertexBatchFiles, LegacyGeneratorBatchesRoundTrip) {
         EXPECT_EQ(back->insert_src(), g.edge_sources);
         EXPECT_EQ(back->insert_dst(), g.edge_destinations);
         ASSERT_EQ(back->insert_weights().size(), g.edge_weights.size());
-        EXPECT_EQ(std::memcmp(back->insert_weights().data(), g.edge_weights.data(),
-                              4 * g.edge_weights.size()),
-                  0);
+        // A batch without edges has no weights, and memcmp's pointers must not be null.
+        if (!g.edge_weights.empty()) {
+          EXPECT_EQ(std::memcmp(back->insert_weights().data(), g.edge_weights.data(),
+                                4 * g.edge_weights.size()),
+                    0);
+        }
       }
     }
   }
