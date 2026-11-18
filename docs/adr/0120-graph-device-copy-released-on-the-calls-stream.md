@@ -144,8 +144,70 @@ The logs are under `$DYNG_SCRATCH/runs/streamfree/`.
 
 ## The reading (ADR 0024, HD16)
 
-Pending: the stable algorithms whose library objects changed (`graph.cpp`) read against `ae5fc47`
-with M10a step 5's command forms (`parity/results/M10a.md` section 12).
+`ae5fc47` (A, the parent) against `3a0a7aa` (B, the fix): the stable algorithms whose library
+code changed (`graph.cpp`, compiled into the library that sssp, mosp and cycle_count link) read
+with M10a step 5's command forms (`parity/results/M10a.md` section 12): sssp `perf_ab.py run
+--backend {cuda,openmp} --layouts 17` (51 rounds, 34 for road_usa; the OpenMP local10k updates
+over 85 layouts and 170 rounds), mosp `perf_ab.py mosp` with the same options, cycle_count
+`perf_ab.py cycle_count run --backend cuda --baseline-kind port` (34 rounds), and rule 3's longer
+readings (cycle_count's Twitch count and GitHub update at 102 rounds, as M10a, and the Twitch
+update, whose resident interval was 5.9 % wide; the COLLAB update, which cannot hold the boost
+lock under the power cap, at the base lock, the M3 precedent). Both sides are `parity-cuda` builds
+of `git archive` trees at paths of equal length (`$DYNG_SCRATCH/runs/streamfree/ab/{A,B}`); CUDA at
+the boost lock on GPU 0 with `CUDA_MODULE_LOADING=EAGER`, the contamination monitor on, rejected
+rounds repeated; the deterministic counters equal in every sample. One exclusive window per
+reading (`tools/locklog.py run [--reset-gpu 0] EXCL M10b fix0120-adr0024 ...`: the calendar takes
+only the 0.4 tracks' labels; the step key marks the windows as this fix's, and M10b's agents were
+told so), 52 windows from 2026-11-17 20:08 to 11-18 05:53 UTC: 44 readings (the 21 of the reading, 4 of
+the parts, 16 with FB, 3 of rule 3; the first cycle_count reading ended rc=1 only because its
+COLLAB update could not hold the boost lock, its other cases complete, as in M10a) and 8 that
+ended at once (the first A/B trees were configured with `DYNG_BUILD_PARITY_TESTS` off, which
+`perf_ab.py` refuses as not a parity build; both sides were rebuilt with the preset as it is);
+every GPU-0 reset `ok`. Every region is read by `parity/ab_modes.py --bar 1.02`; the tables, every
+region's reading, the parts and the windows are in `parity/results/ADR0120.md` (the samples stay
+in `$DYNG_SCRATCH/runs/streamfree/ab/`).
+
+1. **Within the bar: every region of the updates.** sssp `sosp_update` (CUDA 0.999-1.001; OpenMP
+   0.972-1.012, the local10k regions by their 170-round readings: within-mode ratios
+   0.989-1.006 with equal mode fractions, where one region of roadNet-PA read 1.069 at 17
+   layouts) and `apply` (CUDA 0.985-1.018, OpenMP 0.970-1.012); mosp `compute` (CUDA 0.999-1.000,
+   OpenMP 0.960-1.003) and `combined` (CUDA 0.999-1.001, OpenMP 0.968-1.012); cycle_count
+   `static_kernel` 0.990-1.012, `update` 0.985-1.001, `update_end_to_end` 0.997-1.019 and
+   `static_end_to_end` 1.008-1.020 (Twitch 1.016 at 102 rounds), the Twitch update at 102 rounds `update` 0.994-0.996 and `update_end_to_end` 1.015, the COLLAB update at the
+   base lock 1.000-1.004. The commit's own change (the device merge's `replace_device_edges()`
+   on cycle_count's set batches; the host apply's `drop_device_edges()` on sssp's and mosp's) is
+   in `apply`, `update` and `update_end_to_end`.
+2. **Outside the bar: `end_to_end` of `dyng-compat-mosp`'s sssp and mosp updates**, on both
+   backends, every graph and every batch: sssp CUDA 1.030-1.092, sssp OpenMP 1.054-1.101, mosp CUDA
+   1.032-1.081, mosp OpenMP 1.037-1.084, with B in the slow mode in nearly every round. mosp's
+   `path_costs` (`gate = "none"` in `parity/timed_regions/mosp.toml`: reported, not gated; a noisy
+   region whose code did not change) reads 0.971-1.236.
+3. **Located: code placement in the graph reader, code the fix did not change** (the method of
+   `parity/results/M11b.md`, section 1.7):
+   - Of the build's 132 library objects only `graph.cpp.o`'s code differs (its `.text` section
+     2,214 -> 2,385 bytes; `libdyng.so`'s `.text` 3,520 bytes longer with the instantiations of the new members;
+     the `.cu` objects differ only in nvcc's path-hashed symbol names). The graph reader's
+     objects (`dyng_io`) are identical.
+   - The parts of the tool's own report (`e2e_parts_ab.py`, rgg safe50k, 21 rounds): `read
+     graph` is the whole end-to-end difference, OpenMP +90.1 ms of +87.7 ms (1.180), CUDA +89.6 ms
+     of +86.0 ms (1.174); the update's parts within 1.2 % (commit 0.999 / 1.004, SOSP 1.000 /
+     1.000).
+   - The reader's nine functions moved by 16 bytes mod 64 in `libdyng.so`, and the branches the
+     JCC erratum affects (`jcc_scan.py`; this Xeon Gold 6258R is Cascade Lake) moved with them:
+     251 in A and 240 in B, differently placed (`parse_rows` 47 -> 56, `read_values<int>` 60 ->
+     68); 6 and 6 with R020's flag set FB on both sides.
+   - With FB on both sides, the parts read `read graph` 0.997 / 1.002 and `end_to_end` 1.000 /
+     1.005, and the 16 FB readings of sssp and mosp put `end_to_end` at 0.989-1.008 on every graph
+     and batch, every update region within the bar, but one batch: mosp OpenMP road_usa local10k,
+     where B landed in a slow process mode in 13-16 of 34 rounds and A in none (`combined` 1.026,
+     `end_to_end` 1.024; fast-mode ratios 1.007-1.008). The same batch of the reading itself has
+     `compute` 0.994 and `combined` 0.996 with equal mode fractions.
+4. **For the author (HD16, the D14 path):** the `end_to_end` excursions of item 2. They are the
+   class acknowledged for M10b step 4 on 2026-11-13 (GOVERNANCE.md, approvals log; the graph
+   reader's placement), on this fix's own reading; GOVERNANCE.md, Open decisions, lists them until
+   the author decides. The merge order the author set on 2026-11-18 (after M10b's pull request,
+   before R040; GOVERNANCE.md, approvals log) means this branch merges main and takes the reading
+   again on the merged code, whose placement differs.
 
 ## Consequences
 
