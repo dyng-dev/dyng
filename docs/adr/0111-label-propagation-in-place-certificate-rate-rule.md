@@ -2,14 +2,14 @@
 
 - **Status:** Accepted (2026-11-18). The rule is the author's, **decided by the author on
   2026-11-18** (GOVERNANCE.md, approvals log, the row "The in_place certificate's rate rule"; the
-  STOP of the one further in_place reading of the M10b review fixes). **This ADR's wording is
-  pending the author's approval before M10b's pull request** (GOVERNANCE.md, Open decisions,
-  M10 (AD)). Its implementation (the frozen table, the comparator, the certificate check, the
-  tests) is accepted under delegation (GOVERNANCE.md, "Delegation of technical ADRs"), technical
-  scope only. M10b, the review fixes (PLAN 8.3, 8.5; criteria 2 and 12). It refines ADR 0078 (the
-  0.4 certificate rules) for the `label_propagation_inplace` set and ADR 0065 (the in_place
-  calibration) for how a certificate reads the frozen envelope; it changes no threshold, no
-  envelope, no calibration and no other set.
+  STOP of the one further in_place reading of the M10b review fixes). **This ADR's wording was
+  approved by the author on 2026-11-18**, before M10b's pull request (GOVERNANCE.md, approvals
+  log, the row "ADR 0111's wording"). Its implementation (the frozen table, the comparator, the
+  certificate check, the tests) is accepted under delegation (GOVERNANCE.md, "Delegation of
+  technical ADRs"), technical scope only. M10b, the review fixes (PLAN 8.3, 8.5; criteria 2 and
+  12). It refines ADR 0078 (the 0.4 certificate rules) for the `label_propagation_inplace` set
+  and ADR 0065 (the in_place calibration) for how a certificate reads the frozen envelope; it
+  changes no threshold, no envelope, no calibration and no other set.
 - **Date:** 2026-11-18
 - **Deciders:** S M Shovan (the rule); the AI assistant, on the author's behalf (its
   implementation)
@@ -113,8 +113,8 @@ components, the sums, the deterministic stages) stays judged run by run, with no
   p-value is not the table's, a port run failed its run-by-run checks, the trace mismatched, or the
   table is missing (so a record of the every-run rule no longer certifies the set).
 - **`ci/gpu_local.sh`** keeps its every-run cloud (5k5 and 50k, 3 runs each, stricter than the
-  certificate): it is a local check, not the certificate. Whether it moves to the rate rule is
-  left to the author with this ADR's wording.
+  certificate): it is a local check, not the certificate. The author decided on 2026-11-18 that it
+  moves to the rate rule in R040, before the release readings.
 - **Tests** (`parity/tests/test_label_propagation_goldens.py`, `test_label_propagation_port.py`,
   `test_release_cert.py`): the exact p-values; the frozen table; the comparator on synthetic runs
   (the original's own rate passes; AD9's plain Jacobi in_place mutation, every port run outside,
