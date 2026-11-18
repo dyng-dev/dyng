@@ -255,7 +255,9 @@ def _fake_inplace(monkeypatch, tmp_path: Path, port_iterations, original_iterati
     port's labels `port_label` (the reference runs' are 0.25), the trace equal."""
     import argparse
 
-    import numpy as np
+    import pytest
+
+    np = pytest.importorskip("numpy")
 
     n, batches = 4, 3
     th = {"t_mean": 0.01, "t_max": 0.01, "t_flips": 0, "components": [1, 2, 2],

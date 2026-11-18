@@ -135,6 +135,7 @@ def test_engines_guard_and_ulps() -> None:
     c = facts(digest="y")
     assert lp.engines_guard(["fused", "operators"], {"fused": a, "operators": c},
                             {"fused": a, "operators": c})  # fmt: skip
+    pytest.importorskip("numpy")  # ulp_distance reads the dumps with NumPy
     one = struct.pack("<2f", 0.5, 0.25)
     two = struct.pack("<2f", 0.5, struct.unpack("<f", struct.pack("<i", struct.unpack(
         "<i", struct.pack("<f", 0.25))[0] + 3))[0])  # fmt: skip

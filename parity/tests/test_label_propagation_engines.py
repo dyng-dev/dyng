@@ -39,6 +39,7 @@ def test_constant_c_is_three_times_the_maximum_rounded_up_to_a_power_of_two() ->
 
 
 def test_per_batch_maximum_and_first_divergence() -> None:
+    pytest.importorskip("numpy")  # per_batch_max_abs reads the dumps with NumPy
     gold = dump([0.5, 0.25, 1.0], [0.5, 0.75, 0.0])
     same = lpe.per_batch_max_abs(gold, gold, 3)
     assert same == [0.0, 0.0]
