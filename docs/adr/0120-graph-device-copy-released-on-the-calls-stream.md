@@ -10,7 +10,9 @@
   acknowledgement on the D14 path, never a silent pass). It changes no rule the author approved:
   no public signature, no documented guarantee, no gate, protocol or parity rule. **Amended on
   2026-11-18 on the merged code** (after M10b merged): the same rule for the slack rows' device
-  growth (ADR 0103), under the same delegation ("The merged code" below).
+  growth (ADR 0103), under the same delegation ("The merged code" below). The `end_to_end`
+  excursions of both readings were **acknowledged by the author on 2026-11-18** on the D14 path
+  (GOVERNANCE.md, approvals log, "D14-path acknowledgement of ADR 0120's ADR 0024 reading").
 - **Date:** 2026-11-13 (amended 2026-11-18)
 - **Deciders:** the AI assistant, on the author's behalf
 - **Builds on:** ADR 0016 (CUDA execution resources, item 10), ADR 0020 (the resident device graph
@@ -282,13 +284,14 @@ in `$DYNG_SCRATCH/runs/streamfree/ab/`).
      where B landed in a slow process mode in 13-16 of 34 rounds and A in none (`combined` 1.026,
      `end_to_end` 1.024; fast-mode ratios 1.007-1.008). The same batch of the reading itself has
      `compute` 0.994 and `combined` 0.996 with equal mode fractions.
-4. **For the author (HD16, the D14 path):** the `end_to_end` excursions of item 2, and those of
-   the reading on the merged code below. They are the class acknowledged for M10b step 4 on
-   2026-11-13 (GOVERNANCE.md, approvals log; the graph reader's placement), on this fix's own
-   readings; GOVERNANCE.md, Open decisions, lists them until the author decides. The merge order
-   the author set on 2026-11-18 (after M10b's pull request, before R040; GOVERNANCE.md, approvals
-   log) had this branch merge main and take the reading again on the merged code, whose placement
-   differs.
+4. **Acknowledged by the author on 2026-11-18 (HD16, the D14 path):** the `end_to_end` excursions
+   of item 2, and those of the reading on the merged code below (GOVERNANCE.md, approvals log,
+   "D14-path acknowledgement of ADR 0120's ADR 0024 reading"). They are the class acknowledged for
+   M10b step 4 on 2026-11-13 (the graph reader's placement), on this fix's own readings. No change
+   to code, flags, bar or round counts; a region above 1.02 not on that list goes to the author
+   again. The merge order the author set on 2026-11-18 (after M10b's pull request, before R040;
+   GOVERNANCE.md, approvals log) had this branch merge main and take the reading again on the
+   merged code, whose placement differs.
 
 ### The reading on the merged code (2026-11-18)
 
