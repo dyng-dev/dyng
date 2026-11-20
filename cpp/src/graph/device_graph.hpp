@@ -94,6 +94,27 @@ struct device_graph {
            in_col_ind.size() * sizeof(vertex_t) + in_weights.size() * sizeof(weight_t) +
            insertion_ids.size() * sizeof(std::int32_t);
   }
+
+  /**
+   * @brief Order the later release of every array on `stream` (buffer::set_stream()).
+   *
+   * The arrays of a state are allocated on the streams of the calls that built them (the upload,
+   * the in-edges, a device apply), which need not be the stream of the call that drops the state.
+   * A mutating call moves them to its own stream first (graph_impl::drop_device_edges(),
+   * replace_device_edges()), so that their stream-ordered release follows the work the call
+   * queued on that stream (ADR 0120). The memory itself is not touched.
+   * @param[in] stream The stream of the releasing call (of this state's device).
+   * @sync Enqueues no work.
+   */
+  void release_on(stream_ref stream) noexcept {
+    out_row_ptr.set_stream(stream);
+    out_col_ind.set_stream(stream);
+    out_weights.set_stream(stream);
+    in_row_ptr.set_stream(stream);
+    in_col_ind.set_stream(stream);
+    in_weights.set_stream(stream);
+    insertion_ids.set_stream(stream);
+  }
 };
 
 /**

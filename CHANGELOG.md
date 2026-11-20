@@ -586,6 +586,25 @@ Before 0.1.0 anything may change.
   kernels) and for the shared engine `engine::operators` (`parity/certify.py`,
   `HYPER_SSSP_CUDA_ENGINES`).
 
+### Fixed (ADR 0120)
+
+- A CUDA graph's commit (`graph::apply()`, and the commit of `dyng::update()`) releases the device
+  copy of the previous version in the order of the stream of the call's `resources`, after the
+  work already queued there. It was released on the stream the copy was built on, so with the copy
+  built on one stream and the update run on another, cycle_count's delete phase (an asynchronous
+  kernel on G_t's copy before the commit) could read memory the pool had already reused
+  (compute-sanitizer memcheck: use after free in cycle_count's C12 on `parity-cuda`; present since
+  0.1.0, hidden by `DYNG_CUDA_DEBUG_SYNC`). Programs on one stream are unaffected; no result,
+  synchronization or allocation changes. A deterministic test, `GraphStreamOrder.*` in
+  `dyng_graph_cuda_tests`, catches it with and without the sanitizer, on debug-sync builds too
+  (ADR 0120).
+- The same rule for slack rows on CUDA (new in this release, ADR 0103): a vertex batch that grows
+  the graph or moves a row to the tail of a full arena releases the replaced row arrays on the
+  stream of the call's `resources`, after the copies of them it queued there (memcheck: a use
+  after free per replaced array when the rows were uploaded on another stream;
+  `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream`, ADR 0120's
+  amendment on the merged code).
+
 ## [0.3.0] - 2026-10-29
 
 ### Summary

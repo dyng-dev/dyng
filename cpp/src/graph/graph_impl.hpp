@@ -387,17 +387,31 @@ class graph_impl {
   /**
    * @brief Drop the device copy after the out-edges changed on the host (only in mutating calls;
    *        the host CSR must be current).
+   *
+   * When `res` is a CUDA handle of the copy's device, the copy is released on the stream of `res`,
+   * after the work the call queued there: a participant of dyng::update() may still be reading
+   * G_t's copy there (cycle_count's delete phase), and the copy's own streams (those of the calls
+   * that built it) are not ordered after that work (ADR 0120). Work of earlier calls on other
+   * streams is ordered before this call by the caller (PLAN 4.7.4).
+   * @param[in] res The resources of the mutating call.
+   * @async The release is stream-ordered; nothing is synchronized.
    */
-  void drop_device_edges() noexcept;
+  void drop_device_edges(const resources& res) noexcept;
 
   /**
    * @brief Make a device copy built by a device apply the current state (only in mutating calls):
-   *        the host CSR becomes stale and the in-edges are dropped.
+   *        the host CSR becomes stale and the in-edges are dropped. The replaced copy is released
+   *        as drop_device_edges() releases it (on the stream of `res`).
+   * @param[in] res  The resources of the mutating call.
    * @param[in] next The device copy of the new state (its work complete on its stream).
    */
-  void replace_device_edges(std::unique_ptr<device_type> next) noexcept;
+  void replace_device_edges(const resources& res, std::unique_ptr<device_type> next) noexcept;
 
  private:
+  /// Move the arrays of the current device copy (if any) to the stream of `res` when `res` is a
+  /// CUDA handle of its device (drop_device_edges(), replace_device_edges(); ADR 0120).
+  void release_device_on(const resources& res) noexcept;
+
   mutable csr_type out_;                              ///< out-edges (current if host_current_)
   mutable std::mutex host_mutex_;                     ///< serializes the download
   mutable std::atomic<bool> host_current_{true};      ///< out_ matches the current state

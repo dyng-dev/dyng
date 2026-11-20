@@ -55,14 +55,18 @@ dyng_add_test(
   LABELS cpu io
 )
 if(DYNG_ENABLE_CUDA)
-  # row_layout::slotted on the CUDA backend (M10a, ADR 0074): the device apply against the host's.
+  # row_layout::slotted on the CUDA backend (M10a, ADR 0074): the device apply against the host's;
+  # the release of G_t's device copy after the work of the applying call's stream (ADR 0120,
+  # with the hypergraph test's delayed reader).
   dyng_add_test(
     NAME dyng_graph_cuda_tests
-    SOURCES graph/slotted_cuda_test.cpp graph/slack_cuda_test.cpp
+    SOURCES graph/slotted_cuda_test.cpp graph/slack_cuda_test.cpp graph/stream_order_cuda_test.cpp
+            hypergraph/stream_probe_kernels.cu
     LABELS gpu graph
     TEST_PREFIX cuda.
   )
   target_include_directories(dyng_graph_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_graph_cuda_tests)  # the delayed reader's kernel
   # batch_reader with CUDA resources: the pinned staging and the device views (M8b).
   dyng_add_test(
     NAME dyng_io_cuda_tests
