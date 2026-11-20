@@ -631,6 +631,11 @@ Before 0.1.0 anything may change.
   run; ADR 0111, carried out here by the author's decision of 2026-11-18, ADR 0110), instead of
   requiring every one of 3 port runs inside the frozen envelope; "partial" without the original's
   build. The step's summary row is unchanged.
+- `ci/gpu_local.sh`: a racecheck run that ends with compute-sanitizer's "process didn't terminate
+  successfully" while it reports no hazard, no other error or warning and no failed test is run
+  once more, once (ADR 0112; R031's open item 6, investigated in R040); any hazard, error,
+  warning or failed test, and a second death, still fail, and the summary lists every retry
+  below its table.
 - Deferred beyond 0.4.0 (the author's decision of 2026-11-18): the conda-forge packages
   (checkpoint A4) and the aarch64 wheels (`docs/roadmap.md`).
 
