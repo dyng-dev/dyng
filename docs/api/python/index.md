@@ -202,6 +202,22 @@ without a copy (on cuda, device memory), and while such a view is alive an updat
 result's per-vertex state first (copy-on-write); the tensor aliases the result's labels and must
 not be written (`clone()` it to modify it). There is no OpenMP backend in 0.4:
 `dyng.Resources("openmp")` raises `NotSupportedError` naming `"sequential"`, `"cuda"` and the fix
-`dyng.Resources("sequential")` (AD19). The names are frozen since the end of M10b (ADR 0109) and
-become stable at 0.4.0 on the author's confirmation. The tutorial is
+`dyng.Resources("sequential")` (AD19). The tutorial is
 {doc}`../../tutorials/streaming_label_propagation`.
+
+## Stability of the 0.4 additions
+
+The names of 0.4 were frozen at the end of M10b and M11b (ADRs 0109, 0096) and are **stable from
+0.4.0** (SemVer, PLAN 5.9; the author's decision of 2026-11-18 on AD15 and HD17, GOVERNANCE.md):
+`dyng.label_propagation` and `dyng.hyper_sssp`; the graph additions `dyng.Graph.with_capacity`
+(with its keywords), `Graph.vertex_status()`, `dyng.VertexStatus`, the vertex arrays of
+`dyng.EdgeBatch` (`insert_vertices`, `vertex_labels`, `delete_vertices`), `semantics="net_effect"`,
+the float32 graph classes, `Graph.weight_dtype` and the `weight_dtype` keywords of the
+constructors and readers ({doc}`../cpp/graph`); `dyng.generators.vertex_arrival_stream`,
+`dyng.generators.legacy.dynlp_vertex_arrival_stream` and `VertexArrivalStream`; the label files of
+`dyng.io`; and `storage="slack_csr"` with the incidence edits of `dyng.Hypergraph` and
+`dyng.HyperedgeBatch` ({doc}`../cpp/hypergraph`). The command lines `dyng label_propagation`,
+`dyng hyper_sssp` and `dyng generate vertex_arrival_stream` / `dynlp_vertex_arrival_stream` are
+stable with them ({doc}`../cli`). `dyng.testing`'s counterparts of the label_propagation oracles
+(`dyng.testing.harmonic_solution`, `HarmonicResult`) stay outside the stable tier, as their C++
+headers ({doc}`../cpp/testing`).

@@ -11,7 +11,10 @@ API checks unless the pull request is an api-change. They are **stable from 0.3.
 PLAN 5.9; the author's decision of 2026-10-22, GOVERNANCE.md). The concepts (ids, `id_reuse` with
 a worked example, best-fit reuse and the surplus drop rule, the capacity presets, the index
 limits, the line graph) are explained in {doc}`../../concepts/hypergraphs`; the Python layer is
-`dyng.Hypergraph` ({doc}`../../how_to/use_hypergraphs_from_python`).
+`dyng.Hypergraph` ({doc}`../../how_to/use_hypergraphs_from_python`). The `slack_csr` storage and
+the incidence edits of 0.4 (below; M11, frozen at the end of M11b with `hyper_sssp`, ADR 0096)
+join the stable hypergraph surface **from 0.4.0** (the author's decision of 2026-11-18 on HD17,
+GOVERNANCE.md), in C++ and in `dyng.Hypergraph` / `dyng.HyperedgeBatch`.
 
 **The line graph** (ADR 0042). `hypergraph::h2h()` is the line graph: one sorted row per id, the
 ids of the hyperedges that share a vertex with it, and `out[r]`, the offset of the first neighbour

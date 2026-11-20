@@ -28,6 +28,12 @@ and float weight tokens (section "Vertex batches and float weights").
 Every file 0.3 reads reads the same, the writers write every batch without the new parts byte
 for byte as 0.3 did, and a reader of 0.3 refuses a file with the new parts with an `io_error` (an
 operation reserved for 0.4; an unknown flag or weight code).
+**From 0.4.0 these additions are stable-tier** (PLAN 5.9; the author's decision of 2026-11-18 on
+AD15 and HD17, GOVERNANCE.md), as part of version 1 of their formats: AD13's `.dgt` vertex
+records (`+v` / `-v`) and float weight tokens, the `.dgb` vertex records (flag bit 4
+`vertex_records`) and float32 weights (weight code 3), the label files (`write_labels` /
+`read_labels`), and HD10's incidence edits (`.dgt` `+i` / `-i`, the `.dgb` flag bit 3
+`incidence_edits`). A later release reads them as this page describes them.
 
 ## MOSP text CSR (`read_csr_triplet` / `write_csr_triplet`)
 
@@ -84,7 +90,7 @@ batches in one ASCII text file, one operation per line. Format version 1.
   out-of-range vertex, a removal of a non-member or of a hyperedge's last member, an addition of a
   member) is kept in the file and skipped, and counted, by `apply()`. In a graph file they are
   hypergraph operations (an `io_error` naming `read_hyperedge_batches()`). A reader of 0.3 rejects
-  them (they were reserved for 0.4).
+  them (they were reserved for 0.4). Stable-tier from 0.4.0 (HD10, HD17).
 - **Vertex operations** (`read_batches`, 0.4) and the float weights of float graphs: see
   [Vertex batches and float weights](#vertex-batches-and-float-weights-label_propagation-04).
 - Every token is a whole decimal integer (except the weights of a float graph, 0.4); errors
@@ -218,7 +224,8 @@ edges arrive with them, vertices depart) on float graphs (`weight_t = float`). I
 these additions to version 1 of `.dgt` and `.dgb`, the author's decision AD13 (2026-10-28,
 jointly with M11's HD10; GOVERNANCE.md): each is refused loudly by every reader of 0.3, so it is
 not a silent change of version 1 (the rule at the top of this page), and a file that uses none
-of them is written byte for byte as 0.3 writes it.
+of them is written byte for byte as 0.3 writes it. They are stable-tier from 0.4.0 (the author's
+decision of 2026-11-18 on AD15; the top of this page).
 
 **`.dgt`** (graph files only; in a hypergraph file they are an `io_error` that names
 `read_batches()`):
@@ -356,7 +363,8 @@ integer, one space, `std::to_chars(double(label), std::chars_format::fixed, 6)` 
 `write_labels` writes the vertices 0 .. n-1 in order; `read_labels(path, n)` reads every vertex
 exactly once, in any order, each label a decimal number (`nan` and `inf` as `write_labels` writes
 non-finite labels), rounded to the nearest float: a label reads back within 5e-7 plus half a
-float ulp of the float that was written.
+float ulp of the float that was written. A stable-tier format from 0.4.0 (the author's decision of
+2026-11-18 on AD15), without a version field: these rules are its version 1.
 
 ## Triad bins (JSON: `read_triad_bins_json` / `write_triad_bins_json`)
 

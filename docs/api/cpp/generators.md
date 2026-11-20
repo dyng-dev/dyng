@@ -20,8 +20,9 @@ Seeded generators of graphs, hypergraphs and batches (`dyng::generators`).
   libstdc++'s algorithms, which dynG reproduces itself; `standard_library_matches_legacy_streams()`
   checks at run time that the build's standard library draws the same (true with libstdc++ 11 and
   later, which built the originals).
-- `generators/vertex_arrival.hpp` (0.4, frozen at the end of M10b, ADR 0109; stable from 0.4.0 on
-  the author's confirmation): the vertex-arrival streams of `label_propagation`.
+- `generators/vertex_arrival.hpp` (0.4, frozen at the end of M10b, ADR 0109; **stable from
+  0.4.0**, the author's decision of 2026-11-18 on AD15; the other generator headers stay tracked):
+  the vertex-arrival streams of `label_propagation`.
   `generators::generate_vertex_arrival_stream()` is the library's own generator (ADR 0107): the
   same stream shape with library-owned draws (`std::mt19937_64` and the library's own algorithms
   on top of it), so its stream is bit-exact per (seed, major version) on every platform, compiler

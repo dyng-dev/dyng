@@ -2,6 +2,17 @@
 
 Reference solvers and checkers used by the tests, the parity harness and downstream users (`dyng::testing`).
 
+**Stability.** The testing oracles are **outside the stable tier** (PLAN 5.9): they are checked by
+the API baseline (`ci/api_snapshot.py`), but a release may change them with a CHANGELOG entry.
+Most are *tracked* (the 0.1-0.3 oracles of `dijkstra.hpp`, `check_sssp.hpp`,
+`cycle_oracle.hpp`, `mosp_oracle.hpp`, `line_graph_oracle.hpp`, `cbst_host_model.hpp` and
+`triad_reference.hpp`, and the 0.4 oracle of `hyper_sssp_reference.hpp`). The three oracles of `label_propagation`
+(`harmonic_solution.hpp`, `union_find.hpp`, `lp_host_model.hpp`) are **frozen** since the end of
+M10b with the algorithm (ADR 0109): a removed or changed declaration fails the API check unless the
+pull request is an api-change. They stay frozen but not stable from 0.4.0, by the author's
+decision of 2026-11-18 on AD15 (GOVERNANCE.md; `ci/api_snapshot.py`'s `FROZEN_OUTSIDE_STABLE`,
+ADR 0110), as do their Python counterparts in `dyng.testing`.
+
 `triad_reference` (`dyng/testing/triad_reference.hpp`) counts the triads of a hypergraph by brute
 force, the oracle of `triad_count`: the 30-bin h-motif counts and StatHyper's types 1-3 over the
 triangles (and adjacent pairs) of the line graph it rebuilds, following ESCHER-GPU's CPU reference

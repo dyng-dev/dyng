@@ -1,8 +1,7 @@
 # label_propagation: binary harmonic label propagation under vertex batches
 
-Maturity: **experimental, frozen** (the API was reviewed and frozen at the end of M10b, ADR 0109;
-it becomes stable at 0.4.0 only on the author's confirmation at the release, AD15 of 2026-10-28,
-still pending: GOVERNANCE.md, open decisions, M10 (AD)). Header: `<dyng/label_propagation.hpp>`.
+Maturity: **stable** from 0.4.0 (the author's decision of 2026-11-18 on AD15, GOVERNANCE.md; the
+API was reviewed and frozen at the end of M10b, ADR 0109). Header: `<dyng/label_propagation.hpp>`.
 Python: `dyng.label_propagation`. Command line: `dyng label_propagation compute|update`. Oracle:
 `reference` (the converged harmonic solution). Determinism: `tolerance` (the published `in_place`
 rule); the `damped` schedule is bitwise per backend and build. Backends: sequential and cuda (no

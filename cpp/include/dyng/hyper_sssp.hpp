@@ -7,7 +7,7 @@
  * @ingroup hyper_sssp
  *
  * New in 0.4: drafted in M11a (ADR 0090), reviewed and frozen at the end of M11b (ADR 0096; the
- * API snapshot lists it as frozen), stable from 0.4.0 only on the author's confirmation (HD17).
+ * API snapshot lists it as frozen), stable from 0.4.0 (HD17, the author's decision of 2026-11-18).
  */
 #pragma once
 

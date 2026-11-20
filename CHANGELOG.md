@@ -605,6 +605,27 @@ Before 0.1.0 anything may change.
   `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream`, ADR 0120's
   amendment on the merged code).
 
+### R040: the 0.4 stability records and the carry-overs (0.4, branch `release-0.4.0`)
+
+- **Stable from 0.4.0** (the author's decision of 2026-11-18 on AD15 and HD17; ADR 0110):
+  `label_propagation` (`<dyng/label_propagation.hpp>`, `dyng.label_propagation`,
+  `dyng label_propagation`; maturity `stable`) and `hyper_sssp` (`<dyng/hyper_sssp.hpp>`,
+  `dyng.hyper_sssp`, `dyng hyper_sssp`) follow PLAN 5.9's stable tier (SemVer), with the graph
+  additions of 0.4 (`graph::with_capacity`, slot and slack rows, `vertex_status`,
+  `graph_view::status` / `row_end`, `num_active_vertices`, `net_effect()`, the vertex operations
+  of `edge_batch`, the new `apply_summary` fields, the float graphs, and their Python
+  counterparts), the vertex-arrival generators (`<dyng/generators/vertex_arrival.hpp>`, Python,
+  `dyng generate vertex_arrival_stream` / `dynlp_vertex_arrival_stream`), `io::write_labels` /
+  `read_labels`, the `slack_csr` hypergraph storage and its incidence edits; and so do the format
+  extensions of 0.4, in version 1 of their formats: `.dgt` `+v` / `-v`, float weight tokens and
+  `+i` / `-i`, `.dgb` weight code 3 (float32) and the flags `vertex_records` and
+  `incidence_edits`, and the label files (`docs/api/file_formats.md`). The testing oracles
+  `dyng::testing::harmonic_solution`, `union_find` and `lp_host_model` stay frozen but outside
+  the stable tier, like the testing oracles of 0.1-0.3 (`docs/api/cpp/testing.md`).
+- `ci/api_snapshot.py`: `FROZEN_BEFORE_STABLE` is replaced by `STABLE_HEADERS` (the
+  vertex-arrival generators) and `FROZEN_OUTSIDE_STABLE` (the three oracles); label_propagation's
+  header is frozen through its manifest. The API baseline's sections are unchanged.
+
 ## [0.3.0] - 2026-10-29
 
 ### Summary

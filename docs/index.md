@@ -17,9 +17,9 @@ from 0.2.0; to `triad_count` and the dynamic hypergraph, `dyng::hypergraph` and
 `dynamic_bfs` and `triangle_delta` have the maturity `tutorial` (written for
 {doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin wheels are on PyPI too
 (`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`). On the way to
-0.4.0, `label_propagation` (in this documentation, not yet released) is experimental and frozen,
-its stability pending the author's confirmation at the release. The other algorithms of the table
-are planned for later releases.
+0.4.0, `label_propagation` and `hyper_sssp` (in this documentation, not yet released) are
+stable from 0.4.0 (the author's decision of 2026-11-18). The other algorithms of the table are
+planned for later releases.
 :::
 
 ## Algorithms
@@ -34,7 +34,7 @@ are planned for later releases.
 | {doc}`triangle_delta <algorithms/triangle_delta>` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | {doc}`hyper_sssp <algorithms/hyper_sssp>` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | stable | H-SOSP (IA3 2026) |
 | {doc}`triad_count <algorithms/triad_count>` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | ESCHER / ESCHER+ |
-| {doc}`label_propagation <algorithms/label_propagation>` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | experimental | DynLP (ICS 2026) |
+| {doc}`label_propagation <algorithms/label_propagation>` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | stable | DynLP (ICS 2026) |
 <!-- regen:algorithms end -->
 
 The {doc}`algorithms/index` page explains the columns; the {doc}`roadmap` says what each
