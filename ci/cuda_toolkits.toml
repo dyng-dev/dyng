@@ -95,112 +95,105 @@ size = 8161
 
 [[toolkits.cu12.packages]]
 name = "cuda-toolkit-config-common"
-version = "13.4.92-1"
-href = "cuda-toolkit-config-common-13.4.92-1.noarch.rpm"
-sha256 = "a40e9df1f471063e0182a935ae4304018975ee7b56f1d9f78b848b50f1fad8b4"
+version = "13.5.37-1"
+href = "cuda-toolkit-config-common-13.5.37-1.noarch.rpm"
+sha256 = "f030f8b9451bfcceac9f5a9287c610842c9f7e04c74cbfe6349f3ee2ddef4ade"
 size = 7604
 
 [toolkits.cu13]
-release = "13.4"
-nvcc = "13.4.92"
-root = "/usr/local/cuda-13.4"
+release = "13.5"
+nvcc = "13.5.37"
+root = "/usr/local/cuda-13.5"
 repository = "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"
 external = ["/bin/sh", "/sbin/ldconfig", "gcc-c++"]
 
 [[toolkits.cu13.packages]]
-name = "cccl-13-4"
-version = "13.3.4.3.1-1"
-href = "cccl-13-4-13.3.4.3.1-1.x86_64.rpm"
-sha256 = "deca9dbb6ff6f9487e89c31e199a12505c8a264bae3439fa5e7b5a86c6c2a2cd"
-size = 2496138
+name = "cccl-13-5"
+version = "13.3.5.0.6-1"
+href = "cccl-13-5-13.3.5.0.6-1.x86_64.rpm"
+sha256 = "0427ffc5da07e0e8e8a8be1a3264311275ab5ae02f56ede7e1acdb85e98af319"
+size = 2638614
 
 [[toolkits.cu13.packages]]
-name = "cuda-crt-13-4"
-version = "13.4.92-1"
-href = "cuda-crt-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "3a3eea008acb21f689eb58700645a6dc4ea5c9d0b952c8393258de3bc3160207"
-size = 151227
+name = "cuda-crt-13-5"
+version = "13.5.37-1"
+href = "cuda-crt-13-5-13.5.37-1.x86_64.rpm"
+sha256 = "8037dad6754f6c1297147c4714a2e97778ba80fe02bea89ef7e83ad27b1e3db6"
+size = 161048
 
 [[toolkits.cu13.packages]]
-name = "cuda-cudart-13-4"
-version = "13.4.92-1"
-href = "cuda-cudart-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "c4e8d10494f39afc2e0bd7969a0ddc3b90386a5659fe96871264943caae97e30"
-size = 256291
+name = "cuda-cudart-13-5"
+version = "13.5.37-1"
+href = "cuda-cudart-13-5-13.5.37-1.x86_64.rpm"
+sha256 = "c9361f0374c86cd4de0cdc57ca955381b120b06bfdc1271a3d71d79d72992353"
+size = 286099
 
 [[toolkits.cu13.packages]]
-name = "cuda-cudart-devel-13-4"
-version = "13.4.92-1"
-href = "cuda-cudart-devel-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "2da4182e688b5d60b8b5afe200171f0fe1d437dd7579206cf39b049dd4ca73d0"
-size = 2164993
+name = "cuda-cudart-devel-13-5"
+version = "13.5.37-1"
+href = "cuda-cudart-devel-13-5-13.5.37-1.x86_64.rpm"
+sha256 = "4fd6ab9db0f4cb50ede073f1d26929ad7ddc394b08e7267485fe8186532dacd4"
+size = 2177447
 
 [[toolkits.cu13.packages]]
-name = "cuda-culibos-devel-13-4"
-version = "13.4.92-1"
-href = "cuda-culibos-devel-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "16615d5611c33eb083e5381d876c85b18c1473adfcab1cffe3b65d27d1f90234"
-size = 32765
+name = "cuda-culibos-devel-13-5"
+version = "13.5.25-1"
+href = "cuda-culibos-devel-13-5-13.5.25-1.x86_64.rpm"
+sha256 = "d93b329a04bca30a21b95e9be5d31acf364881b738c54d881b6b15b207bf4780"
+size = 32764
 
 [[toolkits.cu13.packages]]
-name = "cuda-cuobjdump-13-4"
-version = "13.4.92-1"
-href = "cuda-cuobjdump-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "ce00719446b51adbb39d29d16df35b9328ebe595608feaf81df9b16f8f8838be"
-size = 364064
+name = "cuda-cuobjdump-13-5"
+version = "13.5.37-1"
+href = "cuda-cuobjdump-13-5-13.5.37-1.x86_64.rpm"
+sha256 = "92e1f5d2fb68a82dac994427c375746ce66563e2b88f76f2355857dc584eae57"
+size = 302408
 
 [[toolkits.cu13.packages]]
-name = "cuda-documentation-13-4"
-version = "13.4.92-1"
-href = "cuda-documentation-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "c7f690098b8458dd19ae45850a6e7f8e57b0bd1d3eff46780a1a4c7590a0dc2a"
-size = 134007
+name = "cuda-nvcc-13-5"
+version = "13.5.37-1"
+href = "cuda-nvcc-13-5-13.5.37-1.x86_64.rpm"
+sha256 = "43fbde6eeacc096142ad1d375275bd809e56bb3ade9f29a4d4b0a3e1781853f9"
+size = 46659021
 
 [[toolkits.cu13.packages]]
-name = "cuda-nvcc-13-4"
-version = "13.4.92-1"
-href = "cuda-nvcc-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "ce6e0406095112b0fea0befab1cddfd93edbe00b675d0595b3f5858331093fc3"
-size = 47273813
+name = "cuda-nvtx-13-5"
+version = "13.5.25-1"
+href = "cuda-nvtx-13-5-13.5.25-1.x86_64.rpm"
+sha256 = "bba40b3c2d87146944b85f4f6742c8295832699a830bf0701201c78063b52670"
+size = 183549
 
 [[toolkits.cu13.packages]]
-name = "cuda-nvtx-13-4"
-version = "13.4.92-1"
-href = "cuda-nvtx-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "337871ae000a93b9f63d97dc5875b14a540c2acd36a091d45d031458acdd852f"
-size = 145146
-
-[[toolkits.cu13.packages]]
-name = "cuda-toolkit-13-4-config-common"
-version = "13.4.92-1"
-href = "cuda-toolkit-13-4-config-common-13.4.92-1.noarch.rpm"
-sha256 = "76bf673aed10291dbce863096556779fed6831f0ce3f5bee8fed101b8f35e191"
+name = "cuda-toolkit-13-5-config-common"
+version = "13.5.37-1"
+href = "cuda-toolkit-13-5-config-common-13.5.37-1.noarch.rpm"
+sha256 = "346c5a19967b2cfcdcf053697620ccf7fa299a333d0f83787b3d21edca945933"
 size = 7859
 
 [[toolkits.cu13.packages]]
 name = "cuda-toolkit-13-config-common"
-version = "13.4.92-1"
-href = "cuda-toolkit-13-config-common-13.4.92-1.noarch.rpm"
-sha256 = "ead1cc2d25007bc4e6b2b03e3007996dbc5dbbb590615c6cf3fd7bb8cfe1f56b"
+version = "13.5.37-1"
+href = "cuda-toolkit-13-config-common-13.5.37-1.noarch.rpm"
+sha256 = "124ec71a9cf709ff92e5f625ac052297ca4e45eab97c38dfafe94ee4ae0880ae"
 size = 7617
 
 [[toolkits.cu13.packages]]
 name = "cuda-toolkit-config-common"
-version = "13.4.92-1"
-href = "cuda-toolkit-config-common-13.4.92-1.noarch.rpm"
-sha256 = "a40e9df1f471063e0182a935ae4304018975ee7b56f1d9f78b848b50f1fad8b4"
+version = "13.5.37-1"
+href = "cuda-toolkit-config-common-13.5.37-1.noarch.rpm"
+sha256 = "f030f8b9451bfcceac9f5a9287c610842c9f7e04c74cbfe6349f3ee2ddef4ade"
 size = 7604
 
 [[toolkits.cu13.packages]]
-name = "libnvptxcompiler-13-4"
-version = "13.4.92-1"
-href = "libnvptxcompiler-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "f7bca7eb3ade0dfaeb5e0eb8153ce5cae05a9f210414748352eba30528cd40c6"
-size = 14527799
+name = "libnvptxcompiler-13-5"
+version = "13.5.37-1"
+href = "libnvptxcompiler-13-5-13.5.37-1.x86_64.rpm"
+sha256 = "a9a33d7207686e6385fdf9ba7edf25344543661d447599002f722fe39c8c6495"
+size = 27104
 
 [[toolkits.cu13.packages]]
-name = "libnvvm-13-4"
-version = "13.4.92-1"
-href = "libnvvm-13-4-13.4.92-1.x86_64.rpm"
-sha256 = "d1354b733912be25e74c8c63a12011884c4c90ab7b4fe56a15d930eaa48fd285"
-size = 72045771
+name = "libnvvm-13-5"
+version = "13.5.37-1"
+href = "libnvvm-13-5-13.5.37-1.x86_64.rpm"
+sha256 = "ebc07ff78499dc4682f82b26ffc410c7b3bfe86d61dee3f8f63acc0582f45c89"
+size = 74560170

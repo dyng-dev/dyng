@@ -153,7 +153,7 @@ driver's CUDA major is used.
 
 | `nvidia-smi` "CUDA Version" (Linux driver) | Install | Built with |
 |---|---|---|
-| 13.x (driver 580.65.06 or newer) | `pip install "dyng[cu13]"` | CUDA 13.4 |
+| 13.x (driver 580.65.06 or newer) | `pip install "dyng[cu13]"` | CUDA 13.5 |
 | 12.x (driver 525.60.13 or newer) | `pip install "dyng[cu12]"` | CUDA 12.9 |
 | older, or no NVIDIA GPU | `pip install dyng` (CPU backends) | |
 

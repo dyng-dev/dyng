@@ -243,7 +243,8 @@ CUDA 13.1 and conda-forge's CUDA 12.9).
 
 **The pinned toolkits** are `ci/cuda_toolkits.toml`: per plugin, the toolkit release and every
 RPM file of NVIDIA's RHEL 8 repository the build installs (nvcc, the CUDA runtime with its static
-library, CCCL, NVTX, the documentation package with `EULA.txt`, cuobjdump for the check of the
+library, CCCL, NVTX, the documentation package with `EULA.txt` up to CUDA 13.4 (from 13.5 the
+runtime package carries `EULA.txt`; ADR 0113), cuobjdump for the check of the
 code objects, and their dependencies inside
 NVIDIA's repository), with SHA-256 and size. The pins make the build reproducible; that the
 files are NVIDIA's is checked separately, every time they are used: each RPM's header must carry
@@ -253,12 +254,12 @@ repository next to the packages and accepted only with the fingerprint
 must match the digest that the signed header records (`download` and `verify --signatures`, with
 gpg; in the container also `rpm -K` and dnf's `localpkg_gpgcheck`). So a lock taken from a
 tampered response would fail at its first use. Now: CUDA 12.9 (nvcc 12.9.86) for `cu12`, CUDA
-13.4 (nvcc 13.4.92) for `cu13`. When NVIDIA ships a newer 12.x or 13.x (PLAN 7.8: the wheels
+13.5 (nvcc 13.5.37) for `cu13` (re-pinned from 13.4 in R040, ADR 0113). When NVIDIA ships a newer 12.x or 13.x (PLAN 7.8: the wheels
 are built with the latest of each major), re-pin in a pull request; dependabot does not see the
 file:
 
 ```bash
-python3 ci/cuda_toolkit.py lock --plugin cu13 --release 13.5     # reads NVIDIA's repository
+python3 ci/cuda_toolkit.py lock --plugin cu13 --release 13.6     # reads NVIDIA's repository
 python3 ci/cuda_toolkit.py show
 python3 -m pytest ci/tests/test_cuda_toolkit.py
 ```
@@ -275,7 +276,7 @@ for p in cu12 cu13; do
 done
 DYNG_PLUGINS="cu12 cu13" \
   DYNG_CUDA12_ROOT="$DYNG_SCRATCH/tools/ci-cuda/root-cu12/usr/local/cuda-12.9" \
-  DYNG_CUDA13_ROOT="$DYNG_SCRATCH/tools/ci-cuda/root-cu13/usr/local/cuda-13.4" \
+  DYNG_CUDA13_ROOT="$DYNG_SCRATCH/tools/ci-cuda/root-cu13/usr/local/cuda-13.5" \
   flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
 ```
 
@@ -283,7 +284,7 @@ How the plugins' CI build differs from `ci/plugin_wheels.sh`:
 
 | | CI (`wheels.yml`) | locally (`ci/plugin_wheels.sh`) |
 |---|---|---|
-| CUDA toolkit | the pinned RPMs of `ci/cuda_toolkits.toml` (12.9, 13.4) installed in the image | `DYNG_CUDA12_ROOT` / `DYNG_CUDA13_ROOT`: by default the system's 13.1 and conda-forge's 12.9; the pinned RPMs unpacked as above give CI's toolkits |
+| CUDA toolkit | the pinned RPMs of `ci/cuda_toolkits.toml` (12.9, 13.5) installed in the image | `DYNG_CUDA12_ROOT` / `DYNG_CUDA13_ROOT`: by default the system's 13.1 and conda-forge's 12.9; the pinned RPMs unpacked as above give CI's toolkits |
 | host compiler | the image's gcc-toolset 14 (cibuildwheel 4.2.1's manylinux_2_28 image, 2026.09.05-1); the system's libstdc++ / libgcc, other static libraries hidden (`-Wl,--exclude-libs,ALL`) | conda-forge's GCC 12.4 against a glibc 2.28 sysroot, libstdc++ / libgcc static and hidden (`-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL`) |
 | checks of the module | `ci/wheel_check.py`: no libcuda / libcudart, the export list (only `PyInit__core`, std, nanobind, type_info); in the container, `ci/cibw_plugin_repair.sh`: SASS + PTX equal to the toolkit's release list (cuobjdump) | the same checks (`--code-objects` with the toolkit's cuobjdump) |
 | build front end | `build` (isolated, from PyPI) | `pip wheel --no-build-isolation` with `environment.yml`'s scikit-build-core and nanobind |
