@@ -94,4 +94,18 @@ The results are in the section "Results of the investigation" at the end of this
 
 ## Results of the investigation
 
-(R040 adds them when the loops end.)
+33 runs on 2026-11-20 (01:46-04:39 UTC), the parity-cuda build of `d0cbf07`'s library: 18 on an
+otherwise idle GPU 1 (6 of each command) and 15 with a second CUDA process on GPU 1 beside the
+sanitizer (5 of each), part of the latter while a full CPU build loaded the host to a load average
+of 66. **Every run ended normally**: the sanitizer's exit status 0, the test process's own exit
+status 0 (the wrapper's record), "RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)",
+no failed test; 191-301 s per run. The monitor saw no process of another user on GPU 1 and at
+least 101 GB of free host memory throughout. With the 19 re-runs of M2b, R030 and R031, the
+outcome has now not reproduced in 52 runs of the three commands. Its cause stays unknown: the
+candidates are the sanitizer's own process tree (compute-sanitizer starts the test through its
+`TreeLauncherSubreaper`) or an event outside the test at the time (another process on the shared
+GPU, the host), none of which the repository controls, and nothing in the three tests is shared
+but GoogleTest and the CUDA runtime. That is why the remedy is a bounded retry of exactly that
+outcome, rather than a change of the tests. The loop driver, its wrapper (the test process's exit
+status, to name the signal if it happens again) and the records stay in
+`$DYNG_SCRATCH/runs/r040-stability/racecheck/` for the next occurrence.
