@@ -631,6 +631,8 @@ Before 0.1.0 anything may change.
   run; ADR 0111, carried out here by the author's decision of 2026-11-18, ADR 0110), instead of
   requiring every one of 3 port runs inside the frozen envelope; "partial" without the original's
   build. The step's summary row is unchanged.
+- Deferred beyond 0.4.0 (the author's decision of 2026-11-18): the conda-forge packages
+  (checkpoint A4) and the aarch64 wheels (`docs/roadmap.md`).
 
 ## [0.3.0] - 2026-10-29
 

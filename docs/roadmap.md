@@ -112,18 +112,23 @@ Deferred beyond 0.3.0:
   sequential and CUDA backends (the damped labels byte for byte the original's, within the gates
   against it), slot rows and vertex batches, the streaming mode on slack rows, the batch files'
   vertex records, Python with zero-copy labels, `dyng label_propagation`, the kNN recipe
-  `datasets/preprocess/knn_graph.py` and the tutorial {doc}`tutorials/streaming_label_propagation`;
-  `stable` from 0.4.0 on the author's confirmation at the release. An OpenMP backend stays open to
+  `datasets/preprocess/knn_graph.py` and the tutorial {doc}`tutorials/streaming_label_propagation`.
+  **Stable from 0.4.0** (the author's decision of 2026-11-18): the C++ header, `dyng.label_propagation`,
+  `dyng label_propagation`, the graph additions (`graph::with_capacity`, slot and slack rows, the
+  vertex operations, the float graphs) and their Python counterparts, the vertex-arrival
+  generators, the label files and the `.dgt` / `.dgb` vertex records and float weights; its three
+  testing oracles stay frozen outside the stable tier. An OpenMP backend stays open to
   contributors (0.5 or later, if contributed).
 - `hyper_sssp` (H-SOSP): shortest hyperpaths, with MOSP_ESCHER's kernels as the default CUDA
   engine and the shared shortest-path engine selectable (`engine::operators`; it gives the same
   results, and the gates kept the as-is kernels as the default: ADR 0095). On the sequential and
   CUDA backends (no OpenMP backend in 0.4: HD14), from C++, Python (`dyng.hyper_sssp`) and the
-  command line (`dyng hyper_sssp`).
+  command line (`dyng hyper_sssp`). **Stable from 0.4.0** (the author's decision of 2026-11-18).
 - The hypergraph's `slack_csr` storage and incidence edits (HD9): MOSP_ESCHER's slack CSR line
   graph on every backend, the incidence edits (`+i` / `-i` in `.dgt`, the `.dgb` flag
   `incidence_edits`) on `slack_csr` storage only; `escher` storage refuses them, `triad_count`
-  refuses `slack_csr` storage, and `overlaps` stays empty.
+  refuses `slack_csr` storage, and `overlaps` stays empty. Part of the stable hypergraph surface
+  from 0.4.0, with the format extensions (the author's decision of 2026-11-18).
 - Deferred beyond 0.4.0 (M11; HD5, HD9, HD14): MOSP_ESCHER's legacy H-SOSP batch generator (0.4's
   parity and gates replay MOSP_ESCHER's exported batches); incidence edits on `escher` storage and
   `triad_count` on `slack_csr` storage (their composition); the line graph's `overlaps`; an
@@ -137,7 +142,18 @@ Deferred beyond 0.3.0:
   2026-11-13): a device allocation order independent of which kernel modules are resident. With
   fewer modules loaded, sssp's persistent kernel reads about 4 % slower on roadNet-PA's 50k
   batches (1.035-1.041 against `ae5fc47`; 1.000-1.001 with every kernel group loaded at start-up).
-- conda-forge packages; aarch64 wheels.
+- After 0.4.0 (from M10b's API review, ADR 0109): a vertex-capacity `graph::reserve()`, so that
+  the first vertex batch on CUDA need not allocate (a new public name, for the author).
+- **Deferred beyond 0.4.0** (the author's decision of 2026-11-18): **conda-forge packages**
+  (checkpoint A4, the author's: no submission and no account action for 0.4.0) and **aarch64
+  wheels**. 0.4.0 ships the PyPI wheels of 0.3.0's platforms (x86_64 manylinux) only.
+- After 0.4.0 (from M11b's review, {doc}`developer/retrospectives/M11`): a
+  `hyper_sssp::clone(res, h)` overload that links the copy to its hypergraph at once (0.4.0
+  documents that the copy's first `update()` links it).
+- Still deferred from 0.3.0, not part of 0.4.0: the alignment flags (they still wait for a reading
+  on a CPU without the JCC erratum), the micro-benchmark suites (see "Deferred beyond 0.3.0"),
+  and the serial-path remedy of the hypergraph insert's D14 sub-regions (acknowledged by the
+  author on 2026-10-23 and kept as they are; a later release may take it with its own reading).
 
 ## Towards 1.0
 
