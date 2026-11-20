@@ -8,8 +8,12 @@ that grow, the threshold taken from the current graph), with the labels handed t
 a copy. It takes about ten minutes on a laptop CPU; every step also runs on a GPU with
 `dyng.Resources.cuda()` (a CUDA plugin wheel: `pip install "dyng[cu13]"`).
 
-What you need: `pip install dyng` (and PyTorch for the last step, optional), and a clone of the
-repository for the recipe (`datasets/` is not in the wheel). The algorithm itself is described
+What you need: dynG 0.4 or newer, `pip install "dyng>=0.4"` (`label_propagation` is new in 0.4;
+until 0.4.0 is on PyPI, take the release candidate's lines of the install page's "Python"
+section, {doc}`../getting_started/install`, since a plain `pip install dyng` gives 0.3.0, which
+does not have it; with a CUDA plugin, upgrade both: `pip install -U "dyng[cu13]"`), PyTorch for
+the last step (optional), and a clone of the repository for the recipe (`datasets/` is not in the
+wheel). The algorithm itself is described
 on {doc}`../algorithms/label_propagation`; the row layouts on {doc}`../concepts/row_layouts`.
 
 ## The problem in two sentences

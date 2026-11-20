@@ -8,9 +8,115 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+## [0.4.0rc1] - 2026-11-20
+
+### Summary
+
+The release candidate of dynG 0.4.0: two more stable algorithms, `label_propagation` (DynLP),
+exact against the original LabelPropagation-CUDA code, and `hyper_sssp` (H-SOSP), exact against
+the original MOSP_ESCHER code, with the graph and hypergraph additions they need. Release
+candidates are published on TestPyPI only:
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.4.0rc1   # the CPU package
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.4.0rc1" "dyng-cu13==0.4.0rc1"   # with the CUDA plugin
+```
+
+(`dyng-cu12==0.4.0rc1` for an NVIDIA driver of CUDA 12; a release candidate's plugin comes from
+TestPyPI alone, after NumPy from PyPI, so that pip never mixes the two indexes for it); 0.4.0
+follows on PyPI, with `pip install -U "dyng[cu13]"`. Nothing of 0.3.0 changes incompatibly:
+`sssp`, `cycle_count`, `mosp`, `triad_count` and the hypergraph keep their API; the frozen graph,
+hypergraph and I/O headers gain additions, and the few documented behaviour changes (for example
+`triad_count` refusing the new `slack_csr` storage) are listed below. The entries below the summary are the
+detailed record of milestones M10a, M10b, M11a and M11b, of the ADR 0120 fix and of the release
+preparation R040.
+
+- **`label_propagation` is stable** (SemVer applies from 0.4.0): binary harmonic label
+  propagation (DynLP) under vertex batches. Some vertices of a similarity graph are seeds with a
+  class 0 or 1; every other vertex gets a label in [0, 1] that `update()` keeps a
+  delta-approximation of the harmonic solution while vertices arrive with their edges and leave;
+  `compute()` is the static IrLP baseline. On the sequential and CUDA backends (no OpenMP
+  backend in 0.4). The CUDA default is LabelPropagation-CUDA@a276a3a's pipeline, ported verbatim:
+  its damped labels are byte-identical to the original's on the golden configurations, its
+  in-place schedule stays within tolerances calibrated on the original's own runs, and both meet
+  the harmonic oracle; it is within the paper's gates against the original (the update per batch,
+  end to end and device memory, 50k to 5m vertices, and the 50m update at the release). A second
+  CUDA engine, `engine::operators`, is written with dynG's operators (`binned_frontier`,
+  `neighbor_reduce`, `connected_components`) and gives the fused engine's bits on the damped
+  schedule. Besides the published setup, a **streaming mode** grows the rows as vertices arrive
+  (slack rows) and takes the similarity threshold from the current graph.
+- **`hyper_sssp` is stable** (SemVer applies from 0.4.0): dynamic single-source shortest
+  hyperpaths (H-SOSP) of a weighted hypergraph: the distance and the parent of every hyperedge
+  and the distance of every vertex, kept exact while hyperedges are deleted and inserted and
+  vertices leave and join hyperedges, with a work budget that falls back to a recompute. On the
+  sequential and CUDA backends, with two CUDA engines: MOSP_ESCHER@4b86159's kernels ported as
+  they are (the default) and dynG's shared shortest-path engine (`engine::operators`), which gives
+  the same results. Exact against MOSP_ESCHER on every update and recompute of its golden set
+  (its `make test` sessions and the 16 paper configurations; distances and parents by id, on both
+  CUDA engines) and within the paper's timing and memory gates against it.
+- **Graphs for vertex streams**: `graph::with_capacity()` with **slot rows** (each vertex's row
+  has a fixed capacity, LabelPropagation-CUDA's layout) and **slack rows** (rows that move and
+  grow, with compaction), vertex batches (`edge_batch`'s vertex insertions with their seed
+  labels, and vertex deletions with their edges) under `batch_semantics::net_effect()`,
+  `vertex_status` and `num_active_vertices`, and graphs with float weights; in Python
+  `Graph.with_capacity`, `Graph.vertex_status()`, the vertex arrays of `EdgeBatch` and float32
+  graphs (`weight_dtype`). All of it is part of the stable graph surface from 0.4.0.
+- **The hypergraph's `slack_csr` storage and incidence edits** (stable from 0.4.0):
+  MOSP_ESCHER's slack CSR line graph on every backend, and batches that remove a vertex from a
+  hyperedge or add one (incidence edits, on `slack_csr` storage only: the `escher` storage
+  refuses them, and `triad_count` refuses `slack_csr` storage).
+- **New file records and generators** (stable, in version 1 of their formats): `.dgt` vertex
+  records `+v u [label]` / `-v u`, float weight tokens and incidence edits `+i` / `-i`; `.dgb`
+  float32 weights (weight code 3) and the flags `vertex_records` and `incidence_edits`; the label
+  files `io::write_labels` / `read_labels` (LabelPropagation-CUDA's `dynlp_labels.txt`, byte for
+  byte); the vertex-arrival generators `generate_vertex_arrival_stream()` (bit-exact per seed
+  everywhere) and `generators::legacy::dynlp_vertex_arrival_stream()` (the original's generator,
+  byte for byte). Files of 0.3 read and are written as before.
+- **Python and the command line:** `dyng.label_propagation` (the labels a read-only array, handed
+  to PyTorch or NumPy without a copy through DLPack), `dyng.hyper_sssp`, the vertex-arrival
+  generators and the label files in Python, `dyng label_propagation compute|update`,
+  `dyng hyper_sssp compute|update` and `dyng generate vertex_arrival_stream` /
+  `dynlp_vertex_arrival_stream`; the kNN recipe `datasets/preprocess/knn_graph.py` turns feature
+  vectors into a similarity graph.
+- **Tutorials and docs:** "Streaming label propagation" (the paper's setup byte for byte, then
+  your own data in the streaming mode, with PyTorch) and "Shortest hyperpaths" (C++ and Python);
+  the algorithm pages of both algorithms with their "paper vs fixed code" sections, the concept
+  page "Row layouts", and the history page of LabelPropagation-CUDA.
+- **Kernel groups:** on CUDA each algorithm's kernels are loaded when the process first uses
+  them, so under `CUDA_MODULE_LOADING=EAGER` a process loads only the kernels of the algorithms it
+  runs (`DYNG_DEFER_KERNEL_GROUPS`, default on; the `dyng-cu12` plugin, with CUDA 12's static
+  runtime, loads every kernel at start-up).
+- **Fixed:** a CUDA graph's update released the device copy of the previous version on the stream
+  it was built on, so a program that built the graph on one stream and updated it on another could
+  read freed memory (present since 0.1.0; ADR 0120).
+- **Stability:** besides the two algorithms, the graph and hypergraph additions and the formats
+  above, the vertex-arrival generators and the label files are stable from 0.4.0 (the author's
+  decision of 2026-11-18). The testing oracles of label_propagation
+  (`dyng::testing::harmonic_solution`, `union_find`, `lp_host_model`) are frozen but outside the
+  stable tier, like the testing oracles of 0.1-0.3.
+- **The plugins:** `dyng-cu13` is built with CUDA 13.5 (13.4 in 0.3.0), `dyng-cu12` with CUDA 12.9.
+- **The release certificate** `benchmarks/results/0.4.0rc1/` (PLAN 8.3 and 8.6): as for 0.3.0,
+  and new: the suites `ics26_dynlp` (label_propagation against LabelPropagation-CUDA@a276a3a, with
+  the release-only 50m reading) and `ia3_hsosp` (hyper_sssp against MOSP_ESCHER@4b86159); the
+  label_propagation golden replays (generator, stage traces, damped bytes, hub, IrLP, the in-place
+  schedule under its rate rule and the harmonic oracle); hyper_sssp's replays by id on both CUDA
+  engines and on sequential, and the `slack_csr` store check; MOSP_ESCHER's sessions replayed
+  whole on `slack_csr` storage on every backend; and the stable algorithms of 0.3.0 read against
+  0.3.0 itself (ADR 0024).
+
+Known limitations of 0.4.0: Linux x86-64 only (the aarch64 wheels and the conda-forge packages
+are deferred beyond 0.4.0); the plugins need a GPU of compute capability 7.5 or newer;
+`label_propagation` and `hyper_sssp` have no OpenMP backend; the in-place schedule of
+`label_propagation` is reproducible within its tolerance, not bitwise (the damped schedule is
+bitwise per backend and build); incidence edits only on `slack_csr` storage, and `triad_count`
+not on it; MOSP_ESCHER's own H-SOSP batch generator is not ported (the gates replay its exported
+batches); the hypergraph store's offsets are 32-bit; on CUDA the memory pool keeps, between
+batches, what an update reached (recorded beside the memory gates, not gated); no DOI (Zenodo is
+not connected).
+
 ### Changed
 
-- `VERSION` is 0.4.0.dev0, the development version after the 0.3.0 release.
 - The documented `find_package(dyng 0.4 REQUIRED)` (README.md, docs/getting_started/install.md and
   the tutorial's Op consumer `ci/consumer/op.CMakeLists.txt`) follows the development version,
   which `ci/cmake_consumer.sh` requires; a build of 0.3.0 asks for 0.3.
@@ -604,6 +710,37 @@ Before 0.1.0 anything may change.
   after free per replaced array when the rows were uploaded on another stream;
   `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream`, ADR 0120's
   amendment on the merged code).
+
+### R040: the release changes (0.4, branch `release-0.4.0`)
+
+- Changed: `VERSION` 0.4.0rc1 (it was 0.4.0.dev0, the development version after 0.3.0);
+  `CITATION.cff` `version: 0.4.0rc1`, `date-released: 2026-11-20`; this section `[0.4.0rc1]`
+  with the summary above: everything that was under `Unreleased` (M10a, M10b, M11a, M11b, the
+  ADR 0120 fix and R040) moved here, an empty `Unreleased` above it, and the link references.
+- Changed (packaging; ADR 0113): the `dyng-cu13` plugin is built with **CUDA 13.5** (nvcc
+  13.5.37), the newest 13.x of NVIDIA's RHEL 8 repository (it was 13.4); `dyng-cu12` stays CUDA
+  12.9 (nvcc 12.9.86). `ci/cuda_toolkits.toml` is re-pinned (every RPM's signature verified).
+  CUDA 13.5 has no documentation package (its `EULA.txt`, which the plugin ships, comes with the
+  runtime package), so `ci/cuda_toolkit.py lock` takes that package only where the release has
+  one and `extract` fails without `<root>/EULA.txt`.
+- Docs: the status texts for the release candidate: the status blocks of `README.md` and the
+  documentation's start page ("Alpha: 0.4 release candidate"), the install lines of the release
+  candidate from TestPyPI (`dyng==0.4.0rc1`; with a plugin, NumPy from PyPI first and
+  `dyng==0.4.0rc1` with `dyng-cu13==0.4.0rc1` or `dyng-cu12==0.4.0rc1` from TestPyPI alone)
+  in README and `docs/getting_started`, `SECURITY.md` (0.4.0rc1 supported until 0.4.0),
+  `SUPPORT.md`, `CONTRIBUTING.md`, the roadmap, the developer plan, `docs/citing.md`, the
+  tutorials' prerequisites (`dyng>=0.4`, from the release candidate's lines until 0.4.0 is on
+  PyPI) and label_propagation's maturity line. The PyPI description (`python/README.md`) names
+  `label_propagation` and `hyper_sssp`, with a tested example and the command line.
+- Docs: `docs/developer/release.md`: who does what for 0.4.0 (the author merges the release pull
+  requests and approves `pypi-cu12` and `pypi-cu13`, then `pypi`; the AI assistant pushes the
+  signed tags `v0.4.0rc1` / `v0.4.0` and creates the GitHub Release on the author's behalf), the
+  0.4 certificate in steps 1-3 and the checklist (`ics26_dynlp` with AD4's release-only 50m
+  reading, `ia3_hsosp`, their memory readings in GPU1-QUIET windows, the label_propagation
+  replays and their two-step certificate records, hyper_sssp's modes on both CUDA engines and the
+  `slack_csr` store check, the whole `slack_csr` sessions, `ci/gpu_local.sh --preset
+  parity-cuda`), and the release candidate's smoke test covers `label_propagation` and
+  `hyper_sssp`; `benchmarks/README.md` (the suites and the certificate of 0.4).
 
 ### R040: the 0.4 stability records and the carry-overs (0.4, branch `release-0.4.0`)
 
@@ -2714,7 +2851,8 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
   Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.3.0...main
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.4.0rc1...main
+[0.4.0rc1]: https://github.com/dyng-dev/dyng/compare/v0.3.0...v0.4.0rc1
 [0.3.0]: https://github.com/dyng-dev/dyng/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dyng-dev/dyng/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0

@@ -3,7 +3,9 @@
 dynG is a C++17 library with a Python package on top. The Python package (`pip install dyng`)
 contains the sequential and OpenMP backends and needs no GPU; the CUDA backend comes with the C++
 build and, from 0.2, as the Python plugin wheels `dyng-cu12` / `dyng-cu13`
-(`pip install "dyng[cu13]"`, {doc}`install`). The hypergraph and `triad_count` came with 0.3.0.
+(`pip install "dyng[cu13]"`, {doc}`install`). The hypergraph and `triad_count` came with 0.3.0;
+`label_propagation`, `hyper_sssp` and the `slack_csr` hypergraph storage come with 0.4.0: until it
+is released, in the release candidate 0.4.0rc1 on TestPyPI ({doc}`install`).
 
 A first result in ten lines, in Python:
 

@@ -7,8 +7,10 @@ update did. You do it in C++ and in Python, with the same input and the same out
 about 20 minutes.
 
 You need dynG 0.4 or newer installed ({doc}`../getting_started/install`): for C++ a compiler and
-CMake, for Python `pip install "dyng>=0.4"` (with a CUDA plugin, upgrade both:
-`pip install -U "dyng[cu13]"`). You should know what a hypergraph is
+CMake, for Python `pip install "dyng>=0.4"` (`hyper_sssp` and the `slack_csr` storage are new in
+0.4; until 0.4.0 is on PyPI, take the release candidate's lines of the install page's "Python"
+section, since a plain `pip install dyng` gives 0.3.0, which has neither; with a CUDA plugin,
+upgrade both: `pip install -U "dyng[cu13]"`). You should know what a hypergraph is
 ({doc}`../concepts/hypergraphs`). The algorithm is {doc}`../algorithms/hyper_sssp`; this page shows
 how to use it.
 

@@ -1,13 +1,16 @@
 # dynG: dynamic graph and hypergraph updates on GPUs
 
-> **Alpha: 0.3.0.** The latest release is **0.3.0** (`pip install dyng`): the C++ library, the
-> Python package and the `dyng` command line, with `sssp`, `cycle_count`, `mosp` and
-> `triad_count` stable (SemVer applies from 0.1.0; to `mosp` from 0.2.0; to the hypergraph and
-> `triad_count` from 0.3.0), the dynamic hypergraph (`dyng::hypergraph`, `dyng.Hypergraph`) with
-> its `.hg` and `.dgb` files, the experimental `count_local_patterns`, the CUDA plugin wheels
-> (`pip install "dyng[cu13]"` / `"dyng[cu12]"`) and the teaching algorithms `dynamic_bfs` and
-> `triangle_delta` (see [Install](#install)). The other algorithms of the table are planned for
-> later releases.
+> **Alpha: 0.4 release candidate.** The latest release is **0.3.0** (`pip install dyng`): the
+> C++ library, the Python package and the `dyng` command line, with `sssp`, `cycle_count`,
+> `mosp` and `triad_count` stable (SemVer applies from 0.1.0; to `mosp` from 0.2.0; to the
+> hypergraph and `triad_count` from 0.3.0), the dynamic hypergraph (`dyng::hypergraph`,
+> `dyng.Hypergraph`) with its `.hg` and `.dgb` files, the experimental `count_local_patterns`,
+> the CUDA plugin wheels (`pip install "dyng[cu13]"` / `"dyng[cu12]"`) and the teaching
+> algorithms `dynamic_bfs` and `triangle_delta`. **0.4.0rc1**, the release candidate of 0.4.0,
+> is on TestPyPI only: `label_propagation` (DynLP) and `hyper_sssp` (H-SOSP), both stable from
+> 0.4.0, the graph's slot and slack rows with vertex batches, the `slack_csr` hypergraph storage
+> with incidence edits, and the vertex records, float weights and label files of the batch
+> formats (see [Install](#install)). This README describes the main branch, which is 0.4.0rc1.
 
 dynG is a C++17/CUDA library with Python bindings that keeps the results of graph and
 hypergraph algorithms up to date while the structure changes in **batches** of insertions,
@@ -113,8 +116,8 @@ files in the original tools' formats: `dyng sssp update --graph G --changes DIR 
 | Hypergraph container (`dyng::hypergraph` and `dyng.Hypergraph` on the ESCHER store: best-fit id reuse under both `id_reuse` orders, the sorted-merge line graph, `.hg` / `.dgb` I/O, generators) on every backend | working (M8a/M8b; stable from 0.3.0, as are the `.hg` and `.dgb` formats at version 1): ids, rows and line graphs equal to ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 on their batch records, device memory equal to ESCHER-GPU's store accounting ([M8b record](parity/results/M8b.md)) |
 | `triad_count`: the h-motif triads of a hypergraph (ESCHER/ESCHER+) on every backend, with `dyng.triad_count` and `dyng triad_count` | working (M9a/M9b; stable from 0.3.0: C++, Python and the command line): exact against ESCHER-GPU@abcf9b2 on its 300-case golden set, by key and by content (cuda on every case, the host backends on the cases of their coverage table), and within its timing and memory gates ([M9a record](parity/results/M9a.md), [M9b record](parity/results/M9b.md); the release gates of 0.3.0 in `benchmarks/results/0.3.0/`) |
 | `experimental::count_local_patterns<op_t>`: a new hypergraph pattern, given as an Op, on triad_count's engine (C++ and nvcc) | experimental (M9b, ADR 0058; in 0.3.0; may change in any minor release): triad_count's four patterns through it equal triad_count bit for bit; the tutorial's Ops exact against a brute force under updates |
-| `label_propagation` (DynLP): binary harmonic label propagation under vertex batches on the sequential and CUDA backends, with slot and slack rows, `dyng.label_propagation` and `dyng label_propagation` | done for 0.4 (M10a/M10b; frozen, stable from 0.4.0): the damped labels byte-identical to LabelPropagation-CUDA@a276a3a's, within its gates ([M10a record](parity/results/M10a.md), [M10b record](parity/results/M10b.md)) |
-| `slack_csr` hypergraph storage with incidence edits, and `hyper_sssp`: dynamic shortest hyperpaths (H-SOSP) on sequential and CUDA, with `dyng.hyper_sssp` and `dyng hyper_sssp` | working (M11a/M11b, in development for 0.4; frozen, stable from 0.4.0, as are the `slack_csr` storage, the incidence edits and their `.dgt` / `.dgb` extensions): exact against MOSP_ESCHER@4b86159 on every batch of its golden set (distances and parents by id, on both CUDA engines) and within its timing and memory gates ([M11a record](parity/results/M11a.md), [M11b record](parity/results/M11b.md)) |
+| `label_propagation` (DynLP): binary harmonic label propagation under vertex batches on the sequential and CUDA backends, with slot and slack rows, `dyng.label_propagation` and `dyng label_propagation` | working (M10a/M10b; in 0.4.0rc1, stable from 0.4.0: C++, Python and the command line): the damped labels byte-identical to LabelPropagation-CUDA@a276a3a's, the in-place schedule within its calibrated tolerances, within its gates ([M10a record](parity/results/M10a.md), [M10b record](parity/results/M10b.md); the release gates of 0.4.0rc1 in `benchmarks/results/0.4.0rc1/`) |
+| `slack_csr` hypergraph storage with incidence edits, and `hyper_sssp`: dynamic shortest hyperpaths (H-SOSP) on sequential and CUDA, with `dyng.hyper_sssp` and `dyng hyper_sssp` | working (M11a/M11b; in 0.4.0rc1, stable from 0.4.0, as are the `slack_csr` storage, the incidence edits and their `.dgt` / `.dgb` extensions): exact against MOSP_ESCHER@4b86159 on every batch of its golden set (distances and parents by id, on both CUDA engines) and within its timing and memory gates ([M11a record](parity/results/M11a.md), [M11b record](parity/results/M11b.md); the release gates of 0.4.0rc1 in `benchmarks/results/0.4.0rc1/`) |
 | Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; the CUDA plugin wheels `dyng-cu12` / `dyng-cu13` (`pip install "dyng[cu13]"`; M6a) on PyPI since 0.2.0 |
 
 ## The name
@@ -140,6 +143,17 @@ backend comes with the plugin wheels: `pip install "dyng[cu13]"` for an NVIDIA d
 (driver 580 or newer), `pip install "dyng[cu12]"` for CUDA 12 (driver 525 or newer); the plugins
 bring their own CUDA runtime (no toolkit needed) and need a GPU of compute capability 7.5 or
 newer ([install guide](docs/getting_started/install.md)).
+
+The release candidate **0.4.0rc1** (`label_propagation` and `hyper_sssp`) is on TestPyPI only until
+0.4.0 is released. Its CPU package comes from TestPyPI with NumPy from PyPI; with a plugin,
+install NumPy from PyPI first and then `dyng` and the plugin from TestPyPI alone, so that pip
+takes both from the release candidate's index:
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.4.0rc1   # the CPU package alone
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.4.0rc1" "dyng-cu13==0.4.0rc1"   # or dyng-cu12
+```
 
 For development:
 `pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build` in the
