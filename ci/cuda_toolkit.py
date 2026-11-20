@@ -3,17 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """The CUDA toolkits of the plugin wheels' CI builds, pinned file by file (PLAN 7.7, 7.8; ADR 0032).
 
-``wheels.yml`` builds ``dyng-cu12`` and ``dyng-cu13`` with cibuildwheel in the manylinux_2_28
-image (AlmaLinux 8), with the CUDA toolkit installed in ``before-all`` from NVIDIA's RHEL 8
-packages (PLAN 7.7's table). The packages are pinned in ``ci/cuda_toolkits.toml``: for each
-plugin, the toolkit release (the latest 12.x and the latest 13.x, PLAN 7.8) and every RPM file
-of the minimal set the build needs (``nvcc``, the CUDA runtime with its static library, CCCL,
-NVTX 3, the documentation package that carries ``EULA.txt`` up to CUDA 13.4 (from 13.5 the
-runtime package carries it), and what they require from NVIDIA's repository), each with its SHA-256 and size. The runner downloads them on the host (cached
-between runs) and checks every digest and every package's OpenPGP signature (NVIDIA's repository
-key, accepted only with the fingerprint :data:`SIGNING_KEY_FINGERPRINT`, verified with ``gpg``:
-the header signature and the payload digest it covers); the container checks the signatures
-again with ``rpm`` and installs exactly those files.
+``wheels.yml`` builds ``dyng-cu12`` and ``dyng-cu13`` with cibuildwheel in the manylinux_2_28 image
+(AlmaLinux 8), with the CUDA toolkit installed in ``before-all`` from NVIDIA's RHEL 8 packages (PLAN
+7.7's table). The packages are pinned in ``ci/cuda_toolkits.toml``: for each plugin, the toolkit
+release (the latest 12.x and the latest 13.x, PLAN 7.8) and every RPM file of the minimal set the
+build needs (``nvcc``, the CUDA runtime with its static library, CCCL, NVTX 3, the documentation
+package that carries ``EULA.txt`` up to CUDA 13.4 (from 13.5 the runtime package carries it), and
+what they require from NVIDIA's repository), each with its SHA-256 and size. The runner downloads
+them on the host (cached between runs) and checks every digest and every package's OpenPGP signature
+(NVIDIA's repository key, accepted only with the fingerprint :data:`SIGNING_KEY_FINGERPRINT`,
+verified with ``gpg``: the header signature and the payload digest it covers); the container checks
+the signatures again with ``rpm`` and installs exactly those files.
 
 Commands::
 
