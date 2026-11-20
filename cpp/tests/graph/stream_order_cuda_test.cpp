@@ -213,8 +213,9 @@ TEST(GraphStreamOrder, SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream) 
     std::int32_t* copy = nullptr;
     ASSERT_EQ(cudaMalloc(&copy, (rows + slots) * sizeof(std::int32_t)), cudaSuccess);
     // About half a second of spinning on s, then the copies of G_t's row starts and slots.
-    ASSERT_EQ(dyng::test::hyper::queue_delayed_copy(dev.row_ptr.data(), copy, rows, 1000000000LL, s),
-              cudaSuccess);
+    ASSERT_EQ(
+        dyng::test::hyper::queue_delayed_copy(dev.row_ptr.data(), copy, rows, 1000000000LL, s),
+        cudaSuccess);
     ASSERT_EQ(dyng::test::hyper::queue_delayed_copy(dev.col_ind.data(), copy + rows, slots, 0, s),
               cudaSuccess);
     // 100 new vertices (the growth), and 200 entries more for vertex 0, whose row of 3 slots
@@ -244,9 +245,9 @@ TEST(GraphStreamOrder, SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream) 
     EXPECT_EQ(summary.relocated_rows, 1);
     EXPECT_EQ(summary.compactions, 0);
     EXPECT_EQ(summary.dropped_insertions, 0);
-    ASSERT_EQ(cudaMemcpy(got.data(), copy, (rows + slots) * sizeof(std::int32_t),
-                         cudaMemcpyDeviceToHost),
-              cudaSuccess);
+    ASSERT_EQ(
+        cudaMemcpy(got.data(), copy, (rows + slots) * sizeof(std::int32_t), cudaMemcpyDeviceToHost),
+        cudaSuccess);
     std::size_t differ = 0;
     for (std::size_t i = 0; i < got.size(); ++i) {
       differ += got[i] != want[i] ? 1 : 0;
