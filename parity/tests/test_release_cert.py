@@ -2319,6 +2319,33 @@ def test_the_0_4_gpu_local_steps_hold_label_propagations_step(cert) -> None:
     assert block.index(step) < block.index("# M11 slack_csr / hyper_sssp")
 
 
+def test_gpu_local_judges_the_in_place_cloud_by_the_rate_rule() -> None:
+    """R040 (ADR 0110; the author's decisions of 2026-11-18 on ADR 0111): ci/gpu_local.sh's
+    label_propagation step reads the in_place cloud under the certificate's rate rule (30 port and
+    30 unpatched-original runs per case on the step's GPU, the run-by-run checks kept, which
+    `compare.py label_propagation inplace --rate` does), at the cases it checked before (5k5 and
+    50k), with the unpatched original of the reference the comparator would use itself; never the
+    every-run cloud of --runs. Without the original's build the step is "partial", which a
+    certificate does not accept."""
+    script = (REPO / "ci" / "gpu_local.sh").read_text()
+    step = script.split("# M10 label_propagation\n", 1)[1].split("# M11 slack_csr", 1)[0]
+    calls = [c for c in step.split("heavy python3 parity/compare.py label_propagation ")[1:]]
+    inplace = [c.split("; then", 1)[0] for c in calls if c.startswith("inplace")]
+    assert len(inplace) == 1, inplace
+    args = inplace[0].replace("\\\n", " ").split()
+    assert args[:2] == ["inplace", "--rate"], args
+    assert "--runs" not in args
+    assert args[args.index("--cases") + 1] == "5k5,50k"
+    assert args[args.index("--original") + 1] == '"${lpr_original}"'
+    assert args[args.index("--json") + 1] == '"${lpr_out}/inplace-cuda.json"'
+    lpg = load("parity/label_propagation_goldens.py")
+    assert f"--variant unpatched --print-dir \\\n        {lpg.REFERENCE} " in step
+    missing = step.split('if [ ! -x "${lpr_original}" ]; then', 1)[1].split("elif", 1)[0]
+    assert "lpr_partial=1" in missing and "lpr_ok=0" not in missing
+    # The rule the comparator applies is the frozen one of ADR 0111 (goldens.toml, 30 runs, 5 %).
+    assert lpg.RATE_RULE["runs"] == 30 and lpg.RATE_RULE["alpha"] == 0.05
+
+
 def test_a_partial_gpu_step_is_recorded_but_not_a_failure(cert, tmp_path: Path) -> None:
     results = tmp_path / "r"
     summary = tmp_path / "gpu.md"

@@ -144,7 +144,12 @@
 #              LabelPropagation-CUDA@a276a3a's goldens (parity/compare.py label_propagation trace
 #              --backend cuda; damped --config cuda-fused, which needs a parity-cuda build: the
 #              step is "partial" on another preset or without the goldens), the in_place cloud
-#              (inplace, 5k5 and 50k, 3 runs each, against the frozen calibration) and the
+#              at 5k5 and 50k under the certificate's rate rule (inplace --rate, ADR 0111, here
+#              since R040, ADR 0110: per case 30 port runs and 30 runs of the unpatched original
+#              alternated on this GPU, every port run's labels, components, iteration sum and the
+#              deterministic trace checked run by run, the port's runs outside the frozen
+#              iteration envelope not significantly more than the original's, one-sided Fisher
+#              exact test at 5 %; "partial" without the original's build) and the
 #              harmonic oracle on C (oracle-port --backend cuda); compute-sanitizer memcheck on
 #              dyng-compat-dynlp at 5k5 and 50k (both schedules), on the unit tests and on the
 #              input-contract tests and on the slotted device apply's tests (the overflow near the
@@ -690,9 +695,20 @@ if ! skipped label_propagation; then
         echo "the damped byte parity needs --preset parity-cuda: skipped on ${preset}"
         lpr_partial=1
       fi
-      if ! heavy python3 parity/compare.py label_propagation inplace --exe "${lpr_compat}" \
-        --cases 5k5,50k --json "${lpr_out}/inplace-cuda.json"; then
-        echo "the in_place cloud at 5k5 and 50k: FAILED"
+      # The in_place cloud under the certificate's rate rule (ADR 0111; the author's decision of
+      # 2026-11-18 moved this step to it in R040, ADR 0110): the rule's 30 port and 30 original
+      # runs per case, alternated on this GPU in one session; every port run still checked run by
+      # run. It needs the unpatched original (parity/build_reference.sh --variant unpatched).
+      lpr_original="$(parity/build_reference.sh --variant unpatched --print-dir \
+        LabelPropagation-CUDA | tail -n 1)/bin/dynLP"
+      if [ ! -x "${lpr_original}" ]; then
+        echo "the unpatched original ${lpr_original} is missing (parity/build_reference.sh" \
+          "--variant unpatched LabelPropagation-CUDA): the in_place rate rule is skipped"
+        lpr_partial=1
+      elif ! heavy python3 parity/compare.py label_propagation inplace --rate \
+        --exe "${lpr_compat}" --original "${lpr_original}" --cases 5k5,50k \
+        --json "${lpr_out}/inplace-cuda.json"; then
+        echo "the in_place cloud at 5k5 and 50k under the rate rule (ADR 0111): FAILED"
         lpr_ok=0
       fi
       if ! heavy python3 parity/compare.py label_propagation oracle-port --exe "${lpr_compat}" \

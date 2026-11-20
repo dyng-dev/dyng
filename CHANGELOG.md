@@ -625,6 +625,12 @@ Before 0.1.0 anything may change.
 - `ci/api_snapshot.py`: `FROZEN_BEFORE_STABLE` is replaced by `STABLE_HEADERS` (the
   vertex-arrival generators) and `FROZEN_OUTSIDE_STABLE` (the three oracles); label_propagation's
   header is frozen through its manifest. The API baseline's sections are unchanged.
+- `ci/gpu_local.sh`: the label_propagation step judges the in_place cloud at 5k5 and 50k by the
+  certificate's rate rule (`compare.py label_propagation inplace --rate`: per case 30 port runs
+  and 30 runs of the unpatched original on the step's GPU, every port run still checked run by
+  run; ADR 0111, carried out here by the author's decision of 2026-11-18, ADR 0110), instead of
+  requiring every one of 3 port runs inside the frozen envelope; "partial" without the original's
+  build. The step's summary row is unchanged.
 
 ## [0.3.0] - 2026-10-29
 
