@@ -711,6 +711,14 @@ not connected).
   `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream`, ADR 0120's
   amendment on the merged code).
 
+### R040: the release certificate (0.4, branch `release-0.4.0`)
+
+- Changed: the test subset that cibuildwheel runs in the installed wheel includes the
+  `label_propagation` and `hyper_sssp` tests with their command lines
+  (`test_label_propagation.py`, `test_label_propagation_cli.py`, `test_hyper_sssp.py`,
+  `test_hyper_sssp_cli.py`; the surfaces stable from 0.4.0, as 0.3 added the hypergraph and
+  `triad_count`), with the digest file of `examples/data` that label_propagation's tests read.
+
 ### R040: the release changes (0.4, branch `release-0.4.0`)
 
 - Changed: `VERSION` 0.4.0rc1 (it was 0.4.0.dev0, the development version after 0.3.0);
