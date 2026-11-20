@@ -74,9 +74,14 @@ which of these surfaces are stable from 0.4.0, and that the three testing oracle
 
 ### Outcome
 
-The deliberate change (a throwaway clone of `release-0.4.0` at the step's commit, deleted after;
-the record in R040's retrospective, `docs/developer/retrospectives/R040.md`): see section
-"Outcome of the deliberate change" below.
+**The deliberate change** (a throwaway clone of `release-0.4.0` at `744b768`, deleted after; the
+log `$DYNG_SCRATCH/runs/r040-stability/demo.log`; R040's retrospective): the committed tree passes
+`ci/api_check.sh d3375da` (the merge of main the branch starts from). With
+`label_propagation::update()` taking its batch view by value instead of by const reference,
+`ci/docs.sh --doxygen-only` fails against the baseline (the one changed declaration), and with the
+baseline regenerated (`ci/api_snapshot.py --update`) `ci/api_check.sh d3375da` fails: "breaking
+change of the frozen API: [dyng/label_propagation.hpp] ...". Reverted, both pass again
+("api-snapshot: OK (1442 declarations match public_api.txt)").
 
 ## Part B: `ci/gpu_local.sh`'s in_place cloud under the rate rule
 
@@ -123,15 +128,24 @@ rate rule in R040, before the release readings.
 - The local check is now exactly as strict as the certificate on these two cases, no longer
   stricter: a port whose tail is like the original's passes it; a heavier tail, any systematic
   change of the iteration counts, and any run-by-run failure fail it.
-- The step takes 120 runs more than before (60 per case); at 5k5 and 50k that is a few minutes on
-  an RTX A5000 (the record of the run on GPU 1 is below).
+- The step takes 114 runs more than before (60 per case instead of 3); at 5k5 and 50k that is
+  about two minutes on an RTX A5000 (the record below).
 - The certificate's own in_place reading (all four cases, `compare.py label_propagation
   certificate --kind inplace`) is unchanged; the step's record is a local check, not a
   certificate part.
 
-## Outcome of the deliberate change
+### Outcome: the step on GPU 1
 
-(filled in below by the step's records)
+`ci/gpu_local.sh --preset parity-cuda` with every other step skipped, GPU 1 after `quiet-ok
+R040`, on a clean tree at `d0cbf07` (2026-11-20 01:58-02:40 UTC, the build included): build
+passed, label_propagation passed, no sanitizer run retried (ADR 0112). The rate rule's record
+(`parity/results/R040/gpulocal-lp-inplace-rate.json`; the summary
+`parity/results/R040/gpulocal-lp-summary.md`): **5k5** the port 0 / 30 and the original 0 / 30
+runs outside the envelope (p = 1); **50k** the port 0 / 30 and the original 4 / 30 (at batches 8,
+6, 6 and 6; p = 1); every port run's labels within T_mean / T_max / T_flips of every reference
+run (largest mean 1.552e-04 of 4.280e-04 and 2.185e-04 of 5.503e-04), its components exact and
+its iteration sum inside the frozen bounds; the deterministic traces equal (141 and 281 fields, 0
+mismatched).
 
 ## Alternatives considered
 
