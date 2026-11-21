@@ -118,8 +118,9 @@ after 0.4.0, `docs/roadmap.md`): `cycle_count`'s OpenMP update reads up to 2.5 %
 batches under set semantics (a cost of the graph additions of 0.4 in the host graph apply,
 about 2 ms per 50,000-edge batch), and on CUDA the `sssp` and `mosp` updates on roadNet-PA's
 50,000-edge batches read about 4 % slower (where the kernel groups of 0.4 place device memory);
-the other regions read within 2 % of 0.3.0, or above it by code placement the author acknowledged
-(`docs/developer/retrospectives/R040.md`). `label_propagation`
+the other regions read within 2 % of 0.3.0, or above it where the code's placement in memory
+differs, located region by region (`docs/developer/retrospectives/R040.md`, with the author's
+decisions in GOVERNANCE.md). `label_propagation`
 does not check that the weights are positive (a weight <= 0 gives labels that are not the
 harmonic solution).
 
@@ -718,6 +719,44 @@ harmonic solution).
   after free per replaced array when the rows were uploaded on another stream;
   `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream`, ADR 0120's
   amendment on the merged code).
+
+### R040: review fixes (0.4, branch `release-0.4.0`)
+
+- Fixed: the sdist left out `examples/data/label_propagation_5k5_damped.sha256`, which
+  cibuildwheel's `test-sources` name, so `wheels.yml`'s wheel build from the sdist (and with it
+  `release.yml`) would have stopped before any test ran; `sdist.include` keeps it in.
+  `ci/cibw_test.py` (new) runs cibuildwheel's test step from the unpacked sdist (the test
+  sources copied into an empty directory, a missing one failing), in `ci/wheels.sh` and, for the
+  sources, in `wheels.yml`'s sdist job; a test checks that every test source is in the sdist.
+- Fixed: `dyng.sssp`, `mosp`, `cycle_count`, `dynamic_bfs` and `triangle_delta` given a float32
+  graph (label_propagation's) raise `NotSupportedError` naming the algorithm and the fix (sssp
+  and mosp called it "unweighted", the others raised a bare `TypeError`).
+- Fixed: `dyng.io.read_batches` and `read_hyperedge_batches` given a `.dgb` file raise
+  `FileFormatError` naming `BatchReader` (it was a `UnicodeDecodeError`), and every error message
+  of the native module escapes bytes that are not UTF-8 instead of failing to decode.
+- Fixed: `dyng hyper_sssp`'s help names its own default backend, sequential, and no longer
+  offers `--threads`; its report lines number the batches from 0, as the batch files and the
+  examples; a graph `.dgb` is refused from its header.
+- Fixed: with a CUDA plugin installed but unusable, `Resources.cuda()`'s error leads with the
+  plugin's reason instead of an install command.
+- Changed: the plugins' PyPI description and the keywords name label propagation and shortest
+  hyperpaths; the upgrade notes address 0.3.0 users (an environment with a 0.3.0 plugin takes the
+  release candidate's plugin line); install.md says that the plugins' PTX for GPUs newer than
+  sm_120 needs a driver at least as new as their toolkit; the tutorials' commands run as written
+  (the clone of `v0.4.0rc1`, `read_edge_list(..., directed=False)`, the `--seeds` file, the
+  labels on a GPU); label_propagation's page says that 0.4 does not check that the weights are
+  positive; stale 0.4 promises of the developer pages corrected.
+- Changed: the release date is 2026-11-21 (`CHANGELOG.md`, `CITATION.cff`).
+- Governance: the author's decision of 2026-11-21 on step 3's STOP (ADR 0024's reading against
+  0.3.0): the cycle_count OpenMP update region acknowledged as a located cost of 0.4's graph
+  additions, fixed after 0.4.0; the mosp OpenMP region as code placement on the D14 path; the
+  mosp CUDA roadNet-PA `combined` region within the 2026-11-13 row's class (GOVERNANCE.md).
+- Added: ADR 0024 rule 3's longer readings of the regions with a bootstrap interval wider than
+  about 3 % that the first pass had left at 51 / 34 rounds (`parity/results/R040/adr0024/`; a
+  region still above the bar goes to the author: R040.md step 4).
+- Changed: the certificate's records of the `tests`, `packaging` and `repo` scopes taken again on
+  fresh clones after these fixes, and `parity/certify.py write` run last (no library path
+  changed: the gates, the golden replays and the golden mutations stand).
 
 ### R040: the release certificate (0.4, branch `release-0.4.0`)
 
