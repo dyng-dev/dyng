@@ -237,7 +237,8 @@ def test_with_a_plugin_installed_the_cuda_message_leads_with_its_reason(
     monkeypatch.setattr(backend, "selection", lambda: with_plugin)
     message = resources._cpu_module_message()
     assert message.startswith(
-        "no installed CUDA plugin is used: dyng_cu13 0.4.0rc1 (unusable: no CUDA device is visible)"
+        "no installed CUDA plugin (the plugin wheels dyng-cu12 and dyng-cu13) is used: dyng_cu13 "
+        "0.4.0rc1 (unusable: no CUDA device is visible)"
     )
     assert "pip install" not in message and "TestPyPI" not in message
     monkeypatch.setattr(backend, "selection", lambda: backend.Selection("dyng._core", None, "x"))

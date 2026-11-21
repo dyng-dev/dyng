@@ -55,7 +55,8 @@ def _cpu_module_message() -> str:
         for p in chosen.plugins
     )
     return (
-        f"no installed CUDA plugin is used: {found}; the active native module is dyng._core, "
+        f"no installed CUDA plugin (the plugin wheels dyng-cu12 and dyng-cu13) is used: {found}; "
+        "the active native module is dyng._core, "
         "the CPU module (sequential and OpenMP backends). dyng.show_config() shows each "
         "plugin's line"
     )

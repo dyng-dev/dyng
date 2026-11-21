@@ -35,7 +35,13 @@ def test_cuda_in_the_cpu_wheel_points_to_the_plugins() -> None:
     with pytest.raises(dyng.NotSupportedError, match="dyng-cu12 and dyng-cu13") as e:
         dyng.Resources.cuda()
     assert isinstance(e.value, NotImplementedError)
-    assert "from source" not in str(e.value) and 'pip install "dyng[cu13]"' in str(e.value)
+    assert "from source" not in str(e.value)
+    if dyng._backend.selection().plugins:
+        # a plugin installed but not used (DYNG_CPU_ONLY=1, no device): its reason, no install
+        # line, which would not help (R040 review)
+        assert "no installed CUDA plugin" in str(e.value) and "pip install" not in str(e.value)
+    else:
+        assert 'pip install "dyng[cu13]"' in str(e.value)
     with pytest.raises(dyng.NotSupportedError):
         dyng.Resources("cuda")
 
