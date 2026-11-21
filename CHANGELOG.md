@@ -713,6 +713,19 @@ not connected).
 
 ### R040: the release certificate (0.4, branch `release-0.4.0`)
 
+- Added: the release certificate of 0.4.0rc1, `benchmarks/results/0.4.0rc1/` (`parity.json` and
+  its `README.md`), measured on the release's final library: the golden replays of sssp,
+  cycle_count and mosp on every backend; the CBST trace goldens; the hypergraph container's
+  replays and MOSP_ESCHER's sessions replayed whole on `slack_csr` storage; the triad goldens; the
+  label_propagation golden sets (the in_place set under ADR 0111's rate rule, the harmonic
+  oracle's release replay); hyper_sssp's modes on both CUDA engines and on sequential with the
+  `slack_csr` store check; the seven performance suites against the unpatched originals
+  (`ics26_dynlp` and `ia3_hsosp` new, `ics26_dynlp` with AD4's release-only 50m gate); the
+  sanitizer presets and compute-sanitizer; every golden mutation and the mutation CTests; the
+  distributions as `release.yml` builds them for `v0.4.0rc1`; and `ci/check.sh --parity`,
+  `ci/api_check.sh` and one run of `ci/gpu_local.sh --preset parity-cuda` on the release tree.
+  The summary, with ADR 0024's reading of the stable algorithms against 0.3.0, is in
+  `docs/developer/retrospectives/R040.md` (`parity/results/R040/adr0024/`).
 - Changed: the test subset that cibuildwheel runs in the installed wheel includes the
   `label_propagation` and `hyper_sssp` tests with their command lines
   (`test_label_propagation.py`, `test_label_propagation_cli.py`, `test_hyper_sssp.py`,
