@@ -8,7 +8,7 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.4.0rc1] - 2026-11-20
+## [0.4.0rc1] - 2026-11-21
 
 ### Summary
 
@@ -113,7 +113,15 @@ bitwise per backend and build); incidence edits only on `slack_csr` storage, and
 not on it; MOSP_ESCHER's own H-SOSP batch generator is not ported (the gates replay its exported
 batches); the hypergraph store's offsets are 32-bit; on CUDA the memory pool keeps, between
 batches, what an update reached (recorded beside the memory gates, not gated); no DOI (Zenodo is
-not connected).
+not connected). Against 0.3.0 (ADR 0024's reading, acknowledged by the author; fixes planned
+after 0.4.0, `docs/roadmap.md`): `cycle_count`'s OpenMP update reads up to 2.5 % slower on large
+batches under set semantics (a cost of the graph additions of 0.4 in the host graph apply,
+about 2 ms per 50,000-edge batch), and on CUDA the `sssp` and `mosp` updates on roadNet-PA's
+50,000-edge batches read about 4 % slower (where the kernel groups of 0.4 place device memory);
+the other regions read within 2 % of 0.3.0, or above it by code placement the author acknowledged
+(`docs/developer/retrospectives/R040.md`). `label_propagation`
+does not check that the weights are positive (a weight <= 0 gives labels that are not the
+harmonic solution).
 
 ### Changed
 
@@ -735,7 +743,8 @@ not connected).
 ### R040: the release changes (0.4, branch `release-0.4.0`)
 
 - Changed: `VERSION` 0.4.0rc1 (it was 0.4.0.dev0, the development version after 0.3.0);
-  `CITATION.cff` `version: 0.4.0rc1`, `date-released: 2026-11-20`; this section `[0.4.0rc1]`
+  `CITATION.cff` `version: 0.4.0rc1`, `date-released: 2026-11-21` (2026-11-20 before the review
+  fixes moved it to the day they were made); this section `[0.4.0rc1]`
   with the summary above: everything that was under `Unreleased` (M10a, M10b, M11a, M11b, the
   ADR 0120 fix and R040) moved here, an empty `Unreleased` above it, and the link references.
 - Changed (packaging; ADR 0113): the `dyng-cu13` plugin is built with **CUDA 13.5** (nvcc
