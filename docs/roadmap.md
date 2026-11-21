@@ -164,6 +164,12 @@ release changes.
   2026-11-13): a device allocation order independent of which kernel modules are resident. With
   fewer modules loaded, sssp's persistent kernel reads about 4 % slower on roadNet-PA's 50k
   batches (1.035-1.041 against `ae5fc47`; 1.000-1.001 with every kernel group loaded at start-up).
+- After 0.4.0 (from R040's ADR 0024 reading against `v0.3.0`; the author's decision of 2026-11-21):
+  the compact-row host apply under set semantics back to 0.3.0's cost. M10's graph additions (the
+  vertex-batch and row-layout members of `normalized_batch` and the graph's properties) compile
+  `apply_set_batch_host` differently, and cycle_count's OpenMP update on `github_k4_25000_25000_s1`
+  reads 1.025 against `v0.3.0` (`graph.apply` +2.2 ms per 50,000-edge batch; not code placement).
+  The fix is read again under ADR 0024.
 - After 0.4.0 (from M10b's API review, ADR 0109): a vertex-capacity `graph::reserve()`, so that
   the first vertex batch on CUDA need not allocate (a new public name, for the author).
 - **Deferred beyond 0.4.0** (the author's decision of 2026-11-18): **conda-forge packages**
