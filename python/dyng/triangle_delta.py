@@ -27,6 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass, fields
 from typing import Any
 
+from . import _dtypes
 from . import _writer as _writer_state
 from ._backend import native
 from ._convert import copy_fields, enum_name
@@ -155,6 +156,9 @@ class Result:
 def _check_graph(graph: Graph) -> None:
     if not isinstance(graph, Graph):
         raise TypeError("expected a dyng.Graph")
+    _dtypes.refuse_float_graph(
+        graph.weight_dtype, "triangle_delta", "build it unweighted or with int32 weights"
+    )
 
 
 def compute(

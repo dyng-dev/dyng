@@ -151,6 +151,20 @@ def find_graph_type(vertex: np.dtype, edge: np.dtype, weight: bool | np.dtype | 
     )
 
 
+def refuse_float_graph(weight: np.dtype | None, algorithm: str, fix: str) -> None:
+    """Raise NotSupportedError for a float32-weighted graph (label_propagation's graphs of 0.4)
+    given to ``algorithm``, which reads integer or no weights, before the native call (whose
+    overloads would otherwise refuse it with a bare TypeError, or a check read it as
+    unweighted)."""
+    if weight == FLOAT32:
+        raise NotSupportedError(
+            f"dyng.{algorithm} does not read float32-weighted graphs (this graph has "
+            f"weight_dtype float32, as label_propagation's graphs of 0.4, such as "
+            f"Graph.with_capacity's, have): {fix}; label_propagation is the algorithm of the "
+            f"float32 graphs"
+        )
+
+
 def float32_value(x: float) -> float:
     """The shortest decimal that is the float32 nearest to ``x``, as a Python float (a float32
     field read back from C++: ``float32_value(1e-4) == 1e-4``, and passing it back gives the same

@@ -406,6 +406,9 @@ class Result:
 def _check_graph(graph: Graph) -> None:
     if not isinstance(graph, Graph):
         raise TypeError("expected a dyng.Graph")
+    _dtypes.refuse_float_graph(
+        graph.weight_dtype, "mosp", "build a graph with int32 weights, one column per objective"
+    )
     if not graph.weighted:
         raise NotSupportedError(
             "dyng.mosp needs integer weights: graphs of types (int32, int32 or int64, int32) or "
