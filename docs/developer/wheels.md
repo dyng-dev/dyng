@@ -105,7 +105,11 @@ It builds the sdist, then the wheel **from the sdist** with `pip wheel`, repairs
 `ci/wheel_check.py`, and installs the wheel alone into a fresh venv for each Python version
 (3.12 and 3.13): an import from an empty directory, sssp and cycle_count on both host backends,
 `dyng --version` and `dyng config`, then the whole pytest suite against the installed wheel (a
-report of leaked nanobind objects fails the run). The distributions land in
+report of leaked nanobind objects fails the run), then cibuildwheel's own test step:
+`ci/cibw_test.py` unpacks the sdist, copies the `[tool.cibuildwheel] test-sources` of its
+`pyproject.toml` into an empty directory (a source missing from the sdist fails, as it stops
+cibuildwheel; the check also runs right after the sdist is built, and in `wheels.yml`'s sdist job)
+and runs the `test-command` there with the `test-environment`. The distributions land in
 `$DYNG_SCRATCH/wheels/<version>/dist`.
 
 The differences from the CI build:
@@ -116,7 +120,7 @@ The differences from the CI build:
 | compiler | the image's gcc-toolset (libstdc++ newer than the system's through `libstdc++_nonshared`) | GCC 12 with libstdc++ and libgcc linked statically and their symbols hidden (`-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL`) |
 | build front end | `build` (isolated, dependencies from PyPI) | `pip wheel --no-build-isolation` from the sdist, with the pinned scikit-build-core and nanobind of `environment.yml` |
 | repair | auditwheel inside the image | auditwheel from `$DYNG_SCRATCH/tools/wheeltools`, `--plat manylinux_2_28_x86_64 --only-plat`, libgomp from the conda toolchain |
-| tests | a pytest subset in the built wheel (cibuildwheel), then the whole suite (install-test job) | the whole suite in fresh venvs |
+| tests | a pytest subset in the built wheel (cibuildwheel, from the sdist's test sources), then the whole suite (install-test job) | the whole suite in fresh venvs, then the same subset from the sdist's test sources (`ci/cibw_test.py`) |
 | bundled OpenMP runtime | the image's libgomp (GCC 12 toolset) | the conda toolchain's libgomp, pinned to GCC 12 (`libgomp=12.*` in `ci/wheel-toolchain.yml`) |
 
 The system GCC alone cannot produce a manylinux_2_28 wheel: linked against glibc 2.36 and the

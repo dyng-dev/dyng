@@ -6,7 +6,8 @@
 # manylinux_2_28 x86_64 abi3 CPU wheel built FROM that sdist, auditwheel repair (libgomp bundled),
 # `twine check`, ci/wheel_check.py (size budget of 90 MB, tags, contents) and an install test of
 # the wheel alone in a fresh venv per Python version (import, the CLI, sssp and cycle_count on
-# both host backends, then the pytest suite of python/tests against the installed wheel).
+# both host backends, then the pytest suite of python/tests against the installed wheel, then
+# cibuildwheel's test command of pyproject.toml run from the unpacked sdist by ci/cibw_test.py).
 #
 # CI builds the same distributions with cibuildwheel inside the manylinux_2_28 image
 # (.github/workflows/wheels.yml). This machine has no container runtime, so this script uses
@@ -64,6 +65,8 @@ echo "==> sdist"
 "${python}" -m build --sdist --no-isolation --outdir "${out}/dist" . >"${out}/sdist.log" 2>&1 \
   || { tail -30 "${out}/sdist.log"; exit 1; }
 sdist="${out}/dist/dyng-${version}.tar.gz"
+# cibuildwheel (wheels.yml) copies its test sources from the unpacked sdist: each must be in it.
+"${python}" ci/cibw_test.py --sdist "${sdist}" --check
 
 echo "==> wheel from the sdist (GCC 12, glibc 2.28 sysroot, static and hidden libstdc++)"
 CC="${cc}" CXX="${cxx}" "${python}" -m pip wheel --no-deps --no-build-isolation -w "${out}/raw" \
@@ -128,6 +131,16 @@ PY
     echo "ci/wheels.sh: nanobind reported leaked objects (${log})" >&2
     exit 1
   fi
+  # cibuildwheel's own test step of wheels.yml: its test command from the test sources of the
+  # unpacked sdist (not from this checkout), with its test environment.
+  echo "    cibuildwheel's test command from the unpacked sdist (ci/cibw_test.py)"
+  log="${out}/cibw-test-${pyver}.log"
+  if ! "${python}" ci/cibw_test.py --sdist "${sdist}" --python "${venv}/bin/python" \
+    >"${log}" 2>&1; then
+    tail -40 "${log}"
+    exit 1
+  fi
+  tail -1 "${log}"
 done
 echo "==> distributions in ${out}/dist"
 ls -l "${out}/dist"

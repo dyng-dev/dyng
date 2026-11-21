@@ -58,6 +58,7 @@ on:
       - THIRD_PARTY_LICENSES.txt
       - THIRD_PARTY_LICENSES_CUDA.txt
       - ci/wheel_check.py
+      - ci/cibw_test.py
       - ci/plugin_pyproject.py
       - ci/plugin_smoke.py
       - ci/cuda_toolkit.py
@@ -94,6 +95,8 @@ jobs:
         run: |
           twine check --strict dist/*
           python ci/wheel_check.py dist/*.tar.gz
+      - name: Every cibuildwheel test source is in the sdist (ci/cibw_test.py)
+        run: python ci/cibw_test.py --sdist dist/dyng-*.tar.gz --check
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: sdist

@@ -118,7 +118,11 @@ sdist.exclude = [
   ".codespellrc",
   ".editorconfig",
 ]
-sdist.include = ["docs/references.bib"]
+# Kept in although its directory is excluded: the bibliography (the citation keys of the
+# registry), and the digest of examples/data that cibuildwheel's test-sources copies and the
+# label_propagation tests read (a test source missing from the sdist stops cibuildwheel before
+# any test runs; ci/cibw_test.py checks it, R040's review).
+sdist.include = ["docs/references.bib", "examples/data/label_propagation_5k5_damped.sha256"]
 
 [tool.scikit-build.cmake.define]
 DYNG_BUILD_PYTHON = "ON"

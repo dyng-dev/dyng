@@ -343,8 +343,8 @@ v=$(cat VERSION)  # the tag about to be pushed is v$v
 python -c 'import yaml; wf = yaml.safe_load(open(".github/workflows/release.yml")); print(next(
     s["run"] for s in wf["jobs"]["select"]["steps"] if s.get("id") == "select"))' > /tmp/select.sh
 GITHUB_REF_NAME="v$v" GITHUB_OUTPUT=/tmp/select.out bash /tmp/select.sh && cat /tmp/select.out
-# the package job (wheels.yml): the sdist, the wheel from the sdist, wheel_check, fresh venvs
-# (into $DYNG_SCRATCH/wheels/$v)
+# the package job (wheels.yml): the sdist, the wheel from the sdist, wheel_check, fresh venvs,
+# cibuildwheel's test step from the unpacked sdist (ci/cibw_test.py; into $DYNG_SCRATCH/wheels/$v)
 flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/wheels.sh
 # from 0.2.0: the plugins from that sdist (CI's toolkits: docs/developer/wheels.md), GPU tests
 # (into $DYNG_SCRATCH/wheels/$v-plugins)
