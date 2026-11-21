@@ -7,7 +7,7 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 ## Where we are
 
 **0.3.0 is released** (`pip install dyng`; with the CUDA backend `pip install "dyng[cu13]"` or
-`"dyng[cu12]"`, upgrading from 0.2.0 or 0.1.0 with `pip install -U`,
+`"dyng[cu12]"`, upgrading from an earlier release with `pip install -U`,
 {doc}`getting_started/install`; the release checklist is {doc}`developer/release`). Everything
 listed for 0.3.0 below is done: the dynamic hypergraph, `triad_count` (C++, Python and the
 command line) and the file formats `.hg`, `.dgb` and the triad bins at version 1 are stable from

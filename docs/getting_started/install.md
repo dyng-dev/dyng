@@ -146,11 +146,12 @@ pip install "dyng[cu12]"           # NVIDIA driver 525 or newer (CUDA 12.x)
 python -c "import dyng; dyng.show_config()"
 ```
 
-**Upgrading from 0.2.0 or 0.1.0:** `pip install -U "dyng[cu13]"` (or `"dyng[cu12]"`). Without
-`-U`, pip treats the installed `dyng` as satisfying the requirement: with 0.2.0 it keeps 0.2.0
-and installs the 0.2.0 plugin of its extra, which has no hypergraph and no `triad_count`; with
-0.1.0 it only warns that 0.1.0 does not provide the extra `cu13`, and installs neither 0.3.0 nor
-the plugin (0.1.0's own error message for `Resources.cuda()` names the line without `-U`).
+**Upgrading from an earlier release (0.3.0, 0.2.0 or 0.1.0):** `pip install -U "dyng[cu13]"`
+(or `"dyng[cu12]"`). Without `-U`, pip treats the installed `dyng` as satisfying the
+requirement: with 0.3.0 or 0.2.0 it keeps that release and installs its plugin for the extra
+(0.2.0's has no hypergraph and no `triad_count`); with 0.1.0 it only warns that 0.1.0 does not
+provide the extra `cu13`, and installs neither the current release nor the plugin (0.1.0's own
+error message for `Resources.cuda()` names the line without `-U`).
 
 Until 0.4.0 is on PyPI, the plugins of the release candidate 0.4.0rc1 are on TestPyPI only.
 Take `dyng` and the plugin from TestPyPI alone, after NumPy from PyPI, so that pip does not mix
@@ -163,8 +164,13 @@ pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.4.0rc1" "dyng-cu
 pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.4.0rc1" "dyng-cu12==0.4.0rc1"   # or CUDA 12
 ```
 
+An environment with a 0.3.0 plugin takes these lines (both packages), not the CPU line of the
+section above: that line upgrades `dyng` alone and leaves the plugin at 0.3.0, whose version
+then does not match `dyng`'s, so dynG warns (`dyng.BackendWarning`) and falls back to the CPU.
+
 A plugin contains the CUDA runtime (no CUDA toolkit is needed), code for the GPU architectures
-sm_75 to sm_120 (Turing to Blackwell) and PTX for newer ones. Which one to install: `nvidia-smi`
+sm_75 to sm_120 (Turing to Blackwell) and PTX for newer ones (the PTX needs a driver at least
+as new as the plugin's toolkit, below). Which one to install: `nvidia-smi`
 prints the driver's "CUDA Version"; take the plugin of that major (a cu12 plugin also runs on a
 CUDA 13 driver; a cu13 plugin needs a CUDA 13 driver). With both installed, the one of the
 driver's CUDA major is used.
@@ -178,7 +184,10 @@ driver's CUDA major is used.
 Requirements: Linux x86-64 with glibc 2.28 or newer (manylinux_2_28), CPython 3.12 or newer, an
 NVIDIA GPU of compute capability 7.5 or newer (Turing, 2018, and later; the CUDA 13 toolkits no
 longer support older GPUs), and the NVIDIA driver. CUDA's minor-version compatibility lets a
-plugin built with the latest toolkit of its major run on any driver of that major. In a
+plugin built with the latest toolkit of its major run its sm_75 to sm_120 code on any driver of
+that major; it does not cover PTX, so on a GPU newer than sm_120 the plugin's PTX needs a driver
+at least as new as its toolkit (CUDA 13.5 for `dyng-cu13`, 12.9 for `dyng-cu12`; an older driver
+reports `cudaErrorUnsupportedPtxVersion`). In a
 container the GPU and the driver's libraries must be passed in (`docker run --gpus all`, the
 NVIDIA Container Toolkit). The optional extras `cupy-cu13` / `cupy-cu12` and `torch` install
 CuPy and PyTorch for the device-array round trips.
@@ -217,7 +226,7 @@ chosen):
 | Message | Cause and remedy |
 |---|---|
 | `... cannot be initialized in this process (cudaErrorInitializationError); CUDA cannot be initialized in a process forked after its parent initialized CUDA ...` | a worker process started with `fork` (the default of `multiprocessing` on Linux before Python 3.14) whose parent had already used CUDA; start the workers with `multiprocessing.get_context("spawn")` (or `"forkserver"`), or use CUDA in the parent only after the workers are started. Choosing the plugin does not initialize CUDA, so a parent that only imported dynG, read `dyng.__version__` or ran CPU work can fork workers that use CUDA |
-| `cudaErrorNoKernelImageForDevice ... this build of dynG has no code for device 0 (compute capability X.Y)` | the device is not covered by the plugin's architectures (sm_75 to sm_120, PTX for newer ones); with several GPUs, choose a supported one with `Resources.cuda(device=...)` or `CUDA_VISIBLE_DEVICES` |
+| `cudaErrorNoKernelImageForDevice ... this build of dynG has no code for device 0 (compute capability X.Y)` | the device is not covered by the plugin's architectures (sm_75 to sm_120, PTX for newer ones with a driver at least as new as the plugin's toolkit); with several GPUs, choose a supported one with `Resources.cuda(device=...)` or `CUDA_VISIBLE_DEVICES` |
 
 On a machine without a GPU (a CI runner, a login node) an installed plugin is harmless: dynG
 falls back to the CPU backends with the warning; set `DYNG_CPU_ONLY=1` there to silence it.

@@ -134,7 +134,7 @@ and RAFT, but it is **not affiliated** with either project.
 ```bash
 pip install dyng                         # from PyPI: 0.3.0 (Python >= 3.12, Linux x86-64)
 pip install "dyng[cu13]"                 # with the CUDA backend (NVIDIA driver of CUDA 13; "dyng[cu12]": CUDA 12)
-pip install -U "dyng[cu13]"              # upgrading from 0.2.0 or 0.1.0: without -U pip keeps the installed release
+pip install -U "dyng[cu13]"              # upgrading from an earlier release: without -U pip keeps the installed one
 pip install .                            # or from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
 ```
 
@@ -154,6 +154,10 @@ pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/
 pip install "numpy>=1.26"
 pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.4.0rc1" "dyng-cu13==0.4.0rc1"   # or dyng-cu12
 ```
+
+An environment with a 0.3.0 plugin takes the plugin lines (both packages): the CPU line alone
+upgrades `dyng` and leaves the plugin at 0.3.0, whose version then does not match `dyng`'s, so
+dynG warns and falls back to the CPU.
 
 For development:
 `pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build` in the
