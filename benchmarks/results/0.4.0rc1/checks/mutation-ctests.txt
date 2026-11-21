@@ -1,0 +1,163 @@
+# Copy of $DYNG_SCRATCH/runs/r040-cert/final/mutation-ctests.log (sha256 177293915864d67d8ab4dbc013b5366240ccc0b7a13c2a89b759ac634e73d1b6, 13445 bytes), written by parity/certify.py check.
+Test project /home/sskg8/Projects/dyng-work/r040/cert/clone-mutation/build/dev-cuda
+      Start 2258: cycle_count.mutation.control
+ 1/72 Test #2258: cycle_count.mutation.control .............................................   Passed   23.11 sec
+      Start 2259: cycle_count.mutation.cuda.control
+ 2/72 Test #2259: cycle_count.mutation.cuda.control ........................................   Passed   33.70 sec
+      Start 2260: cycle_count.mutation.double_count_5
+ 3/72 Test #2260: cycle_count.mutation.double_count_5 ......................................   Passed   22.68 sec
+      Start 2261: cycle_count.mutation.weak_ownership
+ 4/72 Test #2261: cycle_count.mutation.weak_ownership ......................................   Passed   18.33 sec
+      Start 2262: cycle_count.mutation.skip_workspace_resize
+ 5/72 Test #2262: cycle_count.mutation.skip_workspace_resize ...............................   Passed   18.61 sec
+      Start 2263: cycle_count.mutation.cuda.cuda_double_count_5
+ 6/72 Test #2263: cycle_count.mutation.cuda.cuda_double_count_5 ............................   Passed   55.30 sec
+      Start 2264: cycle_count.mutation.cuda.cuda_weak_ownership
+ 7/72 Test #2264: cycle_count.mutation.cuda.cuda_weak_ownership ............................   Passed   26.85 sec
+      Start 2265: cbst.mutation.control
+ 8/72 Test #2265: cbst.mutation.control ....................................................   Passed    9.93 sec
+      Start 2266: cbst.mutation.unfill_drops_last
+ 9/72 Test #2266: cbst.mutation.unfill_drops_last ..........................................   Passed    2.17 sec
+      Start 2267: cbst.mutation.graph_own_ids
+10/72 Test #2267: cbst.mutation.graph_own_ids ..............................................   Passed    8.72 sec
+      Start 2268: cbst.mutation.reversed_ties
+11/72 Test #2268: cbst.mutation.reversed_ties ..............................................   Passed    7.04 sec
+      Start 2269: cbst.mutation.surplus_rule1
+12/72 Test #2269: cbst.mutation.surplus_rule1 ..............................................   Passed    3.57 sec
+      Start 2270: cbst.mutation.keep_dead_slots
+13/72 Test #2270: cbst.mutation.keep_dead_slots ............................................   Passed    6.38 sec
+      Start 2271: cbst.mutation.compaction_padding
+14/72 Test #2271: cbst.mutation.compaction_padding .........................................   Passed    3.78 sec
+      Start 2272: cbst.mutation.requested_keys
+15/72 Test #2272: cbst.mutation.requested_keys .............................................   Passed    5.44 sec
+      Start 2273: hypergraph.mutation.control
+16/72 Test #2273: hypergraph.mutation.control ..............................................   Passed   72.59 sec
+      Start 2274: hypergraph.mutation.cuda.control
+17/72 Test #2274: hypergraph.mutation.cuda.control .........................................   Passed   21.23 sec
+      Start 2275: hypergraph.mutation.h2v_not_deduplicated
+18/72 Test #2275: hypergraph.mutation.h2v_not_deduplicated .................................   Passed   34.30 sec
+      Start 2276: hypergraph.mutation.allocator_ties_reversed
+19/72 Test #2276: hypergraph.mutation.allocator_ties_reversed ..............................   Passed   47.05 sec
+      Start 2277: hypergraph.mutation.hsosp_allocator_unfill_drops_last
+20/72 Test #2277: hypergraph.mutation.hsosp_allocator_unfill_drops_last ....................   Passed   49.48 sec
+      Start 2278: hypergraph.mutation.cuda.hsosp_allocator_unfill_drops_last
+21/72 Test #2278: hypergraph.mutation.cuda.hsosp_allocator_unfill_drops_last ...............   Passed    3.10 sec
+      Start 2279: hypergraph.mutation.hsosp_csr_skips_last_deletion
+22/72 Test #2279: hypergraph.mutation.hsosp_csr_skips_last_deletion ........................   Passed   52.64 sec
+      Start 2280: hypergraph.mutation.cuda.hsosp_csr_skips_last_deletion
+23/72 Test #2280: hypergraph.mutation.cuda.hsosp_csr_skips_last_deletion ...................   Passed    3.29 sec
+      Start 2281: hypergraph.mutation.hsosp_pair_count_adds_deletions
+24/72 Test #2281: hypergraph.mutation.hsosp_pair_count_adds_deletions ......................   Passed   52.68 sec
+      Start 2282: hypergraph.mutation.cuda.hsosp_pair_count_adds_deletions
+25/72 Test #2282: hypergraph.mutation.cuda.hsosp_pair_count_adds_deletions .................   Passed    3.13 sec
+      Start 2283: hypergraph.mutation.hsosp_delta_no_post_pass
+26/72 Test #2283: hypergraph.mutation.hsosp_delta_no_post_pass .............................   Passed   50.83 sec
+      Start 2284: hypergraph.mutation.cuda.hsosp_delta_no_post_pass
+27/72 Test #2284: hypergraph.mutation.cuda.hsosp_delta_no_post_pass ........................   Passed    1.98 sec
+      Start 2285: hypergraph.mutation.mirror_additions_dropped
+28/72 Test #2285: hypergraph.mutation.mirror_additions_dropped .............................   Passed   41.69 sec
+      Start 2286: hyper_sssp.mutation.control
+29/72 Test #2286: hyper_sssp.mutation.control ..............................................   Passed    0.25 sec
+      Start 2287: hyper_sssp.mutation.cuda.control
+30/72 Test #2287: hyper_sssp.mutation.cuda.control .........................................   Passed   33.34 sec
+      Start 2288: hyper_sssp.mutation.pull_adds_neighbour_weight
+31/72 Test #2288: hyper_sssp.mutation.pull_adds_neighbour_weight ...........................   Passed    0.22 sec
+      Start 2289: hyper_sssp.mutation.cuda.pull_adds_neighbour_weight
+32/72 Test #2289: hyper_sssp.mutation.cuda.pull_adds_neighbour_weight ......................   Passed    6.18 sec
+      Start 2290: hyper_sssp.mutation.non_tight_parent
+33/72 Test #2290: hyper_sssp.mutation.non_tight_parent .....................................   Passed    0.22 sec
+      Start 2291: hyper_sssp.mutation.cuda.non_tight_parent
+34/72 Test #2291: hyper_sssp.mutation.cuda.non_tight_parent ................................   Passed   28.25 sec
+      Start 2292: hyper_sssp.mutation.cuda.ops_pull_adds_neighbour_weight
+35/72 Test #2292: hyper_sssp.mutation.cuda.ops_pull_adds_neighbour_weight ..................   Passed   32.20 sec
+      Start 2293: hyper_sssp.mutation.cuda.ops_non_tight_parent
+36/72 Test #2293: hyper_sssp.mutation.cuda.ops_non_tight_parent ............................   Passed   58.89 sec
+      Start 2294: triad_count.mutation.control
+37/72 Test #2294: triad_count.mutation.control .............................................   Passed    2.42 sec
+      Start 2295: triad_count.mutation.cuda.control
+38/72 Test #2295: triad_count.mutation.cuda.control ........................................   Passed   82.82 sec
+      Start 2296: triad_count.mutation.wrong_bin_sign
+39/72 Test #2296: triad_count.mutation.wrong_bin_sign ......................................   Passed    0.26 sec
+      Start 2297: triad_count.mutation.cuda.wrong_bin_sign
+40/72 Test #2297: triad_count.mutation.cuda.wrong_bin_sign .................................   Passed    4.33 sec
+      Start 2298: triad_count.mutation.skip_frontier_filter_b
+41/72 Test #2298: triad_count.mutation.skip_frontier_filter_b ..............................   Passed    1.13 sec
+      Start 2299: triad_count.mutation.cuda.skip_frontier_filter_b
+42/72 Test #2299: triad_count.mutation.cuda.skip_frontier_filter_b .........................   Passed   33.62 sec
+      Start 2300: triad_count.mutation.skip_frontier_filter_k
+43/72 Test #2300: triad_count.mutation.skip_frontier_filter_k ..............................   Passed    1.26 sec
+      Start 2301: triad_count.mutation.cuda.skip_frontier_filter_k
+44/72 Test #2301: triad_count.mutation.cuda.skip_frontier_filter_k .........................   Passed    8.79 sec
+      Start 2302: triad_count.mutation.inserted_requested_ids
+45/72 Test #2302: triad_count.mutation.inserted_requested_ids ..............................   Passed    4.44 sec
+      Start 2303: triad_count.mutation.cuda.inserted_requested_ids
+46/72 Test #2303: triad_count.mutation.cuda.inserted_requested_ids .........................   Passed    1.32 sec
+      Start 2304: triad_count.mutation.type1_unbounded_keys
+47/72 Test #2304: triad_count.mutation.type1_unbounded_keys ................................   Passed    6.90 sec
+      Start 2305: triad_count.mutation.cuda.type1_unbounded_keys
+48/72 Test #2305: triad_count.mutation.cuda.type1_unbounded_keys ...........................   Passed   29.93 sec
+      Start 2306: triad_count.mutation.cuda.cbst_unfill_drops_last
+49/72 Test #2306: triad_count.mutation.cuda.cbst_unfill_drops_last .........................   Passed    2.37 sec
+      Start 2307: label_propagation.mutation.control
+50/72 Test #2307: label_propagation.mutation.control .......................................   Passed   38.37 sec
+      Start 2308: label_propagation.mutation.cuda.control
+51/72 Test #2308: label_propagation.mutation.cuda.control ..................................   Passed   15.64 sec
+      Start 2309: label_propagation.mutation.cuda_operators.control
+52/72 Test #2309: label_propagation.mutation.cuda_operators.control ........................   Passed    5.66 sec
+      Start 2310: label_propagation.mutation.cuda_operators_vs_fused.control
+53/72 Test #2310: label_propagation.mutation.cuda_operators_vs_fused.control ...............   Passed    4.07 sec
+      Start 2311: label_propagation.mutation.inplace_plain_jacobi
+54/72 Test #2311: label_propagation.mutation.inplace_plain_jacobi ..........................   Passed   44.86 sec
+      Start 2312: label_propagation.mutation.cuda.inplace_plain_jacobi
+55/72 Test #2312: label_propagation.mutation.cuda.inplace_plain_jacobi .....................   Passed   15.34 sec
+      Start 2313: label_propagation.mutation.damped_no_damping
+56/72 Test #2313: label_propagation.mutation.damped_no_damping .............................   Passed   35.60 sec
+      Start 2314: label_propagation.mutation.cuda.damped_no_damping
+57/72 Test #2314: label_propagation.mutation.cuda.damped_no_damping ........................   Passed   14.43 sec
+      Start 2315: label_propagation.mutation.cuda_operators.damped_no_damping
+58/72 Test #2315: label_propagation.mutation.cuda_operators.damped_no_damping ..............   Passed    4.35 sec
+      Start 2316: label_propagation.mutation.lp_d_a_unfiltered_components
+59/72 Test #2316: label_propagation.mutation.lp_d_a_unfiltered_components ..................   Passed   42.22 sec
+      Start 2317: label_propagation.mutation.cuda.lp_d_a_unfiltered_components
+60/72 Test #2317: label_propagation.mutation.cuda.lp_d_a_unfiltered_components .............   Passed   14.24 sec
+      Start 2318: label_propagation.mutation.cuda_operators.lp_d_a_unfiltered_components
+61/72 Test #2318: label_propagation.mutation.cuda_operators.lp_d_a_unfiltered_components ...   Passed    4.51 sec
+      Start 2319: label_propagation.mutation.lp_d_b_affected_too_small
+62/72 Test #2319: label_propagation.mutation.lp_d_b_affected_too_small .....................   Passed   37.46 sec
+      Start 2320: label_propagation.mutation.cuda.lp_d_b_affected_too_small
+63/72 Test #2320: label_propagation.mutation.cuda.lp_d_b_affected_too_small ................   Passed   27.32 sec
+      Start 2321: label_propagation.mutation.cuda_operators.lp_d_b_affected_too_small
+64/72 Test #2321: label_propagation.mutation.cuda_operators.lp_d_b_affected_too_small ......   Passed   13.84 sec
+      Start 2322: label_propagation.mutation.lp_d_c_stale_buffer
+65/72 Test #2322: label_propagation.mutation.lp_d_c_stale_buffer ...........................   Passed   34.32 sec
+      Start 2323: label_propagation.mutation.cuda.lp_d_c_stale_buffer
+66/72 Test #2323: label_propagation.mutation.cuda.lp_d_c_stale_buffer ......................   Passed   41.80 sec
+      Start 2324: label_propagation.mutation.cuda_operators.lp_d_c_stale_buffer
+67/72 Test #2324: label_propagation.mutation.cuda_operators.lp_d_c_stale_buffer ............   Passed   12.15 sec
+      Start 2325: label_propagation.mutation.lp_d_e_resurrected
+68/72 Test #2325: label_propagation.mutation.lp_d_e_resurrected ............................   Passed   36.09 sec
+      Start 2326: label_propagation.mutation.cuda.lp_d_e_resurrected
+69/72 Test #2326: label_propagation.mutation.cuda.lp_d_e_resurrected .......................   Passed    8.94 sec
+      Start 2327: label_propagation.mutation.cuda_operators.lp_d_e_resurrected
+70/72 Test #2327: label_propagation.mutation.cuda_operators.lp_d_e_resurrected .............   Passed    6.42 sec
+      Start 2328: testing.mutation.triad_reference_class_map
+71/72 Test #2328: testing.mutation.triad_reference_class_map ...............................   Passed    0.82 sec
+      Start 2329: conformance.mutation.frontier_requested_ids
+72/72 Test #2329: conformance.mutation.frontier_requested_ids ..............................   Passed   60.98 sec
+
+100% tests passed out of 72
+
+Label Time Summary:
+cbst                 =  47.02 sec*proc (8 tests)
+conformance          =  60.98 sec*proc (1 test)
+cpu                  = 831.79 sec*proc (30 tests)
+cycle_count          = 198.58 sec*proc (7 tests)
+gpu                  = 706.35 sec*proc (42 tests)
+hyper_sssp           = 376.68 sec*proc (16 tests)
+hypergraph           = 494.97 sec*proc (14 tests)
+label_propagation    = 457.63 sec*proc (21 tests)
+mutation             = 1538.14 sec*proc (72 tests)
+testing              =   0.82 sec*proc (1 test)
+triad_count          = 180.40 sec*proc (14 tests)
+
+Total Test time (real) = 1544.07 sec

@@ -1,0 +1,168 @@
+# Copy of $DYNG_SCRATCH/runs/r040-cert/replays/mutate.log (sha256 7db6cb6fc8c56e93d051331ae6cec48cfedcede0e4b16a3628370671ecc7827a, 14452 bytes), written by parity/certify.py check.
+[mutate] control: build dyng-compat-cycle-enum dyng-compat-mosp dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests dyng_hsosp_results_cuda_tests dyng_hsosp_results_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_cuda_tests dyng_hyper_sssp_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_kit_cuda_tests dyng_hypergraph_kit_tests dyng_hypergraph_tests dyng_label_propagation_checker_cuda_tests dyng_label_propagation_checker_tests dyng_label_propagation_conformance_cuda_tests dyng_label_propagation_conformance_tests dyng_label_propagation_cuda_tests dyng_label_propagation_tests dyng_triad_count_cuda_tests dyng_triad_count_tests dyng_triad_reference_tests
+[mutate] control: replay sssp on sequential
+[mutate] control: replay sssp on openmp:4
+[mutate] control: replay sssp on cuda
+[mutate] control: replay cycle_count on sequential
+[mutate] control: replay cycle_count on openmp:4
+[mutate] control: replay cycle_count on cuda
+[mutate] control: replay label_propagation on cuda
+[mutate] control: replay cbst on cuda
+[mutate] control: replay hypergraph on sequential
+[mutate] control: replay kit on sequential
+[mutate] control: replay triad_count on cuda
+[mutate] control: replay hyper_sssp on cuda
+[mutate] control: replay hyper_sssp on sequential
+[mutate] control: replay triad_reference on sequential
+[mutate] control: passed
+[mutate] sssp_roots_only_sequential: build dyng-compat-mosp
+[mutate] sssp_roots_only_sequential: replay sssp on sequential
+[mutate] sssp_roots_only_sequential: detected
+[mutate] sssp_roots_only_openmp: build dyng-compat-mosp
+[mutate] sssp_roots_only_openmp: replay sssp on openmp:4
+[mutate] sssp_roots_only_openmp: detected
+[mutate] sssp_roots_only_cuda: build dyng-compat-mosp
+[mutate] sssp_roots_only_cuda: replay sssp on cuda
+[mutate] sssp_roots_only_cuda: detected
+[mutate] cycle_count_double_count_5: build dyng-compat-cycle-enum
+[mutate] cycle_count_double_count_5: replay cycle_count on sequential
+[mutate] cycle_count_double_count_5: detected
+[mutate] cycle_count_weak_ownership: build dyng-compat-cycle-enum
+[mutate] cycle_count_weak_ownership: replay cycle_count on openmp:4
+[mutate] cycle_count_weak_ownership: detected
+[mutate] cycle_count_double_count_5_cuda: build dyng-compat-cycle-enum
+[mutate] cycle_count_double_count_5_cuda: replay cycle_count on cuda
+[mutate] cycle_count_double_count_5_cuda: detected
+[mutate] cycle_count_weak_ownership_cuda: build dyng-compat-cycle-enum
+[mutate] cycle_count_weak_ownership_cuda: replay cycle_count on cuda
+[mutate] cycle_count_weak_ownership_cuda: detected
+[mutate] inplace_plain_jacobi: build dyng_label_propagation_checker_cuda_tests dyng_label_propagation_checker_tests dyng_label_propagation_conformance_cuda_tests dyng_label_propagation_conformance_tests dyng_label_propagation_cuda_tests dyng_label_propagation_tests
+[mutate] inplace_plain_jacobi: replay label_propagation on cuda
+[mutate] inplace_plain_jacobi: detected
+[mutate] damped_no_damping: build dyng_label_propagation_checker_cuda_tests dyng_label_propagation_checker_tests dyng_label_propagation_conformance_cuda_tests dyng_label_propagation_conformance_tests dyng_label_propagation_cuda_tests dyng_label_propagation_tests
+[mutate] damped_no_damping: replay label_propagation on cuda
+[mutate] damped_no_damping: detected
+[mutate] lp_d_a_unfiltered_components: build dyng_label_propagation_checker_cuda_tests dyng_label_propagation_checker_tests dyng_label_propagation_conformance_cuda_tests dyng_label_propagation_conformance_tests dyng_label_propagation_cuda_tests dyng_label_propagation_tests
+[mutate] lp_d_a_unfiltered_components: replay label_propagation on cuda
+[mutate] lp_d_a_unfiltered_components: detected
+[mutate] lp_d_b_affected_too_small: build dyng_label_propagation_checker_cuda_tests dyng_label_propagation_checker_tests dyng_label_propagation_conformance_cuda_tests dyng_label_propagation_conformance_tests dyng_label_propagation_cuda_tests dyng_label_propagation_tests
+[mutate] lp_d_b_affected_too_small: replay label_propagation on cuda
+[mutate] lp_d_b_affected_too_small: detected
+[mutate] lp_d_c_stale_buffer: build dyng_label_propagation_checker_cuda_tests dyng_label_propagation_checker_tests dyng_label_propagation_conformance_cuda_tests dyng_label_propagation_conformance_tests dyng_label_propagation_cuda_tests dyng_label_propagation_tests
+[mutate] lp_d_c_stale_buffer: replay label_propagation on cuda
+[mutate] lp_d_c_stale_buffer: detected
+[mutate] lp_d_e_resurrected: build dyng_label_propagation_checker_cuda_tests dyng_label_propagation_checker_tests dyng_label_propagation_conformance_cuda_tests dyng_label_propagation_conformance_tests dyng_label_propagation_cuda_tests dyng_label_propagation_tests
+[mutate] lp_d_e_resurrected: replay label_propagation on cuda
+[mutate] lp_d_e_resurrected: detected
+[mutate] mosp_combined_first_tree_sequential: build dyng-compat-mosp
+[mutate] mosp_combined_first_tree_sequential: replay mosp on sequential
+[mutate] mosp_combined_first_tree_sequential: detected
+[mutate] mosp_combined_first_tree_openmp: build dyng-compat-mosp
+[mutate] mosp_combined_first_tree_openmp: replay mosp on openmp:4
+[mutate] mosp_combined_first_tree_openmp: detected
+[mutate] mosp_combined_first_tree_cuda: build dyng-compat-mosp
+[mutate] mosp_combined_first_tree_cuda: replay mosp on cuda
+[mutate] mosp_combined_first_tree_cuda: detected
+[mutate] mosp_path_costs_first_objective: build dyng-compat-mosp
+[mutate] mosp_path_costs_first_objective: replay mosp on sequential
+[mutate] mosp_path_costs_first_objective: detected
+[mutate] cbst_unfill_drops_last: build dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests dyng_triad_count_cuda_tests dyng_triad_count_tests
+[mutate] cbst_unfill_drops_last: replay cbst on cuda
+[mutate] cbst_unfill_drops_last: detected
+[mutate] cbst_graph_own_ids: build dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests
+[mutate] cbst_graph_own_ids: replay cbst on cuda
+[mutate] cbst_graph_own_ids: detected
+[mutate] cbst_reversed_ties: build dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests
+[mutate] cbst_reversed_ties: replay cbst on cuda
+[mutate] cbst_reversed_ties: detected
+[mutate] cbst_surplus_rule1: build dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests
+[mutate] cbst_surplus_rule1: replay cbst on cuda
+[mutate] cbst_surplus_rule1: detected
+[mutate] cbst_keep_dead_slots: build dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests
+[mutate] cbst_keep_dead_slots: replay cbst on cuda
+[mutate] cbst_keep_dead_slots: detected
+[mutate] cbst_compaction_padding: build dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests
+[mutate] cbst_compaction_padding: replay cbst on cuda
+[mutate] cbst_compaction_padding: detected
+[mutate] cbst_requested_keys: build dyng_cbst_device_tests dyng_cbst_graph_tests dyng_cbst_policy_tests
+[mutate] cbst_requested_keys: replay cbst on cuda
+[mutate] cbst_requested_keys: detected
+[mutate] hypergraph_h2v_not_deduplicated: build dyng_hsosp_results_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hypergraph_h2v_not_deduplicated: replay hypergraph on sequential
+[mutate] hypergraph_h2v_not_deduplicated: detected
+[mutate] hypergraph_allocator_ties_reversed: build dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hypergraph_allocator_ties_reversed: replay hypergraph on sequential
+[mutate] hypergraph_allocator_ties_reversed: detected
+[mutate] hypergraph_mirror_additions_dropped: build dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hypergraph_mirror_additions_dropped: replay hypergraph on sequential
+[mutate] hypergraph_mirror_additions_dropped: detected
+[mutate] kit_frontier_requested_ids: build dyng_hypergraph_kit_cuda_tests dyng_hypergraph_kit_tests
+[mutate] kit_frontier_requested_ids: replay kit on sequential
+[mutate] kit_frontier_requested_ids: detected
+[mutate] triad_wrong_bin_sign: build dyng_triad_count_cuda_tests dyng_triad_count_tests
+[mutate] triad_wrong_bin_sign: replay triad_count on cuda
+[mutate] triad_wrong_bin_sign: detected
+[mutate] triad_skip_frontier_filter_b: build dyng_triad_count_cuda_tests dyng_triad_count_tests
+[mutate] triad_skip_frontier_filter_b: replay triad_count on cuda
+[mutate] triad_skip_frontier_filter_b: detected
+[mutate] triad_skip_frontier_filter_k: build dyng_triad_count_cuda_tests dyng_triad_count_tests
+[mutate] triad_skip_frontier_filter_k: replay triad_count on cuda
+[mutate] triad_skip_frontier_filter_k: detected
+[mutate] triad_inserted_requested_ids: build dyng_triad_count_cuda_tests dyng_triad_count_tests
+[mutate] triad_inserted_requested_ids: replay triad_count on cuda
+[mutate] triad_inserted_requested_ids: detected
+[mutate] triad_type1_unbounded_keys: build dyng_triad_count_cuda_tests dyng_triad_count_tests
+[mutate] triad_type1_unbounded_keys: replay triad_count on cuda
+[mutate] triad_type1_unbounded_keys: detected
+[mutate] cbst_unfill_drops_last_triad: the build of cbst_unfill_drops_last
+[mutate] cbst_unfill_drops_last_triad: replay triad_count on cuda
+[mutate] cbst_unfill_drops_last_triad: detected
+[mutate] hsosp_pull_adds_neighbour_weight: build dyng_hsosp_results_cuda_tests dyng_hsosp_results_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_cuda_tests dyng_hyper_sssp_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hsosp_pull_adds_neighbour_weight: replay hyper_sssp on cuda
+[mutate] hsosp_pull_adds_neighbour_weight: detected
+[mutate] hsosp_pull_adds_neighbour_weight_sequential: the build of hsosp_pull_adds_neighbour_weight
+[mutate] hsosp_pull_adds_neighbour_weight_sequential: replay hyper_sssp on sequential
+[mutate] hsosp_pull_adds_neighbour_weight_sequential: detected
+[mutate] hsosp_non_tight_parent: build dyng_hsosp_results_cuda_tests dyng_hsosp_results_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_cuda_tests dyng_hyper_sssp_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hsosp_non_tight_parent: replay hyper_sssp on cuda
+[mutate] hsosp_non_tight_parent: detected
+[mutate] hsosp_non_tight_parent_sequential: the build of hsosp_non_tight_parent
+[mutate] hsosp_non_tight_parent_sequential: replay hyper_sssp on sequential
+[mutate] hsosp_non_tight_parent_sequential: detected
+[mutate] hsosp_csr_skips_last_deletion: build dyng_hsosp_results_cuda_tests dyng_hsosp_results_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_cuda_tests dyng_hyper_sssp_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hsosp_csr_skips_last_deletion: replay hyper_sssp on cuda
+[mutate] hsosp_csr_skips_last_deletion: detected
+[mutate] hsosp_csr_skips_last_deletion_host: the build of hsosp_csr_skips_last_deletion
+[mutate] hsosp_csr_skips_last_deletion_host: replay hyper_sssp on sequential
+[mutate] hsosp_csr_skips_last_deletion_host: detected
+[mutate] hsosp_allocator_unfill_drops_last: build dyng_hsosp_results_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hsosp_allocator_unfill_drops_last: replay hyper_sssp on sequential
+[mutate] hsosp_allocator_unfill_drops_last: detected
+[mutate] hypergraph_h2v_not_deduplicated_hsosp: the build of hypergraph_h2v_not_deduplicated
+[mutate] hypergraph_h2v_not_deduplicated_hsosp: replay hyper_sssp on sequential
+[mutate] hypergraph_h2v_not_deduplicated_hsosp: detected
+[mutate] hsosp_pair_count_adds_deletions: build dyng_hsosp_results_cuda_tests dyng_hsosp_results_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_cuda_tests dyng_hyper_sssp_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hsosp_pair_count_adds_deletions: replay hyper_sssp on cuda
+[mutate] hsosp_pair_count_adds_deletions: detected
+[mutate] hsosp_pair_count_adds_deletions_host: the build of hsosp_pair_count_adds_deletions
+[mutate] hsosp_pair_count_adds_deletions_host: replay hyper_sssp on sequential
+[mutate] hsosp_pair_count_adds_deletions_host: detected
+[mutate] hsosp_delta_no_post_pass: build dyng_hsosp_results_cuda_tests dyng_hsosp_results_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_conformance_tests dyng_hyper_sssp_cuda_tests dyng_hyper_sssp_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_hypergraph_ids_tests dyng_hypergraph_tests
+[mutate] hsosp_delta_no_post_pass: replay hyper_sssp on cuda
+[mutate] hsosp_delta_no_post_pass: detected
+[mutate] hsosp_delta_no_post_pass_host: the build of hsosp_delta_no_post_pass
+[mutate] hsosp_delta_no_post_pass_host: replay hyper_sssp on sequential
+[mutate] hsosp_delta_no_post_pass_host: detected
+[mutate] hsosp_ops_pull_adds_neighbour_weight: build dyng_hsosp_results_cuda_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_cuda_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests
+[mutate] hsosp_ops_pull_adds_neighbour_weight: replay hyper_sssp on cuda
+[mutate] hsosp_ops_pull_adds_neighbour_weight: detected
+[mutate] hsosp_ops_non_tight_parent: build dyng_hsosp_results_cuda_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_cuda_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests
+[mutate] hsosp_ops_non_tight_parent: replay hyper_sssp on cuda
+[mutate] hsosp_ops_non_tight_parent: detected
+[mutate] sssp_roots_only_operators_hsosp: build dyng_hsosp_results_cuda_tests dyng_hyper_sssp_conformance_cuda_tests dyng_hyper_sssp_cuda_tests dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests
+[mutate] sssp_roots_only_operators_hsosp: replay hyper_sssp on cuda
+[mutate] sssp_roots_only_operators_hsosp: detected
+[mutate] triad_reference_class_map: build dyng_triad_reference_tests
+[mutate] triad_reference_class_map: replay triad_reference on sequential
+[mutate] triad_reference_class_map: detected
+[mutate] control passed; 50 / 50 mutations detected
