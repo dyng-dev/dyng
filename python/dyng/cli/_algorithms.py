@@ -836,6 +836,8 @@ def _hyperedge_batches(
             if reader.header.kind != "hypergraph":
                 raise CliError(f"{path}: holds graph batches, not hypergraph batches")
             for rec in reader:
+                if not isinstance(rec.batch, dyng.HyperedgeBatch):  # the header said hypergraph
+                    raise CliError(f"{path}: holds graph batches, not hypergraph batches")
                 out.append((rec.batch, rec.expected_ids))
         else:
             for b in dyng.io.read_hyperedge_batches(
