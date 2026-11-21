@@ -28,7 +28,7 @@ documentation check fails when a quoted line changes without this page
 (`ci/tutorial_quotes.py`). Clone the repository and run the commands from its root:
 
 ```bash
-git clone --branch v0.4.0 https://github.com/dyng-dev/dyng.git
+git clone --branch v0.4.0rc1 https://github.com/dyng-dev/dyng.git
 cd dyng
 ```
 

@@ -191,7 +191,7 @@ on cuda the original's own (the tests).
 ```console
 $ dyng label_propagation update --generate legacy --total-vertices 50000 --num-batches 10 \
     --update-schedule damped --backend sequential --out run
-batch 0: ... ms, 0 iterations, 500 components, accuracy 100.00%
+batch 0: ... ms, 0 iterations, 497 components, accuracy 100.00%
 ...
 ```
 

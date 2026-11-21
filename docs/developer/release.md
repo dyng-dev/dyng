@@ -218,8 +218,10 @@ release's state:
 - the pages that describe the release's new content as unreleased (`documentation.md`: "new in
   X.Y" or "not released yet" on a page newer than the latest release): the maturity lines of the
   algorithm pages (`docs/algorithms/*.md`), the tutorials (`docs/tutorials/`, for 0.2.0 the
-  sentence that sent readers to `main` instead of the previous release), and any other
-  user-facing page; "not released yet" goes, "new in X.Y" (or "since X.Y.Z") stays;
+  sentence that sent readers to `main` instead of the previous release; the release candidate's
+  tag in a tutorial's `git clone --branch vX.Y.ZrcN` line, for 0.4.0
+  `docs/tutorials/shortest_hyperpaths.md`, becomes `vX.Y.Z`), and any other user-facing page;
+  "not released yet" goes, "new in X.Y" (or "since X.Y.Z") stays;
 - the upgrade line wherever the docs install the package (`README.md`, `install.md`,
   `python/README.md` (the PyPI project page), the CHANGELOG summary, which becomes the GitHub
   Release's text, and the tutorials' prerequisites, with the plugin's form) when the release
