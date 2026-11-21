@@ -223,11 +223,15 @@ def device_to_host(x: Any, what: str) -> np.ndarray | None:
     if device is None:
         return None
     if not native.build_config["cuda"]:
-        hint = plugin_install_hint(_dyng_version(), "cu13")
+        from ._backend import selection
+
+        if selection().plugins:  # installed but not used: reinstalling would not help
+            fix = "the installed CUDA plugins are not used (dyng.show_config() says why)"
+        else:
+            fix = f"install a CUDA plugin ({plugin_install_hint(_dyng_version(), 'cu13')})"
         raise NotSupportedError(
             f"{what}: the input is in CUDA device memory (device {device[1]}), but the active "
-            f"native module is the CPU module dyng._core; install a CUDA plugin ({hint}) or "
-            "pass a host array"
+            f"native module is the CPU module dyng._core; {fix}, or pass a host array"
         )
     res = cuda_resources(device[1])
     stream = int(res.stream)  # 1: the legacy default stream (DLPack's value for it)

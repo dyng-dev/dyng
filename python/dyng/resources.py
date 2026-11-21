@@ -42,18 +42,23 @@ def _cuda_plugin_message() -> str:
 
 
 def _cpu_module_message() -> str:
-    """Why there is no CUDA backend: the CPU module, and what the selection found (ADR 0031)."""
+    """Why there is no CUDA backend: the CPU module, and what the selection found (ADR 0031).
+    With a plugin installed, its reason comes first and no install line (reinstalling it would
+    not help; as show_config(); R040's review)."""
     from ._backend import selection
 
     chosen = selection()
-    message = _cuda_plugin_message()
     if not chosen.plugins:
-        return message
+        return _cuda_plugin_message()
     found = "; ".join(
         f"{p.module}{' ' + p.version if p.version else ''} ({p.state}: {p.reason})"
         for p in chosen.plugins
     )
-    return f"{message}. Installed CUDA plugins: {found}"
+    return (
+        f"no installed CUDA plugin is used: {found}; the active native module is dyng._core, "
+        "the CPU module (sequential and OpenMP backends). dyng.show_config() shows each "
+        "plugin's line"
+    )
 
 
 def _stream_handle(stream: Any) -> int | None:

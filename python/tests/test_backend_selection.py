@@ -221,6 +221,29 @@ def test_the_cpu_modules_cuda_message_on_a_pre_release(monkeypatch: pytest.Monke
     assert "TestPyPI" not in message
 
 
+def test_with_a_plugin_installed_the_cuda_message_leads_with_its_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resources.cuda() on the CPU module with a plugin installed but unusable: the plugin's
+    reason first, and no install line, which would not help (as show_config(); R040 review).
+    Without a plugin, the install line stays."""
+    import dyng.resources as resources
+
+    monkeypatch.setattr(backend, "_dyng_version", lambda: "0.4.0rc1")
+    report = backend.PluginReport(
+        "cu13", "dyng_cu13", "0.4.0rc1", 13, 13010, "unusable", "no CUDA device is visible"
+    )
+    with_plugin = backend.Selection("dyng._core", None, "no plugin can be used", (report,))
+    monkeypatch.setattr(backend, "selection", lambda: with_plugin)
+    message = resources._cpu_module_message()
+    assert message.startswith(
+        "no installed CUDA plugin is used: dyng_cu13 0.4.0rc1 (unusable: no CUDA device is visible)"
+    )
+    assert "pip install" not in message and "TestPyPI" not in message
+    monkeypatch.setattr(backend, "selection", lambda: backend.Selection("dyng._core", None, "x"))
+    assert "TestPyPI only" in resources._cpu_module_message()
+
+
 def test_the_modules_version_is_checked_too() -> None:
     cu13 = FakePlugin(13, version=None, module_version="1.0")
     module, chosen = select(EntryPoint("cu13", cu13))
