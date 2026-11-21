@@ -170,6 +170,11 @@ release changes.
   `apply_set_batch_host` differently, and cycle_count's OpenMP update on `github_k4_25000_25000_s1`
   reads 1.025 against `v0.3.0` (`graph.apply` +2.2 ms per 50,000-edge batch; not code placement).
   The fix is read again under ADR 0024.
+- After 0.4.0 (from R040's review; library changes, which would have re-opened the release
+  certificate's library scope): `label_propagation` refuses weights <= 0 in `compute()` and in
+  the batches (`invalid_argument_error`; 0.4.0 documents that they are not checked); the C++
+  `.dgt` readers name a `.dgb` file by its magic and escape the bytes they quote that are not
+  UTF-8 (0.4.0's Python readers and error messages already do both).
 - After 0.4.0 (from M10b's API review, ADR 0109): a vertex-capacity `graph::reserve()`, so that
   the first vertex batch on CUDA need not allocate (a new public name, for the author).
 - **Deferred beyond 0.4.0** (the author's decision of 2026-11-18): **conda-forge packages**

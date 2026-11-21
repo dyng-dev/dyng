@@ -22,6 +22,13 @@ weighted average of its neighbours' labels, so that F is the **harmonic solution
 F(v) = sum_u w(u, v) F(u) / sum_u w(u, v) with the seeds fixed. The class of a vertex is
 `F(v) >= 0.5`.
 
+**Weights must be positive** (the harmonic average needs them; the original's similarity
+weights are in (0, 1], and weights above 1 are read the same way). dynG 0.4 does **not** check
+this: as for every float graph, NaN and infinite weights are refused, but a weight <= 0 is taken
+as given, and the labels are then not the harmonic solution of the input and may leave [0, 1].
+Refusing such weights in `compute()` and in the batches is planned after 0.4.0
+({doc}`../roadmap`).
+
 **Update model.** Vertices arrive in batches with their similarity edges (some of them seeds) and
 leave (with their edges); a batch is applied with its **net effect** (an id that arrives and
 leaves in the same batch never enters the graph; `batch_semantics::net_effect()`), and `update()`
