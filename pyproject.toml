@@ -43,6 +43,8 @@ keywords = [
   "shortest paths",
   "cycle counting",
   "triad counting",
+  "label propagation",
+  "shortest hyperpaths",
   "GPU",
   "OpenMP",
   "graph algorithms",
@@ -65,8 +67,9 @@ dependencies = ["numpy>=1.26"]
 
 [project.scripts]
 # The command line (PLAN Section 5.6; ADR 0025): the algorithms `dyng sssp ...`, `dyng mosp ...`,
-# `dyng cycle_count ...` and `dyng triad_count ...`; the utilities `dyng prep ...`,
-# `dyng convert`, `dyng generate` and `dyng config`.
+# `dyng cycle_count ...`, `dyng triad_count ...`, `dyng label_propagation ...` and
+# `dyng hyper_sssp ...`; the utilities `dyng prep ...`, `dyng convert`, `dyng generate` and
+# `dyng config`.
 dyng = "dyng.cli:main"
 
 [project.urls]

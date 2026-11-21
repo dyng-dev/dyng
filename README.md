@@ -20,7 +20,7 @@ one API, one update model, sequential, OpenMP and CUDA backends, and parity test
 original implementations.
 
 **Keywords:** dynamic graph, batch update, GPU, CUDA, OpenMP, hypergraph, shortest paths, cycle
-counting, triad counting, label propagation.
+counting, triad counting, label propagation, shortest hyperpaths.
 
 **Documentation:** <https://dyng-dev.github.io/dyng/> (getting started, tutorials, the algorithm
 pages, the C++ and Python API reference; built from `docs/` on every push to `main`).

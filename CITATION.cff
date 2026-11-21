@@ -28,6 +28,7 @@ keywords:
   - cycle counting
   - triad counting
   - label propagation
+  - shortest hyperpaths
 preferred-citation:
   type: software
   title: "dynG: dynamic graph and hypergraph updates on GPUs"
