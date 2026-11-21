@@ -723,8 +723,24 @@ def _add_hyper_sssp_common(p: argparse.ArgumentParser) -> list[str]:
         help="also write <out>/vertex_distances.txt (the distance of every vertex)",
     )
     p.add_argument("--quiet", action="store_true", help="no report lines on standard output")
-    add_backend_flags(p)
+    _hyper_backend_flags(p)
     return names
+
+
+def _hyper_backend_flags(p: argparse.ArgumentParser) -> None:
+    """hyper_sssp's ``--backend`` and ``--device``: its own default and help (no OpenMP backend
+    in 0.4, so no ``--threads``; R040's review), as label_propagation's."""
+    g = p.add_argument_group("backend")
+    g.add_argument(
+        "--backend",
+        choices=("sequential", "openmp", "cuda"),
+        default=None,
+        help="the backend (default: sequential; hyper_sssp has no OpenMP backend in 0.4, so "
+        "openmp exits with status 1 and the library's message; cuda needs a CUDA plugin wheel, "
+        f"from 0.2.0: {dyng._backend.plugin_install_hint(dyng._backend._dyng_version())})",
+    )
+    g.add_argument("--device", type=int, default=0, metavar="D", help="CUDA device (cuda only)")
+    p.set_defaults(threads=0)
 
 
 def add_hyper_sssp(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -814,9 +830,12 @@ def _hyperedge_batches(
         with open(path, "rb") as f:
             binary = f.read(8) == b"DYNGBAT1"
         if binary:
-            for rec in dyng.io.BatchReader(path, num_vertices=h.num_vertices):
-                if not isinstance(rec.batch, dyng.HyperedgeBatch):
-                    raise CliError(f"{path}: holds graph batches, not hypergraph batches")
+            reader = dyng.io.BatchReader(path, num_vertices=h.num_vertices)
+            # From the header, before a record is read (a graph record's ids are checked against
+            # the hypergraph's vertices first otherwise; R040's review).
+            if reader.header.kind != "hypergraph":
+                raise CliError(f"{path}: holds graph batches, not hypergraph batches")
+            for rec in reader:
                 out.append((rec.batch, rec.expected_ids))
         else:
             for b in dyng.io.read_hyperedge_batches(
@@ -862,7 +881,7 @@ def run_hyper_sssp_update(args: argparse.Namespace) -> int:
     sp = dyng.hyper_sssp.compute(h, args.source, options=opt)
     batches = _hyperedge_batches(args.batches, h)
     seconds = 0.0
-    for index, (batch, expected) in enumerate(batches, 1):
+    for index, (batch, expected) in enumerate(batches):  # from 0, as the files' %batch ids
         t = Stopwatch()
         st = dyng.hyper_sssp.update(h, batch, sp)
         ms = t.ms()
