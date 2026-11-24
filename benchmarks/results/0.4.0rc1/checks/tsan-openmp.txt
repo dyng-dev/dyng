@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r040-cert/final/tsan-openmp.log (sha256 ff3df8a4eb1982a05f1c2ebb6b987b26dc40a9695399bc919fdb851dd37cb040, 621525 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r040-cert/review/tsan-openmp.log (sha256 ac157aa5dae556a783d023b99396722a2706e844833a63cf33902c4d03c5830f, 621524 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> Archer: /home/sskg8/anaconda3/envs/dyng-clang/lib/libarcher.so.bak
 ==> preset tsan-openmp: configure, build, test (label cpu)
 100% tests passed out of 1486

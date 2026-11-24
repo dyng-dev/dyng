@@ -1,0 +1,7 @@
+# Copy of $DYNG_SCRATCH/runs/r040-review/toolkits.log (sha256 2cc0112092472bb2513319686ea239a7869552359d212839a64c50f844a1bdf4, 190 bytes), written by parity/certify.py check.
+2026-11-21T15:04:00.079103+00:00
+newest nvcc per major in NVIDIA's RHEL 8 repository:
+10 cuda-nvcc-10-2 10.2.89
+11 cuda-nvcc-11-8 11.8.89
+12 cuda-nvcc-12-9 12.9.86
+13 cuda-nvcc-13-5 13.5.37

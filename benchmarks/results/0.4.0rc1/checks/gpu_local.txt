@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r040-cert/final/gpu_local.log (sha256 05739cacf765ba2015c4c4385167a2ba9020eadca23cdb70fe1ec90fa699a6b7, 1429187 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r040-cert/review3/gpu_local.log (sha256 754c129fc9f6bc8d2022a26fa6dfa54659174910fe5859a7867b1ddce34650fe, 1429351 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> preset parity-cuda: configure and build
 ==> ctest -L gpu (GPU 1)
 100% tests passed out of 1136
