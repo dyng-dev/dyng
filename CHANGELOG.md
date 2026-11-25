@@ -8,7 +8,7 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.4.0rc1] - 2026-11-21
+## [0.4.0rc1] - 2026-11-26
 
 ### Summary
 
@@ -720,6 +720,15 @@ harmonic solution).
   `GraphStreamOrder.SlackDeviceApplyReleasesReplacedRowsAfterTheCallsStream`, ADR 0120's
   amendment on the merged code).
 
+### R040: the tag day (0.4, branch `release-0.4.0`)
+
+- Changed: the release date is 2026-11-26, the planned UTC day of the tag `v0.4.0rc1`: the heading
+  of this section and `CITATION.cff`'s `date-released` (written 2026-11-21;
+  `docs/developer/release.md`, "A tag day later than the final-release pull request"), set in the
+  release pull request before the merge by the author's decision of 2026-11-24 (GOVERNANCE.md);
+  the certificate's checks of the `packaging` and `repo` scopes run again on that tree (the
+  `library` and `tests` records stand: no path of their scopes changed).
+
 ### R040: review fixes (0.4, branch `release-0.4.0`)
 
 - Fixed: the sdist left out `examples/data/label_propagation_5k5_damped.sha256`, which
@@ -746,7 +755,8 @@ harmonic solution).
   (the clone of `v0.4.0rc1`, `read_edge_list(..., directed=False)`, the `--seeds` file, the
   labels on a GPU); label_propagation's page says that 0.4 does not check that the weights are
   positive; stale 0.4 promises of the developer pages corrected.
-- Changed: the release date is 2026-11-21 (`CHANGELOG.md`, `CITATION.cff`).
+- Changed: the release date is 2026-11-21 (`CHANGELOG.md`, `CITATION.cff`; 2026-11-26, the
+  planned tag day, from "R040: the tag day" above).
 - Governance: the author's decision of 2026-11-21 on step 3's STOP (ADR 0024's reading against
   0.3.0): the cycle_count OpenMP update region acknowledged as a located cost of 0.4's graph
   additions, fixed after 0.4.0; the mosp OpenMP region as code placement on the D14 path; the
@@ -782,8 +792,9 @@ harmonic solution).
 ### R040: the release changes (0.4, branch `release-0.4.0`)
 
 - Changed: `VERSION` 0.4.0rc1 (it was 0.4.0.dev0, the development version after 0.3.0);
-  `CITATION.cff` `version: 0.4.0rc1`, `date-released: 2026-11-21` (2026-11-20 before the review
-  fixes moved it to the day they were made); this section `[0.4.0rc1]`
+  `CITATION.cff` `version: 0.4.0rc1`, `date-released: 2026-11-26` (2026-11-20, then 2026-11-21
+  when the review fixes moved it to the day they were made, then set to the planned tag day);
+  this section `[0.4.0rc1]`
   with the summary above: everything that was under `Unreleased` (M10a, M10b, M11a, M11b, the
   ADR 0120 fix and R040) moved here, an empty `Unreleased` above it, and the link references.
 - Changed (packaging; ADR 0113): the `dyng-cu13` plugin is built with **CUDA 13.5** (nvcc
