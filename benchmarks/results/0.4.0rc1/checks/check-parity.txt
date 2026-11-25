@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r040-cert/review3/check-parity.log (sha256 d72269a284269efe008fb554edf625e871dbb9db2ec05abb95a4f49bfe09514e, 1726139 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r040-cert/tagday/check-parity.log (sha256 84701b57aff8ae919deea88ed542f5c339a1f0821b5d30c1bed8369ad483ba1d, 1726611 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -293,22 +293,22 @@ provenance: OK (342 files checked)
 test data: 1,093,598 bytes in 1486 tracked files under cpp/tests/data (budget 1,250,000 bytes): OK
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-557 passed, 3 skipped in 357.65s (0:05:57)
+557 passed, 3 skipped in 356.48s (0:05:56)
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
-==> pip install -e . into /home/sskg8/Projects/dyng-work/r040/cert/clone-repo/build/py-venv (build directory build/)
-==> installed: 0.4.0rc1 /home/sskg8/Projects/dyng-work/r040/cert/clone-repo/python/dyng/__init__.py
+==> pip install -e . into /home/sskg8/Projects/dyng-work/r040/tagday/clone-repo/build/py-venv (build directory build/)
+==> installed: 0.4.0rc1 /home/sskg8/Projects/dyng-work/r040/tagday/clone-repo/python/dyng/__init__.py
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng and python/plugin/dyng_plugin
 ==> pytest python/tests
-837 passed, 97 skipped in 96.45s (0:01:36)
+837 passed, 97 skipped in 97.29s (0:01:37)
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> the frozen C++ API against d3375da5f7ec4fa1303f7ef3d260dd9f5b3a5ee5 (ci/api_snapshot.py --against)
 ==> griffe check dyng against d3375da5f7ec4fa1303f7ef3d260dd9f5b3a5ee5 (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.W1SgqT/src
+==> copy of the working tree in /tmp/dyng-scaffold.8OQx0x/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 ==> scripts/new_algorithm.py --container hypergraph: one hypergraph algorithm of each family
 ==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)
@@ -370,7 +370,7 @@ doxygen-coverage: OK (238 compounds checked)
 doc-snippets: OK (15 snippets)
 tutorial-quotes: OK (63 quotes in 7 pages match their pins)
 api-snapshot: OK (1442 declarations match public_api.txt)
-docs_links: OK (repository URLs in 2346 files, relative links and anchors of build/docs/html)
+docs_links: OK (repository URLs in 2347 files, relative links and anchors of build/docs/html)
 docs: OK
 ==> pre-commit run --all-files
 pre-commit: OK
