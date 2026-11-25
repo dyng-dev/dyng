@@ -3,25 +3,25 @@
 # SPDX-License-Identifier: Apache-2.0
 """The CUDA toolkits of the plugin wheels' CI builds, pinned file by file (PLAN 7.7, 7.8; ADR 0032).
 
-``wheels.yml`` builds ``dyng-cu12`` and ``dyng-cu13`` with cibuildwheel in the manylinux_2_28
-image (AlmaLinux 8), with the CUDA toolkit installed in ``before-all`` from NVIDIA's RHEL 8
-packages (PLAN 7.7's table). The packages are pinned in ``ci/cuda_toolkits.toml``: for each
-plugin, the toolkit release (the latest 12.x and the latest 13.x, PLAN 7.8) and every RPM file
-of the minimal set the build needs (``nvcc``, the CUDA runtime with its static library, CCCL,
-NVTX 3, the documentation package that carries ``EULA.txt``, and what they require from NVIDIA's
-repository), each with its SHA-256 and size. The runner downloads them on the host (cached
-between runs) and checks every digest and every package's OpenPGP signature (NVIDIA's repository
-key, accepted only with the fingerprint :data:`SIGNING_KEY_FINGERPRINT`, verified with ``gpg``:
-the header signature and the payload digest it covers); the container checks the signatures
-again with ``rpm`` and installs exactly those files.
+``wheels.yml`` builds ``dyng-cu12`` and ``dyng-cu13`` with cibuildwheel in the manylinux_2_28 image
+(AlmaLinux 8), with the CUDA toolkit installed in ``before-all`` from NVIDIA's RHEL 8 packages (PLAN
+7.7's table). The packages are pinned in ``ci/cuda_toolkits.toml``: for each plugin, the toolkit
+release (the latest 12.x and the latest 13.x, PLAN 7.8) and every RPM file of the minimal set the
+build needs (``nvcc``, the CUDA runtime with its static library, CCCL, NVTX 3, the documentation
+package that carries ``EULA.txt`` up to CUDA 13.4 (from 13.5 the runtime package carries it), and
+what they require from NVIDIA's repository), each with its SHA-256 and size. The runner downloads
+them on the host (cached between runs) and checks every digest and every package's OpenPGP signature
+(NVIDIA's repository key, accepted only with the fingerprint :data:`SIGNING_KEY_FINGERPRINT`,
+verified with ``gpg``: the header signature and the payload digest it covers); the container checks
+the signatures again with ``rpm`` and installs exactly those files.
 
 Commands::
 
-    python3 ci/cuda_toolkit.py lock --plugin cu13 --release 13.4   # re-pin (needs network)
+    python3 ci/cuda_toolkit.py lock --plugin cu13 --release 13.5   # re-pin (needs network)
     python3 ci/cuda_toolkit.py download --plugin cu13 --dest .cuda-rpms   # fetch + verify (gpg)
     python3 ci/cuda_toolkit.py verify --plugin cu13 --dest .cuda-rpms     # digests only
     python3 ci/cuda_toolkit.py verify --signatures --plugin cu13 --dest .cuda-rpms  # + signatures
-    python3 ci/cuda_toolkit.py root --plugin cu13        # /usr/local/cuda-13.4 (for scripts)
+    python3 ci/cuda_toolkit.py root --plugin cu13        # /usr/local/cuda-13.5 (for scripts)
     python3 ci/cuda_toolkit.py show                      # the pinned toolkits
     python3 ci/cuda_toolkit.py extract --plugin cu13 --dest <dir>   # unpack without root
 
@@ -59,18 +59,22 @@ LOCK = ROOT / "ci" / "cuda_toolkits.toml"
 REPOSITORY = "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"
 #: The plugins and their CUDA majors (ci/wheel_check.py's PLUGINS).
 PLUGINS = {"cu12": 12, "cu13": 13}
-#: The root packages of a toolkit release ``{s}`` = ``13-4``: the compiler, the runtime (with
-#: libcudart_static.a, which pulls CCCL), NVTX 3 (the profiler's ranges), the documentation
-#: package, which carries the toolkit's EULA.txt (the plugin wheels ship it; ADR 0030 item 9),
-#: and cuobjdump, with which the build checks the wheel's SASS and PTX
-#: (ci/cibw_plugin_repair.sh, ci/wheel_check.py --code-objects).
+#: The root packages of a toolkit release ``{s}`` = ``13-5``: the compiler, the runtime (with
+#: libcudart_static.a, which pulls CCCL), NVTX 3 (the profiler's ranges) and cuobjdump, with which
+#: the build checks the wheel's SASS and PTX (ci/cibw_plugin_repair.sh, ci/wheel_check.py
+#: --code-objects).
 ROOT_PACKAGES = (
     "cuda-nvcc-{s}",
     "cuda-cudart-devel-{s}",
     "cuda-nvtx-{s}",
-    "cuda-documentation-{s}",
     "cuda-cuobjdump-{s}",
 )
+#: Root packages taken when the release has them: the documentation package, which carries the
+#: toolkit's EULA.txt up to CUDA 13.4 (the plugin wheels ship it; ADR 0030 item 9). From CUDA
+#: 13.5 NVIDIA's repository has no documentation package and ``cuda-cudart-{s}`` (in the
+#: runtime's closure) carries ``<root>/EULA.txt``; :func:`extract` and the CI build
+#: (ci/cibw_plugin.sh) fail if the pinned files do not contain it (ADR 0113).
+OPTIONAL_ROOT_PACKAGES = ("cuda-documentation-{s}",)
 SCHEMA = 1
 #: NVIDIA's signing key of the RHEL 8 repository (``cudatools <cudatools@nvidia.com>``, RSA 4096,
 #: 2022-04-14), fetched from the repository next to the packages and accepted only with this
@@ -389,12 +393,15 @@ def render(toolkits: dict[str, Toolkit]) -> str:
 
 
 def lock_toolkit(plugin: str, release: str, packages: list[Package], repository: str) -> Toolkit:
-    """Pin the toolkit ``release`` (``13.4``) of ``plugin`` from the repository's packages."""
+    """Pin the toolkit ``release`` (``13.5``) of ``plugin`` from the repository's packages."""
     major = PLUGINS[plugin]
     if not re.fullmatch(rf"{major}\.\d+", release):
         raise ValueError(f"{plugin} needs a CUDA {major}.x release, not {release}")
     series = release.replace(".", "-")
-    chosen, external = resolve(packages, [r.format(s=series) for r in ROOT_PACKAGES])
+    available = {p.name for p in packages}
+    roots = [r.format(s=series) for r in ROOT_PACKAGES]
+    roots += [n for n in (r.format(s=series) for r in OPTIONAL_ROOT_PACKAGES) if n in available]
+    chosen, external = resolve(packages, roots)
     nvcc = next(p for p in chosen if p.name == f"cuda-nvcc-{series}")
     return Toolkit(
         plugin,
@@ -594,8 +601,9 @@ def extract(t: Toolkit, rpms: Path, dest: Path) -> Path:
     for p in t.packages:
         subprocess.run([bsdtar, "-xf", str(rpms / str(p["href"])), "-C", str(dest)], check=True)
     root = dest / t.root.lstrip("/")
-    if not (root / "bin" / "nvcc").is_file():
-        raise FileNotFoundError(f"{root}/bin/nvcc is missing after the extraction")
+    for needed in ("bin/nvcc", "EULA.txt"):
+        if not (root / needed).is_file():
+            raise FileNotFoundError(f"{root}/{needed} is missing after the extraction")
     return root
 
 
@@ -612,7 +620,7 @@ def main(argv: list[str] | None = None) -> int:
         s.add_argument("--plugin", required=True, choices=sorted(PLUGINS))
         s.add_argument("--lock-file", type=Path, default=LOCK)
         if name == "lock":
-            s.add_argument("--release", required=True, help="the toolkit release, e.g. 13.4")
+            s.add_argument("--release", required=True, help="the toolkit release, e.g. 13.5")
             s.add_argument("--repository", default=REPOSITORY)
         if name in ("download", "verify", "extract"):
             s.add_argument("--dest", type=Path, required=True)

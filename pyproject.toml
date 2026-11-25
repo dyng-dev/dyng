@@ -43,6 +43,8 @@ keywords = [
   "shortest paths",
   "cycle counting",
   "triad counting",
+  "label propagation",
+  "shortest hyperpaths",
   "GPU",
   "OpenMP",
   "graph algorithms",
@@ -65,8 +67,9 @@ dependencies = ["numpy>=1.26"]
 
 [project.scripts]
 # The command line (PLAN Section 5.6; ADR 0025): the algorithms `dyng sssp ...`, `dyng mosp ...`,
-# `dyng cycle_count ...` and `dyng triad_count ...`; the utilities `dyng prep ...`,
-# `dyng convert`, `dyng generate` and `dyng config`.
+# `dyng cycle_count ...`, `dyng triad_count ...`, `dyng label_propagation ...` and
+# `dyng hyper_sssp ...`; the utilities `dyng prep ...`, `dyng convert`, `dyng generate` and
+# `dyng config`.
 dyng = "dyng.cli:main"
 
 [project.urls]
@@ -118,7 +121,11 @@ sdist.exclude = [
   ".codespellrc",
   ".editorconfig",
 ]
-sdist.include = ["docs/references.bib"]
+# Kept in although its directory is excluded: the bibliography (the citation keys of the
+# registry), and the digest of examples/data that cibuildwheel's test-sources copies and the
+# label_propagation tests read (a test source missing from the sdist stops cibuildwheel before
+# any test runs; ci/cibw_test.py checks it, R040's review).
+sdist.include = ["docs/references.bib", "examples/data/label_propagation_5k5_damped.sha256"]
 
 [tool.scikit-build.cmake.define]
 DYNG_BUILD_PYTHON = "ON"
@@ -160,12 +167,13 @@ build-frontend = "build"
 build-verbosity = 1
 # A small subset of python/tests in the installed wheel (the full suite runs in python.yml and in
 # the install-test job of wheels.yml): the API, the stable surfaces (sssp, cycle_count; from 0.2
-# mosp; from 0.3 the hypergraph and triad_count with its command line), the CLI and the parity
-# subset.
+# mosp; from 0.3 the hypergraph and triad_count with its command line; from 0.4 label_propagation
+# and hyper_sssp with their command lines, label_propagation's tests reading the digests of
+# examples/data), the CLI and the parity subset.
 test-requires = ["pytest>=8", "hypothesis==6.167.1"]
-test-sources = ["pyproject.toml", "python/tests", "cpp/tests/data"]
+test-sources = ["pyproject.toml", "python/tests", "cpp/tests/data", "examples/data/label_propagation_5k5_damped.sha256"]
 test-environment = { OMP_NUM_THREADS = "2", DYNG_HYPOTHESIS_PROFILE = "dev" }
-test-command = "python -m pytest -q -p no:cacheprovider python/tests/test_api_surface.py python/tests/test_sssp.py python/tests/test_cycle_count.py python/tests/test_mosp.py python/tests/test_hypergraph.py python/tests/test_triad_count.py python/tests/test_triad_count_cli.py python/tests/test_cli.py python/tests/test_parity.py"
+test-command = "python -m pytest -q -p no:cacheprovider python/tests/test_api_surface.py python/tests/test_sssp.py python/tests/test_cycle_count.py python/tests/test_mosp.py python/tests/test_hypergraph.py python/tests/test_triad_count.py python/tests/test_triad_count_cli.py python/tests/test_label_propagation.py python/tests/test_label_propagation_cli.py python/tests/test_hyper_sssp.py python/tests/test_hyper_sssp_cli.py python/tests/test_cli.py python/tests/test_parity.py"
 
 [tool.mypy]
 # The typed layer is checked strictly (ci/python.sh, .github/workflows/python.yml; PLAN 8.7), and

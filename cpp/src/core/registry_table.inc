@@ -100,7 +100,7 @@ table.push_back(algorithm_info{
     "Dynamic label propagation",
     algorithm_family::fixed_point,
     container_kind::graph,
-    maturity_level::experimental,
+    maturity_level::stable,
     determinism::tolerance,
     oracle_kind::reference,
     {backend::sequential, backend::cuda},

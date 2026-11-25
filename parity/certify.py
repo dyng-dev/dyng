@@ -128,6 +128,7 @@ PACKAGING_PATHS = [
     ".gitignore",
     "ci/wheels.sh",
     "ci/wheel_check.py",
+    "ci/cibw_test.py",
     "ci/wheel-toolchain.yml",
     "ci/plugin_wheels.sh",
     "ci/plugin_pyproject.py",

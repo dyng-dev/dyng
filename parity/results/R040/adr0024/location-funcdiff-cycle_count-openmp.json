@@ -1,0 +1,178 @@
+{
+ "a": "A/build/cpp/libdyng.so.0.3",
+ "b": "B/build/cpp/libdyng.so.0.4",
+ "pattern": "cycle_count_openmp|cycle_count_update<int, int, dyng::unweighted>|apply_set_batch_host<int, int, dyng::unweighted>|apply_batch_host<int, int, dyng::unweighted>",
+ "functions": [
+  {
+   "function": "dyng::apply_summary dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)",
+   "size_a": 9434,
+   "size_b": 9434,
+   "align_a": 16,
+   "align_b": 48,
+   "status": "different instructions",
+   "differing_lines": 1812
+  },
+  {
+   "function": "dyng::apply_summary dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*) [clone ._omp_fn.0]",
+   "size_a": 251,
+   "size_b": 251,
+   "align_a": 16,
+   "align_b": 48,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::apply_summary dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*) [clone ._omp_fn.1]",
+   "size_a": 695,
+   "size_b": 695,
+   "align_a": 16,
+   "align_b": 48,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::apply_summary dyng::detail::apply_set_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)",
+   "size_a": 4326,
+   "size_b": 3897,
+   "align_a": 32,
+   "align_b": 48,
+   "status": "different instructions",
+   "differing_lines": 825
+  },
+  {
+   "function": "dyng::apply_summary dyng::detail::apply_set_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*) [clone ._omp_fn.0]",
+   "size_a": 466,
+   "size_b": 466,
+   "align_a": 0,
+   "align_b": 16,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::apply_summary dyng::detail::apply_set_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*) [clone ._omp_fn.1]",
+   "size_a": 1268,
+   "size_b": 1268,
+   "align_a": 48,
+   "align_b": 0,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::cycle_count::stats dyng::detail::cycle_count_update<int, int, dyng::unweighted>(dyng::resources const&, dyng::graph<int, int, dyng::unweighted>&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::cycle_count::result&)",
+   "size_a": 1196,
+   "size_b": 1196,
+   "align_a": 48,
+   "align_b": 16,
+   "status": "different instructions",
+   "differing_lines": 14
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_compute<int, int>(dyng::detail::cycle_graph<int, int> const&, long, int, std::vector<unsigned long, std::allocator<unsigned long> >&)",
+   "size_a": 695,
+   "size_b": 695,
+   "align_a": 48,
+   "align_b": 16,
+   "status": "same instructions"
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_compute<int, int>(dyng::detail::cycle_graph<int, int> const&, long, int, std::vector<unsigned long, std::allocator<unsigned long> >&) [clone ._omp_fn.0]",
+   "size_a": 419,
+   "size_b": 419,
+   "align_a": 0,
+   "align_b": 32,
+   "status": "same instructions"
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_compute<int, long>(dyng::detail::cycle_graph<int, long> const&, long, int, std::vector<unsigned long, std::allocator<unsigned long> >&)",
+   "size_a": 695,
+   "size_b": 695,
+   "align_a": 32,
+   "align_b": 0,
+   "status": "same instructions"
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_compute<int, long>(dyng::detail::cycle_graph<int, long> const&, long, int, std::vector<unsigned long, std::allocator<unsigned long> >&) [clone ._omp_fn.0]",
+   "size_a": 419,
+   "size_b": 419,
+   "align_a": 48,
+   "align_b": 16,
+   "status": "same instructions"
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_phase<int, int>(dyng::detail::cycle_graph<int, int> const&, std::vector<dyng::detail::edge_change<int>, std::allocator<dyng::detail::edge_change<int> > > const&, unsigned long, int, dyng::detail::cycle_count_workspace<int>&, std::vector<unsigned long, std::allocator<unsigned long> >&)",
+   "size_a": 397,
+   "size_b": 397,
+   "align_a": 0,
+   "align_b": 32,
+   "status": "same instructions"
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_phase<int, int>(dyng::detail::cycle_graph<int, int> const&, std::vector<dyng::detail::edge_change<int>, std::allocator<dyng::detail::edge_change<int> > > const&, unsigned long, int, dyng::detail::cycle_count_workspace<int>&, std::vector<unsigned long, std::allocator<unsigned long> >&) [clone ._omp_fn.0]",
+   "size_a": 603,
+   "size_b": 603,
+   "align_a": 32,
+   "align_b": 0,
+   "status": "same instructions"
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_phase<int, long>(dyng::detail::cycle_graph<int, long> const&, std::vector<dyng::detail::edge_change<int>, std::allocator<dyng::detail::edge_change<int> > > const&, unsigned long, int, dyng::detail::cycle_count_workspace<int>&, std::vector<unsigned long, std::allocator<unsigned long> >&)",
+   "size_a": 397,
+   "size_b": 397,
+   "align_a": 16,
+   "align_b": 48,
+   "status": "same instructions"
+  },
+  {
+   "function": "void dyng::detail::cycle_count_openmp_phase<int, long>(dyng::detail::cycle_graph<int, long> const&, std::vector<dyng::detail::edge_change<int>, std::allocator<dyng::detail::edge_change<int> > > const&, unsigned long, int, dyng::detail::cycle_count_workspace<int>&, std::vector<unsigned long, std::allocator<unsigned long> >&) [clone ._omp_fn.0]",
+   "size_a": 603,
+   "size_b": 603,
+   "align_a": 0,
+   "align_b": 32,
+   "status": "same instructions"
+  },
+  {
+   "function": "void std::__inplace_stable_sort<__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}> >(__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}>) [clone .isra.0]",
+   "size_a": 2298,
+   "size_b": 2298,
+   "align_a": 0,
+   "align_b": 0,
+   "status": "same instructions"
+  },
+  {
+   "function": "void std::__insertion_sort<__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}> >(__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}>) [clone .constprop.0]",
+   "size_a": 193,
+   "size_b": 193,
+   "align_a": 16,
+   "align_b": 16,
+   "status": "same instructions"
+  },
+  {
+   "function": "void std::__merge_adaptive<__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, long, dyng::detail::(anonymous namespace)::row_entry<int>*, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}> >(__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, long, long, dyng::detail::(anonymous namespace)::row_entry<int>*, long, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}>) [clone .isra.0]",
+   "size_a": 925,
+   "size_b": 925,
+   "align_a": 32,
+   "align_b": 0,
+   "status": "same instructions"
+  },
+  {
+   "function": "void std::__merge_sort_with_buffer<__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, dyng::detail::(anonymous namespace)::row_entry<int>*, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}> >(__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, dyng::detail::(anonymous namespace)::row_entry<int>*, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}>) [clone .isra.0]",
+   "size_a": 1493,
+   "size_b": 1493,
+   "align_a": 48,
+   "align_b": 48,
+   "status": "same instructions"
+  },
+  {
+   "function": "void std::__merge_without_buffer<__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, long, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}> >(__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, long, long, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}>) [clone .isra.0]",
+   "size_a": 521,
+   "size_b": 521,
+   "align_a": 0,
+   "align_b": 32,
+   "status": "same instructions"
+  },
+  {
+   "function": "void std::__stable_sort_adaptive<__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, dyng::detail::(anonymous namespace)::row_entry<int>*, long, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}> >(__gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, __gnu_cxx::__normal_iterator<dyng::detail::(anonymous namespace)::row_entry<int>*, std::vector<dyng::detail::(anonymous namespace)::row_entry<int>, std::allocator<dyng::detail::(anonymous namespace)::row_entry<int> > > >, dyng::detail::(anonymous namespace)::row_entry<int>*, long, __gnu_cxx::__ops::_Iter_comp_iter<dyng::detail::apply_batch_host<int, int, dyng::unweighted>(dyng::csr<int, int, dyng::unweighted> const&, dyng::edge_batch_view<int, dyng::unweighted> const&, dyng::graph_properties const&, dyng::csr<int, int, dyng::unweighted>&, dyng::detail::apply_delta<int>*, int, dyng::detail::normalized_batch<int> const*)::{lambda(auto:1 const&, auto:2 const&)#5}>) [clone .isra.0]",
+   "size_a": 219,
+   "size_b": 219,
+   "align_a": 16,
+   "align_b": 16,
+   "status": "same instructions"
+  }
+ ]
+}

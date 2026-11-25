@@ -16,8 +16,10 @@ import pytest
 
 DATA = Path(__file__).resolve().parents[2] / "examples" / "data"
 
-if not DATA.is_dir():
-    pytest.skip("examples/data is not present", allow_module_level=True)
+# The sdist ships one file of examples/data (a digest the label_propagation tests read), not the
+# tutorial's inputs.
+if not (DATA / "hyper_sssp.hg").is_file():
+    pytest.skip("examples/data/hyper_sssp.hg is not present", allow_module_level=True)
 
 
 def test_the_tutorial() -> None:

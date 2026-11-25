@@ -27,9 +27,10 @@ missing @param / @return. This script reads its XML output and additionally requ
   * the frozen hypergraph headers (dyng/hypergraph/, M8b; ADR 0047) and the experimental extension
     headers (dyng/experimental/, M9b; ADR 0058: their group `experimental`, and every one's @file
     brief starts with the banner "EXPERIMENTAL PUBLIC; may change in any minor release") are held
-    to the freeze's rules, and so are the frozen algorithm headers of triad_count (M9b, ADR 0060)
-    and hyper_sssp (M11b, ADR 0096): every entity they declare is in the group `hypergraph`
-    (`experimental`, `triad_count`, `hyper_sssp`); every function they declare (free or member,
+    to the freeze's rules, and so are the frozen algorithm headers of triad_count (M9b, ADR 0060),
+    hyper_sssp (M11b, ADR 0096) and label_propagation (M10b, ADR 0109): every entity they declare
+    is in the group `hypergraph` (`experimental`, `triad_count`, `hyper_sssp`,
+    `label_propagation`); every function they declare (free or member,
     deleted special members and destructors exempt) documents its exceptions (at least one
     @throws) or is `noexcept`; and every one that documents a cuda_error (device work, also
     without a `resources` argument: the views) carries @sync or @async.
@@ -156,10 +157,11 @@ def is_move_assignment(member: ET.Element) -> bool:
 
 # The frozen hypergraph headers (M8b, ADR 0047), the experimental extension headers (M9b,
 # ADR 0058: PLAN 9.1's group `experimental`), the frozen algorithm headers of triad_count (M9b,
-# ADR 0060) and hyper_sssp (M11b, ADR 0096), and the group their entities belong to.
+# ADR 0060), hyper_sssp (M11b, ADR 0096) and label_propagation (M10b, ADR 0109), and the group
+# their entities belong to.
 FROZEN_GROUP_HEADERS = {
     "dyng/hypergraph/": "hypergraph",
-    "dyng/label_propagation.hpp": "label_propagation",  # frozen at the end of M10b (ADR 0109)
+    "dyng/label_propagation.hpp": "label_propagation",  # frozen at M10b (ADR 0109); stable, 0.4.0
     "dyng/experimental/": "experimental",
     "dyng/triad_count.hpp": "triad_count",
     "dyng/hyper_sssp.hpp": "hyper_sssp",

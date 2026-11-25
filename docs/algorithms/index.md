@@ -16,7 +16,7 @@ code, how to cite).
 | {doc}`triangle_delta` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | 0.2 |
 | {doc}`hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | stable | 0.4 |
 | {doc}`triad_count` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | 0.3 |
-| {doc}`label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | experimental | 0.4 |
+| {doc}`label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | stable | 0.4 |
 <!-- regen:algorithms end -->
 
 Columns:
@@ -25,7 +25,7 @@ Columns:
   delta* (a global count, updated by one signed recount); see {doc}`../concepts/update_model`.
 - **Maturity**: `experimental` (may change in any release), `stable` (SemVer applies from the
   release that made it stable: 0.1.0 for `sssp` and `cycle_count`, 0.2.0 for `mosp`, 0.3.0 for
-  `triad_count`), `tutorial` (teaching material for contributors, covered like `experimental`; not a
+  `triad_count`, 0.4.0 for `label_propagation` and `hyper_sssp`), `tutorial` (teaching material for contributors, covered like `experimental`; not a
   research algorithm: {doc}`dynamic_bfs` and {doc}`triangle_delta`, the subjects of
   {doc}`../tutorials/your_first_dynamic_algorithm`), `planned` (not written yet). A planned
   algorithm gets its page when its port starts.

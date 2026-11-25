@@ -10,16 +10,18 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Alpha: 0.3.0.** The latest release is **0.3.0** (`pip install dyng`; see the {doc}`roadmap`):
-`sssp`, `cycle_count`, `mosp` and `triad_count` are stable (SemVer applies from 0.1.0; to `mosp`
-from 0.2.0; to `triad_count` and the dynamic hypergraph, `dyng::hypergraph` and
-`dyng.Hypergraph`, from 0.3.0), `count_local_patterns` is experimental, the teaching algorithms
-`dynamic_bfs` and `triangle_delta` have the maturity `tutorial` (written for
-{doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin wheels are on PyPI too
-(`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`). On the way to
-0.4.0, `label_propagation` (in this documentation, not yet released) is experimental and frozen,
-its stability pending the author's confirmation at the release. The other algorithms of the table
-are planned for later releases.
+**Alpha: 0.4 release candidate.** The latest release is **0.3.0** (`pip install dyng`; see
+the {doc}`roadmap`): `sssp`, `cycle_count`, `mosp` and `triad_count` are stable (SemVer applies
+from 0.1.0; to `mosp` from 0.2.0; to `triad_count` and the dynamic hypergraph,
+`dyng::hypergraph` and `dyng.Hypergraph`, from 0.3.0), `count_local_patterns` is experimental,
+the teaching algorithms `dynamic_bfs` and `triangle_delta` have the maturity `tutorial` (written
+for {doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin wheels are on PyPI too
+(`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`). These pages are
+built from the main branch, which is **0.4.0rc1**, the release candidate of 0.4.0, on TestPyPI
+only: the table below also lists `label_propagation` and `hyper_sssp`, both stable from 0.4.0
+(the author's decision of 2026-11-18), and the graph's slot and slack rows, the `slack_csr`
+hypergraph storage with incidence edits and the new records of the batch files are part of it
+too; they reach PyPI with 0.4.0.
 :::
 
 ## Algorithms
@@ -34,7 +36,7 @@ are planned for later releases.
 | {doc}`triangle_delta <algorithms/triangle_delta>` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | {doc}`hyper_sssp <algorithms/hyper_sssp>` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | stable | H-SOSP (IA3 2026) |
 | {doc}`triad_count <algorithms/triad_count>` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | stable | ESCHER / ESCHER+ |
-| {doc}`label_propagation <algorithms/label_propagation>` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | experimental | DynLP (ICS 2026) |
+| {doc}`label_propagation <algorithms/label_propagation>` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | stable | DynLP (ICS 2026) |
 <!-- regen:algorithms end -->
 
 The {doc}`algorithms/index` page explains the columns; the {doc}`roadmap` says what each
@@ -60,7 +62,8 @@ pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build 
 ```
 
 {doc}`getting_started/install` has the requirements, the presets and how to use dynG from
-your own CMake project.
+your own CMake project. The release candidate 0.4.0rc1 is on TestPyPI only until 0.4.0 is
+released; that page has its install lines.
 
 ## A first update
 

@@ -1,8 +1,9 @@
 # label_propagation: binary harmonic label propagation under vertex batches
 
-Maturity: **experimental, frozen** (the API was reviewed and frozen at the end of M10b, ADR 0109;
-it becomes stable at 0.4.0 only on the author's confirmation at the release, AD15 of 2026-10-28,
-still pending: GOVERNANCE.md, open decisions, M10 (AD)). Header: `<dyng/label_propagation.hpp>`.
+Maturity: **stable** from 0.4.0 (the author's decision of 2026-11-18 on AD15, GOVERNANCE.md; the
+API was reviewed and frozen at the end of M10b, ADR 0109). The sequential and CUDA backends, the
+Python module, the command line and the benchmark suite `benchmarks/paper/ics26_dynlp.yaml` are
+new in 0.4.0. Header: `<dyng/label_propagation.hpp>`.
 Python: `dyng.label_propagation`. Command line: `dyng label_propagation compute|update`. Oracle:
 `reference` (the converged harmonic solution). Determinism: `tolerance` (the published `in_place`
 rule); the `damped` schedule is bitwise per backend and build. Backends: sequential and cuda (no
@@ -20,6 +21,13 @@ weighted average of its neighbours' labels, so that F is the **harmonic solution
 (Zhu, Ghahramani and Lafferty's semi-supervised label propagation): the unique fixed point of
 F(v) = sum_u w(u, v) F(u) / sum_u w(u, v) with the seeds fixed. The class of a vertex is
 `F(v) >= 0.5`.
+
+**Weights must be positive** (the harmonic average needs them; the original's similarity
+weights are in (0, 1], and weights above 1 are read the same way). dynG 0.4 does **not** check
+this: as for every float graph, NaN and infinite weights are refused, but a weight <= 0 is taken
+as given, and the labels are then not the harmonic solution of the input and may leave [0, 1].
+Refusing such weights in `compute()` and in the batches is planned after 0.4.0
+({doc}`../roadmap`).
 
 **Update model.** Vertices arrive in batches with their similarity edges (some of them seeds) and
 leave (with their edges); a batch is applied with its **net effect** (an id that arrives and

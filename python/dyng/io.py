@@ -35,7 +35,7 @@ from ._backend import native
 from ._convert import as_bool, as_int, as_seed, enum_member
 from .array import Array
 from .batch import EdgeBatch
-from .errors import InvalidArgumentError, NotSupportedError
+from .errors import FileFormatError, InvalidArgumentError, NotSupportedError
 from .graph import BatchSemantics, Graph, GraphProperties, make_properties
 from .hypergraph import (
     CapacityPolicy,
@@ -166,6 +166,24 @@ class EdgeList:
 
 def _path(p: PathLike) -> str:
     return os.fspath(p)
+
+
+def _refuse_dgb(path: str, what: str) -> None:
+    """A ``.dgb`` file given to a ``.dgt`` reader: FileFormatError naming the binary readers
+    (checked from the magic before the text reader runs, whose message would quote the binary
+    bytes; R040's review)."""
+    try:
+        with open(path, "rb") as f:
+            magic = f.read(8)
+    except OSError:
+        return  # the native reader reports a missing or unreadable file
+    if magic == b"DYNGBAT1":
+        raise FileFormatError(
+            f"{what}: {path}: this is a .dgb batch file (the magic DYNGBAT1), not a .dgt batch "
+            "text file: read it with dyng.io.BatchReader or dyng.io.read_binary_batches",
+            path,
+            1,
+        )
 
 
 def _vcode(vertex_dtype: Any) -> str:
@@ -609,6 +627,7 @@ def read_batches(
         wdt = _dtypes.weight_dtype_of(weight_dtype, "read_batches: weight_dtype")
         if wdt == _dtypes.FLOAT32:
             reader = native.read_batches_i32_f32
+    _refuse_dgb(_path(path), "read_batches")
     parts = reader(_path(path), k, as_int(num_vertices, "read_batches: num_vertices"))
     return [EdgeBatch._from_arrays(tuple(p)) for p in parts]
 
@@ -1143,6 +1162,7 @@ def read_hyperedge_batches(
         if as_bool(weighted, "read_hyperedge_batches: weighted")
         else native.read_hyperedge_batches_i32_u
     )
+    _refuse_dgb(_path(path), "read_hyperedge_batches")
     parts = reader(_path(path), as_int(num_vertices, "read_hyperedge_batches: num_vertices"))
     return [HyperedgeBatch._from_arrays(p) for p in parts]
 

@@ -75,7 +75,7 @@ def test_vercmp() -> None:
 
 def test_resolve_takes_the_newest_closure() -> None:
     pkgs = ct.parse_primary(PRIMARY)
-    roots = [r.format(s="13-4") for r in ct.ROOT_PACKAGES]
+    roots = [r.format(s="13-4") for r in (*ct.ROOT_PACKAGES, *ct.OPTIONAL_ROOT_PACKAGES)]
     chosen, external = ct.resolve(pkgs, roots)
     versions = {p.name: p.ver for p in chosen}
     assert versions == {
@@ -93,6 +93,37 @@ def test_resolve_takes_the_newest_closure() -> None:
     assert external == ["/sbin/ldconfig", "gcc-c++"]
     with pytest.raises(LookupError):
         ct.resolve(pkgs, ["cuda-nvcc-13-9"])
+
+
+def test_lock_without_a_documentation_package() -> None:
+    # From CUDA 13.5 NVIDIA's repository has no cuda-documentation-13-5; EULA.txt comes with
+    # cuda-cudart-13-5, which the runtime's closure contains (ADR 0113). The documentation
+    # package is taken where the release has one (13.4 above) and not required otherwise.
+    p135 = PRIMARY.replace(_pkg("cuda-documentation-13-4", "13.4.92").encode(), b"")
+    p135 = p135.replace(b"13-4", b"13-5").replace(b'ver="13.4.', b'ver="13.5.')
+    pkgs = ct.parse_primary(p135)
+    assert "cuda-documentation-13-5" not in {p.name for p in pkgs}
+    t = ct.lock_toolkit("cu13", "13.5", pkgs, ct.REPOSITORY)
+    names = {p["name"] for p in t.packages}
+    assert "cuda-cudart-13-5" in names and not any("documentation" in n for n in names)
+    t134 = ct.lock_toolkit("cu13", "13.4", ct.parse_primary(PRIMARY), ct.REPOSITORY)
+    assert "cuda-documentation-13-4" in {p["name"] for p in t134.packages}
+    with pytest.raises(LookupError):  # a required root package is still required
+        ct.lock_toolkit("cu13", "13.5", ct.parse_primary(p135.replace(b"cuda-nvtx", b"x")), "r")
+
+
+def test_extract_needs_the_eula(tmp_path: Path, monkeypatch) -> None:
+    # extract fails when the pinned files give no <root>/EULA.txt (the plugin wheels ship it).
+    t = ct.Toolkit("cu13", "13.5", "13.5.37", "/usr/local/cuda-13.5", "x", (), ())
+    monkeypatch.setattr(ct, "verify", lambda t, rpms: [])
+    monkeypatch.setattr(ct.shutil, "which", lambda name: "/bin/true")
+    root = tmp_path / "out" / "usr" / "local" / "cuda-13.5"
+    (root / "bin").mkdir(parents=True)
+    (root / "bin" / "nvcc").write_text("")
+    with pytest.raises(FileNotFoundError, match="EULA.txt"):
+        ct.extract(t, tmp_path, tmp_path / "out")
+    (root / "EULA.txt").write_text("")
+    assert ct.extract(t, tmp_path, tmp_path / "out") == root
 
 
 def test_lock_render_load_round_trip(tmp_path: Path) -> None:

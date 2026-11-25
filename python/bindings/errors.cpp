@@ -87,8 +87,21 @@ PyObject* type_of(kind k) {
   }
 }
 
+/// The message as a Python str. A message is UTF-8 but for the bytes a reader quotes from a
+/// file that is not text (a .dgb given to a .dgt reader): those are escaped as \xNN instead of
+/// raising UnicodeDecodeError in place of the error (R040's review).
+nb::object message_str(const char* message) {
+  PyObject* s = PyUnicode_DecodeUTF8(message, static_cast<Py_ssize_t>(std::strlen(message)),
+                                     "backslashreplace");
+  if (s == nullptr) {
+    PyErr_Clear();
+    return nb::str("(the error message could not be decoded)");
+  }
+  return nb::steal(s);
+}
+
 void raise(kind k, const char* message) {
-  PyErr_SetString(type_of(k), message);
+  PyErr_SetObject(type_of(k), message_str(message).ptr());
 }
 
 /// Raise an instance built by calling the class with `args` (for the classes with attributes).
@@ -127,7 +140,7 @@ void translate(const std::exception_ptr& p, void* /*payload*/) {
     if (registered()[static_cast<std::size_t>(kind::file_format)] != nullptr) {
       try {
         instance = nb::borrow(type_of(kind::file_format))(
-            e.what(), e.path().empty() ? nb::object(nb::none()) : nb::cast(e.path()),
+            message_str(e.what()), e.path().empty() ? nb::object(nb::none()) : nb::cast(e.path()),
             e.line() > 0 ? nb::cast(e.line()) : nb::object(nb::none()),
             e.column() > 0 ? nb::cast(e.column()) : nb::object(nb::none()));
       } catch (const nb::python_error&) {
@@ -145,7 +158,7 @@ void translate(const std::exception_ptr& p, void* /*payload*/) {
     nb::object instance;
     if (registered()[static_cast<std::size_t>(kind::cuda)] != nullptr) {
       try {
-        instance = nb::borrow(type_of(kind::cuda))(e.what(), e.code());
+        instance = nb::borrow(type_of(kind::cuda))(message_str(e.what()), e.code());
       } catch (const nb::python_error&) {
         instance = nb::object();
       }

@@ -32,8 +32,10 @@ Output (OUT is a file):
     OUT         the weighted edge list 'u v w', one line per undirected edge with u < v, sorted,
                 0-based ids, w the float32 cosine similarity in its shortest round-trip form (the
                 C++ writer's: dyng.io.write_edge_list), which dyng.io.read_edge_list(OUT,
-                weight_dtype="float32", ids="as_is") and `dyng label_propagation compute --graph
-                OUT` read as an undirected float graph.
+                weight_dtype="float32", ids="as_is", directed=False) reads as an undirected
+                float graph, and `dyng label_propagation compute --graph OUT --seeds SEEDS --out
+                DIR` runs with seed labels SEEDS ('v class' lines, for example a share of
+                OUT.true_labels.txt's lines: head -n 100 OUT.true_labels.txt > SEEDS).
 
 With --arrival-batches B, also a vertex-arrival stream in the files `dyng generate` writes, next
 to OUT (its stem followed by .dgb etc.): OUT.dgb (B batches of vertex operations and edges: the

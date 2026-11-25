@@ -144,7 +144,12 @@
 #              LabelPropagation-CUDA@a276a3a's goldens (parity/compare.py label_propagation trace
 #              --backend cuda; damped --config cuda-fused, which needs a parity-cuda build: the
 #              step is "partial" on another preset or without the goldens), the in_place cloud
-#              (inplace, 5k5 and 50k, 3 runs each, against the frozen calibration) and the
+#              at 5k5 and 50k under the certificate's rate rule (inplace --rate, ADR 0111, here
+#              since R040, ADR 0110: per case 30 port runs and 30 runs of the unpatched original
+#              alternated on this GPU, every port run's labels, components, iteration sum and the
+#              deterministic trace checked run by run, the port's runs outside the frozen
+#              iteration envelope not significantly more than the original's, one-sided Fisher
+#              exact test at 5 %; "partial" without the original's build) and the
 #              harmonic oracle on C (oracle-port --backend cuda); compute-sanitizer memcheck on
 #              dyng-compat-dynlp at 5k5 and 50k (both schedules), on the unit tests and on the
 #              input-contract tests and on the slotted device apply's tests (the overflow near the
@@ -223,6 +228,48 @@ heavy() {
   else
     nice -n 10 "$@"
   fi
+}
+# A compute-sanitizer run (every call site below). A racecheck run that ends with the sanitizer's
+# "process didn't terminate successfully" while it reports no hazard, no other error or warning and
+# no failed test (R031 open item 6: three such deaths since M2b, the test process ended abnormally,
+# each command passing on every re-run) is run once more, and only once:
+# the bounded retry of ADR 0112. Every other outcome is the run's own: any hazard, error, warning
+# or failed test, and a second death, fail. The retried runs are listed under the summary's table.
+sanitizer_retries=()
+sanitizer_death_only() {  # <log>: the process-death outcome and nothing else
+  local log="$1"
+  grep -q "^========= Error: process didn't terminate successfully" "${log}" || return 1
+  grep -q '^========= RACECHECK SUMMARY: ' "${log}" || return 1
+  ! grep '^========= RACECHECK SUMMARY: ' "${log}" |
+    grep -qv 'RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)$' || return 1
+  ! grep '^========= \(Error\|Warning\)' "${log}" |
+    grep -qv "^========= Error: process didn't terminate successfully" || return 1
+  ! grep -q '^\[  FAILED  \]' "${log}"
+}
+sanitize() {  # <compute-sanitizer> <args...>: heavy, with ADR 0112's retry for racecheck only
+  case " $* " in
+    *" --tool racecheck "*) ;;
+    *)
+      heavy "$@"
+      return
+      ;;
+  esac
+  local attempt log status rc
+  for attempt in 1 2; do
+    log="$(mktemp "${TMPDIR:-/tmp}/dyng-racecheck.XXXXXX")"
+    status="${log}.rc"
+    { heavy "$@" 2>&1; echo "$?" >"${status}"; } | tee "${log}"
+    rc="$(cat "${status}" 2>/dev/null || echo 1)"
+    if [ "${rc}" != 0 ] && [ "${attempt}" = 1 ] && sanitizer_death_only "${log}"; then
+      echo "ci/gpu_local.sh: the sanitizer's process died with no hazard, error or failed test;" \
+        "running it once more (ADR 0112): ${*: -3}"
+      sanitizer_retries+=("${*}")
+      rm -f "${log}" "${status}"
+      continue
+    fi
+    rm -f "${log}" "${status}"
+    return "${rc}"
+  done
 }
 # A step's result: passed, FAILED, skipped (by DYNG_GPU_SKIP or without its inputs) or partial
 # (a part of it skipped because its inputs are missing). Skipped and partial are not failures here;
@@ -309,7 +356,7 @@ if ! skipped memcheck; then
     for exe in "${executables[@]}"; do
       [ -n "${exe}" ] || continue
       echo "--- $(basename "${exe}")"
-      if ! DYNG_TEST_SEEDS=2 DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool memcheck \
+      if ! DYNG_TEST_SEEDS=2 DYNG_CBST_REDUCED=1 sanitize "${sanitizer}" --tool memcheck \
         --leak-check full --error-exitcode 1 "${exe}" --gtest_filter='-CudaApiErrors.*' \
         --gtest_brief=1; then
         memcheck_ok=0
@@ -317,7 +364,7 @@ if ! skipped memcheck; then
       # The second pass only where there are such tests: an executable that runs no test makes
       # no CUDA call, which compute-sanitizer reports as an error.
       if "${exe}" --gtest_list_tests --gtest_filter='CudaApiErrors.*' | grep -q '^  ' &&
-        ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 \
+        ! sanitize "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 \
           --report-api-errors no "${exe}" --gtest_filter='CudaApiErrors.*' --gtest_brief=1; then
         memcheck_ok=0
       fi
@@ -339,7 +386,7 @@ if ! skipped synccheck; then
   elif [ ! -x "${sssp_tests}" ]; then
     echo "${sssp_tests} missing"
     record synccheck FAILED
-  elif heavy "${sanitizer}" --tool synccheck --error-exitcode 1 "${sssp_tests}" \
+  elif sanitize "${sanitizer}" --tool synccheck --error-exitcode 1 "${sssp_tests}" \
     --gtest_filter='-CudaApiErrors.*' --gtest_brief=1; then
     record synccheck passed
   else
@@ -349,7 +396,7 @@ if ! skipped synccheck; then
   if [ -z "${sanitizer}" ] || [ ! -x "${mosp_tests}" ]; then
     echo "compute-sanitizer or ${mosp_tests} missing"
     record "synccheck (mosp)" FAILED
-  elif DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool synccheck --error-exitcode 1 "${mosp_tests}" \
+  elif DYNG_TEST_SEEDS=2 sanitize "${sanitizer}" --tool synccheck --error-exitcode 1 "${mosp_tests}" \
     --gtest_brief=1; then
     record "synccheck (mosp)" passed
   else
@@ -359,7 +406,7 @@ if ! skipped synccheck; then
   if [ -z "${sanitizer}" ] || [ ! -x "${cc_tests}" ]; then
     echo "compute-sanitizer or ${cc_tests} missing"
     record "synccheck (cycle_count)" FAILED
-  elif DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool synccheck --error-exitcode 1 "${cc_tests}" \
+  elif DYNG_TEST_SEEDS=2 sanitize "${sanitizer}" --tool synccheck --error-exitcode 1 "${cc_tests}" \
     --gtest_brief=1; then
     record "synccheck (cycle_count)" passed
   else
@@ -373,7 +420,7 @@ if ! skipped racecheck; then
   if [ -z "${sanitizer}" ] || [ ! -x "${cc_tests}" ]; then
     echo "compute-sanitizer or ${cc_tests} missing"
     record racecheck FAILED
-  elif DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool racecheck --racecheck-report all \
+  elif DYNG_TEST_SEEDS=2 sanitize "${sanitizer}" --tool racecheck --racecheck-report all \
     --error-exitcode 1 "${cc_tests}" --gtest_brief=1; then
     record racecheck passed
   else
@@ -403,7 +450,7 @@ if ! skipped cbst; then
       extra=()
       [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
       for exe in "${cbst_exes[@]}"; do
-        if ! DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+        if ! DYNG_CBST_REDUCED=1 sanitize "${sanitizer}" --tool "${tool}" "${extra[@]}" \
           --error-exitcode 1 "${exe}" --gtest_brief=1; then
           echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
           cbst_ok=0
@@ -490,7 +537,7 @@ if ! skipped hypergraph; then
         hg_filter="${hg_filter}:HypergraphCuda.TwoContainersOnTwoNonBlockingStreams"
       fi
       for exe in "${hg_exes[@]}"; do
-        if ! DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+        if ! DYNG_CBST_REDUCED=1 sanitize "${sanitizer}" --tool "${tool}" "${extra[@]}" \
           --error-exitcode 1 "${exe}" --gtest_brief=1 --gtest_filter="${hg_filter}"; then
           echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
           hg_ok=0
@@ -500,7 +547,7 @@ if ! skipped hypergraph; then
       if [ ! -x "${kit}" ]; then
         echo "${kit} missing"
         hg_ok=0
-      elif ! heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 "${kit}" \
+      elif ! sanitize "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 "${kit}" \
         --gtest_brief=1 --gtest_filter='*.C1_*:*.C11_*:*.C12_*'; then
         echo "compute-sanitizer --tool ${tool} ${kit}: FAILED"
         hg_ok=0
@@ -547,7 +594,7 @@ if ! skipped triad; then
     tc_ok=0
   else
     for tool in synccheck initcheck; do
-      if ! heavy "${sanitizer}" --tool "${tool}" --error-exitcode 1 \
+      if ! sanitize "${sanitizer}" --tool "${tool}" --error-exitcode 1 \
         "${tc_tests}" --gtest_brief=1; then
         echo "compute-sanitizer --tool ${tool} ${tc_tests}: FAILED"
         tc_ok=0
@@ -555,7 +602,7 @@ if ! skipped triad; then
     done
     if [ -f "${coauth}" ] && [ -x "${tc_driver}" ]; then
       for tool in memcheck synccheck initcheck; do
-        if ! heavy "${sanitizer}" --tool "${tool}" --error-exitcode 1 \
+        if ! sanitize "${sanitizer}" --tool "${tool}" --error-exitcode 1 \
           "${tc_driver}" run --input "${coauth}" --batches 1 --batch-size 50000 --seed 1 \
           --pattern h_motif >/dev/null; then
           echo "compute-sanitizer --tool ${tool} (one coauth_b50k_s1 batch): FAILED"
@@ -566,7 +613,7 @@ if ! skipped triad; then
       echo "${coauth} or ${tc_driver} missing: the coauth_b50k_s1 batch is skipped"
       tc_partial=1
     fi
-    if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all \
+    if ! sanitize "${sanitizer}" --tool racecheck --racecheck-report all \
       --error-exitcode 1 "${tc_kit}" --gtest_brief=1 --gtest_filter='*.C1_*:*.C11_*:*.C12_*'; then
       echo "compute-sanitizer --tool racecheck ${tc_kit}: FAILED"
       tc_ok=0
@@ -609,13 +656,13 @@ if ! skipped experimental; then
     for tool in memcheck racecheck synccheck; do
       extra=()
       if [ "${tool}" = racecheck ]; then extra=(--racecheck-report all); fi
-      if ! heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 \
+      if ! sanitize "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 \
         "${lp_tutorial}" --gtest_brief=1 --gtest_filter='*cuda*:Tutorial.*'; then
         echo "compute-sanitizer --tool ${tool} ${lp_tutorial}: FAILED"
         lp_ok=0
       fi
     done
-    if ! heavy "${sanitizer}" --tool memcheck --error-exitcode 1 "${lp_tests}" --gtest_brief=1 \
+    if ! sanitize "${sanitizer}" --tool memcheck --error-exitcode 1 "${lp_tests}" --gtest_brief=1 \
       --gtest_filter='*/cuda'; then
       echo "compute-sanitizer --tool memcheck ${lp_tests}: FAILED"
       lp_ok=0
@@ -690,9 +737,20 @@ if ! skipped label_propagation; then
         echo "the damped byte parity needs --preset parity-cuda: skipped on ${preset}"
         lpr_partial=1
       fi
-      if ! heavy python3 parity/compare.py label_propagation inplace --exe "${lpr_compat}" \
-        --cases 5k5,50k --json "${lpr_out}/inplace-cuda.json"; then
-        echo "the in_place cloud at 5k5 and 50k: FAILED"
+      # The in_place cloud under the certificate's rate rule (ADR 0111; the author's decision of
+      # 2026-11-18 moved this step to it in R040, ADR 0110): the rule's 30 port and 30 original
+      # runs per case, alternated on this GPU in one session; every port run still checked run by
+      # run. It needs the unpatched original (parity/build_reference.sh --variant unpatched).
+      lpr_original="$(parity/build_reference.sh --variant unpatched --print-dir \
+        LabelPropagation-CUDA | tail -n 1)/bin/dynLP"
+      if [ ! -x "${lpr_original}" ]; then
+        echo "the unpatched original ${lpr_original} is missing (parity/build_reference.sh" \
+          "--variant unpatched LabelPropagation-CUDA): the in_place rate rule is skipped"
+        lpr_partial=1
+      elif ! heavy python3 parity/compare.py label_propagation inplace --rate \
+        --exe "${lpr_compat}" --original "${lpr_original}" --cases 5k5,50k \
+        --json "${lpr_out}/inplace-cuda.json"; then
+        echo "the in_place cloud at 5k5 and 50k under the rate rule (ADR 0111): FAILED"
         lpr_ok=0
       fi
       if ! heavy python3 parity/compare.py label_propagation oracle-port --exe "${lpr_compat}" \
@@ -708,7 +766,7 @@ if ! skipped label_propagation; then
     lpr_run() {  # <tool> <size> <batches> <rule> [extra...]: one dyng-compat-dynlp run under a tool
       local tool="$1" n="$2" b="$3" rule="$4"
       shift 4
-      heavy "${sanitizer}" --tool "${tool}" --error-exitcode 1 "${lpr_compat}" --totalNodes "${n}" \
+      sanitize "${sanitizer}" --tool "${tool}" --error-exitcode 1 "${lpr_compat}" --totalNodes "${n}" \
         --numBatches "${b}" --avgDegree 5 --delta 0.0001 --seed 42 --update "${rule}" --quiet \
         --noGraphFiles --backend cuda --output "${lpr_tmp}/out" "$@" >/dev/null
     }
@@ -748,19 +806,19 @@ if ! skipped label_propagation; then
     rm -rf "${lpr_tmp}"
     # The sweep that fails every device allocation in turn is left out (its correct handling is
     # what the plain run checks; under memcheck it would take most of the step).
-    if ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 "${lpr_unit}" \
+    if ! sanitize "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 "${lpr_unit}" \
       --gtest_brief=1 --gtest_filter='-LabelPropagationCuda.EachDeviceAllocationFailureKeepsTheGuarantee'; then
       echo "memcheck ${lpr_unit} (the unit and input-contract tests): FAILED"
       lpr_ok=0
     fi
     # The slotted rows' device apply (the overflow near the int32 limit, the poison; M10a review).
     lpr_graph="${build_dir}/cpp/tests/dyng_graph_cuda_tests"
-    if [ ! -x "${lpr_graph}" ] || ! heavy "${sanitizer}" --tool memcheck --error-exitcode 1 \
+    if [ ! -x "${lpr_graph}" ] || ! sanitize "${sanitizer}" --tool memcheck --error-exitcode 1 \
       "${lpr_graph}" --gtest_brief=1 --gtest_filter='SlottedCuda.*:SlackCuda.*'; then
       echo "memcheck ${lpr_graph} (the slotted and slack device applies): FAILED"
       lpr_ok=0
     fi
-    if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all --error-exitcode 1 \
+    if ! sanitize "${sanitizer}" --tool racecheck --racecheck-report all --error-exitcode 1 \
       "${lpr_unit}" --gtest_brief=1 \
       --gtest_filter='LabelPropagationCuda.HubGolden:LabelPropagationCuda.OperatorsEngineHubGolden:LabelPropagation.*'; then
       echo "racecheck ${lpr_unit} (the propagation tests): FAILED"
@@ -793,7 +851,7 @@ if ! skipped slack; then
       extra=()
       [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
       [ "${tool}" = memcheck ] && extra=(--leak-check full)
-      if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+      if ! CUDA_VISIBLE_DEVICES="${gpu}" sanitize "${sanitizer}" --tool "${tool}" "${extra[@]}" \
         --error-exitcode 1 "${sl_tests}" --gtest_brief=1 --gtest_filter='*Slack*/cuda'; then
         echo "compute-sanitizer --tool ${tool} ${sl_tests} (Slack*): FAILED"
         sl_ok=0
@@ -801,7 +859,7 @@ if ! skipped slack; then
     done
     if [ -f "${sl_goldens}/MANIFEST.sha256" ] && [ -x "${sl_replay}" ]; then
       for tool in memcheck racecheck synccheck initcheck; do
-        if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" \
+        if ! CUDA_VISIBLE_DEVICES="${gpu}" sanitize "${sanitizer}" --tool "${tool}" \
           --error-exitcode 1 "${sl_replay}" --backend cuda --no-oracle \
           "${sl_goldens}/test/02-test_h2h_delta/dump.hsd.zst" >/dev/null; then
           echo "compute-sanitizer --tool ${tool} (the forced-overflow session): FAILED"
@@ -849,7 +907,7 @@ if ! skipped hyper_sssp; then
       [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
       [ "${tool}" = memcheck ] && extra=(--leak-check full)
       for exe in "${hs_tests}" "${hs_results}"; do
-        if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+        if ! CUDA_VISIBLE_DEVICES="${gpu}" sanitize "${sanitizer}" --tool "${tool}" "${extra[@]}" \
           --error-exitcode 1 "${exe}" --gtest_brief=1; then
           echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
           hs_ok=0
@@ -859,7 +917,7 @@ if ! skipped hyper_sssp; then
     if [ -f "${hs_goldens}/MANIFEST.sha256" ] && [ -x "${hs_replay}" ]; then
       for tool in memcheck racecheck synccheck initcheck; do
         for engine in fused operators; do
-          if ! CUDA_VISIBLE_DEVICES="${gpu}" heavy "${sanitizer}" --tool "${tool}" \
+          if ! CUDA_VISIBLE_DEVICES="${gpu}" sanitize "${sanitizer}" --tool "${tool}" \
             --error-exitcode 1 "${hs_replay}" --algorithm by_id --check-compute --backend cuda \
             --cuda-engine "${engine}" "${hs_goldens}/test/07-hsospBench_smoke/dump.hsd.zst" \
             >/dev/null; then
@@ -973,6 +1031,14 @@ mkdir -p "${build_dir}"
   echo "| step | result |"
   echo "|---|---|"
   printf '%s\n' "${results[@]}"
+  echo
+  # Outside the table (certify.py reads its rows only): the racecheck runs retried once (ADR 0112).
+  if [ "${#sanitizer_retries[@]}" -eq 0 ]; then
+    echo "Sanitizer runs retried after a process death (ADR 0112): none."
+  else
+    echo "Sanitizer runs retried after a process death (ADR 0112): ${#sanitizer_retries[@]}."
+    printf -- '- %s\n' "${sanitizer_retries[@]}" | tr '|' '/'
+  fi
 } >"${summary}"
 echo
 cat "${summary}"

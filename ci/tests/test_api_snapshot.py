@@ -172,14 +172,14 @@ def test_an_algorithm_header_is_frozen_exactly_when_its_manifest_says_stable() -
         data = api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))
         header = f"dyng/{data['name']}.hpp"
         assert (api_snapshot.INCLUDE_DIR / header).is_file(), header
-        expected = (
-            "frozen"
-            if data["maturity"] == "stable" or header in api_snapshot.FROZEN_BEFORE_STABLE
-            else "tracked"
-        )
+        expected = "frozen" if data["maturity"] == "stable" else "tracked"
         assert api_snapshot.status(header) == expected, (header, data["maturity"])
         seen[data["name"]] = api_snapshot.status(header)
     assert seen["sssp"] == seen["cycle_count"] == seen["mosp"] == "frozen"
+    # From 0.4.0 (the author's decision of 2026-11-18 on AD15 / HD17): frozen by their manifests.
+    assert seen["label_propagation"] == seen["hyper_sssp"] == seen["triad_count"] == "frozen"
+    # No algorithm header is frozen outside its manifest any more (ADR 0110).
+    assert not any(h.removesuffix(".hpp").count("/") == 1 for h in api_snapshot.STABLE_HEADERS)
     assert seen["dynamic_bfs"] == seen["triangle_delta"] == "tracked"
 
 
@@ -360,17 +360,36 @@ def test_the_hypergraph_headers_are_frozen_and_a_change_is_breaking() -> None:
 
 
 def test_the_label_propagation_headers_are_frozen_and_a_change_is_breaking() -> None:
-    # The M10b freeze (ADR 0109; AD15): label_propagation's header and the headers only it adds
-    # are frozen while its manifest stays below stable (the author confirms stability at 0.4.0);
-    # io/* and the other testing headers stay tracked. A changed default of the options, a
-    # removed stats field, a changed generator option and a changed oracle signature are breaking.
+    # The M10b freeze (ADR 0109; AD15) and the author's decision of 2026-11-18 on AD15 (ADR 0110):
+    # label_propagation's header is stable through its manifest, the vertex-arrival generators are
+    # a stable header of their own (STABLE_HEADERS), and its three testing oracles stay frozen
+    # outside the stable tier (FROZEN_OUTSIDE_STABLE); io/* and the other testing and generator
+    # headers stay tracked. A changed default of the options, a removed stats field, a changed
+    # generator option and a changed oracle signature are breaking.
     secs = api_snapshot.sections(BASELINE_TEXT)
-    for header in api_snapshot.FROZEN_BEFORE_STABLE:
+    manifest = api_snapshot.ALGORITHMS_DIR / "label_propagation" / "manifest.toml"
+    assert api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))["maturity"] == "stable"
+    assert "dyng/label_propagation.hpp" in api_snapshot.stable_algorithm_headers()
+    assert api_snapshot.STABLE_HEADERS == ["dyng/generators/vertex_arrival.hpp"]
+    assert api_snapshot.FROZEN_OUTSIDE_STABLE == [
+        "dyng/testing/harmonic_solution.hpp",
+        "dyng/testing/lp_host_model.hpp",
+        "dyng/testing/union_find.hpp",
+    ]
+    for header in [
+        "dyng/label_propagation.hpp",
+        *api_snapshot.STABLE_HEADERS,
+        *api_snapshot.FROZEN_OUTSIDE_STABLE,
+    ]:
         assert secs[header][0] == "frozen", header
         assert api_snapshot.status(header) == "frozen", header
-    manifest = api_snapshot.ALGORITHMS_DIR / "label_propagation" / "manifest.toml"
-    assert api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))["maturity"] != "stable"
-    for tracked in ("dyng/io/result_io.hpp", "dyng/io/batch_io.hpp", "dyng/testing/dijkstra.hpp"):
+    for tracked in (
+        "dyng/io/result_io.hpp",
+        "dyng/io/batch_io.hpp",
+        "dyng/testing/dijkstra.hpp",
+        "dyng/testing/triad_reference.hpp",
+        "dyng/generators/hypergraphs.hpp",
+    ):
         assert secs[tracked][0] == "tracked", tracked
     assert any(
         "update_traits<label_propagation::result" in line
@@ -383,6 +402,16 @@ def test_the_label_propagation_headers_are_frozen_and_a_change_is_breaking() -> 
             "dyng/generators/vertex_arrival.hpp",
             "std::int32_t num_batches = 10",
             "std::int32_t num_batches = 11",
+        ),
+        (
+            "dyng/testing/harmonic_solution.hpp",
+            "double relative_tolerance = 1e-12",
+            "double relative_tolerance = 1e-10",
+        ),
+        (
+            "dyng/testing/union_find.hpp",
+            "bool unite(std::int64_t a, std::int64_t b)",
+            "bool unite(std::int64_t a)",
         ),
     ):
         assert old in BASELINE_TEXT, old
@@ -419,10 +448,10 @@ def test_the_triad_count_header_is_frozen_and_a_change_is_breaking() -> None:
 
 
 def test_the_hyper_sssp_header_is_frozen_and_a_change_is_breaking() -> None:
-    # The M11b freeze (ADR 0096): hyper_sssp's manifest says stable (pending the author's
-    # confirmation at 0.4.0, HD17), so dyng/hyper_sssp.hpp is frozen with its detail contract; its
-    # oracle stays tracked. A changed default of the options, a removed stats field, a changed
-    # parent width and a removed enumerator are breaking changes.
+    # The M11b freeze (ADR 0096): hyper_sssp's manifest says stable (stable from 0.4.0, the
+    # author's decision of 2026-11-18 on HD17), so dyng/hyper_sssp.hpp is frozen with its detail
+    # contract; its oracle stays tracked. A changed default of the options, a removed stats
+    # field, a changed parent width and a removed enumerator are breaking changes.
     secs = api_snapshot.sections(BASELINE_TEXT)
     assert secs["dyng/hyper_sssp.hpp"][0] == "frozen"
     assert api_snapshot.status("dyng/hyper_sssp.hpp") == "frozen"

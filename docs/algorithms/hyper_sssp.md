@@ -1,7 +1,7 @@
 # hyper_sssp: shortest hyperpaths
 
-Maturity: **stable** from 0.4.0 on the author's confirmation (HD17, pending; the API is frozen
-since the end of M11b, {doc}`ADR 0096 <../adr/0096-hyper-sssp-api-review-and-freeze-0-4>`). The
+Maturity: **stable** from 0.4.0 (the author's decision of 2026-11-18 on HD17, GOVERNANCE.md; the
+API is frozen since the end of M11b, {doc}`ADR 0096 <../adr/0096-hyper-sssp-api-review-and-freeze-0-4>`). The
 sequential and CUDA backends, the Python module `dyng.hyper_sssp`, the command line
 `dyng hyper_sssp` and the benchmark suite `benchmarks/paper/ia3_hsosp.yaml` are new in 0.4.0.
 Header: `<dyng/hyper_sssp.hpp>`. Container: `hypergraph` (weighted, `slack_csr` storage).

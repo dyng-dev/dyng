@@ -31,6 +31,7 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Any
 
+from . import _dtypes
 from . import _writer as _writer_state
 from ._backend import native
 from ._convert import as_int, copy_fields, enum_name, with_options
@@ -177,6 +178,9 @@ class Result:
 def _check_graph(graph: Graph) -> None:
     if not isinstance(graph, Graph):
         raise TypeError("expected a dyng.Graph")
+    _dtypes.refuse_float_graph(
+        graph.weight_dtype, "dynamic_bfs", "build it unweighted or with int32 weights"
+    )
 
 
 def compute(

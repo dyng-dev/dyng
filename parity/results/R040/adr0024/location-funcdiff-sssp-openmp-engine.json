@@ -1,0 +1,185 @@
+{
+ "a": "A/build/cpp/libdyng.so.0.3",
+ "b": "B/build/cpp/libdyng.so.0.4",
+ "pattern": "sssp_openmp_engine<int, int, int>",
+ "functions": [
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::finalize()",
+   "size_a": 534,
+   "size_b": 534,
+   "align_a": 32,
+   "align_b": 32,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::finalize() [clone ._omp_fn.0]",
+   "size_a": 235,
+   "size_b": 235,
+   "align_a": 0,
+   "align_b": 32,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::finalize() [clone ._omp_fn.1]",
+   "size_a": 235,
+   "size_b": 235,
+   "align_a": 32,
+   "align_b": 0,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::finalize() [clone ._omp_fn.2]",
+   "size_a": 297,
+   "size_b": 297,
+   "align_a": 16,
+   "align_b": 48,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::finalize() [clone ._omp_fn.3]",
+   "size_a": 168,
+   "size_b": 168,
+   "align_a": 48,
+   "align_b": 16,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::identify_affected()",
+   "size_a": 1385,
+   "size_b": 1802,
+   "align_a": 48,
+   "align_b": 32,
+   "status": "different instructions",
+   "differing_lines": 263
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::identify_affected() [clone ._omp_fn.0]",
+   "size_a": 283,
+   "size_b": 283,
+   "align_a": 0,
+   "align_b": 32,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::identify_affected() [clone ._omp_fn.1]",
+   "size_a": 144,
+   "size_b": 144,
+   "align_a": 48,
+   "align_b": 16,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::identify_affected() [clone ._omp_fn.2]",
+   "size_a": 810,
+   "size_b": 885,
+   "align_a": 16,
+   "align_b": 32,
+   "status": "different instructions",
+   "differing_lines": 215
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::identify_affected() [clone ._omp_fn.3]",
+   "size_a": 548,
+   "size_b": 623,
+   "align_a": 48,
+   "align_b": 48,
+   "status": "different instructions",
+   "differing_lines": 140
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::local_list(int)",
+   "size_a": 55,
+   "size_b": 55,
+   "align_a": 32,
+   "align_b": 0,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::loop()",
+   "size_a": 3159,
+   "size_b": 3318,
+   "align_a": 48,
+   "align_b": 32,
+   "status": "different instructions",
+   "differing_lines": 564
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::loop() [clone ._omp_fn.0]",
+   "size_a": 928,
+   "size_b": 1115,
+   "align_a": 32,
+   "align_b": 32,
+   "status": "different instructions",
+   "differing_lines": 280
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::loop() [clone ._omp_fn.1]",
+   "size_a": 1185,
+   "size_b": 1396,
+   "align_a": 48,
+   "align_b": 0,
+   "status": "different instructions",
+   "differing_lines": 213
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::loop() [clone ._omp_fn.2]",
+   "size_a": 928,
+   "size_b": 1103,
+   "align_a": 32,
+   "align_b": 0,
+   "status": "different instructions",
+   "differing_lines": 276
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::reset()",
+   "size_a": 95,
+   "size_b": 95,
+   "align_a": 48,
+   "align_b": 16,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::reset() [clone ._omp_fn.0]",
+   "size_a": 152,
+   "size_b": 152,
+   "align_a": 16,
+   "align_b": 48,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::seed()",
+   "size_a": 538,
+   "size_b": 711,
+   "align_a": 48,
+   "align_b": 48,
+   "status": "different instructions",
+   "differing_lines": 107
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::seed() [clone ._omp_fn.0]",
+   "size_a": 807,
+   "size_b": 864,
+   "align_a": 48,
+   "align_b": 32,
+   "status": "different instructions",
+   "differing_lines": 125
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::seed_static()",
+   "size_a": 193,
+   "size_b": 193,
+   "align_a": 16,
+   "align_b": 48,
+   "status": "same instructions"
+  },
+  {
+   "function": "dyng::detail::sssp_openmp_engine<int, int, int>::sssp_openmp_engine(dyng::resources const&, dyng::detail::sssp_run<int, int, int>&)",
+   "size_a": 308,
+   "size_b": 308,
+   "align_a": 0,
+   "align_b": 32,
+   "status": "different instructions",
+   "differing_lines": 1
+  }
+ ]
+}

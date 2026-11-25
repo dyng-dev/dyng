@@ -151,6 +151,20 @@ def find_graph_type(vertex: np.dtype, edge: np.dtype, weight: bool | np.dtype | 
     )
 
 
+def refuse_float_graph(weight: np.dtype | None, algorithm: str, fix: str) -> None:
+    """Raise NotSupportedError for a float32-weighted graph (label_propagation's graphs of 0.4)
+    given to ``algorithm``, which reads integer or no weights, before the native call (whose
+    overloads would otherwise refuse it with a bare TypeError, or a check read it as
+    unweighted)."""
+    if weight == FLOAT32:
+        raise NotSupportedError(
+            f"dyng.{algorithm} does not read float32-weighted graphs (this graph has "
+            f"weight_dtype float32, as label_propagation's graphs of 0.4, such as "
+            f"Graph.with_capacity's, have): {fix}; label_propagation is the algorithm of the "
+            f"float32 graphs"
+        )
+
+
 def float32_value(x: float) -> float:
     """The shortest decimal that is the float32 nearest to ``x``, as a Python float (a float32
     field read back from C++: ``float32_value(1e-4) == 1e-4``, and passing it back gives the same
@@ -209,11 +223,15 @@ def device_to_host(x: Any, what: str) -> np.ndarray | None:
     if device is None:
         return None
     if not native.build_config["cuda"]:
-        hint = plugin_install_hint(_dyng_version(), "cu13")
+        from ._backend import selection
+
+        if selection().plugins:  # installed but not used: reinstalling would not help
+            fix = "the installed CUDA plugins are not used (dyng.show_config() says why)"
+        else:
+            fix = f"install a CUDA plugin ({plugin_install_hint(_dyng_version(), 'cu13')})"
         raise NotSupportedError(
             f"{what}: the input is in CUDA device memory (device {device[1]}), but the active "
-            f"native module is the CPU module dyng._core; install a CUDA plugin ({hint}) or "
-            "pass a host array"
+            f"native module is the CPU module dyng._core; {fix}, or pass a host array"
         )
     res = cuda_resources(device[1])
     stream = int(res.stream)  # 1: the legacy default stream (DLPack's value for it)

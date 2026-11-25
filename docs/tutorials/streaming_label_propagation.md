@@ -6,10 +6,16 @@ byte for byte. **Part 2** runs your own data: feature vectors turned into a kNN 
 the recipe `datasets/preprocess/knn_graph.py`, arriving in batches, in the streaming mode (rows
 that grow, the threshold taken from the current graph), with the labels handed to PyTorch without
 a copy. It takes about ten minutes on a laptop CPU; every step also runs on a GPU with
-`dyng.Resources.cuda()` (a CUDA plugin wheel: `pip install "dyng[cu13]"`).
+`dyng.Resources.cuda()` (a CUDA plugin wheel: `pip install "dyng[cu13]"`), where the labels are
+device memory: read them with `lp.labels.to_numpy()` or hand them to PyTorch with
+`torch.from_dlpack(lp.labels)` (NumPy's `np.from_dlpack` takes host arrays only).
 
-What you need: `pip install dyng` (and PyTorch for the last step, optional), and a clone of the
-repository for the recipe (`datasets/` is not in the wheel). The algorithm itself is described
+What you need: dynG 0.4 or newer, `pip install "dyng>=0.4"` (`label_propagation` is new in 0.4;
+until 0.4.0 is on PyPI, take the release candidate's lines of the install page's "Python"
+section, {doc}`../getting_started/install`, since a plain `pip install dyng` gives 0.3.0, which
+does not have it; with a CUDA plugin, upgrade both: `pip install -U "dyng[cu13]"`), PyTorch for
+the last step (optional), and a clone of the repository for the recipe (`datasets/` is not in the
+wheel). The algorithm itself is described
 on {doc}`../algorithms/label_propagation`; the row layouts on {doc}`../concepts/row_layouts`.
 
 ## The problem in two sentences
@@ -37,7 +43,8 @@ never move), `compute()` runs on the empty graph (every label 0.5), and every ba
 ```
 
 The resources are explicit: `sequential` or `cuda` (label_propagation has no OpenMP backend in
-0.4, and `dyng.Resources("openmp")` raises `NotSupportedError` naming the fix). The `damped`
+0.4: `dyng.label_propagation.compute()` and `update()` given OpenMP resources raise
+`NotSupportedError` naming the fix). The `damped`
 schedule makes the labels bitwise reproducible: on the sequential backend they equal
 `dyng-compat-dynlp`'s sequential output, and on cuda they equal the original's own
 `dynlp_labels.txt` byte for byte (the example's CI test compares both against committed digests).
@@ -91,7 +98,9 @@ later endpoint, and departures of earlier vertices:
 ```
 
 It writes `g.txt` (the graph, `u v w` with float weights in (0, 1]; `dyng.io.read_edge_list(...,
-weight_dtype="float32")` and `dyng label_propagation compute --graph g.txt` read it), `g.dgb` (the
+weight_dtype="float32", directed=False)` reads it, and `dyng label_propagation compute --graph
+g.txt --seeds seeds.txt --out run` runs it with seed labels, `v class` lines such as a share of
+`g.true_labels.txt`'s), `g.dgb` (the
 five batches, with vertex records: arrivals with their seed labels, the edges they bring,
 departures), `g.row_capacity.txt` (each vertex's final degree), `g.true_labels.txt` and
 `g.stream.json` (the published threshold). The paper's own datasets are not redistributed (the

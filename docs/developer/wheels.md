@@ -44,7 +44,8 @@ by auditwheel; GPL-3.0-or-later WITH GCC-exception-3.1). The expression is the a
 `[project]` table of `pyproject.toml` (`license`), so the sdist, whose own files are all
 Apache-2.0, carries the same expression as the wheel: for the sdist it is broader than its
 files need (it names the licences of the wheels built from it), never narrower; a repackager
-of the sources alone (for example the conda-forge recipe from 0.4) can declare `Apache-2.0` for
+of the sources alone (for example a future conda-forge recipe, deferred beyond 0.4.0:
+{doc}`../roadmap`) can declare `Apache-2.0` for
 them (`THIRD_PARTY_LICENSES.txt` says the same). `ci/wheel_check.py` fails when
 `pyproject.toml`'s `license` differs from its `LICENSE_EXPRESSION`, when a wheel's `METADATA` or
 an sdist's `PKG-INFO` has another `License-Expression`, a legacy `License:` field, or no
@@ -105,7 +106,11 @@ It builds the sdist, then the wheel **from the sdist** with `pip wheel`, repairs
 `ci/wheel_check.py`, and installs the wheel alone into a fresh venv for each Python version
 (3.12 and 3.13): an import from an empty directory, sssp and cycle_count on both host backends,
 `dyng --version` and `dyng config`, then the whole pytest suite against the installed wheel (a
-report of leaked nanobind objects fails the run). The distributions land in
+report of leaked nanobind objects fails the run), then cibuildwheel's own test step:
+`ci/cibw_test.py` unpacks the sdist, copies the `[tool.cibuildwheel] test-sources` of its
+`pyproject.toml` into an empty directory (a source missing from the sdist fails, as it stops
+cibuildwheel; the check also runs right after the sdist is built, and in `wheels.yml`'s sdist job)
+and runs the `test-command` there with the `test-environment`. The distributions land in
 `$DYNG_SCRATCH/wheels/<version>/dist`.
 
 The differences from the CI build:
@@ -116,7 +121,7 @@ The differences from the CI build:
 | compiler | the image's gcc-toolset (libstdc++ newer than the system's through `libstdc++_nonshared`) | GCC 12 with libstdc++ and libgcc linked statically and their symbols hidden (`-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL`) |
 | build front end | `build` (isolated, dependencies from PyPI) | `pip wheel --no-build-isolation` from the sdist, with the pinned scikit-build-core and nanobind of `environment.yml` |
 | repair | auditwheel inside the image | auditwheel from `$DYNG_SCRATCH/tools/wheeltools`, `--plat manylinux_2_28_x86_64 --only-plat`, libgomp from the conda toolchain |
-| tests | a pytest subset in the built wheel (cibuildwheel), then the whole suite (install-test job) | the whole suite in fresh venvs |
+| tests | a pytest subset in the built wheel (cibuildwheel, from the sdist's test sources), then the whole suite (install-test job) | the whole suite in fresh venvs, then the same subset from the sdist's test sources (`ci/cibw_test.py`) |
 | bundled OpenMP runtime | the image's libgomp (GCC 12 toolset) | the conda toolchain's libgomp, pinned to GCC 12 (`libgomp=12.*` in `ci/wheel-toolchain.yml`) |
 
 The system GCC alone cannot produce a manylinux_2_28 wheel: linked against glibc 2.36 and the
@@ -243,7 +248,8 @@ CUDA 13.1 and conda-forge's CUDA 12.9).
 
 **The pinned toolkits** are `ci/cuda_toolkits.toml`: per plugin, the toolkit release and every
 RPM file of NVIDIA's RHEL 8 repository the build installs (nvcc, the CUDA runtime with its static
-library, CCCL, NVTX, the documentation package with `EULA.txt`, cuobjdump for the check of the
+library, CCCL, NVTX, the documentation package with `EULA.txt` up to CUDA 13.4 (from 13.5 the
+runtime package carries `EULA.txt`; ADR 0113), cuobjdump for the check of the
 code objects, and their dependencies inside
 NVIDIA's repository), with SHA-256 and size. The pins make the build reproducible; that the
 files are NVIDIA's is checked separately, every time they are used: each RPM's header must carry
@@ -253,12 +259,12 @@ repository next to the packages and accepted only with the fingerprint
 must match the digest that the signed header records (`download` and `verify --signatures`, with
 gpg; in the container also `rpm -K` and dnf's `localpkg_gpgcheck`). So a lock taken from a
 tampered response would fail at its first use. Now: CUDA 12.9 (nvcc 12.9.86) for `cu12`, CUDA
-13.4 (nvcc 13.4.92) for `cu13`. When NVIDIA ships a newer 12.x or 13.x (PLAN 7.8: the wheels
+13.5 (nvcc 13.5.37) for `cu13` (re-pinned from 13.4 in R040, ADR 0113). When NVIDIA ships a newer 12.x or 13.x (PLAN 7.8: the wheels
 are built with the latest of each major), re-pin in a pull request; dependabot does not see the
 file:
 
 ```bash
-python3 ci/cuda_toolkit.py lock --plugin cu13 --release 13.5     # reads NVIDIA's repository
+python3 ci/cuda_toolkit.py lock --plugin cu13 --release 13.6     # reads NVIDIA's repository
 python3 ci/cuda_toolkit.py show
 python3 -m pytest ci/tests/test_cuda_toolkit.py
 ```
@@ -275,7 +281,7 @@ for p in cu12 cu13; do
 done
 DYNG_PLUGINS="cu12 cu13" \
   DYNG_CUDA12_ROOT="$DYNG_SCRATCH/tools/ci-cuda/root-cu12/usr/local/cuda-12.9" \
-  DYNG_CUDA13_ROOT="$DYNG_SCRATCH/tools/ci-cuda/root-cu13/usr/local/cuda-13.4" \
+  DYNG_CUDA13_ROOT="$DYNG_SCRATCH/tools/ci-cuda/root-cu13/usr/local/cuda-13.5" \
   flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
 ```
 
@@ -283,7 +289,7 @@ How the plugins' CI build differs from `ci/plugin_wheels.sh`:
 
 | | CI (`wheels.yml`) | locally (`ci/plugin_wheels.sh`) |
 |---|---|---|
-| CUDA toolkit | the pinned RPMs of `ci/cuda_toolkits.toml` (12.9, 13.4) installed in the image | `DYNG_CUDA12_ROOT` / `DYNG_CUDA13_ROOT`: by default the system's 13.1 and conda-forge's 12.9; the pinned RPMs unpacked as above give CI's toolkits |
+| CUDA toolkit | the pinned RPMs of `ci/cuda_toolkits.toml` (12.9, 13.5) installed in the image | `DYNG_CUDA12_ROOT` / `DYNG_CUDA13_ROOT`: by default the system's 13.1 and conda-forge's 12.9; the pinned RPMs unpacked as above give CI's toolkits |
 | host compiler | the image's gcc-toolset 14 (cibuildwheel 4.2.1's manylinux_2_28 image, 2026.09.05-1); the system's libstdc++ / libgcc, other static libraries hidden (`-Wl,--exclude-libs,ALL`) | conda-forge's GCC 12.4 against a glibc 2.28 sysroot, libstdc++ / libgcc static and hidden (`-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL`) |
 | checks of the module | `ci/wheel_check.py`: no libcuda / libcudart, the export list (only `PyInit__core`, std, nanobind, type_info); in the container, `ci/cibw_plugin_repair.sh`: SASS + PTX equal to the toolkit's release list (cuobjdump) | the same checks (`--code-objects` with the toolkit's cuobjdump) |
 | build front end | `build` (isolated, from PyPI) | `pip wheel --no-build-isolation` with `environment.yml`'s scikit-build-core and nanobind |

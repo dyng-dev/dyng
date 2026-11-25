@@ -21,6 +21,8 @@ benchmarks/
 | `paper/ieee_tc_dyntrucy.yaml` | `cycle_count` | TruCy / DynTruCy (IEEE TC) | DD, GitHub, Twitch, COLLAB; static k = 3..7, updates 25K+25K (DD also 50K and 100K), seed 1; OpenMP (56 threads) and CUDA (boost lock; the COLLAB update at the base lock, ADR 0021) gated; CUDA at default clocks recorded; device memory |
 | `paper/ipdps25_dynamosp_mosp.yaml` (0.2) | `mosp` | DynaMOSP (IPDPS 2025): the MOSP update, the K per-objective updates plus the combined graph and its SOSP | the same four graphs, inputs and batches as the sssp suite (K = 3, default preferences); "(a) compute" (<= 1.05x) and "(b) end to end" (<= 1.10x, every output file written by both sides, as the originals' `bench/run.sh`) against the unpatched `bin/mosp` of MOSP-OpenMP@c352151 (28 threads pinned) and MOSP-CUDA@e220ee2 (boost clock lock); CUDA at default clocks recorded; device memory (`perf_ab.py memory --mosp`, <= 1.05x); the per-objective updates, the combined step and the path costs reported |
 | `paper/ipdps26_escher.yaml` (0.3) | `triad_count` | ESCHER (IPDPS 2026): the dynamic h-motif counts of ESCHER-GPU@abcf9b2's `build/main` | coauth-DBLP (SHA-256 pinned) and syn1M / syn2M (A's generator parameters, the rows' SHA-256 per seed); 3 consecutive 50K batches, seeds 1-3; `update` of each batch and the full count (<= 1.05x) and end to end (<= 1.10x) against the unpatched `build/main`, all at the base clock lock (ADR 0021; the boost probe did not hold), 11 rounds on coauth-DBLP, 21 on syn1M / syn2M; default clocks and the 100K / 200K coauth batches recorded; the sub-stages and host syncs reported |
+| `paper/ics26_dynlp.yaml` (0.4) | `label_propagation` | DynLP (ICS 2026): binary harmonic label propagation under vertex batches, as LabelPropagation-CUDA@a276a3a's `bin/dynLP` computes it | the original's configurations 50k, 500k, 5m, 5m1 and 50m, generated in-process by both sides (pinned by the golden set `label_propagation_generator`'s digests); on the damped schedule `update[sum]` (<= 1.05x) and `end_to_end` (<= 1.10x) of 50k / 500k (21 rounds) and 5m / 5m1 (11 rounds) at the boost lock the baseline recorded, and `device_memory` (the Nsight Systems peak, D1; <= 1.05x; GPU 1 in a GPU1-QUIET window), against the unpatched `bin/dynLP`, `CUDA_MODULE_LOADING=EAGER`; the in_place schedule, the default clocks, the ncu kernel table and the 50m readings (3 rounds damped, one in_place, at base) recorded; **`release-damped-50m`**, AD4's release-only 50m `update[sum]` gate (5 rounds at base, `--noGraphFiles` on both sides), read once per release with `--release-only` |
+| `paper/ia3_hsosp.yaml` (0.4) | `hyper_sssp` | H-SOSP (IA3 at SC 2026): the dynamic shortest hyperpaths of MOSP_ESCHER@4b86159's `bin/hsospBench --hg` | coauth-DBLP and coauth-MAG-Geology (the golden set's digests), the hyperedge and vertex batch kinds at 25K, 50K, 100K and 200K (16 paper configurations, 3 batches each, replayed from the golden set); per batch `maintain`, `sosp_update`, `static`, `dynamic_comparable` and `dynamic`, and `load_plus_dynamic` end to end, against the unpatched `hsospBench` at the base lock (21 rounds; a 3-round boost probe per dataset recorded); `device_memory` (the nsys peak) and `graph_memory[build|b1..b3]` (B's graph_mb scope, in bytes), <= 1.05x, GPU 1 in a GPU1-QUIET window; the default clocks and the ncu kernel table recorded |
 | `paper/tkde26_escher_plus.yaml` (0.3) | `triad_count` | ESCHER+ (TKDE 2026): the memory of the dynamic hypergraph and its counter; StatHyper's triad types | the same inputs; `store_memory` (dynG's store bytes against A's `deviceBytes()` after the build and every batch on coauth-DBLP, at A's two print points on syn1M / syn2M) and `device_memory` (the Nsight Systems peak of live allocations of both whole processes, decision D1), each <= 1.05x; the footprint, the peak's NVTX range and the triad bytes during `hypergraph.apply` recorded; types 1-3 on coauth_b50k_s1 and the memory at 100K / 200K batches recorded |
 
 The mosp suite reads the gates M7 took (`parity/results/M7.md` sections 6 and 8) and is required
@@ -33,7 +35,13 @@ datasets of DynTruCy (CollegeMsg, email-Eu-core, time-window mode) come with the
 on, with the triad replays of every backend of the golden set's coverage table; ESCHER-GPU's
 repository does not say which of its readings are ESCHER's and which ESCHER+'s, so the split
 (timing gates in `ipdps26_escher`, memory gates and the recorded type and batch-size readings in
-`tkde26_escher_plus`) is ours (ADR 0056). The DynLP and H-SOSP suites follow their ports.
+`tkde26_escher_plus`) is ours (ADR 0056). The DynLP suite `ics26_dynlp` reads M10a's gates
+(ADR 0078; the author's decisions AD2-AD4 of 2026-10-28) and the H-SOSP suite `ia3_hsosp` M11a's
+(ADR 0093; HD3-HD7); both are required in every certificate from 0.4.0 on. `ics26_dynlp`'s
+`release-damped-50m` is the one release-only reading (AD4): `bench_suite.py plan`, `run` and
+`summarize` leave it out unless `--release-only` is given, and its `release_gate` says whether the
+certificate requires its row (`gated`) or shows it as recorded only (`recorded_only`, allowed only
+when its 5 rounds take more than 2 h or more than 30 % of them are rejected, with the reason).
 
 **rgg's unsafe50k batch equals its safe50k batch.** The original's `--safe` filter
 (`filterUnsafeDeletions` of MOSP-CUDA@e220ee2) drops only the deletions that make a vertex
@@ -148,16 +156,35 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
    syn100k grid, openmp also the syn1m seed-1 grid and coauth_b50k_s1 for type1 and type2), by
    key and by content, covering every case the table lists (all four patterns); a replay with the
    oracle counter, a planted defect or `--no-coverage` does not count. A 0.1 or 0.2 certificate
-   lists the set without requiring it.
+   lists the set without requiring it. From 0.4 also LabelPropagation-CUDA's golden sets, each
+   replayed and then converted (`parity/compare.py label_propagation <kind> ... --json <record>`,
+   then `parity/compare.py label_propagation certificate --kind <kind> --from <record> --out
+   benchmarks/results/<version>`): the generator on sequential, the stage trace on sequential
+   and cuda (every case of P+), damped and hub from a parity-cuda build (`--config cuda-fused`),
+   IrLP and the in_place schedule on cuda (the in_place set judged by ADR 0111's rate rule, 30
+   port and 30 original runs per case, which `certify.py` recomputes from the record's tables),
+   and the harmonic oracle's port replay on sequential (C) and cuda (C and L, the release replay
+   at delta 1e-4); MOSP_ESCHER's H-SOSP set `hyper_sssp_mosp_escher` per its `[modes]` table
+   (`by_id`, `by_id_public` and `by_key` on cuda with both CUDA engines and on sequential:
+   `parity/compare.py hyper_sssp --part results --mode <m> --backend <b> [--cuda-engine
+   operators] --cases <cases> --certificate benchmarks/results/<version>`) with the `slack_csr`
+   store check on cuda (`--part delta --backend cuda --cases t,p`); and MOSP_ESCHER's three CBST
+   trace sets replayed whole on `slack_csr` storage on every backend (`parity/compare.py
+   hypergraph_ids --storage slack_csr --backend <b> --set <set> --certificate ...`).
 2. **The performance gates**: `parity/bench_suite.py run` for every suite of the release's
    algorithms. `certify.py` requires the suites of `REQUIRED_SUITES` by release series:
    `ipdps25_dynamosp_sosp` (sssp) and `ieee_tc_dyntrucy` (cycle_count) from 0.1,
    `ipdps25_dynamosp_mosp` (mosp) from 0.2 (a 0.2.0rc1 or 0.2.0 certificate without the mosp
-   gates fails), `ipdps26_escher` and `tkde26_escher_plus` (triad_count) from 0.3; each summary
+   gates fails), `ipdps26_escher` and `tkde26_escher_plus` (triad_count) from 0.3, `ics26_dynlp`
+   (label_propagation) and `ia3_hsosp` (hyper_sssp) from 0.4; each summary
    must hold a gated reading of every gated metric of its suite file on every backend it is
    gated on (mosp: "(a) compute" and "(b) end to end" on OpenMP and CUDA, the device memory on
    CUDA; triad_count: `update[b1]`, `update[b2]`, `update[b3]` (a metric named as a row is read
-   by that row only), `full_count`, `end_to_end`, `store_memory` and `device_memory`). A
+   by that row only), `full_count`, `end_to_end`, `store_memory` and `device_memory`;
+   label_propagation: `update[sum]` and `end_to_end` of every gated damped case, `device_memory`
+   of the memory reading, and the 50m `update[sum]` while `release-damped-50m` is `gated`;
+   hyper_sssp: every gated row of every batch of the 16 configurations, `load_plus_dynamic`,
+   `device_memory` and `graph_memory`, rechecked against the records). A
    triad_count record is also refused if its cases or patterns are not the reading's, a case has
    fewer rounds than the reading's runs, a batch row is missing, the per-round guard (the counts
    both sides print equal the golden's) did not pass in every round, a contaminated round was
@@ -174,7 +201,11 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
    `mutation-ctests` (tests), `distributions` (packaging), `check-parity` and `gpu_local` (repo,
    with the steps memcheck, synccheck and racecheck passed), and the golden mutations
    `mutation-sssp` (0.1 only, library); from 0.2 also `tsan-openmp` (tests), `mutation-goldens`
-   (library) and `api-check` (repo, `ci/api_check.sh`). The `mutation-goldens` record itself is
+   (library) and `api-check` (repo, `ci/api_check.sh`). From 0.4 the `gpu_local` record needs the
+   steps of label_propagation, `slack_csr` and hyper_sssp passed too, in **one** run of
+   `ci/gpu_local.sh --preset parity-cuda` (label_propagation's step is `partial` on `dev-cuda` by
+   design; two summaries are never merged), and `parity/mutate.py run` covers the suites
+   `label_propagation` and `hyper_sssp` (with the `slack_csr` container's mutations). The `mutation-goldens` record itself is
    read: every mutation of `parity/mutate.py list` must be in it and detected, the control
    passed, its commit must have the release's library sources and every replay a golden
    manifest of `goldens.toml`. For example

@@ -44,7 +44,7 @@ Usage::
         --require-libgomp
     python3 ci/wheel_check.py dist/dyng_cu13-*.whl --platform manylinux_2_28_x86_64 \\
         --require-libgomp                  # a CUDA plugin wheel (recognised by its name)
-    python3 ci/wheel_check.py dist/dyng_cu13-*.whl --code-objects --cuda-release 13.4 \
+    python3 ci/wheel_check.py dist/dyng_cu13-*.whl --code-objects --cuda-release 13.5 \
         [--cuobjdump /usr/local/cuda/bin/cuobjdump]   # SASS + PTX of the release list
     python3 ci/wheel_check.py --version-info   # "<VERSION> <pre-release: true|false>"
     python3 ci/wheel_check.py --release-metadata [--release-date today]
@@ -155,7 +155,7 @@ PLUGIN_EXPORTS_ALLOWED = re.compile(
 
 
 def release_architectures(cuda_release: str) -> str:
-    """The release list of CUDA architectures of a toolkit release (``"13.4"``)."""
+    """The release list of CUDA architectures of a toolkit release (``"13.5"``)."""
     m = re.match(r"(\d+)\.(\d+)", cuda_release)
     if m is None:
         raise ValueError(f"not a CUDA release: {cuda_release!r}")

@@ -278,9 +278,10 @@ def test_streaming_mode_runs(capsys: pytest.CaptureFixture[str], tmp_path: Path)
     ).read_bytes()
 
 
-# The command line frozen at the end of M10b (ADR 0109; AD15: stable from 0.4.0 only on the
-# author's confirmation): every flag below stays, with its name (PLAN 5.9: CLI flags are stable-tier
-# API); a flag may be added (an additive change with a CHANGELOG entry), never removed or renamed.
+# The command line frozen at the end of M10b (ADR 0109) and stable from 0.4.0 (the author's
+# decision of 2026-11-18 on AD15): every flag below stays, with its name (PLAN 5.9: CLI flags are
+# stable-tier API); a flag may be added (an additive change with a CHANGELOG entry), never removed
+# or renamed.
 FROZEN_FLAGS = {
     ("label_propagation", "compute"): (
         "--backend --cuda-engine --device --graph --help --index-base --max-iterations "

@@ -137,7 +137,9 @@ def test_update_with_incidence_edits(
         "--compare-recompute",
     )
     assert status == 0, err
-    assert "batch 1:" in text and "incidences -0 +1" in text and "batch 2:" in text
+    # numbered from 0, as the file's %batch ids and the Python and C++ examples (R040's review)
+    assert "batch 0:" in text and "incidences -0 +1" in text and "batch 1:" in text
+    assert "batch 2:" not in text
     assert "match=yes" in err and "update_seconds=" in err
     _hg, sp = reference(5, batches)
     assert read_result(out, len(sp.hyperedge_distances)) == (
@@ -214,3 +216,28 @@ def test_hsosp_loader(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Non
     d, p = read_result(out, 3)
     assert d == sp.hyperedge_distances.tolist() and p == sp.hyperedge_parents.tolist()
     assert np.all(np.asarray(h.weights) >= 1)
+
+
+def test_the_backend_help(capsys: pytest.CaptureFixture[str]) -> None:
+    # hyper_sssp's own backend group (R040's review): the default is sequential, openmp fails
+    # (no OpenMP backend in 0.4), and there is no --threads.
+    for verb in ("compute", "update"):
+        text = " ".join(_subparser("hyper_sssp", verb).format_help().split())
+        assert "default: sequential; hyper_sssp has no OpenMP backend in 0.4" in text
+        assert "default: openmp" not in text and "--threads" not in text
+        assert "--device D" in text
+
+
+def test_a_graph_dgb_is_named_from_its_header(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A graph-kind .dgb (label_propagation's kNN recipe writes them) whose ids do not fit the
+    # hypergraph: refused from the header, not by a vertex range check of its first record.
+    hg = write(tmp_path, "h.hg", HG)
+    dgb = tmp_path / "g.dgb"
+    dyng.io.write_binary_batches(dgb, [dyng.EdgeBatch(insert=([14], [2]))])
+    status, _, err = run(
+        capsys, "hyper_sssp", "update", "--input", hg, "--batches", dgb, "--out", tmp_path / "o"
+    )
+    assert status == 1 and "holds graph batches, not hypergraph batches" in err, err
+    assert "out of range" not in err

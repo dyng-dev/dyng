@@ -1,0 +1,496 @@
+{
+ "schema": 1,
+ "algorithm": "label_propagation",
+ "command": "run",
+ "what": "the A/B readings of dyng-compat-dynlp against LabelPropagation-CUDA@a276a3a (AD2, AD3): update[sum] and end_to_end on damped (gated), in_place reported",
+ "date": "2026-11-20T07:04:55Z",
+ "date_end": "2026-11-20T07:07:18Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/LabelPropagation-CUDA@a276a3a/unpatched/bin/dynLP",
+  "build": "its own Makefile with the defaults (parity/references.toml: make all bin/propagation_test bin/input_contract_test; ARCH=sm_86, nvcc 13.1, g++ 12.2)"
+ },
+ "port": {
+  "name": "dyng-compat-dynlp",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+  "commit": "f60a2f3af5c5e95efc5ef8e05279b9e91cd5af42",
+  "argv": "the original's timed argv + --backend cuda",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "build/parity-cuda"
+  },
+  "time_ms": "a pair of CUDA events on the resources' stream around each public label_propagation::update() call (AD2); the host wall time of the call in dyng_times.csv"
+ },
+ "protocol": {
+  "gpu": 0,
+  "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+  "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+  "clocks": "the lock the baseline recorded per case and schedule (ADRs 0018, 0021)",
+  "rounds": {
+   "5k5": 21,
+   "50k": 21,
+   "500k": 21,
+   "5m": 11,
+   "5m1": 11,
+   "50m": 3
+  },
+  "statistic": "median; ratio = port / original",
+  "gates": {
+   "update[sum]": 1.05,
+   "end_to_end": 1.1
+  },
+  "contamination_monitor": "contaminated pairs repeated (perf_ab.MachineMonitor); never --keep-contaminated",
+  "region_map": "parity/timed_regions/label_propagation.toml"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+ },
+ "results": {
+  "5m1/damped": {
+   "case": "5m1",
+   "schedule": "damped",
+   "argv": [
+    "--totalNodes",
+    "5000000",
+    "--numBatches",
+    "2",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>"
+   ],
+   "lock": {
+    "lock": "boost",
+    "source": "boost"
+   },
+   "clocks": {
+    "control": "boost",
+    "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+    "how": "ncu --clock-control boost on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+    "before": {
+     "pstate": "P0",
+     "sm_mhz": 1845,
+     "memory_mhz": 8001
+    },
+    "locked": {
+     "pstate": "P2",
+     "sm_mhz": 1695,
+     "memory_mhz": 7601
+    },
+    "check": "every busy GPU sample of every accepted round at the locked clocks",
+    "after_reset": {
+     "pstate": "P0",
+     "sm_mhz": 1905,
+     "memory_mhz": 8001
+    }
+   },
+   "rounds": 11,
+   "complete": true,
+   "regions": {
+    "update[b0]": {
+     "original_median_ms": 2.546,
+     "port_median_ms": 2.475,
+     "ratio": 0.9721131186174392,
+     "original": {
+      "median": 2.546,
+      "min": 2.441,
+      "max": 2.688,
+      "spread": 0.09701492537313447,
+      "samples": [
+       2.503,
+       2.557,
+       2.571,
+       2.538,
+       2.441,
+       2.518,
+       2.566,
+       2.546,
+       2.474,
+       2.592,
+       2.688
+      ]
+     },
+     "port": {
+      "median": 2.475,
+      "min": 2.441,
+      "max": 2.645,
+      "spread": 0.0824242424242425,
+      "samples": [
+       2.46,
+       2.542,
+       2.441,
+       2.475,
+       2.481,
+       2.473,
+       2.528,
+       2.495,
+       2.645,
+       2.473,
+       2.47
+      ]
+     }
+    },
+    "update[b1]": {
+     "original_median_ms": 1384.968,
+     "port_median_ms": 1398.557,
+     "ratio": 1.0098117790447143,
+     "original": {
+      "median": 1384.968,
+      "min": 1381.436,
+      "max": 1388.701,
+      "spread": 0.0052456085627971905,
+      "samples": [
+       1385.565,
+       1381.436,
+       1388.701,
+       1382.535,
+       1382.102,
+       1385.089,
+       1386.172,
+       1384.968,
+       1384.495,
+       1385.288,
+       1384.399
+      ]
+     },
+     "port": {
+      "median": 1398.557,
+      "min": 1394.046,
+      "max": 1418.783,
+      "spread": 0.017687516490210876,
+      "samples": [
+       1416.539,
+       1398.557,
+       1398.536,
+       1415.012,
+       1397.407,
+       1418.783,
+       1402.725,
+       1397.051,
+       1401.75,
+       1396.051,
+       1394.046
+      ]
+     }
+    },
+    "update[sum]": {
+     "original_median_ms": 1387.5140000000001,
+     "port_median_ms": 1401.099,
+     "ratio": 1.0097908922000065,
+     "original": {
+      "median": 1387.5140000000001,
+      "min": 1383.993,
+      "max": 1391.272,
+      "spread": 0.005246073192774989,
+      "samples": [
+       1388.068,
+       1383.993,
+       1391.272,
+       1385.073,
+       1384.5430000000001,
+       1387.607,
+       1388.738,
+       1387.5140000000001,
+       1386.9689999999998,
+       1387.88,
+       1387.087
+      ]
+     },
+     "port": {
+      "median": 1401.099,
+      "min": 1396.516,
+      "max": 1421.2559999999999,
+      "spread": 0.017657567381034304,
+      "samples": [
+       1418.999,
+       1401.099,
+       1400.977,
+       1417.4869999999999,
+       1399.888,
+       1421.2559999999999,
+       1405.253,
+       1399.5459999999998,
+       1404.395,
+       1398.524,
+       1396.516
+      ]
+     },
+     "bar": 1.05,
+     "gated": true,
+     "within": true
+    },
+    "eval": {
+     "original_median_ms": 18.349,
+     "port_median_ms": 49.963,
+     "ratio": 2.7229276799825604,
+     "original": {
+      "median": 18.349,
+      "min": 14.213999999999999,
+      "max": 22.333,
+      "spread": 0.4424764292332007,
+      "samples": [
+       15.242,
+       18.927,
+       14.477,
+       18.963,
+       18.883000000000003,
+       18.044999999999998,
+       18.349,
+       16.852,
+       22.333,
+       14.213999999999999,
+       21.541
+      ]
+     },
+     "port": {
+      "median": 49.963,
+      "min": 40.421,
+      "max": 68.89,
+      "spread": 0.5698016532233853,
+      "samples": [
+       46.462999999999994,
+       52.126,
+       53.569,
+       49.963,
+       49.662,
+       68.89,
+       45.556,
+       58.958,
+       47.708,
+       53.932,
+       40.421
+      ]
+     }
+    },
+    "end_to_end": {
+     "original_median_ms": 5904.4225215911865,
+     "port_median_ms": 6016.571998596191,
+     "ratio": 1.0189941483006846,
+     "original": {
+      "median": 5904.4225215911865,
+      "min": 5867.569923400879,
+      "max": 5967.076301574707,
+      "spread": 0.016852855263991523,
+      "samples": [
+       5881.267070770264,
+       5967.076301574707,
+       5935.589790344238,
+       5877.598285675049,
+       5919.673681259155,
+       5881.125211715698,
+       5904.4225215911865,
+       5873.451948165894,
+       5867.569923400879,
+       5961.786508560181,
+       5942.751884460449
+      ]
+     },
+     "port": {
+      "median": 6016.571998596191,
+      "min": 5977.029323577881,
+      "max": 6090.762138366699,
+      "spread": 0.01890325833636744,
+      "samples": [
+       6012.616157531738,
+       6016.571998596191,
+       6032.215595245361,
+       6016.476154327393,
+       6000.154733657837,
+       6090.762138366699,
+       6080.543756484985,
+       6034.053087234497,
+       6046.869516372681,
+       6001.009702682495,
+       5977.029323577881
+      ]
+     },
+     "bar": 1.1,
+     "gated": true,
+     "within": true
+    }
+   },
+   "per_batch": [
+    {
+     "batch": 0,
+     "original": {
+      "time_ms": {
+       "median": 2.546,
+       "min": 2.441,
+       "max": 2.688,
+       "spread": 0.09701492537313447,
+       "samples": [
+        2.503,
+        2.557,
+        2.571,
+        2.538,
+        2.441,
+        2.518,
+        2.566,
+        2.546,
+        2.474,
+        2.592,
+        2.688
+       ]
+      },
+      "iterations": 0,
+      "components": 49376,
+      "frontier_visits": 0
+     },
+     "port": {
+      "time_ms": {
+       "median": 2.475,
+       "min": 2.441,
+       "max": 2.645,
+       "spread": 0.0824242424242425,
+       "samples": [
+        2.46,
+        2.542,
+        2.441,
+        2.475,
+        2.481,
+        2.473,
+        2.528,
+        2.495,
+        2.645,
+        2.473,
+        2.47
+       ]
+      },
+      "host_ms": {
+       "median": 2.485028,
+       "min": 2.452073,
+       "max": 2.656161,
+       "spread": 0.08212704243171508,
+       "samples": [
+        2.470699,
+        2.55228,
+        2.452073,
+        2.485028,
+        2.49249,
+        2.483829,
+        2.538318,
+        2.507022,
+        2.656161,
+        2.484976,
+        2.479971
+       ]
+      },
+      "host_vs_event": 1.0040517171717172,
+      "host_disagrees": false,
+      "iterations": 0,
+      "components": 49376,
+      "frontier_visits": 0
+     }
+    },
+    {
+     "batch": 1,
+     "original": {
+      "time_ms": {
+       "median": 1384.968,
+       "min": 1381.436,
+       "max": 1388.701,
+       "spread": 0.0052456085627971905,
+       "samples": [
+        1385.565,
+        1381.436,
+        1388.701,
+        1382.535,
+        1382.102,
+        1385.089,
+        1386.172,
+        1384.968,
+        1384.495,
+        1385.288,
+        1384.399
+       ]
+      },
+      "iterations": 592,
+      "components": 443523,
+      "frontier_visits": 260080194
+     },
+     "port": {
+      "time_ms": {
+       "median": 1398.557,
+       "min": 1394.046,
+       "max": 1418.783,
+       "spread": 0.017687516490210876,
+       "samples": [
+        1416.539,
+        1398.557,
+        1398.536,
+        1415.012,
+        1397.407,
+        1418.783,
+        1402.725,
+        1397.051,
+        1401.75,
+        1396.051,
+        1394.046
+       ]
+      },
+      "host_ms": {
+       "median": 1398.544951,
+       "min": 1394.035104,
+       "max": 1418.770616,
+       "spread": 0.017686604911993257,
+       "samples": [
+        1416.524737,
+        1398.544951,
+        1398.522986,
+        1414.998812,
+        1397.394996,
+        1418.770616,
+        1402.713427,
+        1397.03907,
+        1401.739006,
+        1396.038901,
+        1394.035104
+       ]
+      },
+      "host_vs_event": 0.9999913846915071,
+      "host_disagrees": false,
+      "iterations": 592,
+      "components": 443523,
+      "frontier_visits": 260080194
+     }
+    }
+   ],
+   "guard": {
+    "rounds_checked": 11,
+    "passed": true,
+    "rule": "damped: the port's per-batch counts, accuracy and label bytes equal the original's and their own first round's; in_place: the components"
+   },
+   "monitor": {
+    "rule": "a pair is repeated if either side's window had a foreign CPU load above 2.0 cores, a foreign GPU process, or (locked) a busy sample at other clocks",
+    "rejected": []
+   },
+   "audit": {
+    "rule": "a round is flagged when the 1-minute load average exceeds 16.0 or procs_blocked exceeds 4 at the start or end of either side, or a foreign compute process was on the timed GPU; a flagged reading is taken again (ADR 0056)",
+    "load_average_max": 7.11572265625,
+    "procs_blocked_max": 0,
+    "flagged_rounds": [],
+    "flagged": false
+   },
+   "rejected": []
+  }
+ },
+ "compacted": "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the rejected rounds) and triad_count's per-round stage timers (results.*.original_rounds and port_rounds; every row's samples stay in its region) were dropped to keep the repository small; the verdicts, samples, rejected rounds with their reasons, clock check and GPU summary are unchanged; the full record: $DYNG_SCRATCH/runs/bench/0.4.0rc1/ics26_dynlp-damped-5m1-5m1.json"
+}

@@ -301,6 +301,11 @@ def _result_array(handle: Any, getter: Any, what: str, keep: Any = None) -> Arra
 def _check_graph(graph: Graph) -> None:
     if not isinstance(graph, Graph):
         raise TypeError("expected a dyng.Graph")
+    _dtypes.refuse_float_graph(
+        graph.weight_dtype,
+        "sssp",
+        "build a graph with int32 weights (Graph.from_edges with integer weights)",
+    )
     if not graph.weighted:
         raise NotSupportedError(
             "dyng.sssp needs integer weights: graphs of types (int32, int32 or int64, int32) or "

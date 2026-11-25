@@ -145,3 +145,7 @@ components, the sums, the deterministic stages) stays judged run by run, with no
 - **A binomial test against a fixed rate**: the original's rate is not frozen and depends on the
   GPU and the session; measuring it in the same session is what makes the comparison fair.
 - **A chi-square test**: the counts are small; Fisher's exact test needs no approximation.
+
+## Note (2026-11-20)
+
+Carried out in R040: ADR 0110.

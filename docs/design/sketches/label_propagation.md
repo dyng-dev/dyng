@@ -1,8 +1,8 @@
 # Sketch: `label_propagation` (0.4)
 
 **Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); implemented in M10a
-and M10b (ADRs 0063-0079, 0100-0108) and **frozen** at the end of M10b (ADR 0109; `stable` at
-0.4.0 only on the author's confirmation, AD15): the frozen API is {doc}`../../api/cpp/label_propagation`,
+and M10b (ADRs 0063-0079, 0100-0108) and **frozen** at the end of M10b (ADR 0109; `stable` from
+0.4.0, the author's decision of 2026-11-18 on AD15): the frozen API is {doc}`../../api/cpp/label_propagation`,
 and where it differs from this sketch the header wins (`compute()` takes the seeds as arrays and
 is IrLP; `stats::initial_frontier`; `result::reserve()`; `similarity_threshold`'s `nullopt` is
 the streaming mode's current-graph average). The open questions below are answered.

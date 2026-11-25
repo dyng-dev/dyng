@@ -7,15 +7,29 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 ## Where we are
 
 **0.3.0 is released** (`pip install dyng`; with the CUDA backend `pip install "dyng[cu13]"` or
-`"dyng[cu12]"`, upgrading from 0.2.0 or 0.1.0 with `pip install -U`,
+`"dyng[cu12]"`, upgrading from an earlier release with `pip install -U`,
 {doc}`getting_started/install`; the release checklist is {doc}`developer/release`). Everything
 listed for 0.3.0 below is done: the dynamic hypergraph, `triad_count` (C++, Python and the
 command line) and the file formats `.hg`, `.dgb` and the triad bins at version 1 are stable from
 0.3.0 (the author's decision of 2026-10-22), `triad_count` is exact against the original
 ESCHER-GPU code and within its release gates against it, and `count_local_patterns` is
 experimental. The parity certificate of the release is `benchmarks/results/0.3.0/`, carried over
-from the release candidate 0.3.0rc1, which was published on TestPyPI only. `label_propagation`
-and `hyper_sssp` follow as 0.4.0.
+from the release candidate 0.3.0rc1, which was published on TestPyPI only.
+
+`label_propagation` and `hyper_sssp` make **0.4.0**, whose release candidate **0.4.0rc1** is
+prepared on the branch `release-0.4.0` (TestPyPI only: `pip install -i
+https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.4.0rc1`; with
+the CUDA plugin, `pip install "numpy>=1.26"`, then `pip install -i https://test.pypi.org/simple/
+--no-deps "dyng==0.4.0rc1" "dyng-cu13==0.4.0rc1"`, {doc}`getting_started/install`). Everything
+listed for 0.4.0 below is in it: `label_propagation` and `hyper_sssp` (C++, Python and the
+command line), the graph additions of 0.4, the vertex-arrival generators, the label files, the
+`slack_csr` hypergraph storage with its incidence edits and the format extensions of 0.4 are
+stable from 0.4.0 (the author's decision of 2026-11-18), with the release gates against
+LabelPropagation-CUDA and MOSP_ESCHER in the certificate `benchmarks/results/0.4.0rc1/`. As for
+0.3.0, the AI assistant pushes the tags and creates the GitHub Release on the author's behalf, and
+the author merges the release pull requests and approves the three PyPI uploads (`dyng-cu12` and
+`dyng-cu13`, then `dyng`; {doc}`developer/release`). The conda-forge packages and the aarch64
+wheels are deferred beyond 0.4.0 (below).
 
 Before it, **0.2.0** (2026-10-14) made `mosp` stable (the author's decision of 2026-10-07),
 byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes and within its own release gates
@@ -107,23 +121,36 @@ Deferred beyond 0.3.0:
 
 ## 0.4.0
 
+Built in four milestones, each merged into `main`: M11a (`hyper_sssp` and the `slack_csr` storage
+as-is against MOSP_ESCHER, #22), M10a (`label_propagation` exact against LabelPropagation-CUDA,
+#23), M11b (the shared shortest-path engine, Python, the command line and the freeze, #24) and
+M10b (the operators engine, slack rows and the streaming mode, Python, the command line and the
+freeze, #25), with a fix of the graph's stream-ordered release (#26). The release preparation
+R040 records what is stable, carries over the open items, certifies 0.4.0rc1 and makes its
+release changes.
+
 - `label_propagation` (DynLP): binary harmonic label propagation under vertex batches. **Done
   (M10, frozen at the end of M10b; ADR 0109):** the port of LabelPropagation-CUDA@a276a3a on the
   sequential and CUDA backends (the damped labels byte for byte the original's, within the gates
   against it), slot rows and vertex batches, the streaming mode on slack rows, the batch files'
   vertex records, Python with zero-copy labels, `dyng label_propagation`, the kNN recipe
-  `datasets/preprocess/knn_graph.py` and the tutorial {doc}`tutorials/streaming_label_propagation`;
-  `stable` from 0.4.0 on the author's confirmation at the release. An OpenMP backend stays open to
+  `datasets/preprocess/knn_graph.py` and the tutorial {doc}`tutorials/streaming_label_propagation`.
+  **Stable from 0.4.0** (the author's decision of 2026-11-18): the C++ header, `dyng.label_propagation`,
+  `dyng label_propagation`, the graph additions (`graph::with_capacity`, slot and slack rows, the
+  vertex operations, the float graphs) and their Python counterparts, the vertex-arrival
+  generators, the label files and the `.dgt` / `.dgb` vertex records and float weights; its three
+  testing oracles stay frozen outside the stable tier. An OpenMP backend stays open to
   contributors (0.5 or later, if contributed).
 - `hyper_sssp` (H-SOSP): shortest hyperpaths, with MOSP_ESCHER's kernels as the default CUDA
   engine and the shared shortest-path engine selectable (`engine::operators`; it gives the same
   results, and the gates kept the as-is kernels as the default: ADR 0095). On the sequential and
   CUDA backends (no OpenMP backend in 0.4: HD14), from C++, Python (`dyng.hyper_sssp`) and the
-  command line (`dyng hyper_sssp`).
+  command line (`dyng hyper_sssp`). **Stable from 0.4.0** (the author's decision of 2026-11-18).
 - The hypergraph's `slack_csr` storage and incidence edits (HD9): MOSP_ESCHER's slack CSR line
   graph on every backend, the incidence edits (`+i` / `-i` in `.dgt`, the `.dgb` flag
   `incidence_edits`) on `slack_csr` storage only; `escher` storage refuses them, `triad_count`
-  refuses `slack_csr` storage, and `overlaps` stays empty.
+  refuses `slack_csr` storage, and `overlaps` stays empty. Part of the stable hypergraph surface
+  from 0.4.0, with the format extensions (the author's decision of 2026-11-18).
 - Deferred beyond 0.4.0 (M11; HD5, HD9, HD14): MOSP_ESCHER's legacy H-SOSP batch generator (0.4's
   parity and gates replay MOSP_ESCHER's exported batches); incidence edits on `escher` storage and
   `triad_count` on `slack_csr` storage (their composition); the line graph's `overlaps`; an
@@ -137,7 +164,29 @@ Deferred beyond 0.3.0:
   2026-11-13): a device allocation order independent of which kernel modules are resident. With
   fewer modules loaded, sssp's persistent kernel reads about 4 % slower on roadNet-PA's 50k
   batches (1.035-1.041 against `ae5fc47`; 1.000-1.001 with every kernel group loaded at start-up).
-- conda-forge packages; aarch64 wheels.
+- After 0.4.0 (from R040's ADR 0024 reading against `v0.3.0`; the author's decision of 2026-11-21):
+  the compact-row host apply under set semantics back to 0.3.0's cost. M10's graph additions (the
+  vertex-batch and row-layout members of `normalized_batch` and the graph's properties) compile
+  `apply_set_batch_host` differently, and cycle_count's OpenMP update on `github_k4_25000_25000_s1`
+  reads 1.025 against `v0.3.0` (`graph.apply` +2.2 ms per 50,000-edge batch; not code placement).
+  The fix is read again under ADR 0024.
+- After 0.4.0 (from R040's review; library changes, which would have re-opened the release
+  certificate's library scope): `label_propagation` refuses weights <= 0 in `compute()` and in
+  the batches (`invalid_argument_error`; 0.4.0 documents that they are not checked); the C++
+  `.dgt` readers name a `.dgb` file by its magic and escape the bytes they quote that are not
+  UTF-8 (0.4.0's Python readers and error messages already do both).
+- After 0.4.0 (from M10b's API review, ADR 0109): a vertex-capacity `graph::reserve()`, so that
+  the first vertex batch on CUDA need not allocate (a new public name, for the author).
+- **Deferred beyond 0.4.0** (the author's decision of 2026-11-18): **conda-forge packages**
+  (checkpoint A4, the author's: no submission and no account action for 0.4.0) and **aarch64
+  wheels**. 0.4.0 ships the PyPI wheels of 0.3.0's platforms (x86_64 manylinux) only.
+- After 0.4.0 (from M11b's review, {doc}`developer/retrospectives/M11`): a
+  `hyper_sssp::clone(res, h)` overload that links the copy to its hypergraph at once (0.4.0
+  documents that the copy's first `update()` links it).
+- Still deferred from 0.3.0, not part of 0.4.0: the alignment flags (they still wait for a reading
+  on a CPU without the JCC erratum), the micro-benchmark suites (see "Deferred beyond 0.3.0"),
+  and the serial-path remedy of the hypergraph insert's D14 sub-regions (acknowledged by the
+  author on 2026-10-23 and kept as they are; a later release may take it with its own reading).
 
 ## Towards 1.0
 

@@ -57,12 +57,16 @@ every change of a tracked section are reported, not failed.
 
 Headers are marked `frozen` (the stable API: core/*, graph/*, update.hpp and the top-level library
 headers, reviewed for 0.1 in ADR 0023; the hypergraph container's headers hypergraph/*, reviewed
-and frozen at M8b for 0.3 in ADR 0047; and the header dyng/<name>.hpp of every algorithm whose
-manifest says maturity "stable": sssp and cycle_count since 0.1, mosp since 0.2, ADR 0035),
-`tracked` (io/*, generators/*, testing/* and the algorithms at another maturity, such as the
-tutorial algorithms: listed and checked the same way, but not frozen, except the declarations of
-FROZEN_DECLARATIONS: io::write_labels / read_labels and AD13's .dgb codes, frozen by name inside
-the tracked io headers at the end of M10b) or `experimental` (the
+and frozen at M8b for 0.3 in ADR 0047; the header dyng/<name>.hpp of every algorithm whose
+manifest says maturity "stable": sssp and cycle_count since 0.1, mosp since 0.2, ADR 0035,
+triad_count since 0.3, label_propagation and hyper_sssp since 0.4; and STABLE_HEADERS, the
+vertex-arrival generators of 0.4; besides the stable API, FROZEN_OUTSIDE_STABLE, the three
+testing oracles of label_propagation, which are frozen but not stable: the author's decision of
+2026-11-18 on AD15 / HD17), `tracked` (io/*, the other generators/* and testing/* headers and
+the algorithms at another maturity, such as the tutorial algorithms: listed and checked the same
+way, but not frozen, except the declarations of FROZEN_DECLARATIONS: io::write_labels /
+read_labels and AD13's .dgb codes, frozen by name inside the tracked io headers at the end of
+M10b and stable from 0.4.0) or `experimental` (the
 experimental tier of PLAN 5.9, dyng/experimental/*: count_local_patterns, M9b, ADR 0058; its .hpp
 and .cuh headers are listed, and a difference from the baseline is reported but never fails the
 check, since an experimental API may change in any minor release with a CHANGELOG note). An
@@ -116,28 +120,36 @@ def stable_algorithm_headers(algorithms_dir: Path = ALGORITHMS_DIR) -> list[str]
     return headers
 
 
-# Headers frozen at the end of their milestone while their algorithm's maturity stays below stable
-# until the author confirms it at the release: label_propagation's header and the headers only it
-# adds (the generators' vertex-arrival stream and its oracles in dyng::testing), frozen at the end
-# of M10b (ADR 0109; AD15 / sheet F1, decided by the author on 2026-10-28: frozen at the end of
-# M10b, `stable` from 0.4.0 only on the author's confirmation at the release). Once the manifest
-# says stable, stable_algorithm_headers() lists the header as well.
-FROZEN_BEFORE_STABLE = [
-    "dyng/label_propagation.hpp",
+# Headers of the stable tier besides the core and the algorithms' own headers: the vertex-arrival
+# generators that label_propagation added (frozen at the end of M10b, ADR 0109; `stable` from 0.4.0
+# by the author's decision of 2026-11-18 on AD15, GOVERNANCE.md; R040, ADR 0110). The other
+# generators/* headers stay tracked. dyng/label_propagation.hpp itself is stable through its
+# manifest (stable_algorithm_headers()).
+STABLE_HEADERS = [
     "dyng/generators/vertex_arrival.hpp",
+]
+
+# Headers frozen OUTSIDE the stable tier (PLAN 5.9): label_propagation's three testing oracles.
+# AD15 froze them with the algorithm at the end of M10b (ADR 0109); the author's decision of
+# 2026-11-18 on AD15 keeps them frozen but not stable, consistent with the testing oracles of
+# 0.1-0.3 (dijkstra, cycle_oracle, mosp_oracle, triad_reference: tracked, never stable). A changed
+# declaration is still a breaking change of the API check (the `api-change` label and a CHANGELOG
+# entry), but no SemVer promise is made to users (docs/api/cpp/testing.md).
+FROZEN_OUTSIDE_STABLE = [
     "dyng/testing/harmonic_solution.hpp",
     "dyng/testing/lp_host_model.hpp",
     "dyng/testing/union_find.hpp",
 ]
 
-# The frozen headers: the core, the stable algorithms and the headers frozen before their
-# algorithm is stable.
-FROZEN = CORE_FROZEN + stable_algorithm_headers() + FROZEN_BEFORE_STABLE
+# The frozen headers: the core, the stable algorithms, the other stable headers and the headers
+# frozen outside the stable tier.
+FROZEN = CORE_FROZEN + stable_algorithm_headers() + STABLE_HEADERS + FROZEN_OUTSIDE_STABLE
 
 # Declarations frozen inside headers that stay tracked as a whole (io/* is not frozen): the M10b
 # additions to the formats and the label files (ADR 0109 finding 13; AD13 with D2, AD15: frozen at
-# the end of M10b). Per header, (name, pattern): once a base revision has a line that matches the
-# pattern (re.fullmatch on the stripped line), the current listing must have one too, so a changed
+# the end of M10b; stable from 0.4.0, the author's decision of 2026-11-18). Per header, (name,
+# pattern): once a base revision has a line that matches the pattern (re.fullmatch on the
+# stripped line), the current listing must have one too, so a changed
 # signature, default or value is a breaking change as in a frozen section. The enumerations may
 # gain enumerators after the frozen ones, and known_graph may gain flags besides vertex_records.
 FROZEN_DECLARATIONS: dict[str, list[tuple[str, str]]] = {
@@ -178,8 +190,9 @@ HEADER = """\
 # Generated by ci/api_snapshot.py from the Doxygen XML; do not edit by hand. The check in
 # ci/docs.sh fails when the headers no longer match this file; to change the API, follow
 # "Updating the API baseline" in docs/developer/api_review_checklist.md (ADR 0023).
-# `frozen`: the stable API (the core, the hypergraph container and the algorithms at maturity
-# stable; ADRs 0023, 0035, 0047).
+# `frozen`: the stable API (the core, the hypergraph container, the algorithms at maturity stable
+# and the vertex-arrival generators; ADRs 0023, 0035, 0047, 0110) and, frozen outside the stable
+# tier, label_propagation's three testing oracles (harmonic_solution, lp_host_model, union_find).
 # `tracked`: checked the same way, not frozen (io, generators, testing, the other algorithms).
 # `experimental`: dyng/experimental/* (PLAN 5.9's experimental tier): listed, a difference is
 # reported, never failed (ADR 0058).

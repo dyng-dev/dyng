@@ -231,6 +231,9 @@ class Result:
 def _check_graph(graph: Graph) -> None:
     if not isinstance(graph, Graph):
         raise TypeError("expected a dyng.Graph")
+    _dtypes.refuse_float_graph(
+        graph.weight_dtype, "cycle_count", "build it unweighted or with int32 weights"
+    )
     if graph.vertex_dtype != _dtypes.INT32:
         raise NotSupportedError(
             "dyng.cycle_count supports int32 vertex ids only (graphs (int32, int32 or int64, "

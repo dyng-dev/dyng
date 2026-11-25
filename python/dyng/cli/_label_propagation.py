@@ -143,7 +143,8 @@ def add_label_propagation(sub: argparse._SubParsersAction[argparse.ArgumentParse
         help="the labels of a weighted edge list from seed labels (IrLP)",
         description="Read an undirected edge list 'u v w' with float weights in (0, 1] (one line "
         "per edge; datasets/preprocess/knn_graph.py writes one), and seed labels 'v class' "
-        "(class 0 or 1), and write DIR/dynlp_labels.txt.",
+        "(class 0 or 1), and write DIR/dynlp_labels.txt. The weights must be positive; 0.4 does "
+        "not check it (a weight <= 0 gives labels that are not the harmonic solution).",
     )
     c.add_argument("--graph", required=True, metavar="FILE", help="the weighted edge list")
     c.add_argument("--seeds", required=True, metavar="FILE", help="'v class' lines")

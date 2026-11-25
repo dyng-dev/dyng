@@ -40,7 +40,7 @@
 #   DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT=$DYNG_SCRATCH/tools/cuda-12.9 ci/plugin_wheels.sh
 #                                       # a conda-forge CUDA 12.9 (docs/developer/wheels.md; it
 #                                       # needs nvcc, the static cudart and cuobjdump)
-#   DYNG_CUDA13_ROOT=<dir>/usr/local/cuda-13.4 ci/plugin_wheels.sh   # the CI toolkit, unpacked by
+#   DYNG_CUDA13_ROOT=<dir>/usr/local/cuda-13.5 ci/plugin_wheels.sh   # the CI toolkit, unpacked by
 #                                       # ci/cuda_toolkit.py extract (docs/developer/wheels.md)
 #   DYNG_WHEEL_SKIP_TESTS=1 ci/plugin_wheels.sh            # build and check only
 #   DYNG_PLUGIN_TEST_ONLY=1 ci/plugin_wheels.sh            # check and test the wheels built before

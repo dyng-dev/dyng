@@ -2,9 +2,11 @@
 
 This distribution adds the **CUDA backends** to [dynG](https://github.com/dyng-dev/dyng), the
 library that keeps the results of graph and hypergraph algorithms (shortest paths,
-multi-objective shortest paths, cycle counts, and from 0.3 the triad counts of a hypergraph,
-`dyng.Hypergraph` and `dyng.triad_count`) up to date while the graph or hypergraph changes in
-batches of edge or hyperedge insertions and deletions. It is a plugin of the `dyng` package and is installed through its extras:
+multi-objective shortest paths, cycle counts, from 0.3 the triad counts of a hypergraph,
+`dyng.Hypergraph` and `dyng.triad_count`, and from 0.4 label propagation under vertex batches,
+`dyng.label_propagation`, and shortest hyperpaths, `dyng.hyper_sssp`) up to date while the graph
+or hypergraph changes in batches of edge or hyperedge insertions and deletions (from 0.4 also
+vertex arrivals and departures, and incidence edits of a hyperedge's members). It is a plugin of the `dyng` package and is installed through its extras:
 
 ```bash
 pip install "dyng[cu13]"    # NVIDIA driver for CUDA 13 (580 or newer)
