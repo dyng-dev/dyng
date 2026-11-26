@@ -3,11 +3,12 @@
  "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
  "version": "0.4.0",
  "version_file": "0.4.0",
- "date": "2026-11-26T08:53:46Z",
- "commit": "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd",
+ "date": "2026-11-26T17:20:38Z",
+ "commit": "59b974613a809e181996f0e0dc8525cebb551ba4",
  "branch": "release-0.4.0-final",
  "measured_commits": [
   "3b8c6514b6360bd807ed6fddd2433e704681423d",
+  "928ee6b2e74358da47bd3b3fa0456d6f41984980",
   "f60a2f3af5c5e95efc5ef8e05279b9e91cd5af42",
   "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd"
  ],
@@ -25349,8 +25350,32 @@
    "release_code": true
   },
   {
+   "name": "mutation-ctests",
+   "command": "ctest --preset dev-cuda -L mutation (GPU 1, after locklog.py quiet-ok R041), from a clean clone",
+   "commit": "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd",
+   "scope": "tests",
+   "date": "2026-11-26T02:59:17Z",
+   "ctest": {
+    "tests": 72,
+    "failed": 0,
+    "skipped": 0,
+    "percent_passed": 100
+   },
+   "fixture_tests": {},
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r041/cert/mutation-ctests.log",
+     "sha256": "095a7950399d00ffd6c1cd4d639ad7b01e0b2ddc8ce88c74e98ef8f2cd4ba8c7",
+     "bytes": 13440,
+     "excerpt": "checks/mutation-ctests.txt"
+    }
+   ],
+   "result": "passed",
+   "release_code": true
+  },
+  {
    "name": "distributions",
-   "command": "release.yml's select step for GITHUB_REF_NAME=v0.4.0 (kind=package, version=0.4.0, prerelease=false, plugins=true; v0.4.0rc1, v0.4.0-rc.1, v0.4.1 and v0.3.0 refused); ci/wheel_check.py --release-metadata (and --release-date 2026-11-28, the planned tag day); ci/wheels.sh (with cibuildwheel's test step from the unpacked sdist's test sources, ci/cibw_test.py); ci/plugin_wheels.sh with DYNG_PLUGINS='cu12 cu13' and the CI toolkits of ci/cuda_toolkits.toml (CUDA 12.9 and 13.5, the newest 12.x and 13.x of NVIDIA's RHEL 8 repository on 2026-11-20, 2026-11-21, 2026-11-25 and again in R041 on the day of this run, a fresh lock identical, ADR 0113; unpacked by ci/cuda_toolkit.py extract; verify --signatures passed); twine check --strict; ci/wheel_check.py on each file and --release-set --split; fresh Python 3.12 and 3.13 venvs: the core wheel alone, core + dyng-cu12, core + dyng-cu13, dyng[cu13]==0.4.0 and dyng[cu12]==0.4.0 from a local simple index with the three distributions and PyPI as the extra index (what PyPI serves after the release; PyPI has 0.3.0), the final release's documented install lines without a version (pip install dyng, dyng[cu13], dyng[cu12]: 0.4.0 and the plugin of the same version taken), and the upgrade from 0.3.0 (dyng[cuN]==0.3.0 from PyPI kept without -U; pip install -U dyng alone leaves the 0.3.0 plugin; the documented pip install -U dyng[cuN] installs 0.4.0 with its plugin, whose smoke test passes on GPU 1): the wheel's test subset (cibuildwheel's test-command), the README quickstart, every Python snippet of the docs (label_propagation's and hyper_sssp's quickstarts among them), the tutorials 'Streaming label propagation' and 'Shortest hyperpaths' (their tests) and the label_propagation example against its committed digests, dyng --version, ci/plugin_smoke.py --expect cuda and pytest -m gpu on GPU 1; from a clean clone of the tag day's commit, the whole run under the shared lock",
+   "command": "release.yml's select step for GITHUB_REF_NAME=v0.4.0 (kind=package, version=0.4.0, prerelease=false, plugins=true; v0.4.0rc1, v0.4.0-rc.1, v0.4.1 and v0.3.0 refused); ci/wheel_check.py --release-metadata (and --release-date 2026-11-28, the planned tag day); ci/wheels.sh (with cibuildwheel's test step from the unpacked sdist's test sources, ci/cibw_test.py); ci/plugin_wheels.sh with DYNG_PLUGINS='cu12 cu13' and the CI toolkits of ci/cuda_toolkits.toml (CUDA 12.9 and 13.5, the newest 12.x and 13.x of NVIDIA's RHEL 8 repository on 2026-11-20, 2026-11-21, 2026-11-25 and again in R041 on the day of this run, a fresh lock identical, ADR 0113; unpacked by ci/cuda_toolkit.py extract; verify --signatures passed); twine check --strict; ci/wheel_check.py on each file and --release-set --split; fresh Python 3.12 and 3.13 venvs: the core wheel alone, core + dyng-cu12, core + dyng-cu13, dyng[cu13]==0.4.0 and dyng[cu12]==0.4.0 from a local simple index with the three distributions and PyPI as the extra index (what PyPI serves after the release; PyPI has 0.3.0), the final release's documented install lines without a version (pip install dyng, dyng[cu13], dyng[cu12]: 0.4.0 and the plugin of the same version taken), and the upgrade from 0.3.0 (dyng[cuN]==0.3.0 from PyPI kept without -U; pip install -U dyng alone leaves the 0.3.0 plugin; the documented pip install -U dyng[cuN] installs 0.4.0 with its plugin, whose smoke test passes on GPU 1): the wheel's test subset (cibuildwheel's test-command), the README quickstart, every Python snippet of the docs (label_propagation's and hyper_sssp's quickstarts among them), the tutorials 'Streaming label propagation' and 'Shortest hyperpaths' (their tests) and the label_propagation example against its committed digests, dyng --version, ci/plugin_smoke.py --expect cuda and pytest -m gpu on GPU 1; from a clean clone of the final-release pull request's commit fe7ecc2 (R041; its packaging-scope sources are the final tree's), the whole run under the shared lock",
    "commit": "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd",
    "scope": "packaging",
    "date": "2026-11-26T02:38:36Z",
@@ -25391,35 +25416,11 @@
    "release_code": true
   },
   {
-   "name": "mutation-ctests",
-   "command": "ctest --preset dev-cuda -L mutation (GPU 1, after locklog.py quiet-ok R041), from a clean clone",
-   "commit": "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd",
-   "scope": "tests",
-   "date": "2026-11-26T02:59:17Z",
-   "ctest": {
-    "tests": 72,
-    "failed": 0,
-    "skipped": 0,
-    "percent_passed": 100
-   },
-   "fixture_tests": {},
-   "evidence": [
-    {
-     "file": "$DYNG_SCRATCH/runs/r041/cert/mutation-ctests.log",
-     "sha256": "095a7950399d00ffd6c1cd4d639ad7b01e0b2ddc8ce88c74e98ef8f2cd4ba8c7",
-     "bytes": 13440,
-     "excerpt": "checks/mutation-ctests.txt"
-    }
-   ],
-   "result": "passed",
-   "release_code": true
-  },
-  {
    "name": "check-parity",
    "command": "ci/check.sh --parity, from a clean clone (origin/main = 4016b469, main as pushed: the merge of pull request #27, 0.4.0rc1)",
-   "commit": "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd",
+   "commit": "928ee6b2e74358da47bd3b3fa0456d6f41984980",
    "scope": "repo",
-   "date": "2026-11-26T04:14:48Z",
+   "date": "2026-11-26T13:41:27Z",
    "fixture_tests": {
     "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
     "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
@@ -25492,25 +25493,25 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r041/cert/check-parity.log",
-     "sha256": "909e3c5388ddf1af805e8b284b0fe5f2e2c5bcfe439931274f716ff57a8e8bb7",
+     "file": "$DYNG_SCRATCH/runs/r041/fix/check-parity.log",
+     "sha256": "b7baa9181a9adc6e28c71ab541ac5dd009081d8f359b63f6d8c694c890ae512a",
      "bytes": 1724944,
      "excerpt": "checks/check-parity.txt"
     }
    ],
-   "details": "every step passed: clang-format; cpu-only 1,656 / 1,656 and dev 1,701 / 1,701 (ctest -L cpu); the installed-package consumer; clang-tidy; REUSE; provenance (342 files); the test-data budget; scripts/regen.py --check; the parity harness (557 passed, 3 skipped); ci/python.sh (the stubs check, mypy clean; 839 passed, 97 skipped: step 1's two new tests); ci/api_check.sh against origin/main = 4016b469; the scaffold; ci/docs.sh (Doxygen and the Sphinx site with warnings as errors, docs_links: OK); pre-commit; and --parity: the parity preset's golden replay ctest -L parity (92 / 92, one test skipped by its own guard: HypergraphIds.KernelPathsOfTheSkewedAndMediumTraces) and its parts. Taken again at fe7ecc2, the final tree of R041; the record it replaces passed at 77e7646 (0.4.0rc1's tag day, runs/r040-cert/tagday/check-parity.log)",
+   "details": "every step passed: clang-format; cpu-only 1,656 / 1,656 and dev 1,701 / 1,701 (ctest -L cpu); the installed-package consumer; clang-tidy; REUSE; provenance (342 files); the test-data budget; scripts/regen.py --check; the parity harness (557 passed, 3 skipped); ci/python.sh (the stubs check, mypy clean; 839 passed, 97 skipped); ci/api_check.sh against origin/main = 4016b469; the scaffold; ci/docs.sh (Doxygen and the Sphinx site with warnings as errors, docs_links: OK); pre-commit; and --parity: the parity preset's golden replay ctest -L parity (92 / 92, one test skipped by its own guard: HypergraphIds.KernelPathsOfTheSkewedAndMediumTraces) and its parts. Taken again at 928ee6b, the final tree of R041 after its review fixes (documents only: ADRs, the developer plan, two tutorials, R041.md); the record it replaces passed at fe7ecc2 (runs/r041/cert/check-parity.log)",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "api-check",
    "command": "ci/api_check.sh 4016b469 (the frozen C++ API with ci/api_snapshot.py --against and the Python API with griffe, against main as pushed, the merge of pull request #27), from a clean clone",
-   "commit": "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd",
+   "commit": "928ee6b2e74358da47bd3b3fa0456d6f41984980",
    "scope": "repo",
-   "date": "2026-11-26T04:14:51Z",
+   "date": "2026-11-26T13:41:29Z",
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r041/cert/api-check.log",
+     "file": "$DYNG_SCRATCH/runs/r041/fix/api-check.log",
      "sha256": "c323c7065cee341317cfec34a105f4a5b92fed3e854b9c79e8063704d27918b5",
      "bytes": 390,
      "excerpt": "checks/api-check.txt"
@@ -25523,9 +25524,9 @@
   {
    "name": "gpu_local",
    "command": "ci/gpu_local.sh --preset parity-cuda (GPU 1, every step, one run; DYNG_LOCKLOG_MILESTONE=R041), from a clean clone",
-   "commit": "fe7ecc2c83ecc3772aada7f7b0df683a7456c2fd",
+   "commit": "928ee6b2e74358da47bd3b3fa0456d6f41984980",
    "scope": "repo",
-   "date": "2026-11-26T08:53:14Z",
+   "date": "2026-11-26T17:19:12Z",
    "steps": {
     "build": "passed",
     "ctest -L gpu": "passed",
@@ -25659,14 +25660,14 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r041/cert/gpu_local.log",
-     "sha256": "2c0375fd83666b764d433f76d45d432d9f6001de622834731dd234d86f0bbe9b",
-     "bytes": 1426775,
+     "file": "$DYNG_SCRATCH/runs/r041/fix/gpu_local.log",
+     "sha256": "2c5d5b018b7bb1b97b32022e27ea138b2b74799e5e943a9df06f7616e8212e21",
+     "bytes": 1426773,
      "excerpt": "checks/gpu_local.txt"
     },
     {
-     "file": "$DYNG_SCRATCH/runs/r041/cert/gpu_local_summary.md",
-     "sha256": "c181434edaa1af6fb844d0d715fd42ae355284dc080ef9f84bbf1f476097d5e5",
+     "file": "$DYNG_SCRATCH/runs/r041/fix/gpu_local_summary.md",
+     "sha256": "2f6649e1e7788f32f27a9fb131fddd091ee96026e2bdf6c083866da21b5fbe8a",
      "bytes": 1633,
      "excerpt": "checks/gpu_local-1.txt"
     }
