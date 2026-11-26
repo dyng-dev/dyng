@@ -140,9 +140,11 @@ harmonic solution).
   developer plan and the PyPI project page `python/README.md`): `pip install dyng` and `pip
   install "dyng[cu13]"` / `"dyng[cu12]"` from PyPI, `pip install -U "dyng[cu13]"` for users of
   0.3.0, 0.2.0 and 0.1.0; the tutorials "Streaming label propagation" and "Shortest hyperpaths"
-  no longer send readers to the release candidate's TestPyPI lines, and the latter clones the tag
-  `v0.4.0`; "Your first dynamic algorithm" pins the latest release `v0.4.0`. The pages of 0.4's
-  content (`label_propagation`, `hyper_sssp`, `slack_csr` and the incidence edits, the
+  no longer send readers to the release candidate's TestPyPI lines; both, and "Hypergraph
+  triads", clone the tag `v0.4.0` ("Streaming label propagation" gets the clone command it
+  lacked; the files "Hypergraph triads" quotes are unchanged since `v0.3.0`, so a 0.3.0 user
+  clones that tag); "Your first dynamic algorithm" pins the latest release `v0.4.0`. The pages of
+  0.4's content (`label_propagation`, `hyper_sssp`, `slack_csr` and the incidence edits, the
   vertex-arrival generators, the label files, the kNN recipe, the format extensions, the two
   tutorials) already describe them as stable from 0.4.0, as the author decided on 2026-11-18,
   with the three testing oracles frozen outside the stable tier.
