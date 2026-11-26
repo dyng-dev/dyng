@@ -8,29 +8,33 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.4.0rc1] - 2026-11-26
+## [0.4.0] - 2026-11-28
 
 ### Summary
 
-The release candidate of dynG 0.4.0: two more stable algorithms, `label_propagation` (DynLP),
-exact against the original LabelPropagation-CUDA code, and `hyper_sssp` (H-SOSP), exact against
-the original MOSP_ESCHER code, with the graph and hypergraph additions they need. Release
-candidates are published on TestPyPI only:
+dynG 0.4.0: two more stable algorithms, `label_propagation` (DynLP), exact against the original
+LabelPropagation-CUDA code, and `hyper_sssp` (H-SOSP), exact against the original MOSP_ESCHER
+code, with the graph and hypergraph additions they need. Install it from PyPI (Python >= 3.12,
+Linux x86-64):
 
 ```bash
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.4.0rc1   # the CPU package
-pip install "numpy>=1.26"
-pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.4.0rc1" "dyng-cu13==0.4.0rc1"   # with the CUDA plugin
+pip install dyng            # the sequential and OpenMP backends
+pip install "dyng[cu13]"    # with the CUDA backend, for an NVIDIA driver of CUDA 13 ("dyng[cu12]": CUDA 12)
 ```
 
-(`dyng-cu12==0.4.0rc1` for an NVIDIA driver of CUDA 12; a release candidate's plugin comes from
-TestPyPI alone, after NumPy from PyPI, so that pip never mixes the two indexes for it); 0.4.0
-follows on PyPI, with `pip install -U "dyng[cu13]"`. Nothing of 0.3.0 changes incompatibly:
-`sssp`, `cycle_count`, `mosp`, `triad_count` and the hypergraph keep their API; the frozen graph,
-hypergraph and I/O headers gain additions, and the few documented behaviour changes (for example
-`triad_count` refusing the new `slack_csr` storage) are listed below. The entries below the summary are the
-detailed record of milestones M10a, M10b, M11a and M11b, of the ADR 0120 fix and of the release
-preparation R040.
+Upgrading from 0.3.0, 0.2.0 or 0.1.0: `pip install -U "dyng[cu13]"` (or `-U dyng` without the
+plugin). Without `-U`, pip keeps an installed 0.3.0 or 0.2.0 (with its own plugin, which has no
+`label_propagation` and no `hyper_sssp`) or 0.1.0 (which has no `cu12` / `cu13` extras: pip only
+warns); `pip install -U dyng` alone upgrades the core and leaves an installed plugin at its older
+version, which the 0.4.0 core does not load.
+
+0.4.0 is the release candidate 0.4.0rc1 (tag `v0.4.0rc1`, published on TestPyPI only and
+smoke-tested from there) with the final-release changes below and no change to the library.
+Nothing of 0.3.0 changes incompatibly: `sssp`, `cycle_count`, `mosp`, `triad_count` and the
+hypergraph keep their API; the frozen graph, hypergraph and I/O headers gain additions, and the
+few documented behaviour changes (for example `triad_count` refusing the new `slack_csr` storage)
+are listed below. The entries below the summary are the detailed record of milestones M10a, M10b,
+M11a and M11b, of the ADR 0120 fix and of the release preparation (R040, R041).
 
 - **`label_propagation` is stable** (SemVer applies from 0.4.0): binary harmonic label
   propagation (DynLP) under vertex batches. Some vertices of a similarity graph are seeds with a
@@ -96,7 +100,7 @@ preparation R040.
   (`dyng::testing::harmonic_solution`, `union_find`, `lp_host_model`) are frozen but outside the
   stable tier, like the testing oracles of 0.1-0.3.
 - **The plugins:** `dyng-cu13` is built with CUDA 13.5 (13.4 in 0.3.0), `dyng-cu12` with CUDA 12.9.
-- **The release certificate** `benchmarks/results/0.4.0rc1/` (PLAN 8.3 and 8.6): as for 0.3.0,
+- **The release certificate** `benchmarks/results/0.4.0/` (PLAN 8.3 and 8.6): as for 0.3.0,
   and new: the suites `ics26_dynlp` (label_propagation against LabelPropagation-CUDA@a276a3a, with
   the release-only 50m reading) and `ia3_hsosp` (hyper_sssp against MOSP_ESCHER@4b86159); the
   label_propagation golden replays (generator, stage traces, damped bytes, hub, IrLP, the in-place
@@ -123,6 +127,40 @@ differs, located region by region (`docs/developer/retrospectives/R040.md`, with
 decisions in GOVERNANCE.md). `label_propagation`
 does not check that the weights are positive (a weight <= 0 gives labels that are not the
 harmonic solution).
+
+### Final release (R041)
+
+- Changed: `VERSION` 0.4.0, `CITATION.cff` `version: 0.4.0` and `date-released: 2026-11-28`
+  (the planned tag day); this section, the release candidate's `[0.4.0rc1]`, renamed `[0.4.0] -
+  2026-11-28` with its link references, its summary with the install lines from PyPI and the
+  upgrade line.
+- Docs: the status texts of the release candidate brought to the release (README, the
+  documentation's start page, the getting-started and install pages, `SECURITY.md` with its
+  supported versions, `CONTRIBUTING.md`, `SUPPORT.md`, `docs/citing.md`, the roadmap, the
+  developer plan and the PyPI project page `python/README.md`): `pip install dyng` and `pip
+  install "dyng[cu13]"` / `"dyng[cu12]"` from PyPI, `pip install -U "dyng[cu13]"` for users of
+  0.3.0, 0.2.0 and 0.1.0; the tutorials "Streaming label propagation" and "Shortest hyperpaths"
+  no longer send readers to the release candidate's TestPyPI lines, and the latter clones the tag
+  `v0.4.0`; "Your first dynamic algorithm" pins the latest release `v0.4.0`. The pages of 0.4's
+  content (`label_propagation`, `hyper_sssp`, `slack_csr` and the incidence edits, the
+  vertex-arrival generators, the label files, the kNN recipe, the format extensions, the two
+  tutorials) already describe them as stable from 0.4.0, as the author decided on 2026-11-18,
+  with the three testing oracles frozen outside the stable tier.
+- Fixed (tests only): the `cuda` case of the hyper_sssp example's test
+  (`python/tests/test_examples.py`) had no `gpu` marker, so `pytest -m gpu`, the GPU test of the
+  published plugin wheels, did not select it; it is marked, and `python/tests/test_gpu_marker.py`
+  fails on any `backend="cuda"` case without the marker. The case passed on the published
+  0.4.0rc1 wheels; no library code changed.
+- Added: `benchmarks/results/0.4.0/`, the certificate of the release, carried over from
+  0.4.0rc1 (`docs/developer/release.md`, step 9): the library did not change since the measured
+  commits, so the gates, the golden replays and the golden mutations stand; the checks of the
+  `packaging` and `repo` scopes (the distributions as `release.yml` builds them for `v0.4.0`,
+  `ci/check.sh --parity`, `ci/api_check.sh`, one `ci/gpu_local.sh --preset parity-cuda` run) and
+  of the `tests` scope (the sanitizer presets and the mutation CTests: `README.md` changed) were
+  run again on the final tree. The smoke test of 0.4.0rc1 from TestPyPI (the CPU package and both
+  CUDA plugins, on GPU 1) is recorded there and in `docs/developer/retrospectives/R041.md`.
+- Governance: the author's decisions of 2026-11-26: 0.4.0rc1 gets no GitHub pre-release (as
+  0.1.0rc1, 0.2.0rc1 and 0.3.0rc1), and the planned tag day of 0.4.0 is 2026-11-28 (UTC).
 
 ### Changed
 
@@ -2931,8 +2969,8 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
   Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.4.0rc1...main
-[0.4.0rc1]: https://github.com/dyng-dev/dyng/compare/v0.3.0...v0.4.0rc1
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.4.0...main
+[0.4.0]: https://github.com/dyng-dev/dyng/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dyng-dev/dyng/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dyng-dev/dyng/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0
