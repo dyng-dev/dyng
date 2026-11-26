@@ -6,39 +6,31 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 
 ## Where we are
 
-**0.3.0 is released** (`pip install dyng`; with the CUDA backend `pip install "dyng[cu13]"` or
-`"dyng[cu12]"`, upgrading from an earlier release with `pip install -U`,
+**0.4.0 is released** (`pip install dyng`; with the CUDA backend `pip install "dyng[cu13]"` or
+`"dyng[cu12]"`, upgrading from an earlier release with `pip install -U "dyng[cu13]"`,
 {doc}`getting_started/install`; the release checklist is {doc}`developer/release`). Everything
-listed for 0.3.0 below is done: the dynamic hypergraph, `triad_count` (C++, Python and the
-command line) and the file formats `.hg`, `.dgb` and the triad bins at version 1 are stable from
-0.3.0 (the author's decision of 2026-10-22), `triad_count` is exact against the original
-ESCHER-GPU code and within its release gates against it, and `count_local_patterns` is
-experimental. The parity certificate of the release is `benchmarks/results/0.3.0/`, carried over
-from the release candidate 0.3.0rc1, which was published on TestPyPI only.
-
-`label_propagation` and `hyper_sssp` make **0.4.0**, whose release candidate **0.4.0rc1** is
-prepared on the branch `release-0.4.0` (TestPyPI only: `pip install -i
-https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.4.0rc1`; with
-the CUDA plugin, `pip install "numpy>=1.26"`, then `pip install -i https://test.pypi.org/simple/
---no-deps "dyng==0.4.0rc1" "dyng-cu13==0.4.0rc1"`, {doc}`getting_started/install`). Everything
-listed for 0.4.0 below is in it: `label_propagation` and `hyper_sssp` (C++, Python and the
+listed for 0.4.0 below is done: `label_propagation` and `hyper_sssp` (C++, Python and the
 command line), the graph additions of 0.4, the vertex-arrival generators, the label files, the
 `slack_csr` hypergraph storage with its incidence edits and the format extensions of 0.4 are
-stable from 0.4.0 (the author's decision of 2026-11-18), with the release gates against
-LabelPropagation-CUDA and MOSP_ESCHER in the certificate `benchmarks/results/0.4.0rc1/`. As for
-0.3.0, the AI assistant pushes the tags and creates the GitHub Release on the author's behalf, and
-the author merges the release pull requests and approves the three PyPI uploads (`dyng-cu12` and
-`dyng-cu13`, then `dyng`; {doc}`developer/release`). The conda-forge packages and the aarch64
-wheels are deferred beyond 0.4.0 (below).
+stable from 0.4.0 (the author's decision of 2026-11-18), `label_propagation` is exact against
+the original LabelPropagation-CUDA code and `hyper_sssp` against MOSP_ESCHER, each within its
+release gates against it. The parity certificate of the release is `benchmarks/results/0.4.0/`,
+carried over from the release candidate 0.4.0rc1, which was published on TestPyPI only. The
+conda-forge packages and the aarch64 wheels are deferred beyond 0.4.0 (below).
 
-Before it, **0.2.0** (2026-10-14) made `mosp` stable (the author's decision of 2026-10-07),
-byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes and within its own release gates
-against them, and brought the CUDA backend to PyPI as the plugin wheels `dyng-cu12` and
-`dyng-cu13` (certificate `benchmarks/results/0.2.0/`). **0.1.0** (2026-10-02) made `sssp` and
-`cycle_count` work on all three backends, byte-identical to the original codes on their golden
-corpora and within the performance gates against them (certificate `benchmarks/results/0.1.0/`),
-with the Python package, the `dyng` command line and the documentation. After 0.1.0 the releases come in smaller steps (the
-author's decision of 2026-10-02): the hardening planned as 0.1.x and `mosp` made 0.2.0.
+Before it, **0.3.0** (2026-10-29) made the dynamic hypergraph, `triad_count` (C++, Python and
+the command line) and the file formats `.hg`, `.dgb` and the triad bins at version 1 stable (the
+author's decision of 2026-10-22), with `triad_count` exact against the original ESCHER-GPU code
+and within its release gates against it, and `count_local_patterns` experimental (certificate
+`benchmarks/results/0.3.0/`). **0.2.0** (2026-10-14) made `mosp` stable (the author's decision
+of 2026-10-07), byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes and within its
+own release gates against them, and brought the CUDA backend to PyPI as the plugin wheels
+`dyng-cu12` and `dyng-cu13` (certificate `benchmarks/results/0.2.0/`). **0.1.0** (2026-10-02)
+made `sssp` and `cycle_count` work on all three backends, byte-identical to the original codes
+on their golden corpora and within the performance gates against them (certificate
+`benchmarks/results/0.1.0/`), with the Python package, the `dyng` command line and the
+documentation. After 0.1.0 the releases come in smaller steps (the author's decision of
+2026-10-02): the hardening planned as 0.1.x and `mosp` made 0.2.0.
 
 ## 0.1.0: the first release
 
@@ -66,7 +58,7 @@ author's decision of 2026-10-02): the hardening planned as 0.1.x and `mosp` made
 Planned after 0.2.0 for 0.2.x releases, of which none was made, and not yet assigned to a later
 release: the Python tutorials (dynamic SSSP in ten minutes, cycle counting on a changing graph,
 MOSP with preferences). A citable DOI per release needs Zenodo, which the author may connect
-later (checkpoint A4); it is not part of 0.2.0 or 0.3.0, and 0.1.0 has none.
+later (checkpoint A4); it is not part of 0.2.0, 0.3.0 or 0.4.0, and 0.1.0 has none.
 
 ## 0.3.0: the dynamic hypergraph
 
@@ -127,7 +119,8 @@ as-is against MOSP_ESCHER, #22), M10a (`label_propagation` exact against LabelPr
 M10b (the operators engine, slack rows and the streaming mode, Python, the command line and the
 freeze, #25), with a fix of the graph's stream-ordered release (#26). The release preparation
 R040 records what is stable, carries over the open items, certifies 0.4.0rc1 and makes its
-release changes.
+release changes; the final-release pull request (R041) makes 0.4.0 from the release candidate,
+with no change to the library.
 
 - `label_propagation` (DynLP): binary harmonic label propagation under vertex batches. **Done
   (M10, frozen at the end of M10b; ADR 0109):** the port of LabelPropagation-CUDA@a276a3a on the
