@@ -18,6 +18,15 @@ the last step (optional), and a clone of the repository for the recipe (`dataset
 wheel). The algorithm itself is described
 on {doc}`../algorithms/label_propagation`; the row layouts on {doc}`../concepts/row_layouts`.
 
+The example, the recipe and their input are in the repository, not in the installed package:
+clone it and run every command of this page from its root (the tag of your version keeps the
+files as this page quotes them):
+
+```bash
+git clone --branch v0.4.0 https://github.com/dyng-dev/dyng.git
+cd dyng
+```
+
 ## The problem in two sentences
 
 Some vertices of a similarity graph are labelled with a class, 0 or 1 (the seeds); every other
