@@ -1,7 +1,7 @@
-# Copy of $DYNG_SCRATCH/runs/r041/cert/gpu_local_summary.md (sha256 c181434edaa1af6fb844d0d715fd42ae355284dc080ef9f84bbf1f476097d5e5, 1633 bytes), written by parity/certify.py check.
+# Copy of $DYNG_SCRATCH/runs/r041/fix/gpu_local_summary.md (sha256 2f6649e1e7788f32f27a9fb131fddd091ee96026e2bdf6c083866da21b5fbe8a, 1633 bytes), written by parity/certify.py check.
 ### ci/gpu_local.sh: parity-cuda
 
-commit fe7ecc2c; GPU 1: NVIDIA RTX A5000, 590.48.01; CUDA 13.1
+commit 928ee6b2; GPU 1: NVIDIA RTX A5000, 590.48.01; CUDA 13.1
 
 | step | result |
 |---|---|

@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r041/cert/gpu_local.log (sha256 2c0375fd83666b764d433f76d45d432d9f6001de622834731dd234d86f0bbe9b, 1426775 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r041/fix/gpu_local.log (sha256 2c5d5b018b7bb1b97b32022e27ea138b2b74799e5e943a9df06f7616e8212e21, 1426773 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> preset parity-cuda: configure and build
 ==> ctest -L gpu (GPU 1)
 100% tests passed out of 1136
@@ -354,7 +354,7 @@ cbst_trace_mosp_escher_test: OK
 cbst_trace_mosp_escher_targeted: OK
 ==> MOSP_ESCHER@4b86159 (patched) -> /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched
     ok (log /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/patched.build.log; archive check /home/sskg8/Projects/dyng-work/ref/MOSP_ESCHER@4b86159/archive-check.txt)
-MOSP_ESCHER bin/main (recorded once, replayed under mosp_escher, exact): 111 ops, 111 compared, 0 mismatches, documented none: OK
+MOSP_ESCHER bin/main (recorded once, replayed under mosp_escher, exact): 108 ops, 108 compared, 0 mismatches, documented none: OK
 [  PASSED  ] 2 tests.
 ==> the hypergraph container: sanitizers and the replays (GPU 1)
 [  PASSED  ] 86 tests.
