@@ -1,0 +1,3 @@
+# Excerpt of $DYNG_SCRATCH/runs/r041/sanitizers-hosted/tsan-gcc-13.log (sha256 9a220b614ff8a5e0990a527c1f56bca2abed038170aa9a82ce2ccffdbe7758e0, 793392 bytes): its step headers and result lines, written by parity/certify.py check.
+tsan / gcc-13	UNKNOWN STEP	2026-11-25T11:20:06.7385242Z 100% tests passed out of 1274
+tsan / gcc-13	UNKNOWN STEP	2026-11-25T11:20:06.7509080Z preset tsan: OK
