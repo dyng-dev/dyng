@@ -11,9 +11,9 @@ device memory: read them with `lp.labels.to_numpy()` or hand them to PyTorch wit
 `torch.from_dlpack(lp.labels)` (NumPy's `np.from_dlpack` takes host arrays only).
 
 What you need: dynG 0.4 or newer, `pip install "dyng>=0.4"` (`label_propagation` is new in 0.4;
-until 0.4.0 is on PyPI, take the release candidate's lines of the install page's "Python"
-section, {doc}`../getting_started/install`, since a plain `pip install dyng` gives 0.3.0, which
-does not have it; with a CUDA plugin, upgrade both: `pip install -U "dyng[cu13]"`), PyTorch for
+this upgrades an installed 0.3.0, which does not have it, but not its CUDA plugin, which is
+pinned to its own version: with the plugin, upgrade both with `pip install -U "dyng[cu13]"` or
+`"dyng[cu12]"`, {doc}`../getting_started/install`), PyTorch for
 the last step (optional), and a clone of the repository for the recipe (`datasets/` is not in the
 wheel). The algorithm itself is described
 on {doc}`../algorithms/label_propagation`; the row layouts on {doc}`../concepts/row_layouts`.
