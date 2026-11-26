@@ -8,6 +8,11 @@
   decided list does not spell out are listed in ADR 0096 for the author's acknowledgement. It
   carries out M11b criteria 6 and 7 and the Python half of the container's 0.4 additions (ADR 0087
   kept them refused until now). It changes no approved rule.
+- **Decided:** the author acknowledged on 2026-11-11 (GOVERNANCE.md, approvals log, the row
+  "M11's public names beyond HD12's list") the names that ADR 0096 lists for acknowledgement,
+  and confirmed on 2026-11-18 (the row "AD15 and HD17: the stability of 0.4's surfaces"; ADR
+  0110 part A) that `dyng.hyper_sssp`, `dyng hyper_sssp` and the incidence edits and `slack_csr`
+  storage of `dyng.Hypergraph` are `stable` from 0.4.0; the acknowledgement above is closed.
 - **Date:** 2026-11-11
 - **Deciders:** the AI assistant, on the author's behalf for the technical parts (M11b, step
   public-python-cli-docs-freeze); the names: S M Shovan (2026-10-28, HD10, HD12, HD14)

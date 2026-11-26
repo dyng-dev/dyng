@@ -17,9 +17,18 @@
   author approved: the stability policy of PLAN 5.9, the gates and their protocol (AD2's
   `CUDA_MODULE_LOADING=EAGER` on both sides included), the parity rules and the frozen headers
   (additive changes only) are untouched.
+- **Decided:** the author confirmed on 2026-11-18 (GOVERNANCE.md, approvals log, the row "AD15
+  and HD17: the stability of 0.4's surfaces"; carried out in R040, ADR 0110 part A) that
+  label_propagation (`<dyng/label_propagation.hpp>`, `dyng.label_propagation` and
+  `dyng label_propagation`), the graph additions of M10, the vertex-arrival generators,
+  `io::write_labels` / `read_labels` and AD13's format extensions with the label files are
+  `stable` from 0.4.0, and that the three testing oracles `testing::harmonic_solution`,
+  `union_find` and `lp_host_model` stay frozen outside the stable tier (with `dyng.testing`'s
+  `harmonic_solution` / `HarmonicResult`, confirmed on 2026-11-21); the reservation above is
+  closed.
 - **Date:** 2026-11-12
 - **Deciders:** the AI assistant, on the author's behalf (M10b, step 4); the names beyond AD12:
-  S M Shovan (approved 2026-11-12); the stability: S M Shovan (pending, at the release)
+  S M Shovan (approved 2026-11-12); the stability: S M Shovan (2026-11-18, at the release)
 - **Builds on:** ADR 0023 (the method, the snapshot), ADR 0035 (the freeze enforced against the
   base branch), ADR 0047 (the freeze's Doxygen rules), ADR 0060 (the last algorithm freeze),
   ADRs 0063-0079 and 0100-0108 (label_propagation, its container additions, formats, Python and
