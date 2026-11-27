@@ -15,18 +15,18 @@ over to 0.4.0.
 
 ## Carried over from 0.4.0rc1
 
-This certificate is the release candidate's (`benchmarks/results/0.4.0rc1/`), **carried over**
-as `docs/developer/release.md` (step 9, "The final-release pull request") prescribes: the
-library did not change since the release candidate's measured commits, which `certify.py write`
-verified for every part in the paths of its scope. This certificate's measured commits are
-`f60a2f3` (the golden replays, the performance gates and the golden mutations, `library` scope,
-plus `cpp/tests` for the golden mutations of the GoogleTest suites), `3b8c651` (the hosted
-sanitizer jobs of pull request #27, `library` scope), `fe7ecc2` (the `packaging` and `tests`
-checks run again on the final tree, below) and `928ee6b` (the `repo` checks, run once more after
-R041's review fixes, which changed documents only: the last commit outside this directory);
-`git diff` from each to the final commit touches no path of its scope. `2616af6` (the release
-candidate's sanitizer presets and mutation CTests) and `77e7646` (its tag day's `packaging` and
-`repo` checks) are not measured here: their records were replaced.
+This certificate is the release candidate's (`benchmarks/results/0.4.0rc1/`), **carried over** as
+`docs/developer/release.md` (step 9, "The final-release pull request") prescribes: the library did
+not change since the release candidate's measured commits, which `certify.py write` verified for
+every part in the paths of its scope. This certificate's measured commits are `f60a2f3` (the golden
+replays, the performance gates and the golden mutations, `library` scope, plus `cpp/tests` for the
+golden mutations of the GoogleTest suites), `3b8c651` (the hosted sanitizer jobs of pull request
+#27, `library` scope), `fe7ecc2` (the `tests` checks run again on the final tree, below) and
+`91b966e` (the `packaging` and `repo` checks, run once more after R041 step 4, which changed
+`CHANGELOG.md` and R041.md only: the last commit outside this directory); `git diff` from each to
+the final commit touches no path of its scope. `2616af6` (the release candidate's sanitizer presets
+and mutation CTests) and `77e7646` (its tag day's `packaging` and `repo` checks) are not measured
+here: their records were replaced.
 
 - **Carried over unchanged:** the golden replays (`parity-*.json`: sssp, cycle_count, mosp, the
   CBST trace goldens, the hypergraph container's replays with MOSP_ESCHER's whole `slack_csr`
@@ -40,17 +40,17 @@ candidate's sanitizer presets and mutation CTests) and `77e7646` (its tag day's 
   PyPI project page), one Python test with its marker check (`python/tests/test_examples.py`,
   `python/tests/test_gpu_marker.py`: the `gpu` marker of the hyper_sssp example's `cuda` case)
   and documents changed (R041), none a library path.
-- **Run again on the final tree** from fresh clones of the branch `release-0.4.0-final` at
-  `fe7ecc2` (the `packaging` and `tests` checks) and at `928ee6b` (the `repo` checks, after R041's
-  review fixes: ADRs 0069, 0071, 0090, 0096, 0097 and 0109, the developer plan, the tutorials
-  "Streaming label propagation" and "Hypergraph triads" and R041.md; no path of the `library`,
-  `tests` or `packaging` scope), concurrently under the shared lock and never during a timing
-  run, and recorded with `certify.py check --version 0.4.0` in place of the release candidate's
-  records of the same names (logs under `$DYNG_SCRATCH/runs/r041/cert/` and, for the `repo`
-  checks, `$DYNG_SCRATCH/runs/r041/fix/`; the scripts in `$DYNG_SCRATCH/r041/`). The
-  `distributions` record was written once more from its own log, commit and date, only its
-  command text corrected (it ran from a clone of `fe7ecc2`, the final-release pull request's
-  commit, not of a tag day's):
+- **Run again on the final tree** from fresh clones of the branch `release-0.4.0-final` at `fe7ecc2`
+  (the `tests` checks) and at `91b966e` (the `packaging` and `repo` checks, after R041's review
+  fixes: ADRs 0069, 0071, 0090, 0096, 0097 and 0109, the developer plan, the tutorials "Streaming
+  label propagation" and "Hypergraph triads" and R041.md; and after step 4's two text corrections in
+  `CHANGELOG.md` and R041.md; no path of the `library` or `tests` scope), concurrently under the
+  shared lock and never during a timing run, and recorded with `certify.py check --version 0.4.0` in
+  place of the release candidate's records of the same names (logs under
+  `$DYNG_SCRATCH/runs/r041/cert/` for the `tests` checks and `$DYNG_SCRATCH/runs/r041/textfix/` for
+  the `packaging` and `repo` checks; the scripts in `$DYNG_SCRATCH/r041/`). The `distributions`
+  record names the clone it ran from, `91b966e`, the final-release pull request's commit, not a tag
+  day's:
   - the `packaging` check `distributions`: the distributions as `release.yml` builds them for the
     tag `v0.4.0` (`select` reports a final release: `kind=package`, `version=0.4.0`,
     `prerelease=false`, `plugins=true`, the three distributions; `v0.4.0rc1`, `v0.4.0-rc.1`,
@@ -71,17 +71,16 @@ candidate's sanitizer presets and mutation CTests) and `77e7646` (its tag day's 
     0.3.0 plugin, which dynG does not use (a `BackendWarning`, `cuda (no)`: what the docs warn
     about), and `pip install -U "dyng[cuN]"`, the documented upgrade line, installs 0.4.0 and the
     plugin of the same version, whose smoke test passes on GPU 1; 175 steps, none failed);
-  - the `repo` checks, at `928ee6b`: `check-parity` (`ci/check.sh --parity`, 2026-11-26
-    11:19-13:41 UTC: cpu-only 1,656 / 1,656, dev 1,701 / 1,701, the harness 557 passed,
-    `ci/python.sh` 839 passed, `ci/docs.sh`, the parity preset's golden replay 92 / 92),
-    `api-check` (`ci/api_check.sh 4016b469`, against `main` as pushed, the merge of 0.4.0rc1: no
-    breaking change of the frozen C++ API or of the Python API) and `gpu_local` (**one**
-    `ci/gpu_local.sh --preset parity-cuda` run on GPU 1, 2026-11-26 11:20-17:19 UTC, beside
-    `check-parity` as before: every one of its 26 steps passed at the first attempt,
-    label_propagation with the in_place cloud under ADR 0111's rate rule; no sanitizer run
-    retried, ADR 0112); the first run of the three at `fe7ecc2` (`gpu_local` 02:59-08:53 UTC,
-    every one of its 26 steps passed at the first attempt) passed as well, and its records were
-    replaced;
+  - the `repo` checks, at `91b966e`: `check-parity` (`ci/check.sh --parity`, 2026-11-26 19:55-22:07
+    UTC: cpu-only 1,656 / 1,656, dev 1,701 / 1,701, the harness 557 passed, `ci/python.sh` 839
+    passed, `ci/docs.sh`, the parity preset's golden replay 92 / 92), `api-check` (`ci/api_check.sh
+    4016b469`, against `main` as pushed, the merge of 0.4.0rc1: no breaking change of the frozen C++
+    API or of the Python API) and `gpu_local` (**one** `ci/gpu_local.sh --preset parity-cuda` run on
+    GPU 1, 2026-11-26 22:07 to 2026-11-27 03:54 UTC: every one of its 26 steps passed at the first
+    attempt, label_propagation with the in_place cloud under ADR 0111's rate rule; no sanitizer run
+    retried, ADR 0112); the earlier runs of the three at `fe7ecc2` (`gpu_local` 02:59-08:53 UTC) and
+    at `928ee6b` (`gpu_local` 11:20-17:19 UTC, after the review fixes) passed as well, every step at
+    the first attempt, and their records were replaced;
   - the `tests` checks `asan` (1,486 / 1,486), `tsan` (1,274 / 1,274), `tsan-openmp` (1,486 /
     1,486; the conda Clang 18.1.8 through R020's local wrapper and the environment's Archer, as
     before) and `mutation-ctests` (`ctest --preset dev-cuda -L mutation`, GPU 1: 72 / 72),
@@ -152,7 +151,7 @@ performance gates and golden mutations (at `f60a2f3`) are the ones carried over 
 **check records** are not: the sanitizer presets and the mutation CTests at `2616af6`, and the
 distributions of `v0.4.0rc1`, `ci/check.sh --parity`, `ci/api_check.sh d3375da` and
 `ci/gpu_local.sh --preset parity-cuda` at `77e7646` (its tag day) were replaced in this
-directory's `checks.json` and `checks/` by the R041 runs at `fe7ecc2` and `928ee6b` listed in
+directory's `checks.json` and `checks/` by the R041 runs at `fe7ecc2` and `91b966e` listed in
 "Carried over from 0.4.0rc1" above, and the hosted `sanitizers.yml` record was added; the tables at the end of
 this page are the carried-over certificate's.
 
