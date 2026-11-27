@@ -9,13 +9,6 @@ the hypergraph `dyng.Hypergraph`, `dyng.triad_count`, `dyng.label_propagation` a
 `dyng.hyper_sssp` are stable (the last two from 0.4.0); `dyng.dynamic_bfs` and
 `dyng.triangle_delta` are small tutorial algorithms.
 
-This is the release candidate **0.4.0rc1**, on TestPyPI only:
-`pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.4.0rc1`
-(with the CUDA plugin: `pip install "numpy>=1.26"`, then
-`pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.4.0rc1" "dyng-cu13==0.4.0rc1"`;
-an environment with a 0.3.0 plugin takes this line, since the first one leaves the plugin at
-0.3.0, which then does not match and is not used). 0.4.0 follows on PyPI.
-
 <!-- snippet: pypi-readme -->
 ```python
 import dyng
@@ -74,8 +67,8 @@ This wheel contains the sequential and OpenMP backends (`dyng.Resources("openmp"
 backend comes as a plugin wheel of the same version, from 0.2: `pip install "dyng[cu13]"` (an
 NVIDIA driver of CUDA 13) or `pip install "dyng[cu12]"` (CUDA 12); `dyng.Resources.cuda()` then
 runs every algorithm on the GPU, and `dyng.show_config()` reports which module is used.
-Upgrading from an earlier release (0.3.0, 0.2.0 or 0.1.0): `pip install -U "dyng[cu13]"` (or `"dyng[cu12]"`, or `-U dyng`
-without the plugin); without `-U` pip keeps the installed release. The C++ library, the
+Upgrading from an earlier release (0.3.0, 0.2.0 or 0.1.0): `pip install -U "dyng[cu13]"` (or
+`"dyng[cu12]"`, or `-U dyng` without the plugin); without `-U` pip keeps the installed release. The C++ library, the
 documentation and the parity reports with the original codes are at
 <https://github.com/dyng-dev/dyng>.
 

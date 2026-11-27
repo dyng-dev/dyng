@@ -12,10 +12,18 @@
   public names" below). It changes no rule the author approved: the stability policy of PLAN 5.9,
   the gates and their protocol, the parity rules and the frozen headers (`core/*`, `graph/*`,
   `hypergraph/*`, `update.hpp`) are untouched.
+- **Decided:** the author acknowledged on 2026-11-11 (GOVERNANCE.md, approvals log, the row
+  "M11's public names beyond HD12's list") the public names that HD12's list does not spell out
+  (section "The new public names", the items marked **(ack)**), and confirmed on 2026-11-18 (the
+  row "AD15 and HD17: the stability of 0.4's surfaces"; carried out in R040, ADR 0110 part A)
+  that hyper_sssp (`<dyng/hyper_sssp.hpp>`, `dyng.hyper_sssp` and `dyng hyper_sssp`) and the
+  `slack_csr` storage with the incidence edits and HD10's format extensions (`.dgt` `+i` / `-i`,
+  the `.dgb` flag `incidence_edits`) are `stable` from 0.4.0; the reservations above are closed.
 - **Date:** 2026-11-11
 - **Deciders:** the AI assistant, on the author's behalf (M11b, step
   public-python-cli-docs-freeze); the names, semantics and maturity: S M Shovan (2026-10-28, HD7,
-  HD8, HD11-HD14, HD17)
+  HD8, HD11-HD14, HD17); the names beyond HD12's list and the stability at 0.4.0: S M Shovan
+  (2026-11-11, 2026-11-18)
 - **Builds on:** ADR 0023 (the method, the snapshot), ADR 0035 (the freeze enforced against the
   base branch; the maturity decides the freeze), ADR 0047 (the freeze's Doxygen rules), ADR 0060
   (the precedent: triad_count's review and freeze), ADRs 0090-0092 and 0095 (hyper_sssp's API, its

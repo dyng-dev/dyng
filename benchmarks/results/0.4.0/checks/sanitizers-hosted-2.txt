@@ -1,0 +1,3 @@
+# Excerpt of $DYNG_SCRATCH/runs/r041/sanitizers-hosted/tsan-openmp-clang-18.log (sha256 1f57548e31d95ecacd26253c208451983fec5ad1c164269cbc814932a61f1ef5, 928252 bytes): its step headers and result lines, written by parity/certify.py check.
+tsan-openmp / clang-18	UNKNOWN STEP	2026-11-25T11:20:42.3459540Z 100% tests passed out of 1486
+tsan-openmp / clang-18	UNKNOWN STEP	2026-11-25T11:20:42.3547009Z preset tsan-openmp: OK

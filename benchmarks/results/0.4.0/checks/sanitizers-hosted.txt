@@ -1,0 +1,3 @@
+# Excerpt of $DYNG_SCRATCH/runs/r041/sanitizers-hosted/asan-gcc-13.log (sha256 f0609e948b18aebfeb4191694a9f914a87abab77ac3b7ee4f65f0cf740560d6b, 882759 bytes): its step headers and result lines, written by parity/certify.py check.
+asan / gcc-13	UNKNOWN STEP	2026-11-25T11:18:32.5404189Z 100% tests passed out of 1486
+asan / gcc-13	UNKNOWN STEP	2026-11-25T11:18:32.5492962Z preset asan: OK

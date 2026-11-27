@@ -1,0 +1,61 @@
+# Copy of $DYNG_SCRATCH/runs/r040-release/toolkits.log (sha256 547fac10ad5f532b93b9d93e6c8797daee92df6648275ee330d2b962e3f3ed74, 3002 bytes), written by parity/certify.py check.
+Fri Nov 20 04:42:50 AM UTC 2026
+commit 2db18de955282844c70681afbec7257d1adf6f51
+newest nvcc per major in NVIDIA's RHEL 8 repository:
+10 cuda-nvcc-10-2 10.2.89-1
+11 cuda-nvcc-11-8 11.8.89-1
+12 cuda-nvcc-12-9 12.9.86-1
+13 cuda-nvcc-13-5 13.5.37-1
+fresh lock (cu12 12.9, cu13 13.4) vs ci/cuda_toolkits.toml:
+DIFFERENT
+98,100c98,100
+< version = "13.4.92-1"
+< href = "cuda-toolkit-config-common-13.4.92-1.noarch.rpm"
+< sha256 = "a40e9df1f471063e0182a935ae4304018975ee7b56f1d9f78b848b50f1fad8b4"
+---
+> version = "13.5.37-1"
+> href = "cuda-toolkit-config-common-13.5.37-1.noarch.rpm"
+> sha256 = "f030f8b9451bfcceac9f5a9287c610842c9f7e04c74cbfe6349f3ee2ddef4ade"
+182,184c182,184
+< version = "13.4.92-1"
+< href = "cuda-toolkit-13-config-common-13.4.92-1.noarch.rpm"
+< sha256 = "ead1cc2d25007bc4e6b2b03e3007996dbc5dbbb590615c6cf3fd7bb8cfe1f56b"
+---
+> version = "13.5.37-1"
+> href = "cuda-toolkit-13-config-common-13.5.37-1.noarch.rpm"
+> sha256 = "124ec71a9cf709ff92e5f625ac052297ca4e45eab97c38dfafe94ee4ae0880ae"
+189,191c189,191
+< version = "13.4.92-1"
+< href = "cuda-toolkit-config-common-13.4.92-1.noarch.rpm"
+< sha256 = "a40e9df1f471063e0182a935ae4304018975ee7b56f1d9f78b848b50f1fad8b4"
+verify --signatures cu12 exit=0
+verify --signatures cu13 exit=0
+++ date -u
+Fri Nov 20 04:45:02 AM UTC 2026
+++ git rev-parse HEAD
+2db18de955282844c70681afbec7257d1adf6f51
+++ python3 ci/cuda_toolkit.py download --plugin cu12 --dest /home/sskg8/Projects/dyng-work/tools/ci-cuda/rpms-cu12
+cuda_toolkit: 12 RPMs of CUDA 12.9 in /home/sskg8/Projects/dyng-work/tools/ci-cuda/rpms-cu12, verified (SHA-256 and NVIDIA's signature, key 610C7B14E068A878070DA4E99CD0A493D42D0685)
+++ python3 ci/cuda_toolkit.py verify --signatures --plugin cu12 --dest /home/sskg8/Projects/dyng-work/tools/ci-cuda/rpms-cu12
+++ echo 'verify cu12 rc=0'
+verify cu12 rc=0
+++ python3 ci/cuda_toolkit.py download --plugin cu13 --dest /home/sskg8/Projects/dyng-work/tools/ci-cuda/rpms-cu13-13.5
+cuda_toolkit: 13 RPMs of CUDA 13.5 in /home/sskg8/Projects/dyng-work/tools/ci-cuda/rpms-cu13-13.5, verified (SHA-256 and NVIDIA's signature, key 610C7B14E068A878070DA4E99CD0A493D42D0685)
+++ python3 ci/cuda_toolkit.py verify --signatures --plugin cu13 --dest /home/sskg8/Projects/dyng-work/tools/ci-cuda/rpms-cu13-13.5
+++ echo 'verify cu13 rc=0'
+verify cu13 rc=0
+++ python3 ci/cuda_toolkit.py extract --plugin cu13 --rpms /home/sskg8/Projects/dyng-work/tools/ci-cuda/rpms-cu13-13.5 --dest /home/sskg8/Projects/dyng-work/tools/ci-cuda/root-cu13-13.5
+/home/sskg8/Projects/dyng-work/tools/ci-cuda/root-cu13-13.5/usr/local/cuda-13.5
+++ ls /home/sskg8/Projects/dyng-work/tools/ci-cuda/root-cu13-13.5/usr/local/cuda-13.5/
+bin
+EULA.txt
+include
+lib64
+nvvm
+targets
+++ /home/sskg8/Projects/dyng-work/tools/ci-cuda/root-cu13-13.5/usr/local/cuda-13.5/bin/nvcc --version
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2026 NVIDIA Corporation
+Built on Mon_Oct_12_19:25:48_PDT_2026
+Cuda compilation tools, release 13.5, V13.5.37
+Build cuda_13.5.r13.5/compiler.39125733_0

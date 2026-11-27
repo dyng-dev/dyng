@@ -26,10 +26,11 @@ those files, and the documentation check fails when a quoted line changes withou
 
 The programs and their input are in the repository, not in the installed package: clone it and
 run every command of this page from its root (the tag of your version keeps the files as this
-page quotes them):
+page quotes them; they are unchanged since `v0.3.0`, so with 0.3.0 installed clone that tag
+instead):
 
 ```bash
-git clone --branch v0.3.0 https://github.com/dyng-dev/dyng.git
+git clone --branch v0.4.0 https://github.com/dyng-dev/dyng.git
 cd dyng
 ```
 

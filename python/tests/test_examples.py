@@ -241,14 +241,13 @@ def test_the_triad_count_examples_fit_plan_9_6() -> None:
 # --- hyper_sssp (0.4) --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend", ["sequential", "cuda"])
+@pytest.mark.parametrize("backend", ["sequential", _CUDA])
 def test_hyper_sssp_prints_the_expected_distances(backend: str) -> None:
     # examples/data/hyper_sssp_update.expected.txt: the oracle's distances and parents
     # (test_the_hyper_sssp_expected_output_is_the_oracle); examples/cpp/hyper_sssp_update.cpp
     # prints the same bytes (CTest example.hyper_sssp_update.*, and ci/cmake_consumer.sh against
     # the installed package). Explicit resources: hyper_sssp has no OpenMP backend in 0.4 (HD14).
-    if backend == "cuda" and not dyng.config()["backends"]["cuda"]:
-        pytest.skip("needs a CUDA plugin module and a visible CUDA device")
+    # The cuda case is a gpu test (_CUDA), so the GPU tests of the plugin wheels run it (R041).
     data = REPO / "examples" / "data"
     out = _run(
         EXAMPLES / "hyper_sssp.py", data / "hyper_sssp.hg", data / "hyper_sssp.dgt", backend

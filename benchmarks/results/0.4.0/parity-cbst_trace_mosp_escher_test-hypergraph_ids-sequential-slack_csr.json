@@ -1,0 +1,103 @@
+{
+ "set": "cbst_trace_mosp_escher_test",
+ "kind": "hypergraph_ids",
+ "date": "2026-11-21T02:41:38+00:00",
+ "goldens": {
+  "manifest_sha256": "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60"
+ },
+ "port": {
+  "commit": "f60a2f3af5c5e95efc5ef8e05279b9e91cd5af42"
+ },
+ "executable": "build/parity/cpp/tests/dyng_hypergraph_ids",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "sequential:hypergraph_ids/slack_csr"
+ ],
+ "checks": {
+  "model": true,
+  "verified": true,
+  "line_graph_oracle": true
+ },
+ "totals": {
+  "sessions": 153,
+  "batches": 724,
+  "ids_compared": 74984,
+  "rows_compared": 3240279,
+  "mismatch_count": 0
+ },
+ "matrix": {
+  "001-test_cbst_smoke": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "002-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "003-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "004-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "005-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "006-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "007-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "008-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "009-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "010-test_cbst_ops": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "011-test_dynamicgraph_roundtrip": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "012-test_snapshot_matches_updateCSR": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "013-test_h2h_construction": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "014-test_h2h_delta": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "015-test_hsosp_matches_dijkstra": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "016-test_hsosp_scale": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "017-hsospStress": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "018-hsospStress": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "019-hsospBench": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "020-hsospBench": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "021-hsospBench": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "023-stressTest": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "024-parallelStressTest": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  },
+  "025-parallelStressTest": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  }
+ },
+ "passed": true
+}

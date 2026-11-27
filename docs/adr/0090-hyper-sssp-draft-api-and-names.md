@@ -9,6 +9,10 @@
   technical ADRs"). The public names the decided list does not spell out are listed for the
   author's acknowledgement (section 6; GOVERNANCE.md, Open decisions, M11 (HD)). It carries out
   part of M11a step 4 (PLAN 4.8, 5.3; the M11a acceptance criteria 13 and 14's API parts).
+- **Decided:** the author acknowledged on 2026-11-11 (GOVERNANCE.md, approvals log, the row
+  "M11's public names beyond HD12's list") the names of section 6, and confirmed on 2026-11-18
+  (the row "AD15 and HD17: the stability of 0.4's surfaces") that hyper_sssp is `stable` from
+  0.4.0; the acknowledgement above is closed.
 - **Date:** 2026-10-29
 - **Deciders:** S M Shovan (HD8, HD11-HD14, HD17, 2026-10-28); the AI assistant, on the author's
   behalf, for the technical parts (M11a, step hyper-sssp-sequential-asis-cuda)

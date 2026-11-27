@@ -1,0 +1,5 @@
+# Copy of $DYNG_SCRATCH/runs/r041/textfix/api-check.log (sha256 c323c7065cee341317cfec34a105f4a5b92fed3e854b9c79e8063704d27918b5, 390 bytes), written by parity/certify.py check.
+==> the frozen C++ API against 4016b469c3848d4fc4509b8bb1661ac9ce7b4564 (ci/api_snapshot.py --against)
+api-snapshot: no breaking change of the frozen C++ API against 4016b469c3848d4fc4509b8bb1661ac9ce7b4564
+==> griffe check dyng against 4016b469c3848d4fc4509b8bb1661ac9ce7b4564 (griffe 2.3.0)
+api-check: no breaking change of the Python API against 4016b469c3848d4fc4509b8bb1661ac9ce7b4564

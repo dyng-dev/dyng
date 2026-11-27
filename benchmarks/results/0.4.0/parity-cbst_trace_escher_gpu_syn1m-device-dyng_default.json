@@ -1,0 +1,28 @@
+{
+ "set": "cbst_trace_escher_gpu_syn1m",
+ "date": "2026-11-21T02:26:39+00:00",
+ "goldens": {
+  "manifest_sha256": "d73a368586dd3145cc93d60484032d76f171d8612310c6bc3ec8aef7ffd659d8"
+ },
+ "port": {
+  "commit": "f60a2f3af5c5e95efc5ef8e05279b9e91cd5af42"
+ },
+ "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "reference": "ESCHER-GPU",
+ "configs": [
+  "device:dyng_default/policy"
+ ],
+ "judged_against_host_model": false,
+ "matrix": {
+  "syn1m_b50k_s1": {
+   "device:dyng_default/policy": "equal"
+  },
+  "syn1m_b50k_s2": {
+   "device:dyng_default/policy": "equal"
+  },
+  "syn1m_b50k_s3": {
+   "device:dyng_default/policy": "equal"
+  }
+ },
+ "passed": true
+}

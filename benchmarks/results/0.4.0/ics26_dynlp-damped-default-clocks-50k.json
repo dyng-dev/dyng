@@ -1,0 +1,1399 @@
+{
+ "schema": 1,
+ "algorithm": "label_propagation",
+ "command": "run",
+ "what": "the A/B readings of dyng-compat-dynlp against LabelPropagation-CUDA@a276a3a (AD2, AD3): update[sum] and end_to_end on damped (gated), in_place reported",
+ "date": "2026-11-20T07:15:21Z",
+ "date_end": "2026-11-20T07:15:31Z",
+ "reference": {
+  "name": "LabelPropagation-CUDA",
+  "commit": "a276a3a4e00db1f4b6d24d2bc7ba4d9bc71b6d87",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/LabelPropagation-CUDA@a276a3a/unpatched/bin/dynLP",
+  "build": "its own Makefile with the defaults (parity/references.toml: make all bin/propagation_test bin/input_contract_test; ARCH=sm_86, nvcc 13.1, g++ 12.2)"
+ },
+ "port": {
+  "name": "dyng-compat-dynlp",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-dynlp",
+  "commit": "f60a2f3af5c5e95efc5ef8e05279b9e91cd5af42",
+  "argv": "the original's timed argv + --backend cuda",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "build": "build/parity-cuda"
+  },
+  "time_ms": "a pair of CUDA events on the resources' stream around each public label_propagation::update() call (AD2); the host wall time of the call in dyng_times.csv"
+ },
+ "protocol": {
+  "gpu": 0,
+  "lock": "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)",
+  "order": "A/B/A/B: in every round O, then the port, one process each, the same session",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "argv": "bench/run.sh's: --quiet --noValidate, the graph files and the labels written into a fresh per-round scratch directory on the same filesystem and deleted after the round (--noGraphFiles only at 50m); the port adds --backend cuda",
+  "clocks": "the lock the baseline recorded per case and schedule (ADRs 0018, 0021)",
+  "rounds": {
+   "5k5": 21,
+   "50k": 21,
+   "500k": 21,
+   "5m": 11,
+   "5m1": 11,
+   "50m": 3
+  },
+  "statistic": "median; ratio = port / original",
+  "gates": {
+   "update[sum]": 1.05,
+   "end_to_end": 1.1
+  },
+  "contamination_monitor": "contaminated pairs repeated (perf_ab.MachineMonitor); never --keep-contaminated",
+  "region_map": "parity/timed_regions/label_propagation.toml"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+ },
+ "results": {
+  "50k/damped": {
+   "case": "50k",
+   "schedule": "damped",
+   "argv": [
+    "--totalNodes",
+    "50000",
+    "--numBatches",
+    "10",
+    "--avgDegree",
+    "5",
+    "--delta",
+    "0.0001",
+    "--seed",
+    "42",
+    "--update",
+    "damped",
+    "--quiet",
+    "--noValidate",
+    "--output",
+    "<scratch>"
+   ],
+   "lock": {
+    "lock": "none",
+    "source": "none"
+   },
+   "clocks": {
+    "control": "none",
+    "note": "default GPU clocks (DVFS), as measured"
+   },
+   "rounds": 11,
+   "complete": true,
+   "regions": {
+    "update[b0]": {
+     "original_median_ms": 0.201,
+     "port_median_ms": 0.303,
+     "ratio": 1.507462686567164,
+     "original": {
+      "median": 0.201,
+      "min": 0.198,
+      "max": 0.239,
+      "spread": 0.20398009950248747,
+      "samples": [
+       0.2,
+       0.202,
+       0.201,
+       0.205,
+       0.199,
+       0.199,
+       0.239,
+       0.234,
+       0.201,
+       0.198,
+       0.199
+      ]
+     },
+     "port": {
+      "median": 0.303,
+      "min": 0.289,
+      "max": 0.317,
+      "spread": 0.0924092409240925,
+      "samples": [
+       0.308,
+       0.317,
+       0.289,
+       0.291,
+       0.301,
+       0.301,
+       0.313,
+       0.296,
+       0.315,
+       0.303,
+       0.304
+      ]
+     }
+    },
+    "update[b1]": {
+     "original_median_ms": 6.761,
+     "port_median_ms": 6.831,
+     "ratio": 1.010353498003254,
+     "original": {
+      "median": 6.761,
+      "min": 6.715,
+      "max": 7.569,
+      "spread": 0.12631267563969828,
+      "samples": [
+       7.569,
+       6.749,
+       6.777,
+       6.771,
+       6.75,
+       6.772,
+       6.761,
+       6.715,
+       6.728,
+       6.729,
+       6.869
+      ]
+     },
+     "port": {
+      "median": 6.831,
+      "min": 6.759,
+      "max": 6.924,
+      "spread": 0.02415458937198068,
+      "samples": [
+       6.852,
+       6.759,
+       6.817,
+       6.798,
+       6.91,
+       6.881,
+       6.87,
+       6.828,
+       6.831,
+       6.819,
+       6.924
+      ]
+     }
+    },
+    "update[b2]": {
+     "original_median_ms": 19.055,
+     "port_median_ms": 19.244,
+     "ratio": 1.0099186565205982,
+     "original": {
+      "median": 19.055,
+      "min": 19.015,
+      "max": 21.398,
+      "spread": 0.12505903962214637,
+      "samples": [
+       21.398,
+       19.076,
+       19.087,
+       19.088,
+       19.057,
+       19.015,
+       19.03,
+       19.038,
+       19.04,
+       19.052,
+       19.055
+      ]
+     },
+     "port": {
+      "median": 19.244,
+      "min": 19.186,
+      "max": 19.34,
+      "spread": 0.00800249428393265,
+      "samples": [
+       19.227,
+       19.215,
+       19.186,
+       19.34,
+       19.24,
+       19.249,
+       19.242,
+       19.319,
+       19.305,
+       19.247,
+       19.244
+      ]
+     }
+    },
+    "update[b3]": {
+     "original_median_ms": 19.992,
+     "port_median_ms": 20.163,
+     "ratio": 1.0085534213685474,
+     "original": {
+      "median": 19.992,
+      "min": 19.848,
+      "max": 22.161,
+      "spread": 0.11569627851140468,
+      "samples": [
+       22.161,
+       19.995,
+       19.992,
+       19.966,
+       20.043,
+       19.986,
+       19.948,
+       19.997,
+       20.01,
+       19.848,
+       19.987
+      ]
+     },
+     "port": {
+      "median": 20.163,
+      "min": 20.068,
+      "max": 20.204,
+      "spread": 0.006745028021623728,
+      "samples": [
+       20.103,
+       20.11,
+       20.204,
+       20.068,
+       20.199,
+       20.16,
+       20.166,
+       20.163,
+       20.166,
+       20.116,
+       20.204
+      ]
+     }
+    },
+    "update[b4]": {
+     "original_median_ms": 14.021,
+     "port_median_ms": 14.251,
+     "ratio": 1.0164039654803507,
+     "original": {
+      "median": 14.021,
+      "min": 13.926,
+      "max": 15.621,
+      "spread": 0.12089009343128167,
+      "samples": [
+       15.621,
+       14.039,
+       13.936,
+       14.05,
+       13.979,
+       13.926,
+       14.057,
+       13.979,
+       14.034,
+       13.962,
+       14.021
+      ]
+     },
+     "port": {
+      "median": 14.251,
+      "min": 14.188,
+      "max": 14.342,
+      "spread": 0.010806259209880003,
+      "samples": [
+       14.287,
+       14.193,
+       14.299,
+       14.204,
+       14.333,
+       14.251,
+       14.201,
+       14.233,
+       14.327,
+       14.188,
+       14.342
+      ]
+     }
+    },
+    "update[b5]": {
+     "original_median_ms": 11.994,
+     "port_median_ms": 12.253,
+     "ratio": 1.0215941303985325,
+     "original": {
+      "median": 11.994,
+      "min": 11.952,
+      "max": 13.307,
+      "spread": 0.11297315324328835,
+      "samples": [
+       13.307,
+       11.996,
+       12.068,
+       12.002,
+       11.973,
+       11.994,
+       11.985,
+       11.961,
+       12.046,
+       11.981,
+       11.952
+      ]
+     },
+     "port": {
+      "median": 12.253,
+      "min": 12.163,
+      "max": 12.294,
+      "spread": 0.010691259283440809,
+      "samples": [
+       12.243,
+       12.257,
+       12.262,
+       12.274,
+       12.294,
+       12.241,
+       12.253,
+       12.163,
+       12.23,
+       12.174,
+       12.261
+      ]
+     }
+    },
+    "update[b6]": {
+     "original_median_ms": 7.8,
+     "port_median_ms": 7.869,
+     "ratio": 1.008846153846154,
+     "original": {
+      "median": 7.8,
+      "min": 7.749,
+      "max": 8.426,
+      "spread": 0.08679487179487186,
+      "samples": [
+       8.426,
+       7.775,
+       7.829,
+       7.786,
+       7.798,
+       7.837,
+       7.874,
+       7.758,
+       7.8,
+       7.818,
+       7.749
+      ]
+     },
+     "port": {
+      "median": 7.869,
+      "min": 7.823,
+      "max": 7.957,
+      "spread": 0.0170288473757783,
+      "samples": [
+       7.93,
+       7.957,
+       7.858,
+       7.844,
+       7.924,
+       7.869,
+       7.823,
+       7.861,
+       7.946,
+       7.865,
+       7.914
+      ]
+     }
+    },
+    "update[b7]": {
+     "original_median_ms": 7.006,
+     "port_median_ms": 7.106,
+     "ratio": 1.0142734798743933,
+     "original": {
+      "median": 7.006,
+      "min": 6.957,
+      "max": 7.696,
+      "spread": 0.10548101627176704,
+      "samples": [
+       7.696,
+       7.006,
+       7.024,
+       7.024,
+       6.957,
+       6.969,
+       7.053,
+       7.012,
+       6.973,
+       6.958,
+       6.976
+      ]
+     },
+     "port": {
+      "median": 7.106,
+      "min": 7.063,
+      "max": 7.16,
+      "spread": 0.013650436251055505,
+      "samples": [
+       7.134,
+       7.115,
+       7.088,
+       7.1,
+       7.076,
+       7.063,
+       7.16,
+       7.106,
+       7.112,
+       7.07,
+       7.117
+      ]
+     }
+    },
+    "update[b8]": {
+     "original_median_ms": 4.91,
+     "port_median_ms": 5.023,
+     "ratio": 1.0230142566191445,
+     "original": {
+      "median": 4.91,
+      "min": 4.889,
+      "max": 5.298,
+      "spread": 0.08329938900203662,
+      "samples": [
+       5.298,
+       4.889,
+       4.914,
+       4.904,
+       4.911,
+       4.896,
+       4.973,
+       4.898,
+       4.934,
+       4.901,
+       4.91
+      ]
+     },
+     "port": {
+      "median": 5.023,
+      "min": 4.973,
+      "max": 5.064,
+      "spread": 0.018116663348596497,
+      "samples": [
+       5.029,
+       5.023,
+       4.995,
+       5.064,
+       5.017,
+       5.038,
+       5.012,
+       5.025,
+       4.973,
+       5.04,
+       5.021
+      ]
+     }
+    },
+    "update[b9]": {
+     "original_median_ms": 4.105,
+     "port_median_ms": 4.241,
+     "ratio": 1.0331303288672349,
+     "original": {
+      "median": 4.105,
+      "min": 4.087,
+      "max": 4.421,
+      "spread": 0.08136419001218038,
+      "samples": [
+       4.421,
+       4.087,
+       4.12,
+       4.12,
+       4.09,
+       4.105,
+       4.096,
+       4.098,
+       4.12,
+       4.099,
+       4.115
+      ]
+     },
+     "port": {
+      "median": 4.241,
+      "min": 4.199,
+      "max": 4.269,
+      "spread": 0.01650554114595621,
+      "samples": [
+       4.231,
+       4.199,
+       4.241,
+       4.26,
+       4.234,
+       4.214,
+       4.253,
+       4.269,
+       4.228,
+       4.256,
+       4.267
+      ]
+     }
+    },
+    "update[sum]": {
+     "original_median_ms": 95.833,
+     "port_median_ms": 97.267,
+     "ratio": 1.0149635303079314,
+     "original": {
+      "median": 95.833,
+      "min": 95.54599999999999,
+      "max": 106.09700000000001,
+      "spread": 0.11009777425312801,
+      "samples": [
+       106.09700000000001,
+       95.81400000000001,
+       95.948,
+       95.916,
+       95.75699999999999,
+       95.699,
+       96.016,
+       95.69,
+       95.886,
+       95.54599999999999,
+       95.833
+      ]
+     },
+     "port": {
+      "median": 97.267,
+      "min": 97.078,
+      "max": 97.598,
+      "spread": 0.005346109163436685,
+      "samples": [
+       97.34400000000001,
+       97.145,
+       97.239,
+       97.243,
+       97.528,
+       97.267,
+       97.293,
+       97.263,
+       97.433,
+       97.078,
+       97.598
+      ]
+     },
+     "bar": 1.05,
+     "gated": true,
+     "within": true
+    },
+    "eval": {
+     "original_median_ms": 2.829,
+     "port_median_ms": 2.339,
+     "ratio": 0.8267939201131141,
+     "original": {
+      "median": 2.829,
+      "min": 2.777,
+      "max": 2.948,
+      "spread": 0.06044538706256621,
+      "samples": [
+       2.83,
+       2.854,
+       2.777,
+       2.804,
+       2.84,
+       2.811,
+       2.861,
+       2.827,
+       2.948,
+       2.815,
+       2.829
+      ]
+     },
+     "port": {
+      "median": 2.339,
+      "min": 2.286,
+      "max": 2.404,
+      "spread": 0.050448909790508714,
+      "samples": [
+       2.319,
+       2.29,
+       2.339,
+       2.358,
+       2.354,
+       2.31,
+       2.294,
+       2.37,
+       2.347,
+       2.404,
+       2.286
+      ]
+     }
+    },
+    "end_to_end": {
+     "original_median_ms": 406.4924716949463,
+     "port_median_ms": 424.9742031097412,
+     "ratio": 1.0454663559640647,
+     "original": {
+      "median": 406.4924716949463,
+      "min": 401.22008323669434,
+      "max": 439.9416446685791,
+      "spread": 0.09525775783848588,
+      "samples": [
+       439.9416446685791,
+       406.48794174194336,
+       410.51626205444336,
+       429.9507141113281,
+       403.90634536743164,
+       401.22008323669434,
+       413.4101867675781,
+       413.44761848449707,
+       406.4924716949463,
+       403.1405448913574,
+       405.03692626953125
+      ]
+     },
+     "port": {
+      "median": 424.9742031097412,
+      "min": 414.6687984466553,
+      "max": 441.36548042297363,
+      "spread": 0.06281953535288934,
+      "samples": [
+       418.781042098999,
+       424.5884418487549,
+       430.1469326019287,
+       441.36548042297363,
+       414.77251052856445,
+       414.6687984466553,
+       424.9742031097412,
+       431.835412979126,
+       426.9063472747803,
+       425.8081912994385,
+       422.107458114624
+      ]
+     },
+     "bar": 1.1,
+     "gated": true,
+     "within": true
+    }
+   },
+   "per_batch": [
+    {
+     "batch": 0,
+     "original": {
+      "time_ms": {
+       "median": 0.201,
+       "min": 0.198,
+       "max": 0.239,
+       "spread": 0.20398009950248747,
+       "samples": [
+        0.2,
+        0.202,
+        0.201,
+        0.205,
+        0.199,
+        0.199,
+        0.239,
+        0.234,
+        0.201,
+        0.198,
+        0.199
+       ]
+      },
+      "iterations": 0,
+      "components": 497,
+      "frontier_visits": 0
+     },
+     "port": {
+      "time_ms": {
+       "median": 0.303,
+       "min": 0.289,
+       "max": 0.317,
+       "spread": 0.0924092409240925,
+       "samples": [
+        0.308,
+        0.317,
+        0.289,
+        0.291,
+        0.301,
+        0.301,
+        0.313,
+        0.296,
+        0.315,
+        0.303,
+        0.304
+       ]
+      },
+      "host_ms": {
+       "median": 0.312825,
+       "min": 0.298427,
+       "max": 0.32606,
+       "spread": 0.08833373291776558,
+       "samples": [
+        0.317885,
+        0.32606,
+        0.298427,
+        0.300447,
+        0.309539,
+        0.31047,
+        0.32193,
+        0.30666,
+        0.324248,
+        0.312825,
+        0.313276
+       ]
+      },
+      "host_vs_event": 1.0324257425742576,
+      "host_disagrees": true,
+      "iterations": 0,
+      "components": 497,
+      "frontier_visits": 0
+     }
+    },
+    {
+     "batch": 1,
+     "original": {
+      "time_ms": {
+       "median": 6.761,
+       "min": 6.715,
+       "max": 7.569,
+       "spread": 0.12631267563969828,
+       "samples": [
+        7.569,
+        6.749,
+        6.777,
+        6.771,
+        6.75,
+        6.772,
+        6.761,
+        6.715,
+        6.728,
+        6.729,
+        6.869
+       ]
+      },
+      "iterations": 869,
+      "components": 4391,
+      "frontier_visits": 38285
+     },
+     "port": {
+      "time_ms": {
+       "median": 6.831,
+       "min": 6.759,
+       "max": 6.924,
+       "spread": 0.02415458937198068,
+       "samples": [
+        6.852,
+        6.759,
+        6.817,
+        6.798,
+        6.91,
+        6.881,
+        6.87,
+        6.828,
+        6.831,
+        6.819,
+        6.924
+       ]
+      },
+      "host_ms": {
+       "median": 6.835271,
+       "min": 6.762661,
+       "max": 6.927877,
+       "spread": 0.024171097239597383,
+       "samples": [
+        6.85603,
+        6.762661,
+        6.820844,
+        6.801542,
+        6.914382,
+        6.8848,
+        6.873599,
+        6.832431,
+        6.835271,
+        6.822351,
+        6.927877
+       ]
+      },
+      "host_vs_event": 1.0006252378861074,
+      "host_disagrees": false,
+      "iterations": 869,
+      "components": 4391,
+      "frontier_visits": 38285
+     }
+    },
+    {
+     "batch": 2,
+     "original": {
+      "time_ms": {
+       "median": 19.055,
+       "min": 19.015,
+       "max": 21.398,
+       "spread": 0.12505903962214637,
+       "samples": [
+        21.398,
+        19.076,
+        19.087,
+        19.088,
+        19.057,
+        19.015,
+        19.03,
+        19.038,
+        19.04,
+        19.052,
+        19.055
+       ]
+      },
+      "iterations": 1299,
+      "components": 4551,
+      "frontier_visits": 646691
+     },
+     "port": {
+      "time_ms": {
+       "median": 19.244,
+       "min": 19.186,
+       "max": 19.34,
+       "spread": 0.00800249428393265,
+       "samples": [
+        19.227,
+        19.215,
+        19.186,
+        19.34,
+        19.24,
+        19.249,
+        19.242,
+        19.319,
+        19.305,
+        19.247,
+        19.244
+       ]
+      },
+      "host_ms": {
+       "median": 19.247898,
+       "min": 19.190362,
+       "max": 19.344026,
+       "spread": 0.007983417202231596,
+       "samples": [
+        19.230449,
+        19.218916,
+        19.190362,
+        19.344026,
+        19.243638,
+        19.252371,
+        19.245525,
+        19.3232,
+        19.309042,
+        19.250438,
+        19.247898
+       ]
+      },
+      "host_vs_event": 1.0002025566410309,
+      "host_disagrees": false,
+      "iterations": 1299,
+      "components": 4551,
+      "frontier_visits": 646691
+     }
+    },
+    {
+     "batch": 3,
+     "original": {
+      "time_ms": {
+       "median": 19.992,
+       "min": 19.848,
+       "max": 22.161,
+       "spread": 0.11569627851140468,
+       "samples": [
+        22.161,
+        19.995,
+        19.992,
+        19.966,
+        20.043,
+        19.986,
+        19.948,
+        19.997,
+        20.01,
+        19.848,
+        19.987
+       ]
+      },
+      "iterations": 1229,
+      "components": 4589,
+      "frontier_visits": 1886914
+     },
+     "port": {
+      "time_ms": {
+       "median": 20.163,
+       "min": 20.068,
+       "max": 20.204,
+       "spread": 0.006745028021623728,
+       "samples": [
+        20.103,
+        20.11,
+        20.204,
+        20.068,
+        20.199,
+        20.16,
+        20.166,
+        20.163,
+        20.166,
+        20.116,
+        20.204
+       ]
+      },
+      "host_ms": {
+       "median": 20.166322,
+       "min": 20.071692,
+       "max": 20.207537,
+       "spread": 0.006736230830788071,
+       "samples": [
+        20.106305,
+        20.113735,
+        20.207537,
+        20.071692,
+        20.20296,
+        20.164058,
+        20.169184,
+        20.166322,
+        20.16947,
+        20.119559,
+        20.206953
+       ]
+      },
+      "host_vs_event": 1.000164757228587,
+      "host_disagrees": false,
+      "iterations": 1229,
+      "components": 4589,
+      "frontier_visits": 1886914
+     }
+    },
+    {
+     "batch": 4,
+     "original": {
+      "time_ms": {
+       "median": 14.021,
+       "min": 13.926,
+       "max": 15.621,
+       "spread": 0.12089009343128167,
+       "samples": [
+        15.621,
+        14.039,
+        13.936,
+        14.05,
+        13.979,
+        13.926,
+        14.057,
+        13.979,
+        14.034,
+        13.962,
+        14.021
+       ]
+      },
+      "iterations": 820,
+      "components": 4663,
+      "frontier_visits": 2295649
+     },
+     "port": {
+      "time_ms": {
+       "median": 14.251,
+       "min": 14.188,
+       "max": 14.342,
+       "spread": 0.010806259209880003,
+       "samples": [
+        14.287,
+        14.193,
+        14.299,
+        14.204,
+        14.333,
+        14.251,
+        14.201,
+        14.233,
+        14.327,
+        14.188,
+        14.342
+       ]
+      },
+      "host_ms": {
+       "median": 14.254285,
+       "min": 14.191588,
+       "max": 14.346321,
+       "spread": 0.010855191965082797,
+       "samples": [
+        14.290938,
+        14.196595,
+        14.303201,
+        14.207454,
+        14.336792,
+        14.254285,
+        14.204483,
+        14.236994,
+        14.331214,
+        14.191588,
+        14.346321
+       ]
+      },
+      "host_vs_event": 1.0002305101396394,
+      "host_disagrees": false,
+      "iterations": 820,
+      "components": 4663,
+      "frontier_visits": 2295649
+     }
+    },
+    {
+     "batch": 5,
+     "original": {
+      "time_ms": {
+       "median": 11.994,
+       "min": 11.952,
+       "max": 13.307,
+       "spread": 0.11297315324328835,
+       "samples": [
+        13.307,
+        11.996,
+        12.068,
+        12.002,
+        11.973,
+        11.994,
+        11.985,
+        11.961,
+        12.046,
+        11.981,
+        11.952
+       ]
+      },
+      "iterations": 733,
+      "components": 4636,
+      "frontier_visits": 2030433
+     },
+     "port": {
+      "time_ms": {
+       "median": 12.253,
+       "min": 12.163,
+       "max": 12.294,
+       "spread": 0.010691259283440809,
+       "samples": [
+        12.243,
+        12.257,
+        12.262,
+        12.274,
+        12.294,
+        12.241,
+        12.253,
+        12.163,
+        12.23,
+        12.174,
+        12.261
+       ]
+      },
+      "host_ms": {
+       "median": 12.256373,
+       "min": 12.16704,
+       "max": 12.29747,
+       "spread": 0.010641810591110476,
+       "samples": [
+        12.247264,
+        12.260387,
+        12.266006,
+        12.277734,
+        12.29747,
+        12.24526,
+        12.256373,
+        12.16704,
+        12.233759,
+        12.177749,
+        12.264052
+       ]
+      },
+      "host_vs_event": 1.000275279523382,
+      "host_disagrees": false,
+      "iterations": 733,
+      "components": 4636,
+      "frontier_visits": 2030433
+     }
+    },
+    {
+     "batch": 6,
+     "original": {
+      "time_ms": {
+       "median": 7.8,
+       "min": 7.749,
+       "max": 8.426,
+       "spread": 0.08679487179487186,
+       "samples": [
+        8.426,
+        7.775,
+        7.829,
+        7.786,
+        7.798,
+        7.837,
+        7.874,
+        7.758,
+        7.8,
+        7.818,
+        7.749
+       ]
+      },
+      "iterations": 356,
+      "components": 4664,
+      "frontier_visits": 1816057
+     },
+     "port": {
+      "time_ms": {
+       "median": 7.869,
+       "min": 7.823,
+       "max": 7.957,
+       "spread": 0.0170288473757783,
+       "samples": [
+        7.93,
+        7.957,
+        7.858,
+        7.844,
+        7.924,
+        7.869,
+        7.823,
+        7.861,
+        7.946,
+        7.865,
+        7.914
+       ]
+      },
+      "host_ms": {
+       "median": 7.872465,
+       "min": 7.82683,
+       "max": 7.960551,
+       "spread": 0.016985912290495994,
+       "samples": [
+        7.933907,
+        7.960551,
+        7.861652,
+        7.84785,
+        7.927699,
+        7.872465,
+        7.82683,
+        7.864487,
+        7.949368,
+        7.869028,
+        7.917959
+       ]
+      },
+      "host_vs_event": 1.0004403354937095,
+      "host_disagrees": false,
+      "iterations": 356,
+      "components": 4664,
+      "frontier_visits": 1816057
+     }
+    },
+    {
+     "batch": 7,
+     "original": {
+      "time_ms": {
+       "median": 7.006,
+       "min": 6.957,
+       "max": 7.696,
+       "spread": 0.10548101627176704,
+       "samples": [
+        7.696,
+        7.006,
+        7.024,
+        7.024,
+        6.957,
+        6.969,
+        7.053,
+        7.012,
+        6.973,
+        6.958,
+        6.976
+       ]
+      },
+      "iterations": 405,
+      "components": 4677,
+      "frontier_visits": 1588626
+     },
+     "port": {
+      "time_ms": {
+       "median": 7.106,
+       "min": 7.063,
+       "max": 7.16,
+       "spread": 0.013650436251055505,
+       "samples": [
+        7.134,
+        7.115,
+        7.088,
+        7.1,
+        7.076,
+        7.063,
+        7.16,
+        7.106,
+        7.112,
+        7.07,
+        7.117
+       ]
+      },
+      "host_ms": {
+       "median": 7.109644,
+       "min": 7.06711,
+       "max": 7.163598,
+       "spread": 0.013571424954611059,
+       "samples": [
+        7.137788,
+        7.118323,
+        7.09167,
+        7.103522,
+        7.080202,
+        7.06711,
+        7.163598,
+        7.109644,
+        7.115466,
+        7.075602,
+        7.12096
+       ]
+      },
+      "host_vs_event": 1.0005128060793695,
+      "host_disagrees": false,
+      "iterations": 405,
+      "components": 4677,
+      "frontier_visits": 1588626
+     }
+    },
+    {
+     "batch": 8,
+     "original": {
+      "time_ms": {
+       "median": 4.91,
+       "min": 4.889,
+       "max": 5.298,
+       "spread": 0.08329938900203662,
+       "samples": [
+        5.298,
+        4.889,
+        4.914,
+        4.904,
+        4.911,
+        4.896,
+        4.973,
+        4.898,
+        4.934,
+        4.901,
+        4.91
+       ]
+      },
+      "iterations": 180,
+      "components": 4700,
+      "frontier_visits": 1470293
+     },
+     "port": {
+      "time_ms": {
+       "median": 5.023,
+       "min": 4.973,
+       "max": 5.064,
+       "spread": 0.018116663348596497,
+       "samples": [
+        5.029,
+        5.023,
+        4.995,
+        5.064,
+        5.017,
+        5.038,
+        5.012,
+        5.025,
+        4.973,
+        5.04,
+        5.021
+       ]
+      },
+      "host_ms": {
+       "median": 5.026897,
+       "min": 4.977004,
+       "max": 5.068188,
+       "spread": 0.018139221869873236,
+       "samples": [
+        5.032831,
+        5.026897,
+        4.998835,
+        5.068188,
+        5.020853,
+        5.041554,
+        5.015984,
+        5.028567,
+        4.977004,
+        5.042965,
+        5.024368
+       ]
+      },
+      "host_vs_event": 1.0007758311765877,
+      "host_disagrees": false,
+      "iterations": 180,
+      "components": 4700,
+      "frontier_visits": 1470293
+     }
+    },
+    {
+     "batch": 9,
+     "original": {
+      "time_ms": {
+       "median": 4.105,
+       "min": 4.087,
+       "max": 4.421,
+       "spread": 0.08136419001218038,
+       "samples": [
+        4.421,
+        4.087,
+        4.12,
+        4.12,
+        4.09,
+        4.105,
+        4.096,
+        4.098,
+        4.12,
+        4.099,
+        4.115
+       ]
+      },
+      "iterations": 113,
+      "components": 4719,
+      "frontier_visits": 1388674
+     },
+     "port": {
+      "time_ms": {
+       "median": 4.241,
+       "min": 4.199,
+       "max": 4.269,
+       "spread": 0.01650554114595621,
+       "samples": [
+        4.231,
+        4.199,
+        4.241,
+        4.26,
+        4.234,
+        4.214,
+        4.253,
+        4.269,
+        4.228,
+        4.256,
+        4.267
+       ]
+      },
+      "host_ms": {
+       "median": 4.244483,
+       "min": 4.201891,
+       "max": 4.273034,
+       "spread": 0.01676128753490123,
+       "samples": [
+        4.234729,
+        4.201891,
+        4.244483,
+        4.264081,
+        4.237367,
+        4.217492,
+        4.256389,
+        4.273034,
+        4.231917,
+        4.260118,
+        4.270371
+       ]
+      },
+      "host_vs_event": 1.0008212685687339,
+      "host_disagrees": false,
+      "iterations": 113,
+      "components": 4719,
+      "frontier_visits": 1388674
+     }
+    }
+   ],
+   "guard": {
+    "rounds_checked": 11,
+    "passed": true,
+    "rule": "damped: the port's per-batch counts, accuracy and label bytes equal the original's and their own first round's; in_place: the components"
+   },
+   "monitor": {
+    "rule": "a pair is repeated if either side's window had a foreign CPU load above 2.0 cores, a foreign GPU process, or (locked) a busy sample at other clocks",
+    "rejected": []
+   },
+   "audit": {
+    "rule": "a round is flagged when the 1-minute load average exceeds 16.0 or procs_blocked exceeds 4 at the start or end of either side, or a foreign compute process was on the timed GPU; a flagged reading is taken again (ADR 0056)",
+    "load_average_max": 4.2197265625,
+    "procs_blocked_max": 0,
+    "flagged_rounds": [],
+    "flagged": false
+   },
+   "rejected": []
+  }
+ },
+ "compacted": "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the rejected rounds) and triad_count's per-round stage timers (results.*.original_rounds and port_rounds; every row's samples stay in its region) were dropped to keep the repository small; the verdicts, samples, rejected rounds with their reasons, clock check and GPU summary are unchanged; the full record: $DYNG_SCRATCH/runs/bench/0.4.0rc1/ics26_dynlp-damped-default-clocks-50k.json"
+}

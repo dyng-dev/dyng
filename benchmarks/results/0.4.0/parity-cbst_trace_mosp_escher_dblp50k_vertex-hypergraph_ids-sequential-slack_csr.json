@@ -1,0 +1,34 @@
+{
+ "set": "cbst_trace_mosp_escher_dblp50k_vertex",
+ "kind": "hypergraph_ids",
+ "date": "2026-11-21T02:42:55+00:00",
+ "goldens": {
+  "manifest_sha256": "1068e319acbc9f9199e712f9e39a09221554e6e1af616d9d03a915f028cf0cd4"
+ },
+ "port": {
+  "commit": "f60a2f3af5c5e95efc5ef8e05279b9e91cd5af42"
+ },
+ "executable": "build/parity/cpp/tests/dyng_hypergraph_ids",
+ "reference": "MOSP_ESCHER",
+ "configs": [
+  "sequential:hypergraph_ids/slack_csr"
+ ],
+ "checks": {
+  "model": true,
+  "verified": true,
+  "line_graph_oracle": true
+ },
+ "totals": {
+  "sessions": 1,
+  "batches": 3,
+  "ids_compared": 0,
+  "rows_compared": 9867176,
+  "mismatch_count": 0
+ },
+ "matrix": {
+  "dblp_vertex_50000": {
+   "sequential:hypergraph_ids/slack_csr": "equal"
+  }
+ },
+ "passed": true
+}

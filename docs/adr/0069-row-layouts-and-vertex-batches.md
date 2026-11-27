@@ -15,6 +15,9 @@
   C1-C8)"). The names this
   ADR adds beyond AD12's list are listed in section 9 and in GOVERNANCE.md's open-decision
   sub-block `M10 (AD)`, pending the author's acknowledgement.
+- **Decided:** the author approved on 2026-11-12 (GOVERNANCE.md, approvals log, the row "M10's
+  public names beyond AD12's list") every name beyond AD12's list (section 9), as ADR 0109's section
+  "The new public names" lists them, frozen with the API; the acknowledgement above is closed.
 - **Date:** 2026-10-29
 - **Deciders:** the AI assistant, on the author's behalf (M10a, step
   host-container-sequential-driver)
