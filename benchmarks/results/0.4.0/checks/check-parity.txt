@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r041/fix/check-parity.log (sha256 b7baa9181a9adc6e28c71ab541ac5dd009081d8f359b63f6d8c694c890ae512a, 1724944 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r041/textfix/check-parity.log (sha256 5e744c079080ebfea6d287f1950c53e47a8fdeaad8dabab02f19f1e17be1c3fa, 1724944 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -293,7 +293,7 @@ provenance: OK (342 files checked)
 test data: 1,093,598 bytes in 1486 tracked files under cpp/tests/data (budget 1,250,000 bytes): OK
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-557 passed, 3 skipped in 381.22s (0:06:21)
+557 passed, 3 skipped in 370.38s (0:06:10)
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
@@ -302,13 +302,13 @@ harness: OK
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng and python/plugin/dyng_plugin
 ==> pytest python/tests
-839 passed, 97 skipped in 88.20s (0:01:28)
+839 passed, 97 skipped in 87.64s (0:01:27)
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> the frozen C++ API against 4016b469c3848d4fc4509b8bb1661ac9ce7b4564 (ci/api_snapshot.py --against)
 ==> griffe check dyng against 4016b469c3848d4fc4509b8bb1661ac9ce7b4564 (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.2eMel0/src
+==> copy of the working tree in /tmp/dyng-scaffold.XVKxk3/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 ==> scripts/new_algorithm.py --container hypergraph: one hypergraph algorithm of each family
 ==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)
